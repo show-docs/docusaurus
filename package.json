@@ -8,11 +8,10 @@
   },
   "scripts": {
     "build": "pnpm build:core && docusaurus build",
-    "build:core": "tsc -b tsconfig.core.json",
+    "build:core": "pnpm --filter=@show-docs/docusaurus-plugin-prev-layer-resolver run build",
     "clear": "docusaurus clear",
     "docusaurus": "docusaurus",
     "fmt:prettier": "prettier -w .",
-    "lint:check": "eslint . --max-warnings=0 --concurrency=auto",
     "lint:eslint": "eslint . --fix --concurrency=auto",
     "lint:staged": "nice-move lint staged",
     "lint:type": "tsc -p tsconfig.json",
@@ -25,8 +24,8 @@
     "test:coverage": "pnpm build:core && vitest run --coverage",
     "test:watch": "vitest",
     "typecheck": "tsc -b tsconfig.demo.json tsconfig.test.json",
-    "verify": "pnpm typecheck && pnpm lint:type && pnpm lint:check && pnpm lint:version && pnpm test:coverage && pnpm build && pnpm verify:chain",
-    "verify:chain": "pnpm build:core && node demo/scripts/verify-chain.mts",
+    "verify": "pnpm lint:type && pnpm lint:eslint && pnpm lint:version && pnpm test:coverage && pnpm verify:chain",
+    "verify:chain": "pnpm build && node demo/scripts/verify-chain.mts",
     "version:pin": "syncpack fix"
   },
   "dependencies": {

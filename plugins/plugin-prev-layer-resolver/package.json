@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-plugin-prev-layer-resolver",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "让多个主题层层包裹同一个组件成立，且 @theme-original 官方语义零改动",
   "license": "UNLICENSED",
   "author": {
@@ -24,7 +24,14 @@
       "types": "./dist/index.d.mts"
     }
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
   "peerDependencies": {
     "@docusaurus/core": "^3.10.2",
     "@docusaurus/types": "^3.10.2",

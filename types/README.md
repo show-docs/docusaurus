@@ -3,8 +3,7 @@
 `@theme` 系 specifier 的**类型声明**（`plugin-prev-layer-resolver.d.ts`）。这些模块由 webpack
 的 resolve 阶段改写，磁盘上没有对应目录，所以 TypeScript 需要在这里被告知「它们存在」。
 
-收录口径 = **本仓库真的 import 过它**（`pnpm typecheck` / `pnpm lint:type` 各项目的输入
-文件）。没人 import 的 specifier 不在这儿占位：声明还在会假装「还在用」。
+收录口径 = **本仓库真的 import 过它**（`pnpm lint:type` 各项目的输入文件）。没人 import 的 specifier 不在这儿占位：声明还在会假装「还在用」。
 
 | 声明                | 来源            | 语义                       |
 | ------------------- | --------------- | -------------------------- |

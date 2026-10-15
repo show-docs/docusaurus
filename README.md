@@ -9,9 +9,8 @@ pnpm install
 pnpm start          # 本地预览 http://localhost:3000
 pnpm build          # 编译核心包 + 构建静态站点
 pnpm build:core     # 只用 tsc 编译核心包（源码 plugins/plugin-prev-layer-resolver/src）到它的 dist（即包出口）
-pnpm typecheck      # demo + 测试两个项目的类型（核心包源码随测试一起查；站点根配置不在这里）
 pnpm lint:type      # tsc -p tsconfig.json：唯一把站点根与 *.config.mjs 纳进来的一道（提交钩子也跑）
-pnpm lint:check     # eslint 只判不改（error 与 warning 一起拦：--max-warnings=0；改样式用 pnpm lint:eslint）
+pnpm lint:eslint    # eslint
 pnpm test           # vitest 单元测试（解析语义 + 不变量 + 输入校验 + 真实 resolver 端到端）
 pnpm test:coverage  # 同上 + 覆盖率（红线 100% 只挂在这里：pnpm test 全绿 ≠ CI 全绿）
 pnpm verify:chain   # 读真实 build 产物，验证 4 层链式覆盖成立（先跑 pnpm build）

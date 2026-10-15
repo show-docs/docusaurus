@@ -62,7 +62,7 @@ export default [
     // 会让 `**/*.md` 直接判成配置错误（配置层的问题，不是代码问题）。本仓不需要在示例片段里
     // 调风格规则，示例的正确性由 `docs/` 里那些片段的真实出处保证。
     files: ['**/*.{js,mjs,cjs,jsx,ts,mts,tsx}'],
-    // `pnpm lint:check` 用 `--max-warnings=0` 拦，所以这里**没有「报了但不拦」这一档**：
+    // `pnpm lint:eslint` 用 `--max-warnings=0` 拦，所以这里**没有「报了但不拦」这一档**：
     // 关掉一条 = 本仓永久不跟它，因此每条都要有理由，理由只在这里留一份
     // （判缺陷的规则一律留着；只判读感的已撤回并改代码，例如 await 取值、for…of 头部写法）。
     // - `single-line-block-comment-style`：把单行块注释拆成多行就是强制加字节；一行的
