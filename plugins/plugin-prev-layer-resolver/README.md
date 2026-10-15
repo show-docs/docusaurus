@@ -260,9 +260,15 @@ export default function MyLogo(props) {
 
 ## 实测
 
-`pnpm build && pnpm verify:chain`（读真实 build 产物）逐项断言：没有给 Docusaurus 打补丁、
-`@theme-original` 未被改写、层栈与官方 `loadThemeAliases` 入参同序、官方别名全落在层栈内、
-层路径已归一，以及两条页面的渲染链。判据清单以脚本输出为准（本文件不抄第二份）：
+判据分两档，免 build 的随 `pnpm test` 常规运行（不用等一次真实 build）：
+
+- 没有给 Docusaurus 打补丁、`@theme-original` 未被改写、官方别名全落在层栈内
+  → `test/layers.test.mts`（原在 `verify-chain.mts` 里，已迁出）；
+- 层栈与官方 `loadThemeAliases` 入参同序、层路径已归一
+  → `test/discover.test.mts` 与 `test/layers.test.mts`。
+
+需要真实产物的（两条页面的渲染链）由 `pnpm build && pnpm verify:chain`
+（读真实 build 产物）断言，判据清单以脚本输出为准（本文件不抄第二份）：
 
 ```
 build/index.html              src/theme-logo > theme-c > theme-b > theme-a
@@ -276,7 +282,7 @@ theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。
 > **💡 对照实验**
 > 插件主题里用官方的 `@theme-original` 包裹会 💥 **OOM**（`heap out of memory`）；
 > 换成 `@theme-prev` 构建成功、4 层链全部保留。而这两行的差别**不是**「改了 `@theme-original`」
-> ——`verify:chain` 会断言它没被改动。
+> ——`test/layers.test.mts` 会断言它没被改动。
 
 ## 使用约束（硬性）
 

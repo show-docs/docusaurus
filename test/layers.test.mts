@@ -21,6 +21,8 @@ const {
   resolveFromCore,
   normalizeLayerPath,
 } = await import('../plugins/plugin-prev-layer-resolver/src/layers.mjs');
+const { PluginDiscovery } =
+  await import('../plugins/plugin-prev-layer-resolver/src/plugins.mjs');
 
 /**
 造一份最小可用的假 core：只要「包根 + 锚点文件（lib/webpack/aliases/index.js）+
@@ -527,4 +529,87 @@ describe('探测函数自身的容错（外部输入 / 环境异常都不该抛�
     // 站点层与 fallback 层都是「跟着别人走」的：它们按 cwd / core 位置拼，不在本用例判据里。
     expect(layers.filter((l) => l.kind === 'plugin')).toEqual([]);
   });
+});
+
+describe('真实安装的上游 core 未被补丁（迁自 demo/scripts/verify-chain.mts 第 0 节）', () => {
+  // 「无需补丁 / @theme-original 官方语义零改动」的判据：core 的两个被依赖文件里
+  // 不得出现本方案的**导出名与插件 name** —— 出现即「上游被打补丁」。免 build、纯静态，
+  // 随 `pnpm test` 常规运行（原来要等一次真实 build 才验到）。
+  // 定位走我们自己的 `resolveCoreModule`：它也是运行期唯一的 core 定位路径，
+  // 它失效时层栈整体降级，本用例会连同真因一起红。
+  const selfMarks = [
+    'PrevLayerResolverPlugin',
+    '@show-docs/docusaurus-plugin-prev-layer-resolver',
+  ];
+  const repoRoot = path.resolve(import.meta.dirname, '..');
+  const coreSrc = (relative: string): string => {
+    const file = resolveCoreModule(repoRoot, relative);
+    expect(file, `真实安装下必须能定位 core 的 ${relative}`).toBeTruthy();
+    return fs.readFileSync(file!, 'utf8');
+  };
+
+  it('core 的别名表与 webpack base 与上游一致（不含本方案的导出名与插件 name）', () => {
+    const sources = [
+      coreSrc('webpack/aliases/index.js'),
+      coreSrc('webpack/base.js'),
+    ];
+    for (const mark of selfMarks) {
+      expect(
+        sources.filter((src) => src.includes(mark)),
+        `core 出现了「${mark}」= 上游被打补丁（本方案不需要补丁）`,
+      ).toEqual([]);
+    }
+  });
+
+  it('@theme-original 的官方实现（base.js）未被改写', () => {
+    // 与上一条分开成格：README 的两条承诺（无需补丁 / @theme-original 零改动）各自可见。
+    // 判据取第 0 项（`PrevLayerResolverPlugin` 导出名）：字面量数组越界不可能，就地断言。
+    expect(coreSrc('webpack/base.js')).not.toContain(selfMarks[0]!);
+  });
+});
+
+describe('官方别名全部落在层栈内（真实站点，层栈未漏层；迁自 verify-chain.mts 第 1 节）', () => {
+  // 层栈推导漏掉一层时，该层组件的官方别名会指向栈外 —— @theme-prev/* 与官方
+  // @theme/* 从此解析到两个模块（同组件两套可见性）。判据免 build：官方
+  // `loadThemeAliases` 只要一份插件列表，用发现的那份喂它即可（其主题路径与官方
+  // `loadSite` 那份一致，`test/discover.test.mts` 钉住）。
+  it('官方 loadThemeAliases 的每个 @theme* 落点都归属到某一层', async () => {
+    const repoRoot = path.resolve(import.meta.dirname, '..');
+    const discovered = await new PluginDiscovery(repoRoot, console).discover();
+    // 发现失败（null）时别名表只剩 fallback + 站点层，「全部落栈」会假绿 —— 先钉住。
+    expect(discovered, '真实站点必须能推出插件列表').toBeTruthy();
+    const layers = layersFromPlugins({
+      siteDir: repoRoot,
+      plugins: discovered,
+    });
+    // 覆盖面的前提：三类层都在（fallback / plugin / site），缺一类同样是假绿。
+    expect(new Set(layers.map((l) => l.kind)), '真实站点应推出三类层').toEqual(
+      new Set(['fallback', 'plugin', 'site']),
+    );
+
+    const require = createRequire(import.meta.url);
+    const core = require('@docusaurus/core/lib/webpack/aliases/index.js') as {
+      loadThemeAliases: (input: {
+        siteDir: string;
+        plugins: unknown[];
+      }) => Promise<Record<string, string>>;
+    };
+    expect(typeof core.loadThemeAliases).toBe('function');
+    const aliases = await core.loadThemeAliases({
+      siteDir: repoRoot,
+      plugins: discovered ?? [],
+    });
+
+    // 两侧同口径（realpath）：层 owner 在推导时已归一，别名落点在这里归一 ——
+    // pnpm 的软链不会把「同一目录」算成「栈外」。
+    const owners = layers.map((l) => l.owner);
+    const outside = Object.entries(aliases)
+      .filter(([key, value]) => key.startsWith('@theme') && value)
+      .map(([key, value]) => ({ key, file: normalizeLayerPath(value) }))
+      .filter(({ file }) =>
+        owners.every((o) => file !== o && !file.startsWith(o + path.sep)),
+      )
+      .map(({ key, file }) => `${key} -> ${file}`);
+    expect(outside, '官方别名指向层栈之外 = 层栈漏层').toEqual([]);
+  }, 60_000);
 });

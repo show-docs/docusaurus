@@ -1,7 +1,12 @@
 /**
-验证「多主题链式覆盖同一组件」成立、**无需配置清单 / 无需补丁**，且
-**@theme-original 官方语义零改动**。
+验证「多主题链式覆盖同一组件」在**真实 build 产物**里成立（两条页面的渲染链）。
 运行：pnpm build && pnpm verify:chain
+
+免 build 的判据已迁到单测、随 `pnpm test` 常规运行（无需等一次真实 build）：
+
+  - 没有给 Docusaurus 打补丁、`@theme-original` 官方语义零改动 → `test/layers.test.mts`
+  - 官方别名全部落在层栈内（层栈未漏层）                     → `test/layers.test.mts`
+  - 层栈与官方 `loadThemeAliases` 入参同序、层路径已归一      → `test/discover.test.mts` / `test/layers.test.mts`
 
 核心包用 TypeScript 写（`plugins/plugin-prev-layer-resolver/src/*.mts`），本脚本读取的是
 `pnpm build:core`（tsc）产出的包内 `dist/`，也就是包出口真正指向的那份产物。
@@ -26,29 +31,13 @@
 */
 import fs from 'node:fs';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-
-import type { LoadedPlugin } from '@docusaurus/types';
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
   '..',
 );
-const coreDir = fs.realpathSync(
-  path.join(root, 'node_modules/@docusaurus/core'),
-);
-const coreReq = createRequire(
-  path.join(coreDir, 'lib/webpack/aliases/index.js'),
-);
-// core 的 `lib/webpack/aliases` 只发 CJS，没有类型；形状由下面调用点用得到的那两个钉住。
-const aliasesModule: {
-  loadThemeAliases: (input: {
-    siteDir: string;
-    plugins: LoadedPlugin[];
-  }) => Promise<Record<string, string>>;
-} = coreReq('@docusaurus/core/lib/webpack/aliases/index.js');
 const coreDist = path.join(root, 'plugins/plugin-prev-layer-resolver/dist');
 // `dist/` 是构建产物，类型检查不能依赖它存在，因此**类型从源码取、值从产物取**：
 // 运行期导入显式标注成源码模块的形状，拼错路径或上游改名在这里就红，
@@ -63,7 +52,7 @@ const layersModule: LayersModule = await import(
 const pluginsModule: PluginsModule = await import(
   pathToFileURL(path.join(coreDist, 'plugins.mjs')).href
 );
-const { layersFromPlugins, normalizeLayerPath } = layersModule;
+const { layersFromPlugins } = layersModule;
 const { PluginDiscovery } = pluginsModule;
 
 const rel = (p: unknown): string =>
@@ -71,116 +60,14 @@ const rel = (p: unknown): string =>
     .replace(`${root}/`, '')
     .replace(/^node_modules\/\.pnpm\/[^/]+\/node_modules\//, '');
 
-// ---- 0. 无需补丁：核心文件必须与上游一致 ----
-const aliasesSrc = fs.readFileSync(
-  path.join(coreDir, 'lib/webpack/aliases/index.js'),
-  'utf8',
-);
-const baseSrc = fs.readFileSync(
-  path.join(coreDir, 'lib/webpack/base.js'),
-  'utf8',
-);
-// 两个判据分别取本方案的**导出名与插件 name**：它们在 core 里出现即「上游被打补丁」。
-const selfMarks = [
-  'PrevLayerResolverPlugin',
-  '@show-docs/docusaurus-plugin-prev-layer-resolver',
-];
-const hasPatch = selfMarks.some(
-  (mark) => aliasesSrc.includes(mark) || baseSrc.includes(mark),
-);
-// 判据取第 0 项（`PrevLayerResolverPlugin` 导出名）：`noUncheckedIndexedAccess` 下
-// 索引访问是 `string | undefined`，而本表是字面量数组，越界不可能 —— 就地断言即可。
-const originalHijacked = baseSrc.includes(selfMarks[0]!);
-
-console.log(
-  `Docusaurus 是否被打补丁：${
-    hasPatch ? '❌ 是（本方案不需要补丁）' : '✅ 否（保持上游原样）'
-  }`,
-);
-console.log(
-  `@theme-original 是否被改写：${
-    originalHijacked ? '❌ 是（不应发生）' : '✅ 否（保持官方语义）'
-  }`,
-);
-
-// ---- 1. 真实主题层栈 + 官方别名 ----
+// ---- 1. 真实主题层栈（诊断信息；各项不变量已迁单测，见文件头） ----
+// 强制 production 语义：dev 下 plugin-debug 会进层栈，与 build 产物对不上。
 process.env.NODE_ENV ||= 'production';
-const { loadSite } = (await import(
-  `file://${path.join(coreDir, 'lib/server/site.js')}`
-)) as {
-  loadSite: (input: { siteDir: string; outDir: string }) => Promise<{
-    props: { plugins: LoadedPlugin[] };
-  }>;
-};
-const site = await loadSite({ siteDir: root, outDir: 'build' });
-const officialPlugins = site.props.plugins;
-
-const aliases = await aliasesModule.loadThemeAliases({
-  siteDir: root,
-  plugins: officialPlugins,
-});
-
-// 我们自己的推导路径（复用官方 loadContext + loadPluginConfigs）
 const discovered = await new PluginDiscovery(root, console).discover();
 const layers = layersFromPlugins({ siteDir: root, plugins: discovered });
 
 console.log('\n自动推导的主题层栈（内 → 外，无配置清单、无补丁）：');
 for (const l of layers) console.log(' '.repeat(3) + rel(l.owner));
-
-// 与官方 loadThemeAliases 的入参逐项对照（只看 plugin 主题）
-// 官方类型里 `getThemePath` 是可选的（非主题插件没有它），因此这里按「有钩子才算一层」
-// 收敛成 `string[]`，再与我们的推导结果逐项比对。
-const officialThemePaths = officialPlugins.flatMap((p) => {
-  const themePath = p.getThemePath?.();
-  return themePath ? path.resolve(p.path, themePath) : [];
-});
-const oursThemePaths = layers
-  .filter((l) => l.kind === 'plugin')
-  .map((l) => l.owner);
-const isSameAsOfficial =
-  JSON.stringify(oursThemePaths) === JSON.stringify(officialThemePaths);
-console.log(
-  `\n推导出的 plugin 主题顺序与官方 loadThemeAliases 入参一致：${
-    isSameAsOfficial ? '✅' : '❌'
-  }`,
-);
-if (!isSameAsOfficial) {
-  console.log('   官方：', officialThemePaths.map((p) => rel(p)).join(' > '));
-  console.log('   我们：', oursThemePaths.map((p) => rel(p)).join(' > '));
-}
-
-console.log('\n官方别名（与上游语义一致）：');
-for (const k of ['@theme/Logo', '@theme-original/Logo', '@theme-init/Logo']) {
-  console.log(`${' '.repeat(3) + k.padEnd(22)} => ${rel(aliases[k])}`);
-}
-
-// 自证：官方别名指向的目录必须都落在层栈里（层栈推导漏层时会在这里暴露）
-const layerOwners = layers.map((l) => path.resolve(l.owner));
-const aliasOutside = new Set<string>();
-for (const [key, value] of Object.entries(aliases)) {
-  if (!key.startsWith('@theme') || typeof value !== 'string' || !value)
-    continue;
-  const file = path.resolve(value);
-  const inside = layerOwners.some(
-    (o) => file === o || file.startsWith(o + path.sep),
-  );
-  if (!inside) aliasOutside.add(path.dirname(path.dirname(file)));
-}
-const isAliasesCovered = aliasOutside.size === 0;
-console.log(
-  `\n官方别名全部落在层栈内（层栈未漏层）：${
-    isAliasesCovered
-      ? '✅'
-      : `❌ ${[...aliasOutside].map((p) => rel(p)).join(', ')}`
-  }`,
-);
-
-// 层路径已按 realpath 归一（软链 / .. 不会把同一目录算成两层）
-const normalized = layers.every((l) => l.owner === normalizeLayerPath(l.owner));
-const isNoDupOwners = new Set(layerOwners).size === layerOwners.length;
-console.log(
-  `层路径已归一且无重复目录：${normalized && isNoDupOwners ? '✅' : '❌'}`,
-);
 
 // ---- 2. 从真实 build 产物回读包裹链 ----
 const htmlFiles = ['build/index.html', 'build/docs/intro/index.html'].filter(
@@ -216,16 +103,6 @@ console.log(`
 说明：
 - 每一层的 @theme-prev/X 都解析为「紧邻下一层实现」，所以三层插件主题都被保留；
 - theme-a 的下一层是 preset 的 theme-classic，它不渲染 data-*-wrapper 标记，故链尾不可见；
-- @theme-original/X 保持官方语义（全局赢家），本机制没有改动它。
+- @theme-original/X 保持官方语义（全局赢家），本机制没有改动它（test/layers.test.mts 钉住）。
 `);
-process.exit(
-  isOk &&
-    isSameAsOfficial &&
-    isAliasesCovered &&
-    normalized &&
-    isNoDupOwners &&
-    !originalHijacked &&
-    !hasPatch
-    ? 0
-    : 1,
-);
+process.exit(isOk ? 0 : 1);
