@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "name": "@show-docs/theme-a",
+  "version": "0.0.0",
+  "license": "UNLICENSED",
+  "main": "index.mts",
+  "type": "module",
+  "engines": {
+    "node": "^24.0.0"
+  }
+}

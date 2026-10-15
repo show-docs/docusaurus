@@ -1,0 +1,13 @@
+{
+  "extends": "@nice-move/tsconfig/react.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // base 的 types 只给 `["node"]` 或 `["react","react-dom"]` 二选一，而三个范围
+    // 都同时有 Node 侧源码与浏览器侧 JSX，两边都要就得自己列（不给 `node` 时
+    // `node:fs` 会退化成 TS2591，看着像路径写错）。
+    "types": ["node", "react", "react-dom"],
+  },
+  // 默认 include 是 `**/*`，而 base 开了 `allowJs` —— 不排掉构建产物，第二次跑
+  // `pnpm lint:type` 就会去类型检查 webpack 打出来的 bundle。
+  "exclude": ["build", ".docusaurus", "coverage", "plugins/*/dist"],
+}

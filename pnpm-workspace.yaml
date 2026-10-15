@@ -1,0 +1,8 @@
+packages:
+  - plugins/*
+  - demo/*
+
+configDependencies:
+  pnpm-plugin-nice-move: latest
+
+shamefullyHoist: true

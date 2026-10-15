@@ -1,0 +1,48 @@
+name: bring-it
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify
+
+  test:
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+          - ubuntu-latest
+        node:
+          - current
+          - lts/*
+          - lts/-1
+        exclude:
+          - os: ubuntu-latest
+            node: lts/*
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Run
+        uses: airkro/bring-it@actions-oidc
+        with:
+          node-version: ${{ matrix.node }}
+
+  publish:
+    needs: [verify, test]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - name: Run
+        uses: airkro/bring-it@actions-oidc

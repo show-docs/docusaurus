@@ -1,0 +1,22 @@
+{
+  "//": "plugin-prev-layer-resolver 核心包：唯一需要 tsc 产物（包内 dist/）的项目，产物就是包出口，站点按包名加载它。base 开了 allowImportingTsExtensions（只在 noEmit 时合法），与本仓唯一的 emit 项目冲突（TS5096），所以关掉；本包的相对 import 写的就是产物名 .mjs，用不上它。",
+  "//tsBuildInfoFile": "增量缓存必须和产物同生死：写进包内 dist/，删掉 dist 就等于删掉缓存。留在仓库根的 dist/ 里会变成幽灵 —— 产物没了、缓存还说「up to date」，tsc -b 直接不产出，站点按包名加载时才发现 dist/index.mjs 不存在。",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "rootDir": "plugins/plugin-prev-layer-resolver/src",
+    "outDir": "plugins/plugin-prev-layer-resolver/dist",
+    "declaration": true,
+    "allowImportingTsExtensions": false,
+    "tsBuildInfoFile": "plugins/plugin-prev-layer-resolver/dist/.tsbuildinfo/plugin-prev-layer-resolver.tsbuildinfo"
+  },
+  "include": [
+    "plugins/plugin-prev-layer-resolver/src/**/*.mts"
+  ],
+  "//exclude": "outDir 落在 rootDir 里，产物 index.d.mts 会被上面那条 glob 当成输入。",
+  "exclude": [
+    "plugins/*/dist"
+  ],
+  "files": []
+}

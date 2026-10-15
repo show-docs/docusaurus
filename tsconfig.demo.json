@@ -1,0 +1,18 @@
+{
+  "//": "demo 主题插件与验证脚本：Node/React 侧源码，只做类型检查（noEmit 继承自 tsconfig.json）",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "dist/.tsbuildinfo/demo.tsbuildinfo"
+  },
+  "//include": "验证脚本按「产物名 = 源码名 + s」引用核心包源码的类型，而 dist/ 是构建产物（类型检查不能依赖它存在），所以把被引的源码列进来：composite 项目只认 file list 里的文件。",
+  "include": [
+    "demo/**/*.mts",
+    "demo/**/*.ts",
+    "demo/**/*.tsx",
+    "plugins/plugin-prev-layer-resolver/src/**/*.mts"
+  ],
+  "files": [
+    "types/plugin-prev-layer-resolver.d.ts"
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "private": true,
+  "name": "test-ci",
+  "version": "0.0.1",
+  "license": "UNLICENSED",
+  "author": {
+    "name": "Eric Chen"
+  },
+  "scripts": {
+    "build": "pnpm build:core && docusaurus build",
+    "build:core": "tsc -b tsconfig.core.json",
+    "clear": "docusaurus clear",
+    "docusaurus": "docusaurus",
+    "fmt:prettier": "prettier -w .",
+    "lint:check": "eslint . --max-warnings=0 --concurrency=auto",
+    "lint:eslint": "eslint . --fix --concurrency=auto",
+    "lint:staged": "nice-move lint staged",
+    "lint:type": "tsc -p tsconfig.json",
+    "lint:version": "syncpack lint",
+    "prepare": "nice-move git hooks",
+    "serve": "docusaurus serve",
+    "start": "pnpm build:core && docusaurus start",
+    "swizzle": "docusaurus swizzle",
+    "test": "pnpm build:core && vitest run",
+    "test:coverage": "pnpm build:core && vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b tsconfig.demo.json tsconfig.test.json",
+    "verify": "pnpm typecheck && pnpm lint:type && pnpm lint:check && pnpm lint:version && pnpm test:coverage && pnpm build && pnpm verify:chain",
+    "verify:chain": "pnpm build:core && node demo/scripts/verify-chain.mts",
+    "version:pin": "syncpack fix"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^3.10.2",
+    "@docusaurus/preset-classic": "^3.10.2",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
+    "@show-docs/theme-a": "workspace:^",
+    "@show-docs/theme-b": "workspace:^",
+    "@show-docs/theme-c": "workspace:^",
+    "react": "~18.3.1",
+    "react-dom": "~18.3.1"
+  },
+  "devDependencies": {
+    "@bring-it/cli": "^0.11.3",
+    "@bring-it/npm": "^0.9.6",
+    "@docusaurus/types": "^3.10.2",
+    "@mdx-js/react": "^3.1.1",
+    "@nice-move/all-in-react": "^0.9.4",
+    "@nice-move/syncpack-config": "^0.6.2",
+    "@types/node": "^22.18.0",
+    "@types/react": "~18.3.31",
+    "@types/react-dom": "~18.3.7",
+    "@vitest/coverage-istanbul": "^5.0.4",
+    "enhanced-resolve": "^5.26.0",
+    "eslint": "^10.12.0",
+    "eslint-plugin-import-x": "^4.17.1",
+    "garou": "^0.9.22",
+    "prettier": "~3.9.10",
+    "syncpack": "^15.3.3",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.4",
+    "webpack": "^5.111.1"
+  },
+  "packageManager": "pnpm@12.10.1",
+  "engines": {
+    "node": "^24.0.0",
+    "pnpm": "^12.10.1"
+  },
+  "prettier": "@nice-move/all-in-react/prettier"
+}

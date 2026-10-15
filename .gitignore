@@ -1,0 +1,14 @@
+# Created by https://gitignore.io/api/ssh,certificates,node,windows
+# but failed to download
+
+node_modules
+
+# 构建产物（docusaurus / tsc / 站点 swizzle）
+.docusaurus
+build
+dist
+coverage
+.vitest
+
+# 测试夹具站点（必须待在仓库根才解析得到 node_modules；用例如常会自己清，残留不该进工作区）
+.temp/

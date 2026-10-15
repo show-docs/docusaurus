@@ -1,0 +1,26 @@
+{
+  "//": "全项目类型测试：测试 .mts + 核心包 + 站点 swizzle（src/theme 的 tsx），只做类型检查",
+  "//allowJs": "测试会 import `scripts/*.mjs`（体积脚本），它们是纯 JS。开 allowJs 让 TS 从 JS 推断类型；checkJs 关掉 —— 那些脚本自己不做类型检查，别把范围扩大到这里。",
+  "//exclude": "产物在包内 `dist/`，`index.d.mts` 会以 `*.mts` 的形状被上面的 glob 收进来。",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "dist/.tsbuildinfo/test.tsbuildinfo",
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": [
+    "test/**/*.mts",
+    "test/**/*.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "plugins/**/*.mts",
+    "scripts/**/*.mjs"
+  ],
+  "exclude": [
+    "plugins/*/dist"
+  ],
+  "files": [
+    "types/plugin-prev-layer-resolver.d.ts"
+  ]
+}
