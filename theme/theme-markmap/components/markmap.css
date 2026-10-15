@@ -1,0 +1,23 @@
+.markmap-admonition {
+  display: inline-block;
+  position: absolute;
+}
+
+.markmap {
+  width: 100%;
+  height: 860px !important;
+}
+
+.mm-toolbar-brand {
+  display: none !important;
+}
+
+.mm-toolbar {
+  position: absolute;
+  right: 1em;
+  bottom: 1em;
+}
+
+.toolbar-wrapper {
+  position: relative;
+}

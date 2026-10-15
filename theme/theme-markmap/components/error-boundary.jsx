@@ -1,0 +1,40 @@
+import PropTypes from 'prop-types';
+import { Component } from 'react';
+
+import Admonition from '@theme/Admonition';
+
+// 思维导图整棵子树（含懒加载 chunk）的兜底：渲染失败时退回可见提示，
+// 而不是让整个文档页白屏。
+export class ErrorBoundary extends Component {
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  componentDidCatch(error) {
+    console.error('[theme-markmap] 思维导图渲染失败：', error);
+  }
+
+  render() {
+    const { failed } = this.state;
+    const { children } = this.props;
+
+    if (failed) {
+      return (
+        <Admonition title="思维导图渲染失败" type="danger">
+          本文标记了 markmap，但导图初始化出错，请查看浏览器控制台。
+        </Admonition>
+      );
+    }
+
+    return children;
+  }
+}
+
+ErrorBoundary.propTypes = {
+  children: PropTypes.node,
+};

@@ -121,8 +121,14 @@ export default [
   {
     // 主题组件的目录名**就是**组件名（`@theme/Logo` 靠它拼出来），官方口径是 PascalCase；
     // 改成 kebab-case 等于改掉别名语义。
-    files: ['src/theme/**', 'demo/*/theme/**'],
+    files: ['src/theme/**', 'demo/*/theme/**', 'theme/*/theme/**'],
     rules: { 'unicorn/filename-case': 0 },
+  },
+  {
+    // webpack loader 的上下文（`this.async()` / `this.resourcePath` / `this.cacheable()`）
+    // 就是由 Webpack 绑在 `this` 上的，官方签名不给参数对象 —— 改成别的写法就不再是 loader。
+    files: ['theme/*/loader/**'],
+    rules: { 'unicorn/no-this-outside-of-class': 0 },
   },
   {
     // Docusaurus 的入口**按契约**只读 default 导出：主题组件、插件入口、页面、
@@ -133,6 +139,8 @@ export default [
       'plugins/*/src/index.mts',
       'demo/*/index.mts',
       'demo/*/theme/**',
+      'theme/*/index.mjs',
+      'theme/*/theme/**',
     ],
     rules: { 'import-x/no-default-export': 0 },
   },

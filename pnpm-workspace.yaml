@@ -1,6 +1,7 @@
 packages:
   - plugins/*
   - demo/*
+  - theme/*
 
 configDependencies:
   pnpm-plugin-nice-move: latest

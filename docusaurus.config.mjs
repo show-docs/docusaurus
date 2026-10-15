@@ -24,6 +24,8 @@ const config = {
     '@show-docs/theme-a',
     '@show-docs/theme-b',
     '@show-docs/theme-c',
+    // 思维导图主题层：栈在最外，DocItem 覆盖生效；md 里 `markmap: true` 即整页导图
+    '@show-docs/docusaurus-theme-markmap',
   ],
 
   presets: [
