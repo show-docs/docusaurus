@@ -1,5 +1,6 @@
 ---
 id: intro
+slug: /
 sidebar_position: 1
 title: 项目说明
 ---

@@ -70,7 +70,9 @@ console.log('\n自动推导的主题层栈（内 → 外，无配置清单、无
 for (const l of layers) console.log(' '.repeat(3) + rel(l.owner));
 
 // ---- 2. 从真实 build 产物回读包裹链 ----
-const htmlFiles = ['build/index.html', 'build/docs/intro/index.html'].filter(
+// 主页就是 `docs/intro.md`（`routeBasePath: '/'` + `slug: /`），所以第一格是 `build/index.html`；
+// 第二格取另一份文档页，验证链不是只在某一页凑巧成立。
+const htmlFiles = ['build/index.html', 'build/markmap-demo/index.html'].filter(
   (f) => fs.existsSync(path.join(root, f)),
 );
 if (htmlFiles.length === 0) {

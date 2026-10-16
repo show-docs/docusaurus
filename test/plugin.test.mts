@@ -366,7 +366,6 @@ describe('构建脚本与 CI 护栏', () => {
     ).toBeUndefined();
 
     // 去掉根的 `type` 后，ESM 只能靠扩展名声明：配置是 `.mjs`。
-    // （页面用 `.jsx`：官方 pages glob 是 `**/*.{js,jsx,ts,tsx,md,mdx}`，不吃 `.mjs`。）
     // 侧栏不再需要 `sidebars.mjs`：docs 插件拿不到 `sidebarPath` 时按 docs 目录自动生成，
     // 因此这里反过来钉住「配置里不再指回 sidebars」—— 指回去就等于把删掉的文件又请回来。
     const config = fs.readFileSync(
@@ -374,7 +373,21 @@ describe('构建脚本与 CI 护栏', () => {
       'utf8',
     );
     expect(config).not.toContain('sidebars');
-    expect(fs.existsSync(path.join(siteDir, 'src/pages/index.jsx'))).toBe(true);
+
+    // 主页是 `docs/intro.md`：配置把 docs 的路由前缀挪到根，那份 frontmatter 用 `slug: /` 落到 `/`。
+    // 站点侧因此不再有页面层目录 —— 再放一个 `src/pages/index.jsx` 就是和它争同一格，
+    // 而「页面不是主题层」这条最容易踩的界线也就不用再解释了（见插件 README 的使用约束①）。
+    expect(config).toContain("routeBasePath: '/'");
+    expect(
+      fs.existsSync(path.join(siteDir, 'src/pages')),
+      'src/pages 已删：主页由 docs/intro.md 承担，不该再有页面层',
+    ).toBe(false);
+    expect(
+      fs
+        .readFileSync(path.join(siteDir, 'docs/intro.md'), 'utf8')
+        .slice(0, 200),
+      'docs/intro.md 要有 slug: /，否则主页那一格是空的',
+    ).toContain('slug: /');
   });
 
   it('仓库有 CI 配置且至少跑 pnpm verify', () => {

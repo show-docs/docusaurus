@@ -318,10 +318,12 @@ export default function MyLogo(props) {
 （读真实 build 产物）断言，判据清单以脚本输出为准（本文件不抄第二份）：
 
 ```
-build/index.html              src/theme-logo > theme-c > theme-b > theme-a
-build/docs/intro/index.html   src/theme-logo > theme-c > theme-b > theme-a
-                                     > src/theme > theme-a-footer
+build/index.html               src/theme-logo > theme-c > theme-b > theme-a
+                                      > src/theme > theme-a-footer
+build/markmap-demo/index.html  同一条链
 ```
+
+`build/index.html` 就是主页：站点没有单独的首页组件，`docs/intro.md` 以 `slug: /` 落在根。
 
 四层每层都被保留（`LogoC → LogoB → LogoA → theme-classic` 的真实 Logo）。链尾的
 theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。
@@ -355,8 +357,8 @@ theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。
 
 第二种是**硬失败**（不是「位置敏感」）。实测：同一个 `import '@theme-prev/Logo'`，
 写在层内文件里构建成功、写在层外文件里直接 `Module not found`（真实 webpack 5.111.1）。
-「站点自己的另一个消费方」这一格正是第二种 —— 站点层只有 `src/theme` 是层，
-`src/pages` / `src/components` 都不是。
+「站点自己的另一个消费方」这一格正是第二种 —— 站点目录里只有 `src/theme` 是层，
+站点自己的页面与组件目录（若存在）都不是。
 
 ### ② 主题插件模块顶层不得创建**身份敏感**的全局对象
 

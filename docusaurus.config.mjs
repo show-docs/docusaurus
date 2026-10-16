@@ -40,7 +40,10 @@ const config = {
       @type {import('@docusaurus/preset-classic').Options}
       */
       ({
-        docs: {},
+        // 站点没有单独的首页组件：`docs/intro.md` 就是主页（`slug: /` 落在这里）。
+        // `routeBasePath: '/'` 把 docs 的路由前缀从 `/docs` 挪到根，于是 `/` 是 intro、
+        // `/markmap-demo` 是示例页 —— 不再有一个「页面层」去和主题层争同一格。
+        docs: { routeBasePath: '/' },
         blog: false,
       }),
     ],

@@ -41,12 +41,11 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 比原报错更难查），也不该让源码为它改回 CJS —— 去掉根上的 `"type"` 才是对准根因：
 `.docusaurus/` 是构建中间产物，模块格式该由生成它的代码（CJS 风格）决定。
 
-实际落点只有两处，都靠扩展名而不是 `"type"`：
+实际落点只有一处，靠扩展名而不是 `"type"`：
 
-| 文件                    | 为什么是 `.mjs` / `.jsx`                                                  |
-| ----------------------- | ------------------------------------------------------------------------- |
-| `docusaurus.config.mjs` | Docusaurus 按 `.mjs` 加载配置；无 `"type"` 时 `.js` 会被当 CJS            |
-| `src/pages/index.jsx`   | 页面 glob 只收 `.js/.jsx/.ts/.tsx`（**不吃 `.mjs`**），用 `.jsx` 保留 JSX |
+| 文件                    | 为什么是 `.mjs`                                                |
+| ----------------------- | -------------------------------------------------------------- |
+| `docusaurus.config.mjs` | Docusaurus 按 `.mjs` 加载配置；无 `"type"` 时 `.js` 会被当 CJS |
 
 ## 分包
 
@@ -90,11 +89,11 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 其余目录不是包，只是仓库根的一部分：
 
-| 目录    | 职责                                                            | 细节                               |
-| ------- | --------------------------------------------------------------- | ---------------------------------- |
-| `docs/` | 站点文档源（方案速览 / 导图示例）                               | [`docs/intro.md`](./docs/intro.md) |
-| `test/` | 核心包单元测试（按契约面组织）                                  | [README](./test/README.md)         |
-| `src/`  | 站点侧源码；**只有 `src/theme/` 算主题层**（`src/pages/` 不是） | [README](./src/README.md)          |
+| 目录    | 职责                                                                  | 细节                               |
+| ------- | --------------------------------------------------------------------- | ---------------------------------- |
+| `docs/` | 站点文档源（`intro.md` **就是主页**，另有导图示例页）                 | [`docs/intro.md`](./docs/intro.md) |
+| `test/` | 核心包单元测试（按契约面组织）                                        | [README](./test/README.md)         |
+| `src/`  | 只剩站点层 swizzle `src/theme/`（主页由 docs 承担，站点侧没有页面层） | [README](./src/theme/README.md)    |
 
 上表的 `plugins/*`、`theme/*`、`demo/*` 是 **pnpm workspace 包**（各自有 `package.json`，
 也在 `pnpm-workspace.yaml` 的 `packages:` 里）；其余是仓库根的目录，不是包 —— 判据是
@@ -125,17 +124,16 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 「职责」比「位置」重要 —— 放错地方的代价不是不好看，而是行为变了（把 specifier 写在层外文件里
 就是**硬失败**，不是「有时灵有时不灵」）。**先按「你想改什么」找，再在对应文档里看细节。**
 
-| 你想改什么                       | 动哪里                                          | 细节                                                                                      |
-| -------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`           | [README](./plugins/plugin-prev-layer-resolver/README.md)                                  |
-| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                          | [示例页](./docs/markmap-demo.md)                                                          |
-| 整页交给外部站点或外部文档       | `theme/theme-iframe/`、`theme/theme-stoplight/` | [iframe](./theme/theme-iframe/README.md) · [stoplight](./theme/theme-stoplight/README.md) |
-| 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`       | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                             |
-| 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                 | [demo](./demo/README.md)                                                                  |
-| 站点页面（**不是主题层**）       | `src/pages/`                                    | [src](./src/README.md)                                                                    |
-| 站点文档                         | `docs/`                                         | [`docs/intro.md`](./docs/intro.md)                                                        |
-| 单测与夹具                       | `test/`                                         | [README](./test/README.md)                                                                |
-| `@theme*` 的类型声明             | `plugins/plugin-prev-layer-resolver/types/`     | [README「类型声明」](./plugins/plugin-prev-layer-resolver/README.md)                      |
+| 你想改什么                       | 动哪里                                                     | 细节                                                                                      |
+| -------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`                      | [README](./plugins/plugin-prev-layer-resolver/README.md)                                  |
+| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                                     | [示例页](./docs/markmap-demo.md)                                                          |
+| 整页交给外部站点或外部文档       | `theme/theme-iframe/`、`theme/theme-stoplight/`            | [iframe](./theme/theme-iframe/README.md) · [stoplight](./theme/theme-stoplight/README.md) |
+| 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`                  | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                             |
+| 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                            | [demo](./demo/README.md)                                                                  |
+| 站点主页与文档                   | `docs/`（`intro.md` 带 `slug: /`，路由前缀在配置里挪到根） | [`docs/intro.md`](./docs/intro.md)                                                        |
+| 单测与夹具                       | `test/`                                                    | [README](./test/README.md)                                                                |
+| `@theme*` 的类型声明             | `plugins/plugin-prev-layer-resolver/types/`                | [README「类型声明」](./plugins/plugin-prev-layer-resolver/README.md)                      |
 
 仓库级只有这些不在分包里的东西：
 
@@ -143,11 +141,14 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 dist/.tsbuildinfo/                 # `tsc -b` 的增量信息（git 忽略）；构建包的产物在各包自己目录里
 tsconfig.json                      # 共享编译选项（noEmit）；demo / test 各一份 extends，四个构建包在包内自带 tsconfig.build.json
 tsconfig.demo.json / tsconfig.test.json  # 两份 composite 项目，由 pnpm typecheck（tsc -b）跑
-docusaurus.config.mjs              # 站点配置（.mjs：站点根不是 ESM 包，靠扩展名拿 ESM；侧栏由 docs 插件按目录自动生成）
+docusaurus.config.mjs              # 站点配置（.mjs：站点根不是 ESM 包，靠扩展名拿 ESM；侧栏由 docs 插件按目录自动生成；docs 的路由前缀是 '/'，所以主页就是 docs/intro.md）
 pnpm-workspace.yaml                # pnpm 12 的配置落点：分包清单（packages:）+ 安装期依赖（configDependencies）+ 依赖安装脚本放行名单（allowBuilds）+ 扁平化（shamefullyHoist）
 eslint.config.mjs / syncpack.config.mjs / vitest.config.mts  # 三道检查各自的落点
 .github/workflows/                 # CI（GitHub Actions）
 ```
 
-关于 `src/`：它把两种东西放在一起，而它们**只有一种**算主题层 ——
-`src/theme/` 是层栈最外层，`src/pages/` 不是。详见 [src/README.md](./src/README.md)。
+关于 `src/`：它现在只有主题层那一种东西 —— `src/theme/` 是层栈最外圈的哨兵槽位。
+站点不再有自己的页面层：主页就是 `docs/intro.md`（配置把 docs 的路由前缀挪到根，那份
+frontmatter 写 `slug: /`）。历史上 `src/pages/` 在的那一格讲的是「specifier 写在层外文件里
+必定硬失败」，那条口径的产地在
+[插件 README 的使用约束①](./plugins/plugin-prev-layer-resolver/README.md)。

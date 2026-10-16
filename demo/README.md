@@ -21,10 +21,10 @@
 
 ```bash
 pnpm build          # 先构建（含 build:core 与静态站点）
-pnpm verify:chain   # 读真实 build 产物，验证 4 层链式覆盖成立
+pnpm verify:chain   # 读真实 build 产物（主页 `build/index.html` 与示例页 `build/markmap-demo/index.html`），验证 4 层链式覆盖成立
 ```
 
-4 层链，读 `build/index.html` / `build/docs/intro/index.html` 的真实渲染产物：
+4 层链，从上面那两份真实渲染产物里回读：
 
 ```
 src/theme-logo > theme-c > theme-b > theme-a > (theme-classic 的真实 Logo)
