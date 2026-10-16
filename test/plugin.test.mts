@@ -390,6 +390,36 @@ describe('构建脚本与 CI 护栏', () => {
     ).toContain('slug: /');
   });
 
+  it('每个主题包有一份 docs/*-demo.md，且都在主页的卡片列表里', () => {
+    // 口径：`theme/<name>` 那一层的触发键要有一个页面演示它，命名固定为
+    // `docs/<name 去掉 theme- 前缀>-demo.md`。新增主题包却没写示例页时这条用例变红 ——
+    // 光看 plugins 数组不知道那一层命中时长什么样。
+    const themeNames = fs
+      .readdirSync(path.join(siteDir, 'theme'))
+      .filter((name) => name.startsWith('theme-'));
+    expect(themeNames.length, 'theme/ 下应有主题包').toBeGreaterThan(0);
+
+    const demoOf = (name: string) => `${name.slice('theme-'.length)}-demo.md`;
+    for (const name of themeNames) {
+      expect(
+        fs.existsSync(path.join(siteDir, 'docs', demoOf(name))),
+        `${name} 缺示例页 docs/${demoOf(name)}`,
+      ).toBe(true);
+    }
+
+    // 主页用官方 `@theme/DocCardList` 汇总这些示例页：卡片项是手写的 link，
+    // 所以「有示例页但主页没列出去」也要能发现。路由就是文件名去掉扩展名。
+    const intro = fs.readFileSync(path.join(siteDir, 'docs/intro.md'), 'utf8');
+    expect(intro).toContain('@theme/DocCardList');
+    for (const name of themeNames) {
+      const route = demoOf(name).replace('.md', '');
+      expect(
+        intro,
+        `${name} 的示例页要在主页卡片列表里，href 应为 /${route}`,
+      ).toContain(`/${route}`);
+    }
+  });
+
   it('仓库有 CI 配置且至少跑 pnpm verify', () => {
     // CI 从 CNB（`.cnb.yml`）迁到了 GitHub Actions（`.github/workflows/`）—— 护栏跟着认
     // 工作流目录，且至少有一个工作流跑 `pnpm verify`：只跑 `test` 不够，

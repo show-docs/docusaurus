@@ -5,6 +5,8 @@ sidebar_position: 1
 title: 项目说明
 ---
 
+import DocCardList from '@theme/DocCardList';
+
 # 项目说明
 
 本项目用于验证 Docusaurus 主题覆盖机制，让「多个主题层层包裹同一组件」变为可行：
@@ -13,9 +15,41 @@ title: 项目说明
 2. `@theme-original` 是否可以实现链式包裹？
 3. 如何让链式覆盖**真正成立**，同时不改动官方别名语义？
 
+## 示例页
+
+每个主题包各占一份文档源，frontmatter 里的触发键就是那一层的判据；不命中的页面那一层等于透明。
+
+<DocCardList
+items={[
+{
+type: 'link',
+href: '/markmap-demo',
+label: '思维导图示例',
+description: 'frontmatter 写 markmap: true，导图渲染在正文最上方。',
+},
+{
+type: 'link',
+href: '/iframe-demo',
+label: 'iframe 示例',
+description:
+'frontmatter 写 iframe: <URL>，正文区换成那个页面（开发模式只给链接）。',
+},
+{
+type: 'link',
+href: '/stoplight-demo',
+label: 'API 文档示例',
+description: 'frontmatter 写 oas3: <URL>，整页交给 OpenAPI 渲染器。',
+},
+]}
+/>
+
+链式覆盖本身（`Logo` 与 `DocItem/Footer` 两层 swizzle）没有单独的示例页：它的判据是构建产物里
+那条渲染链，用 `pnpm build && pnpm verify:chain` 回读。
+
 ## 文档
 
 - 链式覆盖方案（docusaurus-plugin-prev-layer-resolver）—— 落地实现：`@theme-prev/X` 系列 specifier；正文在仓库里的 `plugins/plugin-prev-layer-resolver/README.md`（站点文档源只收 `docs/`，链接出去只会是死链）。
+- 各主题包的行为与约束：`theme/theme-{markmap,iframe,stoplight}/README.md`、`demo/theme-{a,b,c}/`，同样在仓库里。
 
 ## 命令
 

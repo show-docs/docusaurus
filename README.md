@@ -89,11 +89,12 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 其余目录不是包，只是仓库根的一部分：
 
-| 目录    | 职责                                                                  | 细节                               |
-| ------- | --------------------------------------------------------------------- | ---------------------------------- |
-| `docs/` | 站点文档源（`intro.md` **就是主页**，另有导图示例页）                 | [`docs/intro.md`](./docs/intro.md) |
-| `test/` | 核心包单元测试（按契约面组织）                                        | [README](./test/README.md)         |
-| `src/`  | 只剩站点层 swizzle `src/theme/`（主页由 docs 承担，站点侧没有页面层） | [README](./src/theme/README.md)    |
+| 目录      | 职责                                                                        | 细节                               |
+| --------- | --------------------------------------------------------------------------- | ---------------------------------- |
+| `docs/`   | 站点文档源：`intro.md` **就是主页**（卡片列表），每个主题包一份 `*-demo.md` | [`docs/intro.md`](./docs/intro.md) |
+| `test/`   | 核心包单元测试（按契约面组织）                                              | [README](./test/README.md)         |
+| `src/`    | 只剩站点层 swizzle `src/theme/`（主页由 docs 承担，站点侧没有页面层）       | [README](./src/theme/README.md)    |
+| `static/` | 原样复制到站点根的静态文件（示例页要取的那份 OpenAPI 文档）                 | —                                  |
 
 上表的 `plugins/*`、`theme/*`、`demo/*` 是 **pnpm workspace 包**（各自有 `package.json`，
 也在 `pnpm-workspace.yaml` 的 `packages:` 里）；其余是仓库根的目录，不是包 —— 判据是
@@ -113,9 +114,12 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
   行为见 [docs/markmap-demo.md](./docs/markmap-demo.md)，实现见 `theme/theme-markmap/`（入口与
   loader 在 `src/`，层与组件在 `theme/`、`components/`）
 - **iframe 主题**（frontmatter 触发、URL 怎么算、在层栈里放哪一格）：
+  行为见 [docs/iframe-demo.md](./docs/iframe-demo.md)，实现见
   [theme/theme-iframe/README.md](./theme/theme-iframe/README.md)
 - **Stoplight 主题**（`oas3:` 触发、`@stoplight/elements` 的样式怎么圈进 `.stoplight-root`、
   浏览器 bundle 要补哪两个 Node 模块）：
+  行为见 [docs/stoplight-demo.md](./docs/stoplight-demo.md)（示例取
+  `static/openapi.yaml`），实现见
   [theme/theme-stoplight/README.md](./theme/theme-stoplight/README.md)
 - **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准
 
@@ -124,16 +128,16 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 「职责」比「位置」重要 —— 放错地方的代价不是不好看，而是行为变了（把 specifier 写在层外文件里
 就是**硬失败**，不是「有时灵有时不灵」）。**先按「你想改什么」找，再在对应文档里看细节。**
 
-| 你想改什么                       | 动哪里                                                     | 细节                                                                                      |
-| -------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`                      | [README](./plugins/plugin-prev-layer-resolver/README.md)                                  |
-| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                                     | [示例页](./docs/markmap-demo.md)                                                          |
-| 整页交给外部站点或外部文档       | `theme/theme-iframe/`、`theme/theme-stoplight/`            | [iframe](./theme/theme-iframe/README.md) · [stoplight](./theme/theme-stoplight/README.md) |
-| 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`                  | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                             |
-| 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                            | [demo](./demo/README.md)                                                                  |
-| 站点主页与文档                   | `docs/`（`intro.md` 带 `slug: /`，路由前缀在配置里挪到根） | [`docs/intro.md`](./docs/intro.md)                                                        |
-| 单测与夹具                       | `test/`                                                    | [README](./test/README.md)                                                                |
-| `@theme*` 的类型声明             | `plugins/plugin-prev-layer-resolver/types/`                | [README「类型声明」](./plugins/plugin-prev-layer-resolver/README.md)                      |
+| 你想改什么                       | 动哪里                                                     | 细节                                                                                                                                                                       |
+| -------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`                      | [README](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                                   |
+| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                                     | [示例页](./docs/markmap-demo.md)                                                                                                                                           |
+| 整页交给外部站点或外部文档       | `theme/theme-iframe/`、`theme/theme-stoplight/`            | [示例页](./docs/iframe-demo.md) · [stoplight 示例页](./docs/stoplight-demo.md) · [iframe](./theme/theme-iframe/README.md) · [stoplight](./theme/theme-stoplight/README.md) |
+| 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`                  | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                                                                                                              |
+| 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                            | [demo](./demo/README.md)                                                                                                                                                   |
+| 站点主页与文档                   | `docs/`（`intro.md` 带 `slug: /`，路由前缀在配置里挪到根） | [`docs/intro.md`](./docs/intro.md)                                                                                                                                         |
+| 单测与夹具                       | `test/`                                                    | [README](./test/README.md)                                                                                                                                                 |
+| `@theme*` 的类型声明             | `plugins/plugin-prev-layer-resolver/types/`                | [README「类型声明」](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                       |
 
 仓库级只有这些不在分包里的东西：
 
