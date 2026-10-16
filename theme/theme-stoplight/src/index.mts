@@ -17,6 +17,28 @@ export default function theme(): Plugin {
     getThemePath() {
       return resolve(thisDir, '../theme');
     },
+    configureWebpack(_config, isServer) {
+      // `@stoplight/elements` 的依赖树里还在 `require` Node 的 `url` / `buffer`，而
+      // webpack 5 起不再自动补核心模块。服务端那份构建本来就有真的 Node 模块，
+      // 只有浏览器 bundle 需要补 —— 而且补的是包里的 polyfill，不是空模块：
+      // 这两个都走在「按 URL 取 schema」那条路上，置 false 会在运行时抛。
+      //
+      // 和 `plugin-prev-layer-resolver` 一样**只返回自己新增的那一格**：官方
+      // `applyConfigureWebpack` 用 webpack-merge 拼接，改完整个 config 再返回去，
+      // 数组会被 concat 一遍（`rules` 翻倍 → 每个 css 文件被 css-loader 处理两次）。
+      if (isServer) {
+        return {};
+      }
+
+      return {
+        resolve: {
+          fallback: {
+            buffer: require.resolve('buffer/'),
+            url: require.resolve('url/'),
+          },
+        },
+      };
+    },
     configurePostCss(config) {
       // `@stoplight/elements` 的样式表是全局选择器，会污染整站：把它包进 `.stoplight-root`
       // 的作用域里，命名空间那条改写是给它的 `[data-theme=…]` 变体规则留的。

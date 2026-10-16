@@ -6,12 +6,15 @@
 入口只声明层目录（`getThemePath()`，另有一条给 `docusaurus swizzle` 用的
 `getTypeScriptThemePath()`）—— 不做解析、不带 loader。
 
-## 状态：还没接入站点
+## 状态：已接入站点
 
-`docusaurus.config.mjs` 的 `plugins` 里没有它，站点根的 `package.json` 也没声明
-`"@show-docs/docusaurus-theme-iframe": "workspace:^"`。所以现在只有入口被 `pnpm build:core`
-编译过，它既不进层栈、也不在 `pnpm test` 的分包解析用例覆盖里。要用它得**先补这两处**（只补前一处会
-`Cannot find module`：按包名加载的 importer 必须声明它）。
+`docusaurus.config.mjs` 的 `plugins` 里排在 `@show-docs/docusaurus-theme-markmap` **之后**
+（就是下面那张表的第一行），站点根的 `package.json` 声明了
+`"@show-docs/docusaurus-theme-iframe": "workspace:^"`。`pnpm build` 与 `pnpm verify:chain` 都绿，
+推导出的层栈里有 `theme/theme-iframe/theme`，`@theme-prev/DocItem` 落回 `theme-markmap` 那一层。
+
+产物侧能看到的是这一层进了链、iframe 那份 CSS Module 被编译进站点样式；页面里真的嵌出外部站点
+只能在浏览器看（`pnpm build && pnpm serve`，开发模式按设计不嵌 —— 见上面那条注）。
 
 包名挂 `@show-docs/`，与仓库其它包同一域，所以列进 `test/plugin.test.mts` 那条分包用例的目录清单
 只差改清单本身。
@@ -56,15 +59,18 @@ URL 的算法（`getURL`）分三步，只有浏览器端才会全走完：
 
 ## 放在层栈的哪一处
 
-`DocItem` 这根链上目前提供它的是 theme-classic 与 `theme-markmap`（demo 三个主题只覆盖
-`DocItem/Footer`，不算 `DocItem`）。所以 `plugins` 里的位置会直接决定谁生效：
+`DocItem` 这根链上目前提供它的是 theme-classic、`theme-markmap`、本包与 `theme-stoplight`
+（demo 三个主题只覆盖 `DocItem/Footer`，不算 `DocItem`）。所以 `plugins` 里的位置会直接决定谁生效：
 
 | 位置                             | `@theme-prev/DocItem` 落到   | 结果                                                    |
 | -------------------------------- | ---------------------------- | ------------------------------------------------------- |
 | `theme-markmap` **之后**（末尾） | `theme-markmap` 的 `DocItem` | ✅ 导图在上、iframe 在正文区，两层串在一根链上          |
 | `theme-markmap` 之前             | `theme-classic` 的 `DocItem` | ⚠️ 两层各自包同一个内层，谁在最外谁赢，另一层被静默跳过 |
 
-要「导图 + iframe 同时在同一页生效」就用第一行那个位置。
+要「导图 + iframe 同时在同一页生效」就用第一行那个位置 —— 站点现在就在这一行。
+
+`theme-stoplight` 在本包**外侧**，而它命中 `oas3` 时不包下层 `DocItem`：同一页同时写 `iframe:`
+和 `oas3:` 时，整页交给 Stoplight，本层的 iframe 不出现。要让 iframe 赢，把两层的顺序调换。
 
 ## 编译口径
 
@@ -78,7 +84,8 @@ URL 的算法（`getURL`）分三步，只有浏览器端才会全走完：
   `../../components/iframe.tsx` —— 磁盘上就是这个文件，未编译这一侧不存在「产物名改写」。
 - 改 `theme/` 与 `components/` 不用先编译，`pnpm start` 直接生效；改入口才要 `pnpm build:core`。
   这两份未编译的源码归仓库根 `tsconfig.json` 检查，所以 `pnpm lint:type` 就是它们的门：
-  `@theme-prev/DocItem` 的类型产地在仓库根 [`types/`](../../types/README.md)，
+  `@theme-prev/DocItem` 的类型产地在解析器包里
+  [`types/theme-specifiers.d.ts`](../../plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts)，
   `*.module.css`、`@docusaurus/router` 那几条靠包根的 `module-aliases.d.ts`；
   `@theme-prev/X` 的语义见
   [plugin-prev-layer-resolver 的 README](../../plugins/plugin-prev-layer-resolver/README.md)。

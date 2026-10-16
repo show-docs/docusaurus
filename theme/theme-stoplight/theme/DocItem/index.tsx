@@ -12,7 +12,7 @@ type MDXContent = ComponentType<Record<string, unknown>> & {
 type Props = { content?: MDXContent };
 
 const Stoplight = lazy(() =>
-  import('../../components/stoplight-ui.jsx').then(({ StoplightUI }) => ({
+  import('../../components/stoplight-ui.tsx').then(({ StoplightUI }) => ({
     default: StoplightUI,
   })),
 );

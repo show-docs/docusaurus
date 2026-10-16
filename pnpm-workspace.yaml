@@ -6,4 +6,30 @@ packages:
 configDependencies:
   pnpm-plugin-nice-move: latest
 
+# 依赖的安装脚本默认不放行，而且每个被挡住的包都要**点名表态**（true 放行 / false 拒绝），
+# 否则每次 `pnpm install` 都以 `ERR_PNPM_IGNORED_BUILDS` 失败。口径只有一条：
+# 这个脚本跑不跑，决定运行时能不能拿到它产出的东西 —— 要拿到的放行，纯提示的拒绝。
+allowBuilds:
+  # 原生绑定 / 平台二进制：脚本负责把它们放到位，不跑就在运行时抛错。
+  '@parcel/watcher': true
+  '@swc/core': true
+  '@tree-sitter-grammars/tree-sitter-yaml': true
+  'esbuild': true
+  'sharp': true
+  'tree-sitter': true
+  'tree-sitter-json': true
+  'unrs-resolver': true
+  # 只有横幅 / 遥测 / git hooks，或本身就是可选加速（`bufferutil` 缺了 ws 会退回纯 JS 路径）：
+  # 跑与不跑都不影响产物。
+  '@fontsource-variable/barlow': false
+  '@scarf/scarf': false
+  bottleneck: false
+  'bufferutil': false
+  'core-js': false
+  cosmiconfig: false
+  infima: false
+  'is-ci': false
+  'tesseract.js': false
+  'tuf-js': false
+
 shamefullyHoist: true

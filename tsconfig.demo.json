@@ -12,7 +12,8 @@
     "demo/**/*.tsx",
     "plugins/plugin-prev-layer-resolver/src/**/*.mts"
   ],
+  "//files": "`@theme*` 的类型声明归解析器包（`types/` 是源码，不是 dist，类型检查不依赖构建产物存在）。本项目的 include 只列它的 `src/`，这一格按 files 点名。",
   "files": [
-    "types/plugin-prev-layer-resolver.d.ts"
+    "plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts"
   ]
 }

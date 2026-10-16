@@ -6,6 +6,13 @@
     // 都同时有 Node 侧源码与浏览器侧 JSX，两边都要就得自己列（不给 `node` 时
     // `node:fs` 会退化成 TS2591，看着像路径写错）。
     "types": ["node", "react", "react-dom"],
+    // `@stoplight/elements` 的 `exports` 只写了 `require` / `import` 两格，没写 `types`，
+    // 于是按 exports 解析的 TS 拿不到它包里那份 `index.d.ts`（TS7016「implicitly any」）。
+    // 这里补的只是**类型检查**这一侧的指向：运行时仍由 webpack 按 exports 取 `index.mjs`，
+    // 行为一个字都不变。（pnpm 的 `packageExtensions` 试过，装两次都没把这格落进 node_modules。）
+    "paths": {
+      "@stoplight/elements": ["./node_modules/@stoplight/elements/index.d.ts"],
+    },
   },
   // 默认 include 是 `**/*`，而 base 开了 `allowJs` —— 不排掉构建产物，第二次跑
   // `pnpm lint:type` 就会去类型检查 webpack 打出来的 bundle。
@@ -15,5 +22,7 @@
     "coverage",
     "plugins/*/dist",
     "theme/*/dist",
+    // 第三方源码抄本（npm 已删），保持逐字与上游一致，不做本仓的类型改写。
+    "plugins/postcss-faster-namespace",
   ],
 }

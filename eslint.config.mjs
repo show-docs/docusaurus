@@ -12,10 +12,13 @@ const ignores = [
   'theme/*/dist/**',
   '.docusaurus/**',
   '.temp/**',
+  // 第三方源码抄本：npm 上已删，本仓留着原样一份（缘由见 `plugins/postcss-faster-namespace/README.md`）。
+  // 逐字对齐上游就不该被 `--fix` 改写风格，否则下一次比对上游时对不上。
+  'plugins/postcss-faster-namespace/**',
 ];
 
 // Docusaurus 的虚拟模块 + 我们的 `@theme-prev*` specifier 族（口径产地见
-// `types/plugin-prev-layer-resolver.d.ts`）：别名在构建期才存在，磁盘上恒无文件，
+// `plugins/plugin-prev-layer-resolver/types/`）：别名在构建期才存在，磁盘上恒无文件，
 // `import-x` 的 node resolver 只会判它们「解析不到」。其余原样交回它 —— 拼错的路径照旧会红。
 const VIRTUAL =
   /^@(?:theme(?:-(?:original|init|prev(?:-init|-root)?))?|generated|docusaurus)\//;

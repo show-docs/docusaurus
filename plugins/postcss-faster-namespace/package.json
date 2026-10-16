@@ -1,0 +1,30 @@
+{
+  "name": "postcss-faster-namespace",
+  "version": "0.0.5",
+  "description": "A simple and faster postcss plugin that thinks from origin heart, which can quickly add namespaces and scopes for all css selectors. It might solve some styling problems between micro-frontend applications",
+  "license": "MIT",
+  "author": {
+    "name": "silentsun"
+  },
+  "keywords": [
+    "css",
+    "namespace",
+    "postcss",
+    "selector"
+  ],
+  "homepage": "https://github.com/sileny/postcss-faster-namespace",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sileny/postcss-faster-namespace.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sileny/postcss-faster-namespace/issues"
+  },
+  "main": "index.cjs",
+  "scripts": {
+    "test": "jest"
+  },
+  "peerDependencies": {
+    "postcss": "^8.4.13"
+  }
+}

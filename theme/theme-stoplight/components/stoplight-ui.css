@@ -1,0 +1,65 @@
+/* Stoplight 渲染区的落位与局部覆盖。站点没有 scss 规则（Docusaurus 只内置 css），
+   所以这份是拍平后的纯 CSS：嵌套关系写在选择器里，`.stoplight-root` 是组件挂的那层壳。 */
+
+.stoplight-root {
+  position: relative;
+  height: calc(100vh - var(--ifm-navbar-height));
+  min-height: initial !important;
+}
+
+.stoplight-root pre {
+  border-radius: unset;
+  background-color: unset;
+  padding: unset;
+  color: unset;
+  font: unset;
+}
+
+.stoplight-root .sl-elements-api .sl-text-base {
+  font-size: 14px !important;
+}
+
+.stoplight-root
+  .sl-elements-api
+  > div
+  a:last-child[href^='https://stoplight.io'] {
+  display: none;
+}
+
+.stoplight-root .SendButtonHolder > div > button:first-of-type {
+  display: none;
+}
+
+.stoplight-root * {
+  scrollbar-width: thin;
+}
+
+.stoplight-root *::-webkit-scrollbar {
+  width: var(--ifm-scrollbar-size);
+  height: var(--ifm-scrollbar-size);
+}
+
+.stoplight-root *::-webkit-scrollbar-track {
+  border-radius: 10px;
+  background: var(--ifm-scrollbar-track-background-color);
+}
+
+.stoplight-root *::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  background: var(--ifm-scrollbar-thumb-background-color);
+}
+
+.stoplight-root *::-webkit-scrollbar-thumb:hover {
+  background: var(--ifm-scrollbar-thumb-hover-background-color);
+}
+
+/* 整页交给 Stoplight 时，页脚的占位与正文容器的留白都不要了。 */
+
+.main-wrapper:has(.stoplight-root) + .footer {
+  display: none;
+}
+
+.container:has(.stoplight-root) {
+  padding: 0 !important;
+  max-width: unset !important;
+}

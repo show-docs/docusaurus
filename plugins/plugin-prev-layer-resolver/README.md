@@ -50,16 +50,18 @@
 
 ## 组成
 
-| 文件               | 职责                                                      |
-| ------------------ | --------------------------------------------------------- |
-| `src/index.mts`    | 插件入口：推层栈 + 空层栈告警 + 注入 resolver             |
-| `src/layers.mts`   | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位 |
-| `src/plugins.mts`  | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表 |
-| `src/resolve.mts`  | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配   |
-| `src/resolver.mts` | 逐层解析核心（`PrevLayerResolverPlugin`）                 |
-| `src/types.mts`    | 公共类型                                                  |
+| 文件                          | 职责                                                      |
+| ----------------------------- | --------------------------------------------------------- |
+| `src/index.mts`               | 插件入口：推层栈 + 空层栈告警 + 注入 resolver             |
+| `src/layers.mts`              | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位 |
+| `src/plugins.mts`             | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表 |
+| `src/resolve.mts`             | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配   |
+| `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`）                 |
+| `src/types.mts`               | 公共类型                                                  |
+| `types/theme-specifiers.d.ts` | `@theme*` 三条 specifier 的类型声明，见下                 |
 
 源码全在 `src/` 下，`dist/` 是它的编译产物（`rootDir` = `src/`），两者的文件一一对应。
+`types/` 不参与编译，见下面的「类型声明」。
 
 ## 新 specifier
 
@@ -89,6 +91,35 @@
 不回落官方别名，是因为能用的落点里没有语义对的：`@theme-init` 要「最内层提供者」，
 而 `@theme` 是**最外层**全局赢家 —— 正好相反。宁可让人看到官方报错，
 也不要安静地给一个语义相反的落点。
+
+## 类型声明
+
+`types/theme-specifiers.d.ts` 给 `@theme/X`、`@theme-original/X`、`@theme-prev/X` 三条 specifier
+补类型：它们由本包在 resolve 阶段改写，磁盘上没有对应目录，`tsc` 只看得到 import 那一句。
+文件里写清了收录口径与默认导出的形状，这里不抄第二份。
+
+这份文件**不编译**（构建项目的 `include` 只有 `src/`），发布要靠 `files` 点名 —— 本包是
+`["dist", "types"]`，只发 `dist` 的包装上站点就拿不到它。
+
+消费方拿到它的写法是把自己 `tsconfig.json` 的 `files` 指过去：
+
+```json
+{
+  "files": [
+    "node_modules/@show-docs/docusaurus-plugin-prev-layer-resolver/types/theme-specifiers.d.ts"
+  ]
+}
+```
+
+本仓库里被三处收到：`tsconfig.demo.json` 与 `tsconfig.test.json` 把自己的 workspace 路径
+`plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts` 列进 `files`（那两份的 `include`
+只收源码，不吃 `.d.ts`），仓库根 `tsconfig.json` 走默认 include（`**/*`），
+站点 swizzle（`src/theme/**`）与各主题包里未编译的层和组件都靠它。
+
+官方那两个别名（`@theme/X`、`@theme-original/X`）不是顺手带上的：Docusaurus 的
+`@docusaurus/module-type-aliases` 只列了 `@theme-original/*` 与 `@theme-init/*` 两条**无类型**
+的通配，`@theme/*` 则是一串写死的组件名；而本仓库的 `node_modules` 布局让 `tsc` 解析不到
+`@docusaurus/theme-classic`。所以这三条是一个整体，**不能只删 `@theme-prev` 那一条**。
 
 ## 为什么另起 specifier，而不改写 `@theme-original`
 
@@ -443,6 +474,6 @@ theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。
 （`.mjs` + `.d.mts`），那份产物就是包出口。改动后记得 `pnpm build:core`
 （`pnpm build` / `pnpm test` 已内置）。
 
-`@theme-prev/*` 是运行时动态别名，类型声明见
-[`types/plugin-prev-layer-resolver.d.ts`](../../types/plugin-prev-layer-resolver.d.ts)；
-那份文件**不能跟着链式方案一起删**（官方三个别名才是它的本体，理由在该文件的 README）。
+`@theme-prev/*` 是运行时动态别名，类型声明见本包的
+[`types/theme-specifiers.d.ts`](./types/theme-specifiers.d.ts)（连同官方那两个别名一起，理由在
+上面的「类型声明」）；删掉那份文件，`pnpm typecheck` 与 `pnpm lint:type` 都会红。

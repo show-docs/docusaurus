@@ -405,6 +405,9 @@ describe('构建脚本与 CI 护栏', () => {
       'demo/theme-a',
       'demo/theme-b',
       'demo/theme-c',
+      'theme/theme-markmap',
+      'theme/theme-iframe',
+      'theme/theme-stoplight',
     ];
     const names: string[] = [];
     for (const dir of subpackages) {
@@ -424,6 +427,7 @@ describe('构建脚本与 CI 护栏', () => {
     expect(yml).toMatch(/^packages:/m);
     expect(yml).toContain('plugins/*');
     expect(yml).toContain('demo/*');
+    expect(yml).toContain('theme/*');
 
     // 解析**按 Node 的 ESM 规则**走：写了 `exports` 就只认它（core 包的出口是 `dist/index.mjs`），
     // 没写的才退回 `main`（demo 三个包是 `index.mts`）。这里只问「解析得到没有」，
