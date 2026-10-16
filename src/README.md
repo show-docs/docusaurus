@@ -1,17 +1,16 @@
 # src
 
-站点侧源码。**只有 `theme/` 算主题层**，另外两个不是 —— 这是本仓库最容易踩的一格。
+站点侧源码。**只有 `theme/` 算主题层**，`pages/` 不是 —— 这是本仓库最容易踩的一格。
 
 | 目录     | 是什么                                                               | 属于主题层？                          |
 | -------- | -------------------------------------------------------------------- | ------------------------------------- |
 | `theme/` | 站点层 swizzle，层栈最外圈的哨兵槽位                                 | ✅ 是，见 [README](./theme/README.md) |
 | `pages/` | Docusaurus 路由页面（`/`），用 `@theme/Layout` 和 `@docusaurus/Link` | ❌ 不是                               |
-| `css/`   | 全局样式，由 `docusaurus.config.mjs` 的 `theme.customCss` 引入       | ❌ 不是                               |
 
 ## 为什么这条界线要紧
 
 `@theme-prev/*` 只在「导入者属于某个已知主题层」时被改写，而层栈里站点侧**只有 `src/theme`**，
-所以把 specifier 写进 `pages/` 或 `css/` 里的文件必定失败：
+所以把 specifier 写进 `pages/` 里的文件必定失败：
 
 ```js
 // src/pages/index.jsx —— 模块不属于任何层

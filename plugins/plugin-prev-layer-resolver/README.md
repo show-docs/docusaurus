@@ -19,6 +19,22 @@
 层栈（哪些层、什么顺序）**全部自动推导**：不需要在 `docusaurus.config.mjs` 里写配置清单，
 也不需要给 Docusaurus 打补丁。环境：`pnpm 12` + `Docusaurus 3.10.2` + `React 18`。
 
+## 背景：不接本方案时的实测结论
+
+上面那句「原理上无法同时满足」不是推理出来的，是在一个最小站点上实测出来的五条：
+
+1. **多个主题覆盖同一个组件** → 后声明的主题完全覆盖前者，前者被静默丢弃，不叠加也不链式。
+2. **`@theme-original` 的语义** → 它与 `@theme` 指向**同一个文件**；
+   只有在站点层 `src/theme` 里使用才等于「上一层实现」，插件主题里使用会指向自己（自引用 → 无限递归 / OOM）。
+3. **`@theme-init` 的语义** → 第一次冲突时被顶掉的那个实现（首个覆盖者），
+   **不是** theme-fallback；因此在「最靠前的插件主题」内部同样会指向自己。
+4. **能链式包裹的只有站点层** → `src/theme` 用 `@theme-original` 可包住最后一层插件主题，再往里没有合法别名。
+5. **多个 plugin 用 wrap 模式改同一组件无法链式** → 插件主题里 `@theme-original` 指向自己（OOM），
+   `@theme-init` 指向的是 preset 主题（如 theme-classic）而非上一个 plugin，最多只能保住一层。
+
+第 2、3、5 条合起来就是「一个全局别名喂不饱一条链」的证据，也是下方
+「为什么另起 specifier，而不改写 `@theme-original`」那一节的产地。
+
 ## 名字说的是它做的事
 
 包名、插件 `name`（`@show-docs/docusaurus-plugin-prev-layer-resolver`）与目录名取同一份标识符，

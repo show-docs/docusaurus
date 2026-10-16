@@ -1,15 +1,19 @@
-# @show-docs/docusaurus-plugin-prev-layer-resolver
+# Docusaurus 主题覆盖验证仓库（pnpm workspace）
 
-使用 `pnpm` + `Docusaurus` 初始化的项目，用于验证主题覆盖机制，并给出「多主题链式覆盖」的可落地方案。
+使用 `pnpm` + `Docusaurus` 初始化的仓库，用于验证主题覆盖机制，并给出「多主题链式覆盖」的可落地方案。
+
+这份 README 只管**仓库级**的事实：怎么跑、有哪些分包、什么东西放在哪。
+每个方案与包的细节在它自己的 README 里，这里不抄第二份。
 
 ## 快速开始
 
 ```bash
 pnpm install
 pnpm start          # 本地预览 http://localhost:3000
-pnpm build          # 编译核心包 + 构建静态站点
-pnpm build:core     # 只用 tsc 编译核心包（源码 plugins/plugin-prev-layer-resolver/src）到它的 dist（即包出口）
+pnpm build          # 编译需要编译的分包 + 构建静态站点
+pnpm build:core     # 只用 tsc 编译那三个「构建包」（plugins/* 与 theme/*）到各自的 dist（即包出口）
 pnpm lint:type      # tsc -p tsconfig.json：唯一把站点根与 *.config.mjs 纳进来的一道（提交钩子也跑）
+pnpm typecheck      # tsc -b：demo 与 test 两份 composite 项目
 pnpm lint:eslint    # eslint
 pnpm test           # vitest 单元测试（解析语义 + 不变量 + 输入校验 + 真实 resolver 端到端）
 pnpm test:coverage  # 同上 + 覆盖率（红线 100% 只挂在这里：pnpm test 全绿 ≠ CI 全绿）
@@ -17,9 +21,10 @@ pnpm verify:chain   # 读真实 build 产物，验证 4 层链式覆盖成立（
 pnpm verify         # 一键全链路（组成见 package.json 的 verify；本表不复述，避免两处说法漂移）
 ```
 
-> **Node 版本要求：`^22.18 || ^24`**（见 `package.json` 的 `engines`）：下界不是从某条语法推出来的，
-> 而是各依赖 `engines` 的最大值 —— `vitest@5` 要 `^22.12`，`@nice-move/syncpack-config` 要 `^22.18`。
-> `@types/node` 钉在同一下界：类型检查跟着**最老的受支持运行时**，「只在新版才有的 API」才不会在 CI 里悄悄绿。
+> **Node 版本要求以 `package.json` 的 `engines` 为准**（当前 `^24.0.0`）；CI 另外跑 `current` / `lts/*` / `lts/-1`
+> （见 `.github/workflows/bring-it.yaml`）。
+> 这条下界的来历是「跟着**最老的受支持运行时**」：`@types/node` 与 `engines` 钉在同一档，
+> 「只在新版才有的 API」才不会在 CI 里悄悄绿。当前 `@types/node` 是 `^22.18.0`，比 `engines` 低一档。
 
 ### 站点根为什么**不**是 ESM 包
 
@@ -45,70 +50,82 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 ## 分包
 
-每个分包有自己的 README，细节以它为准：
+仓库里的分包**按「要不要先编译」分两种形态**，不是按「像不像一个包」：
 
-| 目录                                  | 职责                                                                 | README                                                   |
-| ------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------- |
-| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现（源码在它的 `src/`）   | [README](./plugins/plugin-prev-layer-resolver/README.md) |
-| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                | [README](./demo/README.md)                               |
-| `docs/`                               | 站点文档源（单页：站点首页 / 方案速览）                              | [README](./docs/intro.md)                                |
-| `test/`                               | 核心包单元测试（按契约面组织）                                       | [README](./test/README.md)                               |
-| `src/`                                | 站点侧源码；**只有 `src/theme/` 算主题层**（`pages` / `css` 不是）   | [README](./src/README.md)                                |
-| `types/`                              | `@theme*` specifier 的类型声明（被三个 tsconfig 引用，删了就类型红） | [README](./types/README.md)                              |
+| 目录                                  | 是什么                                                                                        | 形态                                     | 细节                                                     |
+| ------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------- |
+| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                 | 构建包（`src/` → `dist/`，改完要编译）   | [README](./plugins/plugin-prev-layer-resolver/README.md) |
+| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                             | 构建包（同上，`styles/` 随包发布）       | [示例页](./docs/markmap-demo.md)                         |
+| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                         | 免编译（Docusaurus 的 babel 直接吃源码） | [README](./demo/README.md)                               |
+| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时把该页包成内嵌 iframe（开发模式只给链接） | 构建包（同上，`styles/` 随包发布）       | [README](./theme/theme-iframe/README.md)                 |
 
-上表只有前三行是 **pnpm workspace 包**（`plugins/*` / `demo/*` 下各自有 `package.json`，
+三个构建包都是 `tsc` 编译包：源码 `.mts` / `.tsx` 在包内 `src/`，产物在包内 `dist/`，
+`dist/index.mjs` 就是包出口（`exports`）—— 所以 `pnpm build:core` 是「编译这三个包」，
+`pnpm start` / `pnpm build` / `pnpm test` 都已经把它内置在前面。
+样式表不是模块，`tsc` 不会把它搬进 `dist/`：两个主题包的那份都留在包根 `styles/`，随 `files` 发布。
+demo 的三个主题包不编译：它们只导出 `getThemePath()` 这类标准钩子，源码直接被 Docusaurus 的 babel 编译。
+
+> **`theme/theme-iframe/` 还没接入站点**（`plugins` 里没有它，站点根也没声明它的 workspace 依赖），
+> 所以现在只被 `pnpm build:core` 编译 —— 状态、接入位置与 URL 算法以它的
+> [README](./theme/theme-iframe/README.md) 为准，这里不抄第二份。
+
+其余目录不是包，只是仓库根的一部分：
+
+| 目录     | 职责                                                                                                                 | 细节                               |
+| -------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `docs/`  | 站点文档源（方案速览 / 导图示例；iframe 那页要等本包接进站点才有效）                                                 | [`docs/intro.md`](./docs/intro.md) |
+| `test/`  | 核心包单元测试（按契约面组织）                                                                                       | [README](./test/README.md)         |
+| `src/`   | 站点侧源码；**只有 `src/theme/` 算主题层**（`src/pages/` 不是）                                                      | [README](./src/README.md)          |
+| `types/` | `@theme*` specifier 的类型声明（`tsconfig.demo/test` 与 `theme-markmap` 的构建项目都把它列进 `files`，删了就类型红） | [README](./types/README.md)        |
+
+上表的 `plugins/*`、`theme/*`、`demo/*` 是 **pnpm workspace 包**（各自有 `package.json`，
 也在 `pnpm-workspace.yaml` 的 `packages:` 里）；其余是仓库根的目录，不是包 —— 判据是
-「有没有 `package.json`」，不是「像不像一个包」。
+「有没有 `package.json`」。
 
 > 分包要被解析，判据是**用它的那个 importer 声明了它**：`packages:` 里收了、目录里有
 > `package.json` 都不算，站点根不写 `"@show-docs/theme-a": "workspace:^"`，pnpm 就不会建链接，
 > 一路顺到 `docusaurus build` 才炸 `Cannot find module`。`test/plugin.test.mts` 有一条用例
-> 直接问 Node 要四个包名的解析结果，把这一步提前到 `pnpm test`。
+> 把核心包与 demo 的三个主题按 Node 的 ESM 规则解析一遍，把这一步提前到 `pnpm test`
+> （清单里的 `theme/*` 还没进那条用例的目录列表）。
 
-## 链式覆盖方案（速览）
+## 方案在哪份文档里
 
-`@theme-original/X` 是**每个组件一个全局值**，只能等于层栈里的某一层；而链上每一层想要的是
-「**我自己下面那一层**」—— 多个消费者要多个不同答案，一个全局别名原理上无法同时满足。
-所以本方案**不碰它**，另开一个新 specifier（`@theme-prev`），
-在 webpack resolve 阶段按「导入者属于哪一层」逐次改写，层栈全部自动推导。
-
-- 完整方案与接入方式：[plugin-prev-layer-resolver 的 README](./plugins/plugin-prev-layer-resolver/README.md)
-- 包级速览：[`plugins/plugin-prev-layer-resolver/README.md`](./plugins/plugin-prev-layer-resolver/README.md)
-
-## 基础验证结论（未使用链式方案时）
-
-1. **多个主题覆盖同一个组件** → 后声明的主题完全覆盖前者，前者被静默丢弃，不叠加也不链式。
-2. **`@theme-original` 的语义** → 它与 `@theme` 指向**同一个文件**；
-   只有在站点层 `src/theme` 里使用才等于「上一层实现」，插件主题里使用会指向自己（自引用 → 无限递归 / OOM）。
-3. **`@theme-init` 的语义** → 第一次冲突时被顶掉的那个实现（首个覆盖者），
-   **不是** theme-fallback；因此在「最靠前的插件主题」内部同样会指向自己。
-4. **能链式包裹的只有站点层** → `src/theme` 用 `@theme-original` 可包住最后一层插件主题，再往里没有合法别名。
-5. **多个 plugin 用 wrap 模式改同一组件无法链式** → 插件主题里 `@theme-original` 指向自己（OOM），
-   `@theme-init` 指向的是 preset 主题（如 theme-classic）而非上一个 plugin，最多只能保住一层。
+- **多主题链式覆盖**（为什么官方别名做不到、`@theme-prev/X` 怎么解析、怎么接入、有哪些约束）：
+  [plugins/plugin-prev-layer-resolver/README.md](./plugins/plugin-prev-layer-resolver/README.md)
+- **导图主题**（frontmatter 触发、渲染位置、明暗跟随全站主题）：
+  行为见 [docs/markmap-demo.md](./docs/markmap-demo.md)，实现见 `theme/theme-markmap/src/`
+- **iframe 主题**（frontmatter 触发、URL 怎么算、在层栈里放哪一格）：
+  [theme/theme-iframe/README.md](./theme/theme-iframe/README.md)（尚未接入站点）
+- **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准
 
 ## 目录结构
 
 「职责」比「位置」重要 —— 放错地方的代价不是不好看，而是行为变了（把 specifier 写在层外文件里
-就是**硬失败**，不是「有时灵有时不灵」）。**先按「你想改什么」找，再在对应 README 里看细节。**
+就是**硬失败**，不是「有时灵有时不灵」）。**先按「你想改什么」找，再在对应文档里看细节。**
 
-| 你想改什么                        | 动哪里                                    | 细节                                                          |
-| --------------------------------- | ----------------------------------------- | ------------------------------------------------------------- |
-| 层栈怎么推导、specifier 怎么解析  | `plugins/plugin-prev-layer-resolver/`     | [README](./plugins/plugin-prev-layer-resolver/README.md)      |
-| 某层包在组件外面的样子            | `demo/theme-{a,b,c}/theme/`、`src/theme/` | [demo](./demo/README.md) · [src/theme](./src/theme/README.md) |
-| 验证「链真的成立」                | `demo/scripts/verify-chain.mts`           | [demo](./demo/README.md)                                      |
-| 站点页面 / 样式（**不是主题层**） | `src/pages/`、`src/css/`                  | [src](./src/README.md)                                        |
-| 单测与夹具                        | `test/`                                   | [README](./test/README.md)                                    |
-| `@theme*` 的类型声明              | `types/`                                  | [README](./types/README.md)                                   |
-| 站点文档（速览）                  | `docs/intro.md`                           | [README](./docs/intro.md)                                     |
+| 你想改什么                       | 动哪里                                    | 细节                                                          |
+| -------------------------------- | ----------------------------------------- | ------------------------------------------------------------- |
+| 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`     | [README](./plugins/plugin-prev-layer-resolver/README.md)      |
+| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                    | [示例页](./docs/markmap-demo.md)                              |
+| 整页嵌外部站点（iframe）         | `theme/theme-iframe/`                     | [README](./theme/theme-iframe/README.md)                      |
+| 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/` | [demo](./demo/README.md) · [src/theme](./src/theme/README.md) |
+| 验证「链真的成立」               | `demo/scripts/verify-chain.mts`           | [demo](./demo/README.md)                                      |
+| 站点页面（**不是主题层**）       | `src/pages/`                              | [src](./src/README.md)                                        |
+| 站点文档                         | `docs/`                                   | [`docs/intro.md`](./docs/intro.md)                            |
+| 单测与夹具                       | `test/`                                   | [README](./test/README.md)                                    |
+| `@theme*` 的类型声明             | `types/`                                  | [README](./types/README.md)                                   |
 
 仓库级只有这些不在分包里的东西：
 
 ```
-dist/.tsbuildinfo/                 # `tsc -b` 的增量信息（git 忽略）；核心包产物在包自己目录里
-tsconfig.json       # 共享编译选项；core（唯一 emit 产物）/ demo / test 各一份 extends
-docusaurus.config.mjs  # 站点配置（.mjs：站点根不是 ESM 包，靠扩展名拿 ESM；侧栏由 docs 插件按目录自动生成）
-pnpm-workspace.yaml # pnpm 12 的配置落点：分包清单（packages:）+ 依赖构建白名单（allowBuilds）；.npmrc 管 peer 策略
+dist/.tsbuildinfo/                 # `tsc -b` 的增量信息（git 忽略）；构建包的产物在各包自己目录里
+tsconfig.json                      # 共享编译选项（noEmit）；demo / test 各一份 extends，两个构建包在包内自带 tsconfig.build.json
+tsconfig.demo.json / tsconfig.test.json  # 两份 composite 项目，由 pnpm typecheck（tsc -b）跑
+docusaurus.config.mjs              # 站点配置（.mjs：站点根不是 ESM 包，靠扩展名拿 ESM；侧栏由 docs 插件按目录自动生成）
+pnpm-workspace.yaml                # pnpm 12 的配置落点：分包清单（packages:）+ 安装期依赖（configDependencies）+ 扁平化（shamefullyHoist）
+eslint.config.mjs / syncpack.config.mjs / vitest.config.mts  # 三道检查各自的落点
+.github/workflows/                 # CI（GitHub Actions）
 ```
 
-关于 `src/`：它把三种东西放在一起，而它们**只有一种**算主题层 ——
-`src/theme/` 是层栈最外层，`src/pages/` 与 `src/css/` 不是。详见 [src/README.md](./src/README.md)。
+关于 `src/`：它把两种东西放在一起，而它们**只有一种**算主题层 ——
+`src/theme/` 是层栈最外层，`src/pages/` 不是。详见 [src/README.md](./src/README.md)。
