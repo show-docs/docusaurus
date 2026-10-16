@@ -69,6 +69,20 @@ demo 的三个主题包不编译：它们只导出 `getThemePath()` 这类标准
 > 所以现在只被 `pnpm build:core` 编译 —— 状态、接入位置与 URL 算法以它的
 > [README](./theme/theme-iframe/README.md) 为准，这里不抄第二份。
 
+### 构建包的编译口径
+
+三个构建包的 `tsconfig.build.json` 只写**本包相对 preset 的差量**，能从 extends 拿的一律不重抄
+（`plugins/*` 那份因此只剩三行）。这张表就是这些差量的产地，包里的注释只留指针：
+
+| 差量                                                     | 为什么非写不可                                                                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `noEmit: false` + `rootDir` / `outDir`                   | preset 默认只检查不产出（`base.json` 的 `noEmit: true`），构建包要的是产物。                                                                                                                                                                                                                                    |
+| `declaration: true`                                      | 只有 `node-bundle.json` 给，`react.json` 那条链不给；而两个主题包的出口要 `dist/index.d.mts`。                                                                                                                                                                                                                  |
+| `rewriteRelativeImportExtensions: true`                  | 同上，只有 `node-bundle.json` 给。相对 import 统一写**源码名**（`./x.mts` / `./x.tsx`），靠它在产出时改成产物名（`./x.mjs` / `./x.jsx`）；少了它，源码名原样进产物，运行时对不上。`allowImportingTsExtensions` 反而不用写 —— `base.json` 已经给了。                                                             |
+| `jsx: "preserve"`                                        | `react.json` 给的是 `react-jsx`，会把 JSX 编成 `.js`；而包是 `"type": "module"`，webpack 把 `.js` 当纯 ESM 模块解析，服务端构建里 babel 先把 `import()` 变成 `require('./x.js')` —— 那种模块的 parser 不认 `require`，依赖不进 bundle，静态渲染阶段报 `Cannot find module`。`.jsx` 走 auto 形态，两种写法都认。 |
+| `types: ["node", "react", "react-dom"]`                  | `react.json` 只给 `["react", "react-dom"]`，而主题包的入口与 loader 是 Node 侧源码；不给 `node` 时 `node:fs` 报 TS2591，看着像路径写错。`types` 是整份替换，所以 react 那两个也得跟着列。                                                                                                                       |
+| `files: ["../../types/plugin-prev-layer-resolver.d.ts"]` | `@theme/X`、`@theme-prev/X` 这些别名在构建期才存在，磁盘上恒无对应文件；类型口径的产地在仓库根 `types/`，而 `include` 只覆盖 `src`，够不到仓库根。                                                                                                                                                              |
+
 其余目录不是包，只是仓库根的一部分：
 
 | 目录     | 职责                                                                                                                 | 细节                               |
@@ -119,7 +133,7 @@ demo 的三个主题包不编译：它们只导出 `getThemePath()` 这类标准
 
 ```
 dist/.tsbuildinfo/                 # `tsc -b` 的增量信息（git 忽略）；构建包的产物在各包自己目录里
-tsconfig.json                      # 共享编译选项（noEmit）；demo / test 各一份 extends，两个构建包在包内自带 tsconfig.build.json
+tsconfig.json                      # 共享编译选项（noEmit）；demo / test 各一份 extends，三个构建包在包内自带 tsconfig.build.json
 tsconfig.demo.json / tsconfig.test.json  # 两份 composite 项目，由 pnpm typecheck（tsc -b）跑
 docusaurus.config.mjs              # 站点配置（.mjs：站点根不是 ESM 包，靠扩展名拿 ESM；侧栏由 docs 插件按目录自动生成）
 pnpm-workspace.yaml                # pnpm 12 的配置落点：分包清单（packages:）+ 安装期依赖（configDependencies）+ 扁平化（shamefullyHoist）

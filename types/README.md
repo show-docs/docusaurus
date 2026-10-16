@@ -19,9 +19,10 @@
 
 ## 谁在引用它
 
-被三处 `files` 直接列入：`tsconfig.demo.json`、`tsconfig.test.json`、
-`theme/theme-markmap/tsconfig.build.json`（仓库根的 `tsconfig.json` 没有 `files`，靠默认
-include `**/*` 收到它）。删掉它 `pnpm typecheck` 立刻红 —— 不是「没人用的类型补充」。
+被四处 `files` 直接列入：`tsconfig.demo.json`、`tsconfig.test.json`、
+`theme/theme-markmap/tsconfig.build.json`、`theme/theme-iframe/tsconfig.build.json`
+（仓库根的 `tsconfig.json` 没有 `files`，靠默认 include `**/*` 收到它）。
+删掉它 `pnpm typecheck` 立刻红 —— 不是「没人用的类型补充」。
 
 默认导出统一是 `FunctionComponent<Record<string, unknown>>`：每层包裹的组件 props
 各不相同，在这里做约束等于把「链式覆盖」这个运行时能力错误地类型化。语义详见 [plugin-prev-layer-resolver 的 README](../plugins/plugin-prev-layer-resolver/README.md)。

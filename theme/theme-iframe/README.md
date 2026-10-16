@@ -64,20 +64,19 @@ URL 的算法（`getURL`）分三步，只有浏览器端才会全走完：
 
 要「导图 + iframe 同时在同一页生效」就用第一行那个位置。
 
-## 语言与编译约定
+## 编译口径
 
-和 `plugins/plugin-prev-layer-resolver`、`theme/theme-markmap` 同一套：源码 `.mts` / `.tsx`
-在 `src/`，`tsc` 编译到本包 `dist/`，那份产物就是包出口，改完要 `pnpm build:core`。
-`jsx` 用 `preserve`（产物保持 `.jsx`，交给 Docusaurus 的 babel 编译），理由与那份说明一样，
-产地在 `theme/theme-markmap/tsconfig.build.json` 的注释里，这里不抄第二遍。
+本包的 `tsconfig.build.json` 与另外两个构建包同一套，差量清单与理由记在仓库根 README 的
+「构建包的编译口径」，这里不抄第二份；改完源码要 `pnpm build:core`。
 
-样式表不是模块，`tsc` 不会把它搬进 `dist/`，所以那份 CSS Module 留在包根 `styles/`，
-靠 `files: ["dist", "styles"]` 发布；组件里写的 `../../styles/…` 在 `src/` 和 `dist/` 两边
-深度相同，因此不用改写。
+本包自己的两格：
 
-`@theme-prev/DocItem` 是构建期才存在的别名，类型声明的产地在仓库根
-[`types/`](../../types/README.md)；本包的构建项目把它列进 `files`。语义见
-[plugin-prev-layer-resolver 的 README](../../plugins/plugin-prev-layer-resolver/README.md)。
+- 样式表不是模块，`tsc` 不会把它搬进 `dist/`，所以那份 CSS Module 留在包根 `styles/`、靠
+  `files: ["dist", "styles"]` 发布；组件里写的 `../../styles/…` 在 `src/` 和 `dist/` 两边
+  深度相同，因此不用改写。
+- `@theme-prev/DocItem` 是构建期才存在的别名，类型声明的产地在仓库根
+  [`types/`](../../types/README.md)，本包的构建项目把它列进 `files`；语义见
+  [plugin-prev-layer-resolver 的 README](../../plugins/plugin-prev-layer-resolver/README.md)。
 
 ## 已知的边界
 

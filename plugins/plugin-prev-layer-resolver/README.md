@@ -395,9 +395,10 @@ theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。
 `src/plugins.mts` 读插件列表、`src/resolver.mts` 的 `apply()`）。各文件职责见上方「组成」，
 各目录职责与「放错地方会怎样」见仓库根 README 的「目录结构」。
 
-> 源码是 ESM 的 `.mts`，内部 import 说明符因此写作 `./xxx.mjs`（NodeNext 解析编译后的
-> `.mjs`）。`tsc` 把 import 原样搬到包内 `dist/`，那份 `dist/index.mjs` 就是包出口 ——
-> 站点按包名拿到的就是它，所以改完源码要 `pnpm build:core`。
+> 源码是 ESM 的 `.mts`，相对 import 写**源码名**（`./layers.mts`），产出时才变成 `./layers.mjs`；
+> 这条口径与差量清单记在仓库根 README 的「构建包的编译口径」，这里不抄第二份。`tsc` 把改写后的
+> import 搬进包内 `dist/`，那份 `dist/index.mjs` 就是包出口 —— 站点按包名拿到的就是它，
+> 所以改完源码要 `pnpm build:core`。
 
 ## 设计取舍（明确不做什么）
 
