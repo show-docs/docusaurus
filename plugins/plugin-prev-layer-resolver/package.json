@@ -7,14 +7,14 @@
     "name": "Eric Chen"
   },
   "keywords": [],
-  "homepage": "https://github.com/show-docs/docusaurus-plugin-prev-layer-resolver/tree/master/plugins/plugin-prev-layer-resolver",
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/plugins/plugin-prev-layer-resolver",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/show-docs/docusaurus-plugin-prev-layer-resolver.git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
     "directory": "plugins/plugin-prev-layer-resolver"
   },
   "bugs": {
-    "url": "https://github.com/show-docs/docusaurus-plugin-prev-layer-resolver/issues"
+    "url": "https://github.com/show-docs/docusaurus/issues"
   },
   "types": "dist/index.d.mts",
   "main": "dist/index.mjs",
