@@ -17,10 +17,6 @@ export default function theme() {
         module: {
           rules: [
             {
-              test: /\.markmap$/,
-              loader: require.resolve('./loader/markmap-loader.cjs'),
-            },
-            {
               // md 由官方 mdx-loader 编译，这里只能在其产物后追加导出
               enforce: 'post',
               test: /\.md$/,

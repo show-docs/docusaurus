@@ -22,4 +22,4 @@ markmap: true
 ## 文档正文
 
 - 本文件的 frontmatter 写了 `markmap: true`
-- 整页正文由 MindChart 渲染，markdown 结构变成导图分支
+- 导图渲染在本页正文上方，往下滚动照常读到原文

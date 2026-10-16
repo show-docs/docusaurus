@@ -35,38 +35,17 @@ function withMarkmapAbove(Content, markmap) {
 export default function DocItemMarkmap(props) {
   const { content } = props;
 
-  // 两种来源同一份契约：md 由 post loader 追加 `export const markmap`，
-  // `.markmap` 文件的默认导出则是 `{ markmap: 数据 }`
-  const { markmap } = content ?? {};
-
-  if (!markmap) {
-    return <DocItem {...props} />;
-  }
-
-  // md 的默认导出是 MDX 组件，正文能接在导图下面
-  if (typeof content === 'function') {
-    return <DocItem {...props} content={withMarkmapAbove(content, markmap)} />;
-  }
-
-  // `.markmap` 文件的默认导出就是数据本身，没有正文可接，只能整页替换
-  return (
-    <ErrorBoundary>
-      <Suspense fallback={null}>
-        <DocItem {...props} shellTitle={content.name}>
-          <MindChart data={markmap} />
-        </DocItem>
-      </Suspense>
-    </ErrorBoundary>
+  // post loader 给命中 frontmatter 的 md 追加 `export const markmap`，
+  // Docusaurus 把它和其他模块导出一起挂到 MDX 组件上
+  return content?.markmap ? (
+    <DocItem {...props} content={withMarkmapAbove(content, content.markmap)} />
+  ) : (
+    <DocItem {...props} />
   );
 }
 
 DocItemMarkmap.propTypes = {
-  content: PropTypes.oneOfType([
-    PropTypes.elementType,
-    PropTypes.shape({
-      // eslint-disable-next-line react/forbid-prop-types
-      markmap: PropTypes.objectOf(PropTypes.any),
-      name: PropTypes.string,
-    }),
-  ]),
+  // MDX 模块的 default 导出：`markmap` / `metadata` / `frontMatter` 是 ComponentCreator
+  // 事后挂上的静态属性，propTypes 表达不出「组件 + 这些形状」，只能按 elementType 收
+  content: PropTypes.elementType,
 };
