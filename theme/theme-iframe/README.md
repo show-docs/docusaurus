@@ -3,14 +3,14 @@
 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时，该文档页在 `DocItem` 里嵌一个 iframe，
 正文换成那个外部页面。
 
-包名 `@eaphone/docusaurus-theme-iframe`，导出只有 `getThemePath()` —— 它往层栈里加一层，
-不做解析、不带 loader。
+包名 `@eaphone/docusaurus-theme-iframe`，入口只声明层目录（`getThemePath()`，另有一条给
+`docusaurus swizzle` 用的 `getTypeScriptThemePath()`）—— 不做解析、不带 loader。
 
 ## 状态：还没接入站点
 
 `docusaurus.config.mjs` 的 `plugins` 里没有它，站点根的 `package.json` 也没声明
-`"@eaphone/docusaurus-theme-iframe": "workspace:^"`。所以现在它只被 `pnpm build:core` 编译，
-既不进层栈、也不在 `pnpm test` 的分包解析用例覆盖里。要用它得**先补这两处**（只补前一处会
+`"@eaphone/docusaurus-theme-iframe": "workspace:^"`。所以现在只有入口被 `pnpm build:core`
+编译过，它既不进层栈、也不在 `pnpm test` 的分包解析用例覆盖里。要用它得**先补这两处**（只补前一处会
 `Cannot find module`：按包名加载的 importer 必须声明它）。
 
 顺带一格：包名挂的是 `@eaphone/` 域，而本仓库其它包都挂 `@show-docs/`。
@@ -19,14 +19,17 @@
 
 ## 组成
 
-| 文件                          | 职责                                                                         |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `src/index.mts`               | 插件入口：`getThemePath()` 指向产物里的 `./theme`                            |
-| `src/theme/DocItem/index.tsx` | 层里的组件：命中 frontmatter 时包下层 `DocItem`，塞进 `FramePage`            |
-| `src/components/iframe.tsx`   | `FramePage`：算最终 URL、开发模式给链接、生产模式给 `<iframe>`               |
-| `styles/iframe.module.css`    | CSS Module（`.iframe` / `.center`）                                          |
-| `src/module-aliases.d.ts`     | 引官方 `@docusaurus/module-type-aliases`，给构建期才存在的那些 import 补类型 |
-| `tsconfig.build.json`         | 构建项目：`src/` → `dist/`                                                   |
+| 文件                           | 编译吗              | 职责                                                                            |
+| ------------------------------ | ------------------- | ------------------------------------------------------------------------------- |
+| `src/index.mts`                | ✅ `src/` → `dist/` | 插件入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算，就是 `../theme`） |
+| `theme/DocItem/index.tsx`      | ❌ 站点编译         | 层里的组件：命中 frontmatter 时包下层 `DocItem`，塞进 `FramePage`               |
+| `components/iframe.tsx`        | ❌ 站点编译         | `FramePage`：算最终 URL、开发模式给链接、生产模式给 `<iframe>`                  |
+| `components/iframe.module.css` | ❌ 站点编译         | CSS Module（`.iframe` / `.center`），放在用它的组件旁边                         |
+| `module-aliases.d.ts`          | 类型                | 引官方 `@docusaurus/module-type-aliases`，给构建期才存在的那些 import 补类型    |
+| `tsconfig.build.json`          | ——                  | 构建项目：只有 `src/`，所以本包的产物出口是 `dist/index.mjs`                    |
+
+「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/` 里的
+`.tsx`，本包就不编译第二遍。口径的产地在仓库根 README 的「构建包的编译口径」。
 
 ## 怎么用
 
@@ -66,16 +69,19 @@ URL 的算法（`getURL`）分三步，只有浏览器端才会全走完：
 
 ## 编译口径
 
-本包的 `tsconfig.build.json` 与另外两个构建包同一套，差量清单与理由记在仓库根 README 的
-「构建包的编译口径」，这里不抄第二份；改完源码要 `pnpm build:core`。
+只有 `src/index.mts` 进 `tsc`（差量清单与理由记在仓库根 README 的「构建包的编译口径」，
+这里不抄第二份）。本包自己的四格：
 
-本包自己的两格：
-
-- 样式表不是模块，`tsc` 不会把它搬进 `dist/`，所以那份 CSS Module 留在包根 `styles/`、靠
-  `files: ["dist", "styles"]` 发布；组件里写的 `../../styles/…` 在 `src/` 和 `dist/` 两边
-  深度相同，因此不用改写。
-- `@theme-prev/DocItem` 是构建期才存在的别名，类型声明的产地在仓库根
-  [`types/`](../../types/README.md)，本包的构建项目把它列进 `files`；语义见
+- 入口里的 `getThemePath()` 返回 `../theme` —— 相对的是**产物**目录（`dist/`），不是 `src/`。
+- 层与组件不进构建项目，`files` 因此要点名三份：`["dist", "theme", "components"]`。只发 `dist`
+  的话，包装上站点会报层目录不存在。
+- 那份 CSS Module 与用它的组件同目录，`theme/DocItem` 里的动态 import 写的是
+  `../../components/iframe.tsx` —— 磁盘上就是这个文件，未编译这一侧不存在「产物名改写」。
+- 改 `theme/` 与 `components/` 不用先编译，`pnpm start` 直接生效；改入口才要 `pnpm build:core`。
+  这两份未编译的源码归仓库根 `tsconfig.json` 检查，所以 `pnpm lint:type` 就是它们的门：
+  `@theme-prev/DocItem` 的类型产地在仓库根 [`types/`](../../types/README.md)，
+  `*.module.css`、`@docusaurus/router` 那几条靠包根的 `module-aliases.d.ts`；
+  `@theme-prev/X` 的语义见
   [plugin-prev-layer-resolver 的 README](../../plugins/plugin-prev-layer-resolver/README.md)。
 
 ## 已知的边界

@@ -102,7 +102,7 @@ export default [
   {
     // 主题组件的目录名**就是**组件名（`@theme/Logo` 靠它拼出来），官方口径是 PascalCase；
     // 改成 kebab-case 等于改掉别名语义。
-    files: ['src/theme/**', 'demo/*/theme/**', 'theme/*/src/theme/**'],
+    files: ['src/theme/**', 'demo/*/theme/**', 'theme/*/theme/**'],
     rules: { 'unicorn/filename-case': 0 },
   },
   {
@@ -123,7 +123,7 @@ export default [
       'demo/*/theme/**',
       'theme/*/src/index.mts',
       'theme/*/src/loader/**',
-      'theme/*/src/theme/**',
+      'theme/*/theme/**',
     ],
     rules: { 'import-x/no-default-export': 0 },
   },

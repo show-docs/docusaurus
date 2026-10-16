@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useLocation } from '@docusaurus/router';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 
-import css from '../../styles/iframe.module.css';
+import css from './iframe.module.css';
 
 /* globals process */
 const notDev = process.env.NODE_ENV !== 'development';

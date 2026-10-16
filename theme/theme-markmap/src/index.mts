@@ -12,8 +12,14 @@ const thisDir = dirname(fileURLToPath(import.meta.url));
 export default function theme(): Plugin {
   return {
     name: '@show-docs/docusaurus-theme-markmap',
+    // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
+    // 项目会用自己的 babel 编译它们。这里只编译 `src/` 剩下的东西（入口、loader、类型）。
     getThemePath() {
-      return resolve(thisDir, './theme');
+      return resolve(thisDir, '../theme');
+    },
+    // 层里放的是 `.tsx`，这条给 `docusaurus swizzle` 用
+    getTypeScriptThemePath() {
+      return resolve(thisDir, '../theme');
     },
     // 样式表不是模块，`tsc` 不会把它搬进 `dist/`：官方样式按包名解析，本仓那份留在包根
     // `styles/`，两者都作为 client module 交给站点的样式表（效果等同源码里那句 `import '….css'`）。

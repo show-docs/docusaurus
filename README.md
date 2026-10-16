@@ -50,47 +50,50 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 ## 分包
 
-仓库里的分包**按「要不要先编译」分两种形态**，不是按「像不像一个包」：
+仓库里的分包**按「`src/` 要不要先编译」分两种形态**，不是按「像不像一个包」：
 
-| 目录                                  | 是什么                                                                                        | 形态                                     | 细节                                                     |
-| ------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------- |
-| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                 | 构建包（`src/` → `dist/`，改完要编译）   | [README](./plugins/plugin-prev-layer-resolver/README.md) |
-| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                             | 构建包（同上，`styles/` 随包发布）       | [示例页](./docs/markmap-demo.md)                         |
-| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                         | 免编译（Docusaurus 的 babel 直接吃源码） | [README](./demo/README.md)                               |
-| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时把该页包成内嵌 iframe（开发模式只给链接） | 构建包（同上，`styles/` 随包发布）       | [README](./theme/theme-iframe/README.md)                 |
+| 目录                                  | 是什么                                                                                        | 形态                                                | 细节                                                     |
+| ------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                 | 构建包（`src/` → `dist/`，改完要编译）              | [README](./plugins/plugin-prev-layer-resolver/README.md) |
+| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                             | 构建包（只编译入口与 loader；层与组件是源码）       | [示例页](./docs/markmap-demo.md)                         |
+| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时把该页包成内嵌 iframe（开发模式只给链接） | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-iframe/README.md)                 |
+| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                         | 免编译（没有 `src/`：入口与层都是源码，站点直接吃） | [README](./demo/README.md)                               |
 
-三个构建包都是 `tsc` 编译包：源码 `.mts` / `.tsx` 在包内 `src/`，产物在包内 `dist/`，
+三个构建包都是 `tsc` 编译包：Node 侧要跑的源码 `.mts` 在包内 `src/`，产物在包内 `dist/`，
 `dist/index.mjs` 就是包出口（`exports`）—— 所以 `pnpm build:core` 是「编译这三个包」，
 `pnpm start` / `pnpm build` / `pnpm test` 都已经把它内置在前面。
-样式表不是模块，`tsc` 不会把它搬进 `dist/`：两个主题包的那份都留在包根 `styles/`，随 `files` 发布。
-demo 的三个主题包不编译：它们只导出 `getThemePath()` 这类标准钩子，源码直接被 Docusaurus 的 babel 编译。
+
+主题包的**主题层与组件不进这份编译**：`theme/*/theme/**` 与 `theme/*/components/**` 是未编译的
+`.tsx`，随包发布，由用它们的站点的 babel 编译 —— 判据只有一条：**谁编译，就不编译第二遍**。
+`demo/theme-*/` 是这个形态的完整版，连入口 `index.mts` 都由 Docusaurus 的 jiti 直接加载。
 
 > **`theme/theme-iframe/` 还没接入站点**（`plugins` 里没有它，站点根也没声明它的 workspace 依赖），
-> 所以现在只被 `pnpm build:core` 编译 —— 状态、接入位置与 URL 算法以它的
+> 所以现在它只是磁盘上的一个包 —— 状态、接入位置与 URL 算法以它的
 > [README](./theme/theme-iframe/README.md) 为准，这里不抄第二份。
 
 ### 构建包的编译口径
 
-三个构建包的 `tsconfig.build.json` 只写**本包相对 preset 的差量**，能从 extends 拿的一律不重抄
-（`plugins/*` 那份因此只剩三行）。这张表就是这些差量的产地，包里的注释只留指针：
+三份 `tsconfig.build.json` 是**同一份差量**：`extends: @nice-move/tsconfig/node-bundle.json`，
+再写 `noEmit: false` 与 `rootDir` / `outDir`，能从 extends 拿的一律不重抄。这张表是这些口径的产地，
+包里的注释只留指针：
 
-| 差量                                                     | 为什么非写不可                                                                                                                                                                                                                                                                                                  |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `noEmit: false` + `rootDir` / `outDir`                   | preset 默认只检查不产出（`base.json` 的 `noEmit: true`），构建包要的是产物。                                                                                                                                                                                                                                    |
-| `declaration: true`                                      | 只有 `node-bundle.json` 给，`react.json` 那条链不给；而两个主题包的出口要 `dist/index.d.mts`。                                                                                                                                                                                                                  |
-| `rewriteRelativeImportExtensions: true`                  | 同上，只有 `node-bundle.json` 给。相对 import 统一写**源码名**（`./x.mts` / `./x.tsx`），靠它在产出时改成产物名（`./x.mjs` / `./x.jsx`）；少了它，源码名原样进产物，运行时对不上。`allowImportingTsExtensions` 反而不用写 —— `base.json` 已经给了。                                                             |
-| `jsx: "preserve"`                                        | `react.json` 给的是 `react-jsx`，会把 JSX 编成 `.js`；而包是 `"type": "module"`，webpack 把 `.js` 当纯 ESM 模块解析，服务端构建里 babel 先把 `import()` 变成 `require('./x.js')` —— 那种模块的 parser 不认 `require`，依赖不进 bundle，静态渲染阶段报 `Cannot find module`。`.jsx` 走 auto 形态，两种写法都认。 |
-| `types: ["node", "react", "react-dom"]`                  | `react.json` 只给 `["react", "react-dom"]`，而主题包的入口与 loader 是 Node 侧源码；不给 `node` 时 `node:fs` 报 TS2591，看着像路径写错。`types` 是整份替换，所以 react 那两个也得跟着列。                                                                                                                       |
-| `files: ["../../types/plugin-prev-layer-resolver.d.ts"]` | `@theme/X`、`@theme-prev/X` 这些别名在构建期才存在，磁盘上恒无对应文件；类型口径的产地在仓库根 `types/`，而 `include` 只覆盖 `src`，够不到仓库根。                                                                                                                                                              |
+| 口径                     | 内容                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 编译范围                 | 只有 `src/`，而 `src/` 里只放 **Node 侧要跑的代码**：核心包的解析器、主题包的入口与 webpack loader、类型。JSX 一份都不进 `tsc`。                                                                                                                                                                                                                     |
+| 层与组件为什么不编译     | 用它们的站点会编译，编译两遍只是多出一份要 `files` 点名、会和源码漂移的产物。实测根据：`demo/theme-*/theme/**` 一直是未编译的 `.tsx`，站点收进层栈照样绿 —— `pnpm verify:chain` 打印的层栈里就有那一格。                                                                                                                                             |
+| 让 `tsc` 编 JSX 要付什么 | 多一条产物口径：`react.json` 给的 `react-jsx` 会把 JSX 编成 `.js`，而包是 `"type": "module"`，服务端构建里 babel 先把 `import()` 变成 `require('./x.js')` —— 纯 ESM 模块的 parser 不认 `require`，依赖进不了 bundle，静态渲染阶段报 `Cannot find module`；要躲它得单独钉 `jsx: "preserve"`。少编译一层就少一条这种口径。                             |
+| 相对 import              | 统一写**源码名**（`./x.mts` / `./x.tsx`）。编译过的由 `node-bundle.json` 的 `rewriteRelativeImportExtensions` 在产出时改成产物名（`./x.mjs`）；未编译的那份原样交给 webpack，磁盘上就是这个文件，所以两种写法都指得到。`allowImportingTsExtensions` 不用写 —— `base.json` 已给。                                                                     |
+| 样式表                   | 不是模块，`tsc` 也不搬：`theme-markmap` 那份留在包根 `styles/`，走 `getClientModules()`；iframe 那份 CSS Module 直接放在用它的组件旁边。                                                                                                                                                                                                             |
+| 未编译源码的类型检查     | 由仓库根 `tsconfig.json` 接手（默认 include `**/*`，`types` 同时列 `node` 与 `react` / `react-dom`）。所以构建项目不再需要 `jsx`、不需要 react 那两条 `types`，也不再需要把 `types/` 列进 `files`。`*.module.css`、`@docusaurus/router` 这类只在构建期存在的依赖，由包内一份 `module-aliases.d.ts` 引用官方 `@docusaurus/module-type-aliases` 说明。 |
 
 其余目录不是包，只是仓库根的一部分：
 
-| 目录     | 职责                                                                                                                 | 细节                               |
-| -------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `docs/`  | 站点文档源（方案速览 / 导图示例；iframe 那页要等本包接进站点才有效）                                                 | [`docs/intro.md`](./docs/intro.md) |
-| `test/`  | 核心包单元测试（按契约面组织）                                                                                       | [README](./test/README.md)         |
-| `src/`   | 站点侧源码；**只有 `src/theme/` 算主题层**（`src/pages/` 不是）                                                      | [README](./src/README.md)          |
-| `types/` | `@theme*` specifier 的类型声明（`tsconfig.demo/test` 与 `theme-markmap` 的构建项目都把它列进 `files`，删了就类型红） | [README](./types/README.md)        |
+| 目录     | 职责                                                                                                                           | 细节                               |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| `docs/`  | 站点文档源（方案速览 / 导图示例；iframe 那页要等本包接进站点才有效）                                                           | [`docs/intro.md`](./docs/intro.md) |
+| `test/`  | 核心包单元测试（按契约面组织）                                                                                                 | [README](./test/README.md)         |
+| `src/`   | 站点侧源码；**只有 `src/theme/` 算主题层**（`src/pages/` 不是）                                                                | [README](./src/README.md)          |
+| `types/` | `@theme*` specifier 的类型声明（`tsconfig.demo/test` 把它列进 `files`，仓库根与各包的源码靠默认 include 收到它，删了就类型红） | [README](./types/README.md)        |
 
 上表的 `plugins/*`、`theme/*`、`demo/*` 是 **pnpm workspace 包**（各自有 `package.json`，
 也在 `pnpm-workspace.yaml` 的 `packages:` 里）；其余是仓库根的目录，不是包 —— 判据是
@@ -107,7 +110,8 @@ demo 的三个主题包不编译：它们只导出 `getThemePath()` 这类标准
 - **多主题链式覆盖**（为什么官方别名做不到、`@theme-prev/X` 怎么解析、怎么接入、有哪些约束）：
   [plugins/plugin-prev-layer-resolver/README.md](./plugins/plugin-prev-layer-resolver/README.md)
 - **导图主题**（frontmatter 触发、渲染位置、明暗跟随全站主题）：
-  行为见 [docs/markmap-demo.md](./docs/markmap-demo.md)，实现见 `theme/theme-markmap/src/`
+  行为见 [docs/markmap-demo.md](./docs/markmap-demo.md)，实现见 `theme/theme-markmap/`（入口与
+  loader 在 `src/`，层与组件在 `theme/`、`components/`）
 - **iframe 主题**（frontmatter 触发、URL 怎么算、在层栈里放哪一格）：
   [theme/theme-iframe/README.md](./theme/theme-iframe/README.md)（尚未接入站点）
 - **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准

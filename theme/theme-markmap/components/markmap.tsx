@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
 import { useColorMode } from '@docusaurus/theme-common';
 import Admonition from '@theme/Admonition';
 
-import type { MarkmapData } from '../types.mts';
+import type { MarkmapData } from '../src/types.mts';
 
 const { Markmap, loadCSS, loadJS, deriveOptions } = markmap;
 

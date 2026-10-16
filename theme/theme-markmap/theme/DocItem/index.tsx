@@ -6,7 +6,7 @@ import DocItem from '@theme-prev/DocItem';
 
 import { ErrorBoundary } from '../../components/error-boundary.tsx';
 
-import type { MarkmapData } from '../../types.mts';
+import type { MarkmapData } from '../../src/types.mts';
 import { HackStyle } from '../../components/hack-style.tsx';
 
 const MindChart = lazy(() =>

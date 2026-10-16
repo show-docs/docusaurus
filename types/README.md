@@ -19,10 +19,11 @@
 
 ## 谁在引用它
 
-被四处 `files` 直接列入：`tsconfig.demo.json`、`tsconfig.test.json`、
-`theme/theme-markmap/tsconfig.build.json`、`theme/theme-iframe/tsconfig.build.json`
-（仓库根的 `tsconfig.json` 没有 `files`，靠默认 include `**/*` 收到它）。
-删掉它 `pnpm typecheck` 立刻红 —— 不是「没人用的类型补充」。
+被两处 `files` 直接列入：`tsconfig.demo.json`、`tsconfig.test.json`（它们的 `include` 够不到仓库根）。
+其余消费方走仓库根 `tsconfig.json` 的默认 include（`**/*`）：站点自己的 swizzle（`src/theme/**`）
+与主题包里**未编译**的层和组件（`theme/*/theme/**`、`theme/*/components/**`）—— 三个构建项目的
+`include: ["src"]` 现在都没有要别名的文件，所以那份 `files` 已经跟着删了。
+删掉这个文件，`pnpm typecheck` 与 `pnpm lint:type` 都会红 —— 不是「没人用的类型补充」。
 
 默认导出统一是 `FunctionComponent<Record<string, unknown>>`：每层包裹的组件 props
 各不相同，在这里做约束等于把「链式覆盖」这个运行时能力错误地类型化。语义详见 [plugin-prev-layer-resolver 的 README](../plugins/plugin-prev-layer-resolver/README.md)。
