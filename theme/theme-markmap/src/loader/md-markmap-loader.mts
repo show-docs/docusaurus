@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 import type { LoaderContext } from 'webpack';
 
-import { buildMarkmapData } from './markmap-data.mjs';
+import { buildMarkmapData } from './markmap-data.mts';
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
 const MARKMAP_KEY = /^markmap\s*:/m;

@@ -1,7 +1,10 @@
 {
+  "//compilerOptions": "相对 import 写源码名（`./x.mts`），产出时由 `rewriteRelativeImportExtensions` 改写成 `./x.mjs`；口径与 `theme/*/tsconfig.build.json` 一致。",
   "extends": "@nice-move/tsconfig/node-bundle.json",
   "compilerOptions": {
     "noEmit": false,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "rootDir": "src",
     "outDir": "dist"
   },

@@ -5,8 +5,8 @@ import {
   normalizeLayerPath,
   resolveCoreModule,
   resolveFromCore,
-} from './layers.mjs';
-import type { DocusaurusPluginLike, LoggerLike } from './types.mjs';
+} from './layers.mts';
+import type { DocusaurusPluginLike, LoggerLike } from './types.mts';
 
 /**
 「谁在链上、什么顺序」这一步。

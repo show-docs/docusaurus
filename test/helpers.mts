@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveCoreModule } from '../plugins/plugin-prev-layer-resolver/src/layers.mjs';
+import { resolveCoreModule } from '../plugins/plugin-prev-layer-resolver/src/layers.mts';
 import type {
   DocusaurusPluginLike,
   ThemeLayer,
-} from '../plugins/plugin-prev-layer-resolver/src/types.mjs';
+} from '../plugins/plugin-prev-layer-resolver/src/types.mts';
 
 /**
 类型出口：夹具文件同时是测试面取核心包类型的**唯一入口**，

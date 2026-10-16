@@ -1,8 +1,8 @@
 import type { LoadContext, Plugin } from '@docusaurus/types';
-import { layersFromPlugins } from './layers.mjs';
-import { PluginDiscovery } from './plugins.mjs';
-import { PrevLayerResolverPlugin } from './resolver.mjs';
-import type { LoggerLike } from './types.mjs';
+import { layersFromPlugins } from './layers.mts';
+import { PluginDiscovery } from './plugins.mts';
+import { PrevLayerResolverPlugin } from './resolver.mts';
+import type { LoggerLike } from './types.mts';
 
 export interface PrevLayerResolverOptions {
   /** 注入 logger（测试用） */

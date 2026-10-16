@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 
 import Admonition from '@theme/Admonition';
 
-import type { MarkmapData } from '../types.mjs';
+import type { MarkmapData } from '../types.mts';
 
 const { Markmap, loadCSS, loadJS, deriveOptions } = markmap;
 
@@ -53,7 +53,7 @@ export function MindChart({ data }: Props) {
   }, [data, options, root, scripts, styles]);
 
   return (
-    <>
+    <div>
       {draft ? (
         <Admonition
           className="markmap-admonition"
@@ -65,6 +65,6 @@ export function MindChart({ data }: Props) {
       ) : undefined}
       <svg className="markmap" ref={container} />
       <div className="toolbar-wrapper" ref={toolbar} />
-    </>
+    </div>
   );
 }

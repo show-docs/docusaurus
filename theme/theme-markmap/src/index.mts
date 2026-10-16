@@ -31,6 +31,8 @@ export default function theme(): Plugin {
               // md 由官方 mdx-loader 编译，这里只能在其产物后追加导出
               enforce: 'post',
               test: /\.md$/,
+              // Webpack 按**文件路径**取 loader，不走模块解析，所以这里写的必须是产物名
+              // （`.mjs`），不是源码名 —— 上面的 `thisDir` 就是 `dist/`。
               loader: resolve(thisDir, './loader/md-markmap-loader.mjs'),
             },
           ],

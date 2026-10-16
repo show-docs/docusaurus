@@ -43,9 +43,9 @@ const coreDist = path.join(root, 'plugins/plugin-prev-layer-resolver/dist');
 // 运行期导入显式标注成源码模块的形状，拼错路径或上游改名在这里就红，
 // 而不是到 `pnpm verify:chain` 运行期才变成 undefined。
 type LayersModule =
-  typeof import('../../plugins/plugin-prev-layer-resolver/src/layers.mjs');
+  typeof import('../../plugins/plugin-prev-layer-resolver/src/layers.mts');
 type PluginsModule =
-  typeof import('../../plugins/plugin-prev-layer-resolver/src/plugins.mjs');
+  typeof import('../../plugins/plugin-prev-layer-resolver/src/plugins.mts');
 const layersModule: LayersModule = await import(
   pathToFileURL(path.join(coreDist, 'layers.mjs')).href
 );

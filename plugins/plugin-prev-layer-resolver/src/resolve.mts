@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { isFile } from './layers.mjs';
-import type { ResolveRequestLike, ThemeLayer } from './types.mjs';
+import { isFile } from './layers.mts';
+import type { ResolveRequestLike, ThemeLayer } from './types.mts';
 
 /**
 「@theme-prev/* → 真实文件」这一步的纯逻辑：全是「层栈 + 组件名 + 导入者路径 →

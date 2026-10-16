@@ -10,7 +10,7 @@ import {
   fakePlugin,
   fakeUtils,
   mkdtempReal,
-} from './helpers.mjs';
+} from './helpers.mts';
 
 const {
   layersFromPlugins,
@@ -20,9 +20,9 @@ const {
   resolveFallbackDir,
   resolveFromCore,
   normalizeLayerPath,
-} = await import('../plugins/plugin-prev-layer-resolver/src/layers.mjs');
+} = await import('../plugins/plugin-prev-layer-resolver/src/layers.mts');
 const { PluginDiscovery } =
-  await import('../plugins/plugin-prev-layer-resolver/src/plugins.mjs');
+  await import('../plugins/plugin-prev-layer-resolver/src/plugins.mts');
 
 /**
 造一份最小可用的假 core：只要「包根 + 锚点文件（lib/webpack/aliases/index.js）+

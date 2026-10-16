@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { makeFixtureSite, type ThemeLayer } from './helpers.mjs';
-import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mjs';
+import { makeFixtureSite, type ThemeLayer } from './helpers.mts';
+import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mts';
 
 const { normalizeLayerPath } =
-  await import('../plugins/plugin-prev-layer-resolver/src/layers.mjs');
+  await import('../plugins/plugin-prev-layer-resolver/src/layers.mts');
 // 官方那一份「谁赢」的实现：交叉核对候选顺序时以它为基准，而不是以我们的推理为基准
 const { createAliasesForTheme } =
   await import('@docusaurus/core/lib/webpack/aliases/index.js');
@@ -15,7 +15,7 @@ const {
   resolveIssuer,
   isSafeComponentName,
   matchSpecifier,
-} = await import('../plugins/plugin-prev-layer-resolver/src/resolve.mjs');
+} = await import('../plugins/plugin-prev-layer-resolver/src/resolve.mts');
 
 describe('resolveComponentInLayer：层内组件定位', () => {
   let site: ReturnType<typeof makeFixtureSite>;

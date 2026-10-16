@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import type { DocusaurusPluginLike, LoggerLike, ThemeLayer } from './types.mjs';
+import type { DocusaurusPluginLike, LoggerLike, ThemeLayer } from './types.mts';
 
 /**
 层栈推导：按官方 `loadThemeAliases` 的同款规则做一次「同名同序」的复算

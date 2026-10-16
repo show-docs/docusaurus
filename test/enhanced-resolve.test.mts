@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { makeFixtureSite, type ThemeLayer } from './helpers.mjs';
+import { makeFixtureSite, type ThemeLayer } from './helpers.mts';
 
 const { PrevLayerResolverPlugin } =
-  await import('../plugins/plugin-prev-layer-resolver/src/resolver.mjs');
+  await import('../plugins/plugin-prev-layer-resolver/src/resolver.mts');
 // enhanced-resolve 现在是我们自己的 devDependency（类型也来自它），直接用真实模块；
 // 解析失败时整组跳过，避免把「依赖缺失」伪装成测试失败。
 const enhancedResolve = await import('enhanced-resolve').catch(() => null);

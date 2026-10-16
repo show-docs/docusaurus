@@ -1,7 +1,7 @@
 import { wrapFunction } from 'markmap-common';
 import { Transformer, builtInPlugins } from 'markmap-lib';
 
-import type { MarkmapData } from '../types.mjs';
+import type { MarkmapData } from '../types.mts';
 
 // `markdown-it` 没随包给出类型（要另装 `@types/markdown-it`），而这里只用到它渲染器的
 // 一处签名：按用到的形状声明，并把 `wrapFunction` 的类型参数钉成它，不让它退化成 any。

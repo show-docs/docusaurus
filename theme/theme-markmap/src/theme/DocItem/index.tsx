@@ -4,12 +4,13 @@ import type { ComponentType, ReactNode } from 'react';
 
 import DocItem from '@theme-prev/DocItem';
 
-import { ErrorBoundary } from '../../components/error-boundary.jsx';
+import { ErrorBoundary } from '../../components/error-boundary.tsx';
 
-import type { MarkmapData } from '../../types.mjs';
+import type { MarkmapData } from '../../types.mts';
+import { HackStyle } from '../../components/hack-style.tsx';
 
 const MindChart = lazy(() =>
-  import('../../components/markmap.jsx').then(({ MindChart: View }) => ({
+  import('../../components/markmap.tsx').then(({ MindChart: View }) => ({
     default: View,
   })),
 );
@@ -40,7 +41,11 @@ export default function DocItemMarkmap(props: Props): ReactNode {
           <MindChart data={content.markmap} />
         </Suspense>
       </ErrorBoundary>
-      <DocItem {...props} />
+      <hr />
+      {HackStyle}
+      <div className="container padding-top--md padding-bottom--lg fake">
+        <DocItem {...props} />
+      </div>
     </>
   );
 }

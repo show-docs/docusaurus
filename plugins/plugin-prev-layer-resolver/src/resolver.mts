@@ -1,11 +1,11 @@
-import { normalizeLayerPath } from './layers.mjs';
+import { normalizeLayerPath } from './layers.mts';
 import {
   findIssuerLayerIndex,
   isSafeComponentName,
   matchSpecifier,
   resolveComponentInLayer,
   resolveIssuer,
-} from './resolve.mjs';
+} from './resolve.mts';
 import type {
   LoggerLike,
   ResolveContextLike,
@@ -13,7 +13,7 @@ import type {
   ResolvedThemeTarget,
   ResolverLike,
   ThemeLayer,
-} from './types.mjs';
+} from './types.mts';
 
 /**
 `theme-fallback` 是 **stub 层**（`Root` / `Layout` / `Error` 等在官方 fallback 里都是空实现），

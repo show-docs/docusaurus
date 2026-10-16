@@ -9,13 +9,13 @@ import {
   makePluginSite,
   tick,
   withFixedTarget,
-} from './helpers.mjs';
+} from './helpers.mts';
 
 const { PrevLayerResolverPlugin } =
-  await import('../plugins/plugin-prev-layer-resolver/src/resolver.mjs');
+  await import('../plugins/plugin-prev-layer-resolver/src/resolver.mts');
 type PrevLayerResolverPlugin = InstanceType<typeof PrevLayerResolverPlugin>;
 const { layersFromPlugins, normalizeLayerPath, resolveCoreModule } =
-  await import('../plugins/plugin-prev-layer-resolver/src/layers.mjs');
+  await import('../plugins/plugin-prev-layer-resolver/src/layers.mts');
 
 /**
 加固测试：每条对应一个具体的静默失败模式，见 ../plugins/plugin-prev-layer-resolver/README.md 的「边界与限制」。
@@ -245,7 +245,7 @@ describe('小分支：两侧都要走到', () => {
     //   `@theme-prev/X` 与 `@theme/X` 落到两个模块），所以必须对齐官方。
     // 判据取**行为**：走一遍真实插件列表推导，读实例上的 path / options。
     const { PluginDiscovery } =
-      await import('../plugins/plugin-prev-layer-resolver/src/plugins.mjs');
+      await import('../plugins/plugin-prev-layer-resolver/src/plugins.mts');
     const site = makePluginSite('own-fields', '.mjs').addRaw(
       'own-fields',
       `module.exports = () => ({
@@ -292,7 +292,7 @@ describe('分支补测：两侧都要走到', () => {
     fs.mkdirSync(path.join(fb, 'Layout'), { recursive: true });
     fs.writeFileSync(path.join(fb, 'Layout', 'index.js'), '');
     const { PrevLayerResolverPlugin } =
-      await import('../plugins/plugin-prev-layer-resolver/src/resolver.mjs');
+      await import('../plugins/plugin-prev-layer-resolver/src/resolver.mts');
     const fallbackLayer = {
       name: 'theme-fallback',
       owner: fb,

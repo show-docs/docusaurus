@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
-import { fakeCore, makePluginSite } from './helpers.mjs';
+import { fakeCore, makePluginSite } from './helpers.mts';
 
 const { PluginDiscovery } =
-  await import('../plugins/plugin-prev-layer-resolver/src/plugins.mjs');
+  await import('../plugins/plugin-prev-layer-resolver/src/plugins.mts');
 const { layersFromPlugins } =
-  await import('../plugins/plugin-prev-layer-resolver/src/layers.mjs');
+  await import('../plugins/plugin-prev-layer-resolver/src/layers.mts');
 
 // 一次插件初始化 = 一个实例，同一实例只推导一次；测试里每处新建实例 = 每次重新初始化。
 

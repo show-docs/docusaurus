@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { makeFixtureSite, withFixedTarget } from './helpers.mjs';
+import { makeFixtureSite, withFixedTarget } from './helpers.mts';
 const { PrevLayerResolverPlugin } =
-  await import('../plugins/plugin-prev-layer-resolver/src/resolver.mjs');
+  await import('../plugins/plugin-prev-layer-resolver/src/resolver.mts');
 
 /**
 链式覆盖的**不变量**测试。

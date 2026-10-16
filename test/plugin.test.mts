@@ -7,10 +7,10 @@ import type { Plugin } from '@docusaurus/types';
 
 import prevLayerResolverPlugin, {
   type PrevLayerResolverOptions,
-} from '../plugins/plugin-prev-layer-resolver/src/index.mjs';
-import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mjs';
-import { mkdtempReal } from './helpers.mjs';
-import type { DocusaurusPluginLike, ThemeLayer } from './helpers.mjs';
+} from '../plugins/plugin-prev-layer-resolver/src/index.mts';
+import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mts';
+import { mkdtempReal } from './helpers.mts';
+import type { DocusaurusPluginLike, ThemeLayer } from './helpers.mts';
 
 const siteDir = path.resolve(import.meta.dirname, '..');
 
@@ -62,7 +62,7 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
   });
 
   it('`@theme-prev` 被认领并改写；官方别名从不拦截', async () => {
-    const { makeFixtureSite } = await import('./helpers.mjs');
+    const { makeFixtureSite } = await import('./helpers.mts');
     const site = makeFixtureSite();
     try {
       // 两层：内层提供 Logo，外层导入 → specifier 被认领并改写成内层的文件
@@ -172,7 +172,7 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
   it('层栈直接从插件列表推导：theme 增删 / 调序都不用改配置', async () => {
     // 只钉**接线**：注入的插件列表会变成层栈（不改配置即是「免清单」）；
     // 逐层下降的语义由 resolver.test.mts 的「四层链逐层下降」穷举，此处不复述。
-    const { makeFixtureSite } = await import('./helpers.mjs');
+    const { makeFixtureSite } = await import('./helpers.mts');
     const site = makeFixtureSite();
     try {
       const a = site.layer('theme-a', { Logo: '' });
@@ -227,9 +227,9 @@ async function discoverLayerOwners(
   plugins?: DocusaurusPluginLike[],
 ): Promise<string[]> {
   const { layersFromPlugins } =
-    await import('../plugins/plugin-prev-layer-resolver/src/layers.mjs');
+    await import('../plugins/plugin-prev-layer-resolver/src/layers.mts');
   const { PluginDiscovery } =
-    await import('../plugins/plugin-prev-layer-resolver/src/plugins.mjs');
+    await import('../plugins/plugin-prev-layer-resolver/src/plugins.mts');
   const list =
     plugins ??
     (await new PluginDiscovery(siteDir, { warn: () => {} }).discover());

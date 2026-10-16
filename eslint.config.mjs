@@ -1,6 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
-
 import config from '@nice-move/all-in-react/eslint';
 import { createNodeResolver } from 'eslint-plugin-import-x';
 
@@ -18,43 +15,20 @@ const ignores = [
 ];
 
 // Docusaurus 的虚拟模块 + 我们的 `@theme-prev*` specifier 族（口径产地见
-// `types/plugin-prev-layer-resolver.d.ts`）：别名在构建期才存在，磁盘上恒无文件。
+// `types/plugin-prev-layer-resolver.d.ts`）：别名在构建期才存在，磁盘上恒无文件，
+// `import-x` 的 node resolver 只会判它们「解析不到」。其余原样交回它 —— 拼错的路径照旧会红。
 const VIRTUAL =
   /^@(?:theme(?:-(?:original|init|prev(?:-init|-root)?))?|generated|docusaurus)\//;
 
 const nodeResolver = createNodeResolver();
-// `import-x` 默认的 node resolver 只认磁盘上真实存在的文件，于是把两类**按设计**不存在的路径
-// 全判成「解析不到」（40 条假红）。这里只补这两类里用到的形状，其余原样交回它 —— 拼错的真实路径照旧会红。
-// 第二类是「相对 import 写的是产物名」：`./x.mjs` 的源码是 `./x.mts`，`./x.js` / `./x.jsx` 的源码是
-// `./x.ts` / `./x.tsx`（`tsc` 认这套映射，判对错归它）。
-const PRODUCT_TO_SOURCE = new Map([
-  ['.mjs', ['.mts']],
-  ['.js', ['.ts', '.tsx']],
-  ['.jsx', ['.tsx']],
-]);
+
 const resolver = {
   interfaceVersion: 3,
   name: 'test-ci-import-resolver',
   resolve(specifier, importer) {
-    if (VIRTUAL.test(specifier)) {
-      return { found: true, path: null };
-    }
-    const direct = nodeResolver.resolve(specifier, importer);
-    if (direct.found || !specifier.startsWith('.')) {
-      return direct;
-    }
-    const productExtension = path.extname(specifier);
-    const sourceExtensions = PRODUCT_TO_SOURCE.get(productExtension) ?? [];
-    for (const sourceExtension of sourceExtensions) {
-      const source = path.join(
-        path.dirname(importer),
-        `${specifier.slice(0, -productExtension.length)}${sourceExtension}`,
-      );
-      if (fs.existsSync(source)) {
-        return { found: true, path: source };
-      }
-    }
-    return direct;
+    return VIRTUAL.test(specifier)
+      ? { found: true, path: null }
+      : nodeResolver.resolve(specifier, importer);
   },
 };
 
@@ -63,13 +37,6 @@ export default [
   ...config,
   {
     settings: { 'import-x/resolver-next': [resolver] },
-  },
-  {
-    // 相对 import 写的是**产物名**（`./x.mjs`、`./x.jsx`）：写成源码名（`.mts`、`.tsx`）会原样
-    // 进了产物，把运行时 import 写错。这条规则一旦能解析到源码名就坚持要源码名，所以挡掉 ——
-    // 「import 带扩展名」本仓已经在做，而产物名 ↔ 源码名的映射成立与否由 `tsc` 判。
-    files: ['plugins/**/*.mts', 'test/**/*.mts', 'theme/*/src/**'],
-    rules: { 'import-x/extensions': 0 },
   },
   {
     // preset 给 markdown 单独建的配置对象里**没有** unicorn 插件，把下面的豁免写成全局

@@ -7,9 +7,9 @@ import {
   warnSink,
   withFixedTarget,
   type ThemeLayer,
-} from './helpers.mjs';
+} from './helpers.mts';
 
-import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mjs';
+import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mts';
 
 type FixtureSite = ReturnType<typeof makeFixtureSite>;
 
