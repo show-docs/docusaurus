@@ -390,7 +390,7 @@ describe('构建脚本与 CI 护栏', () => {
     ).toContain('slug: /');
   });
 
-  it('每个主题包有一份 docs/*-demo.md，且都在主页的卡片列表里', () => {
+  it('每个主题包有一份 docs/*-demo.md，主页的卡片列表由侧边栏自动给', () => {
     // 口径：`theme/<name>` 那一层的触发键要有一个页面演示它，命名固定为
     // `docs/<name 去掉 theme- 前缀>-demo.md`。新增主题包却没写示例页时这条用例变红 ——
     // 光看 plugins 数组不知道那一层命中时长什么样。
@@ -400,23 +400,27 @@ describe('构建脚本与 CI 护栏', () => {
     expect(themeNames.length, 'theme/ 下应有主题包').toBeGreaterThan(0);
 
     const demoOf = (name: string) => `${name.slice('theme-'.length)}-demo.md`;
-    for (const name of themeNames) {
-      expect(
-        fs.existsSync(path.join(siteDir, 'docs', demoOf(name))),
-        `${name} 缺示例页 docs/${demoOf(name)}`,
-      ).toBe(true);
-    }
-
-    // 主页用官方 `@theme/DocCardList` 汇总这些示例页：卡片项是手写的 link，
-    // 所以「有示例页但主页没列出去」也要能发现。路由就是文件名去掉扩展名。
     const intro = fs.readFileSync(path.join(siteDir, 'docs/intro.md'), 'utf8');
-    expect(intro).toContain('@theme/DocCardList');
+
+    // 主页只写 `<DocCardList />`（不接 items）：卡片就是这一页在侧边栏里的兄弟项，
+    // 而侧边栏由 docs 插件按 `docs/` 目录自动生成，所以清单不该在文档里抄第二份。
+    expect(intro).toContain('<DocCardList />');
+    expect(
+      intro,
+      '主页的卡片列表交给侧边栏自动生成，手写 items 等于把清单抄第二份',
+    ).not.toContain('items=');
+
     for (const name of themeNames) {
-      const route = demoOf(name).replace('.md', '');
+      const file = path.join(siteDir, 'docs', demoOf(name));
+      expect(fs.existsSync(file), `${name} 缺示例页 docs/${demoOf(name)}`).toBe(
+        true,
+      );
+      // 卡片上那行说明取自 frontmatter 的 `description:`（DocCard 用它作兜底），
+      // 没写就只剩一个标题卡片。
       expect(
-        intro,
-        `${name} 的示例页要在主页卡片列表里，href 应为 /${route}`,
-      ).toContain(`/${route}`);
+        fs.readFileSync(file, 'utf8').slice(0, 400),
+        `docs/${demoOf(name)} 的 frontmatter 要有 description:，主页卡片才有说明`,
+      ).toContain('description:');
     }
   });
 

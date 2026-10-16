@@ -2,6 +2,7 @@
 id: iframe-demo
 sidebar_position: 3
 title: iframe 示例
+description: 'frontmatter 写 iframe: <URL>，正文区换成那个页面（开发模式只给链接）。'
 # 命中 theme-iframe 那一层：正文区下面嵌一个 iframe。
 # 值以 `/` 开头 → 按当前站点 origin 补成绝对地址，所以这里嵌的是本站另一页（离线可看）。
 iframe: /markmap-demo

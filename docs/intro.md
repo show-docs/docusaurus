@@ -3,6 +3,7 @@ id: intro
 slug: /
 sidebar_position: 1
 title: 项目说明
+description: 主页：验证的问题、常用命令，以及各主题示例页的入口。
 ---
 
 import DocCardList from '@theme/DocCardList';
@@ -19,29 +20,12 @@ import DocCardList from '@theme/DocCardList';
 
 每个主题包各占一份文档源，frontmatter 里的触发键就是那一层的判据；不命中的页面那一层等于透明。
 
-<DocCardList
-items={[
-{
-type: 'link',
-href: '/markmap-demo',
-label: '思维导图示例',
-description: 'frontmatter 写 markmap: true，导图渲染在正文最上方。',
-},
-{
-type: 'link',
-href: '/iframe-demo',
-label: 'iframe 示例',
-description:
-'frontmatter 写 iframe: <URL>，正文区换成那个页面（开发模式只给链接）。',
-},
-{
-type: 'link',
-href: '/stoplight-demo',
-label: 'API 文档示例',
-description: 'frontmatter 写 oas3: <URL>，整页交给 OpenAPI 渲染器。',
-},
-]}
-/>
+<DocCardList />
+
+卡片列表不写清单：官方 `@theme/DocCardList` 不接 `items` 时，取的就是这一页所在侧边栏的兄弟项，
+而侧边栏由 docs 插件按 `docs/` 目录自动生成 —— 新增一份示例页，主页自动多一张卡片，
+不用在这里抄第二份。卡片上那行说明取自各页 frontmatter 的 `description:`。
+这一页自己也在侧边栏里，所以列表的头一张是它本身。
 
 链式覆盖本身（`Logo` 与 `DocItem/Footer` 两层 swizzle）没有单独的示例页：它的判据是构建产物里
 那条渲染链，用 `pnpm build && pnpm verify:chain` 回读。

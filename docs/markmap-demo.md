@@ -2,6 +2,7 @@
 id: markmap-demo
 sidebar_position: 2
 title: 思维导图示例
+description: 'frontmatter 写 markmap: true，导图渲染在正文最上方。'
 markmap: true
 ---
 

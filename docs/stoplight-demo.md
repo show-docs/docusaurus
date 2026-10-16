@@ -2,6 +2,7 @@
 id: stoplight-demo
 sidebar_position: 4
 title: API 文档示例
+description: 'frontmatter 写 oas3: <URL>，整页交给 OpenAPI 渲染器。'
 # 命中 theme-stoplight 那一层：整页换成 Stoplight Elements 渲染的 OpenAPI 文档。
 # /openapi.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
 oas3: /openapi.yaml
