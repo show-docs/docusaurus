@@ -1,0 +1,71 @@
+.stoplight-root {
+  position: relative;
+  height: calc(100vh - var(--ifm-navbar-height));
+  min-height: initial !important;
+
+  pre {
+    border-radius: unset;
+    background-color: unset;
+    padding: unset;
+    color: unset;
+    font: unset;
+  }
+
+  .sl-elements-api {
+    .sl-text-base {
+      font-size: 14px !important;
+    }
+
+    > div {
+      a:last-child[href^='https://stoplight.io'] {
+        display: none;
+      }
+    }
+  }
+
+  .SendButtonHolder {
+    > div {
+      > button:first-of-type {
+        display: none;
+      }
+    }
+  }
+
+  * {
+    scrollbar-width: thin;
+
+    &::-webkit-scrollbar {
+      width: var(--ifm-scrollbar-size);
+      height: var(--ifm-scrollbar-size);
+
+      &-track {
+        border-radius: 10px;
+        background: var(--ifm-scrollbar-track-background-color);
+      }
+
+      &-thumb {
+        border-radius: 10px;
+        background: var(--ifm-scrollbar-thumb-background-color);
+
+        &:hover {
+          background: var(--ifm-scrollbar-thumb-hover-background-color);
+        }
+      }
+    }
+  }
+}
+
+.main-wrapper {
+  &:has(.stoplight-root) {
+    + .footer {
+      display: none;
+    }
+  }
+}
+
+.container {
+  &:has(.stoplight-root) {
+    padding: 0 !important;
+    max-width: unset !important;
+  }
+}

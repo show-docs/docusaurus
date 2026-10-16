@@ -8,7 +8,7 @@ const thisDir = dirname(fileURLToPath(import.meta.url));
 
 export default function theme(): Plugin {
   return {
-    name: '@eaphone/docusaurus-theme-iframe',
+    name: '@show-docs/docusaurus-theme-iframe',
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。本包要编译的只有这一份入口。
     getThemePath() {

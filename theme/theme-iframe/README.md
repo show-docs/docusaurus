@@ -3,19 +3,18 @@
 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时，该文档页在 `DocItem` 里嵌一个 iframe，
 正文换成那个外部页面。
 
-包名 `@eaphone/docusaurus-theme-iframe`，入口只声明层目录（`getThemePath()`，另有一条给
-`docusaurus swizzle` 用的 `getTypeScriptThemePath()`）—— 不做解析、不带 loader。
+入口只声明层目录（`getThemePath()`，另有一条给 `docusaurus swizzle` 用的
+`getTypeScriptThemePath()`）—— 不做解析、不带 loader。
 
 ## 状态：还没接入站点
 
 `docusaurus.config.mjs` 的 `plugins` 里没有它，站点根的 `package.json` 也没声明
-`"@eaphone/docusaurus-theme-iframe": "workspace:^"`。所以现在只有入口被 `pnpm build:core`
+`"@show-docs/docusaurus-theme-iframe": "workspace:^"`。所以现在只有入口被 `pnpm build:core`
 编译过，它既不进层栈、也不在 `pnpm test` 的分包解析用例覆盖里。要用它得**先补这两处**（只补前一处会
 `Cannot find module`：按包名加载的 importer 必须声明它）。
 
-顺带一格：包名挂的是 `@eaphone/` 域，而本仓库其它包都挂 `@show-docs/`。
-`test/plugin.test.mts` 那条分包用例对包名断言的是 `/^@show-docs\//`，所以把本包列进它的目录清单
-之前，得先统一域名，否则红的就是那条断言。
+包名挂 `@show-docs/`，与仓库其它包同一域，所以列进 `test/plugin.test.mts` 那条分包用例的目录清单
+只差改清单本身。
 
 ## 组成
 
