@@ -4,7 +4,8 @@
 [Stoplight Elements](https://github.com/Stoplight/stoplight-elements) 渲染的 OpenAPI 文档。
 
 入口做三件事：声明层目录，在构建配置期改 PostCSS 管道（把 `@stoplight/elements` 的全局样式
-圈进 `.stoplight-root`），以及给浏览器 bundle 补两个 Node 核心模块的 polyfill。
+圈进 `.stoplight-root`），以及给浏览器 bundle 补 Node 侧的依赖（`url` / `buffer` 两个 polyfill 包，
+加一份 `process` 全局 shim）。
 
 ## 状态：已接入站点
 
@@ -70,16 +71,35 @@ oas3: https://example.com/openapi.yaml
 > 里那 10 条 `[data-theme=…]` 选择器（含 `.sl-inverted` 的层层链），加上 `body`、`@keyframes`
 > 与属性在中间的样本，输出逐字节一致。
 
-## 浏览器 bundle 要补两个 Node 核心模块
+## 浏览器 bundle 要补的三样 Node 侧依赖
 
-`@stoplight/json-schema-ref-parser` 里 `require('url')`、`@stoplight/yaml-ast-parser` 里
-`require('buffer')` —— webpack 5 起不再自动补 Node 核心模块，站点构建会直接
-`Module not found`。入口的 `configureWebpack()` 给客户端那一遍配上 `url` / `buffer` 两个 polyfill
-包（本包 `dependencies`），服务端那一遍原样返回：SSG 跑在 Node 里，那两个模块本来就有。
+两种形状，补法不一样：
 
+**① `require('url')` / `require('buffer')`** —— `@stoplight/json-schema-ref-parser` 里
+`require('url')`、`@stoplight/yaml-ast-parser` 里 `require('buffer')`。webpack 5 起不再自动补
+Node 核心模块，站点构建会直接 `Module not found`。入口的 `configureWebpack()` 给客户端那一遍
+在 `resolve.fallback` 里配上 `url` / `buffer` 两个 polyfill 包（本包 `dependencies`），
+服务端那一遍原样返回：SSG 跑在 Node 里，那两个模块本来就有。
 补的是真 polyfill，不是 `false`：这两个都走在「按 URL 取 schema」那条路上，置空会在运行时抛。
 
-返回的形状只可能是**增量**（`{ resolve: { fallback: ... } }`），不能改完整个 `config` 再返回去 ——
-官方 `applyConfigureWebpack` 用 webpack-merge 拼接，数组策略是 concat，返回整体等于把 `rules`
-翻倍，症状是「每个 `.module.css` 被 css-loader 处理两遍、第二遍拿到的是上一遍的 JS 产物」。
-这条坑与 `plugins/plugin-prev-layer-resolver` 里「只返回自己那一个 resolver」是同一件事。
+**② 裸的全局 `process`** —— `@stoplight/json-schema-ref-parser` 的 `lib/util/url.js` 与
+`lib/resolvers/http.js` 里写的不是 `require('process')`，而是直接取 `process.browser` /
+`process.cwd()` / `process.platform`。`resolve.fallback` 只按**模块 id**筛，管不到自由变量，
+所以浏览器里求值这个 chunk 就 `ReferenceError: process is not defined`（构建期不报，
+只有页面打开时看得到）。补法是 `ProvidePlugin`：把 `process` 这个标识符在每个模块作用域里换成
+对 `process/browser` 的 require，同一份路径也进 `resolve.fallback`。插件构造函数取自
+`configureWebpack` 第三个参数的 `utils.currentBundler.instance`（官方就是用它自己的
+`DefinePlugin`，这样不必把 `webpack` 声明成本包依赖）。
+
+> 那份 shim 只给 `process.env` / `nextTick` / `cwd()`（返回 `/`），**没有** `process.browser`
+> —— 取到 `undefined`，那几个分支走非浏览器一侧。示例页用的是站点根绝对路径 `/openapi.yaml`，
+> 所以结果一样；要嵌相对路径的 spec，得再把它显式设成 `true`。
+
+> **改了 `configureWebpack()` 要 `pnpm clear` 再 `pnpm build`**：webpack 的持久化缓存不认配置函数的
+> 改动，实测第二次构建客户端 chunk 的哈希都没变（shim 根本没进产物），清掉缓存才生效。
+
+返回的形状只可能是**增量**（`{ resolve: { fallback: ... }, plugins: [...] }`），不能改完整个
+`config` 再返回去 —— 官方 `applyConfigureWebpack` 用 webpack-merge 拼接，数组策略是 concat，
+返回整体等于把 `rules` 翻倍，症状是「每个 `.module.css` 被 css-loader 处理两遍、
+第二遍拿到的是上一遍的 JS 产物」。这条坑与 `plugins/plugin-prev-layer-resolver`
+里「只返回自己那一个 resolver」是同一件事。

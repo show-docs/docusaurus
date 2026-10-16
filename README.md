@@ -117,7 +117,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
   行为见 [docs/iframe-demo.md](./docs/iframe-demo.md)，实现见
   [theme/theme-iframe/README.md](./theme/theme-iframe/README.md)
 - **Stoplight 主题**（`oas3:` 触发、`@stoplight/elements` 的样式怎么圈进 `.stoplight-root`、
-  浏览器 bundle 要补哪两个 Node 模块）：
+  浏览器 bundle 要补哪三样 Node 侧依赖）：
   行为见 [docs/stoplight-demo.md](./docs/stoplight-demo.md)（示例取
   `static/openapi.yaml`），实现见
   [theme/theme-stoplight/README.md](./theme/theme-stoplight/README.md)

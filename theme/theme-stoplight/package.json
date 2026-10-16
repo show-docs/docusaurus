@@ -25,6 +25,7 @@
     "@stoplight/elements": "^9.0.24",
     "buffer": "^6.0.3",
     "postcss-prefixwrap": "^1.58.0",
+    "process": "^0.11.10",
     "url": "^0.11.4"
   },
   "peerDependencies": {

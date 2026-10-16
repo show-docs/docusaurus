@@ -17,11 +17,17 @@ export default function theme(): Plugin {
     getThemePath() {
       return resolve(thisDir, '../theme');
     },
-    configureWebpack(_config, isServer) {
+    configureWebpack(_config, isServer, utils) {
       // `@stoplight/elements` 的依赖树里还在 `require` Node 的 `url` / `buffer`，而
       // webpack 5 起不再自动补核心模块。服务端那份构建本来就有真的 Node 模块，
       // 只有浏览器 bundle 需要补 —— 而且补的是包里的 polyfill，不是空模块：
       // 这两个都走在「按 URL 取 schema」那条路上，置 false 会在运行时抛。
+      //
+      // `process` 补的是**另一种形状**：`@stoplight/json-schema-ref-parser` 里写的不是
+      // `require('process')`，而是裸的全局 `process.browser` / `process.cwd()` /
+      // `process.nextTick`。`resolve.fallback` 只管前者（按模块 id 筛），裸标识符要由
+      // `ProvidePlugin` 在模块作用域里补一个 `require`，否则浏览器里求值就
+      // `ReferenceError: process is not defined`。
       //
       // 和 `plugin-prev-layer-resolver` 一样**只返回自己新增的那一格**：官方
       // `applyConfigureWebpack` 用 webpack-merge 拼接，改完整个 config 再返回去，
@@ -30,11 +36,19 @@ export default function theme(): Plugin {
         return {};
       }
 
+      const processShim = require.resolve('process/browser');
+
       return {
+        plugins: [
+          new utils.currentBundler.instance.ProvidePlugin({
+            process: processShim,
+          }),
+        ],
         resolve: {
           fallback: {
             buffer: require.resolve('buffer/'),
             url: require.resolve('url/'),
+            process: processShim,
           },
         },
       };
