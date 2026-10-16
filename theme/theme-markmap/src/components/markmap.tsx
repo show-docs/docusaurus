@@ -1,21 +1,21 @@
-import './markmap.css';
-import 'markmap-toolbar/dist/style.css';
-
 import { Toolbar } from 'markmap-toolbar';
 import * as markmap from 'markmap-view';
 
-import PropTypes from 'prop-types';
 import { useEffect, useRef } from 'react';
 
 import Admonition from '@theme/Admonition';
 
+import type { MarkmapData } from '../types.mjs';
+
 const { Markmap, loadCSS, loadJS, deriveOptions } = markmap;
 
-const empty = {};
+interface Props {
+  data: MarkmapData;
+}
 
-export function MindChart({ data = empty }) {
-  const container = useRef();
-  const toolbar = useRef();
+export function MindChart({ data }: Props) {
+  const container = useRef<SVGSVGElement>(null);
+  const toolbar = useRef<HTMLDivElement>(null);
 
   const { styles, scripts, root, frontmatter: fm } = data;
 
@@ -25,6 +25,9 @@ export function MindChart({ data = empty }) {
     fm?.markmap && typeof fm.markmap === 'object' ? fm.markmap : undefined;
 
   useEffect(() => {
+    // 这两处只加载 markmap 转换出来的额外资源（公式、代码高亮之类）。工具条样式与本页
+    // 布局样式不在其中：它们由入口的 `getClientModules()` 一起交给站点，样式文件
+    // 因此不用跟着 `tsc` 的产物搬一遍。
     if (styles) {
       loadCSS(styles);
     }
@@ -33,15 +36,16 @@ export function MindChart({ data = empty }) {
       loadJS(scripts, { getMarkmap: () => markmap });
     }
 
+    // 两个 ref 在本组件返回后才挂载，而 effect 一定跑在 DOM 落位之后 —— 断言的是这个不变量
     const mm = Markmap.create(
-      container.current,
+      container.current!,
       options ? deriveOptions(options) : {},
       root,
     );
 
     const bar = Toolbar.create(mm);
 
-    toolbar.current.append(bar.el);
+    toolbar.current!.append(bar.el);
 
     return () => {
       mm.destroy();
@@ -60,12 +64,7 @@ export function MindChart({ data = empty }) {
         </Admonition>
       ) : undefined}
       <svg className="markmap" ref={container} />
-      <div ref={toolbar} className="toolbar-wrapper" />
+      <div className="toolbar-wrapper" ref={toolbar} />
     </>
   );
 }
-
-MindChart.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
-  data: PropTypes.objectOf(PropTypes.any),
-};

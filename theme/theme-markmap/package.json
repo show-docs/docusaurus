@@ -2,11 +2,24 @@
   "private": true,
   "name": "@show-docs/docusaurus-theme-markmap",
   "version": "0.0.0",
-  "main": "index.mjs",
+  "description": "Md 的 frontmatter 写 markmap: true 就在正文上方渲染思维导图",
+  "types": "dist/index.d.mts",
+  "main": "dist/index.mjs",
   "exports": {
-    "default": "./index.mjs"
+    ".": {
+      "default": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
   },
+  "files": [
+    "dist",
+    "styles"
+  ],
   "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
   "dependencies": {
     "markmap-common": "^0.18.9",
     "markmap-lib": "^0.18.12",
@@ -14,8 +27,17 @@
     "markmap-view": "^0.18.12"
   },
   "peerDependencies": {
-    "prop-types": "^15.8.1",
-    "react": "~18.3.1"
+    "@docusaurus/types": "^3.10.2",
+    "react": "~18.3.1",
+    "webpack": "^5.111.1"
+  },
+  "peerDependenciesMeta": {
+    "@docusaurus/types": {
+      "optional": true
+    },
+    "webpack": {
+      "optional": true
+    }
   },
   "engines": {
     "node": "^24.0.0"

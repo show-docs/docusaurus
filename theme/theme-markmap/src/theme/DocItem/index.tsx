@@ -1,10 +1,12 @@
 import { lazy, Suspense } from 'react';
 
-import PropTypes from 'prop-types';
+import type { ComponentType, ReactNode } from 'react';
 
 import DocItem from '@theme-prev/DocItem';
 
 import { ErrorBoundary } from '../../components/error-boundary.jsx';
+
+import type { MarkmapData } from '../../types.mjs';
 
 const MindChart = lazy(() =>
   import('../../components/markmap.jsx').then(({ MindChart: View }) => ({
@@ -12,11 +14,22 @@ const MindChart = lazy(() =>
   })),
 );
 
+// md 的编译结果：default 导出是 MDX 组件，`markmap` 等命名导出由 ComponentCreator
+// 复制成它的静态属性，所以两者在同一个值上。
+type MDXContent = ComponentType<Record<string, unknown>> & {
+  markmap?: MarkmapData;
+};
+
+type Props = { content?: MDXContent };
+
 // 导图在上、原文在下，合成一个「正文组件」交回下层 DocItem。模块的其余导出
 // （metadata / frontMatter / assets …）并到包装件上：下层 DocItem 与 DocProvider
 // 都从 `content` 上读它们，抄的就是 ComponentCreator 挂静态属性的同一套做法。
-function withMarkmapAbove(Content, markmap) {
-  function MarkmapAbove(props) {
+function withMarkmapAbove(
+  Content: MDXContent,
+  markmap: MarkmapData,
+): MDXContent {
+  function MarkmapAbove(props: Record<string, unknown>): ReactNode {
     return (
       <>
         <ErrorBoundary>
@@ -32,7 +45,7 @@ function withMarkmapAbove(Content, markmap) {
   return Object.assign(MarkmapAbove, Content);
 }
 
-export default function DocItemMarkmap(props) {
+export default function DocItemMarkmap(props: Props): ReactNode {
   const { content } = props;
 
   // post loader 给命中 frontmatter 的 md 追加 `export const markmap`，
@@ -43,9 +56,3 @@ export default function DocItemMarkmap(props) {
     <DocItem {...props} />
   );
 }
-
-DocItemMarkmap.propTypes = {
-  // MDX 模块的 default 导出：`markmap` / `metadata` / `frontMatter` 是 ComponentCreator
-  // 事后挂上的静态属性，propTypes 表达不出「组件 + 这些形状」，只能按 elementType 收
-  content: PropTypes.elementType,
-};

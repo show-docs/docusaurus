@@ -1,25 +1,34 @@
-import PropTypes from 'prop-types';
 import { Component } from 'react';
+
+import type { ReactNode } from 'react';
 
 import Admonition from '@theme/Admonition';
 
+interface Props {
+  children?: ReactNode;
+}
+
+interface State {
+  failed: boolean;
+}
+
 // 思维导图整棵子树（含懒加载 chunk）的兜底：渲染失败时退回可见提示，
 // 而不是让整个文档页白屏。
-export class ErrorBoundary extends Component {
-  static getDerivedStateFromError() {
+export class ErrorBoundary extends Component<Props, State> {
+  static getDerivedStateFromError(): State {
     return { failed: true };
   }
 
-  constructor(props) {
+  constructor(props: Props) {
     super(props);
     this.state = { failed: false };
   }
 
-  componentDidCatch(error) {
+  override componentDidCatch(error: unknown): void {
     console.error('[theme-markmap] 思维导图渲染失败：', error);
   }
 
-  render() {
+  override render(): ReactNode {
     const { failed } = this.state;
     const { children } = this.props;
 
@@ -34,7 +43,3 @@ export class ErrorBoundary extends Component {
     return children;
   }
 }
-
-ErrorBoundary.propTypes = {
-  children: PropTypes.node,
-};

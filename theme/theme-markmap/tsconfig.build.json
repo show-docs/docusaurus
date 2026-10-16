@@ -1,0 +1,26 @@
+{
+  "//": "本包的构建项目：`src/` → `dist/`，与 `plugins/*` 同一套（站点按包名加载，取的就是这里的产物）",
+  "//compilerOptions": "base 允许相对 import 直接写源码的扩展名（`./x.mts`），那条许可只在不产出文件时用；本包按仓内口径把相对 import 写成**产物名**（`./x.mjs`、`./x.jsx`），由 tsc 自己找到对应源码，所以这里关掉它 —— 一边要求产出、一边开着它，tsc 直接报 TS5096。`types` 得自己列：`react.json` 只给 `[\"react\",\"react-dom\"]`，而本包一半是 Node 侧源码（入口与 webpack loader），不给 `node` 时 `node:fs` 会报 TS2591，看着像路径写错。",
+  "//jsx": "`preserve`：类型检查照做，JSX 原样产出 `.jsx`，编译交给 Docusaurus 的 babel（仓内其它主题组件本来就是这份形状）。不编译成 `.js` 是因为包是 `\"type\": \"module\"`，webpack 会把 `.js` 当纯 ESM 模块解析，而服务端构建里 babel 先把 `import()` 变成 `require('./x.js')` —— 那种模块的 parser 不认 `require`，依赖不会被打进 bundle，静态渲染阶段就报 Cannot find module。`.jsx` 走 webpack 的 auto 形态，两种写法都认。",
+  "//files": "`@theme/X`、`@theme-prev/X` 这些别名在构建期才存在，磁盘上恒无对应文件；类型的口径产地在仓库根 `types/`，本包 import 了它们，构建项目就得把它列进来（`include` 只覆盖 `src`，够不到仓库根）。",
+  "extends": "@nice-move/tsconfig/react.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "jsx": "preserve",
+    "allowImportingTsExtensions": false,
+    "types": [
+      "node",
+      "react",
+      "react-dom"
+    ],
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": [
+    "src"
+  ],
+  "files": [
+    "../../types/plugin-prev-layer-resolver.d.ts"
+  ]
+}

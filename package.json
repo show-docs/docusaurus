@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm build:core && docusaurus build",
-    "build:core": "pnpm --filter=@show-docs/docusaurus-plugin-prev-layer-resolver run build",
+    "build:core": "pnpm --filter=@show-docs/docusaurus-plugin-prev-layer-resolver --filter=@show-docs/docusaurus-theme-markmap run build",
     "clear": "docusaurus clear",
     "docusaurus": "docusaurus",
     "fmt:prettier": "prettier -w .",
@@ -32,6 +32,7 @@
     "@docusaurus/core": "^3.10.2",
     "@docusaurus/preset-classic": "^3.10.2",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
+    "@show-docs/docusaurus-theme-markmap": "workspace:^",
     "@show-docs/theme-a": "workspace:^",
     "@show-docs/theme-b": "workspace:^",
     "@show-docs/theme-c": "workspace:^",

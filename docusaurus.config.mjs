@@ -18,7 +18,7 @@ const config = {
     // 不需要配置清单：plugins 数组顺序就是层栈顺序。都按**包名**加载（workspace 包，
     // `require.resolve` 指的是 dist 产物，改完源码记得 `pnpm build:core`）。
     //
-    // 下面第一项不是层（没有 `getThemePath()`），是解析器；后三项是层，顺序 = 层栈。
+    // 下面第一项不是层（没有 `getThemePath()`），是解析器；后四项是层，顺序 = 层栈。
     // eslint-disable-next-line unicorn/prefer-module -- 本文件由 Docusaurus 的配置加载器执行，`require` 在那儿真实存在（`pnpm build` 绿即为证）
     require.resolve('@show-docs/docusaurus-plugin-prev-layer-resolver'),
     '@show-docs/theme-a',

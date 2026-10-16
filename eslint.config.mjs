@@ -12,6 +12,7 @@ const ignores = [
   'coverage/**',
   'dist/**',
   'plugins/*/dist/**',
+  'theme/*/dist/**',
   '.docusaurus/**',
   '.temp/**',
 ];
@@ -23,7 +24,14 @@ const VIRTUAL =
 
 const nodeResolver = createNodeResolver();
 // `import-x` 默认的 node resolver 只认磁盘上真实存在的文件，于是把两类**按设计**不存在的路径
-// 全判成「解析不到」（40 条假红）。这里只补这两条形状，其余原样交回它 —— 拼错的真实路径照旧会红。
+// 全判成「解析不到」（40 条假红）。这里只补这两类里用到的形状，其余原样交回它 —— 拼错的真实路径照旧会红。
+// 第二类是「相对 import 写的是产物名」：`./x.mjs` 的源码是 `./x.mts`，`./x.js` / `./x.jsx` 的源码是
+// `./x.ts` / `./x.tsx`（`tsc` 认这套映射，判对错归它）。
+const PRODUCT_TO_SOURCE = new Map([
+  ['.mjs', ['.mts']],
+  ['.js', ['.ts', '.tsx']],
+  ['.jsx', ['.tsx']],
+]);
 const resolver = {
   interfaceVersion: 3,
   name: 'test-ci-import-resolver',
@@ -35,12 +43,18 @@ const resolver = {
     if (direct.found || !specifier.startsWith('.')) {
       return direct;
     }
-    // 相对 import 写的是**产物名** `./x.mjs`，源码是 `./x.mts`（`tsc` 认这个映射）。
-    const source = path.join(
-      path.dirname(importer),
-      `${specifier.slice(0, -'.mjs'.length)}.mts`,
-    );
-    return fs.existsSync(source) ? { found: true, path: source } : direct;
+    const productExtension = path.extname(specifier);
+    const sourceExtensions = PRODUCT_TO_SOURCE.get(productExtension) ?? [];
+    for (const sourceExtension of sourceExtensions) {
+      const source = path.join(
+        path.dirname(importer),
+        `${specifier.slice(0, -productExtension.length)}${sourceExtension}`,
+      );
+      if (fs.existsSync(source)) {
+        return { found: true, path: source };
+      }
+    }
+    return direct;
   },
 };
 
@@ -51,10 +65,10 @@ export default [
     settings: { 'import-x/resolver-next': [resolver] },
   },
   {
-    // 相对 import 写的是**产物名** `./x.mjs`：写成 `.mts` 会原样进了产物，把运行时 import 写错。
-    // 这条规则一旦能解析到 `.mts` 就坚持要 `.mts`，所以挡掉 —— 「import 带扩展名」本仓已经在做，
-    // 而 `./x.mjs` ↔ `./x.mts` 的映射成立与否由 `tsc` 判。
-    files: ['plugins/**/*.mts', 'test/**/*.mts'],
+    // 相对 import 写的是**产物名**（`./x.mjs`、`./x.jsx`）：写成源码名（`.mts`、`.tsx`）会原样
+    // 进了产物，把运行时 import 写错。这条规则一旦能解析到源码名就坚持要源码名，所以挡掉 ——
+    // 「import 带扩展名」本仓已经在做，而产物名 ↔ 源码名的映射成立与否由 `tsc` 判。
+    files: ['plugins/**/*.mts', 'test/**/*.mts', 'theme/*/src/**'],
     rules: { 'import-x/extensions': 0 },
   },
   {
@@ -121,26 +135,28 @@ export default [
   {
     // 主题组件的目录名**就是**组件名（`@theme/Logo` 靠它拼出来），官方口径是 PascalCase；
     // 改成 kebab-case 等于改掉别名语义。
-    files: ['src/theme/**', 'demo/*/theme/**', 'theme/*/theme/**'],
+    files: ['src/theme/**', 'demo/*/theme/**', 'theme/*/src/theme/**'],
     rules: { 'unicorn/filename-case': 0 },
   },
   {
     // webpack loader 的上下文（`this.async()` / `this.resourcePath` / `this.cacheable()`）
     // 就是由 Webpack 绑在 `this` 上的，官方签名不给参数对象 —— 改成别的写法就不再是 loader。
-    files: ['theme/*/loader/**'],
+    files: ['theme/*/src/loader/**'],
     rules: { 'unicorn/no-this-outside-of-class': 0 },
   },
   {
     // Docusaurus 的入口**按契约**只读 default 导出：主题组件、插件入口、页面、
     // 配置文件。改成命名导出不会报错，只会静默不生效 —— 这条在这里不是风格问题。
+    // webpack loader 同理：Webpack 取的就是模块导出的那一个函数。
     files: [
       'src/**',
       '*.config.mjs',
       'plugins/*/src/index.mts',
       'demo/*/index.mts',
       'demo/*/theme/**',
-      'theme/*/index.mjs',
-      'theme/*/theme/**',
+      'theme/*/src/index.mts',
+      'theme/*/src/loader/**',
+      'theme/*/src/theme/**',
     ],
     rules: { 'import-x/no-default-export': 0 },
   },

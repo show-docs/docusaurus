@@ -185,6 +185,9 @@ importers:
       '@show-docs/docusaurus-plugin-prev-layer-resolver':
         specifier: workspace:^
         version: link:plugins/plugin-prev-layer-resolver
+      '@show-docs/docusaurus-theme-markmap':
+        specifier: workspace:^
+        version: link:theme/theme-markmap
       '@show-docs/theme-a':
         specifier: workspace:^
         version: link:demo/theme-a
@@ -279,6 +282,9 @@ importers:
 
   theme/theme-markmap:
     dependencies:
+      '@docusaurus/types':
+        specifier: ^3.10.2
+        version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       markmap-common:
         specifier: ^0.18.9
         version: 0.18.9
@@ -291,12 +297,12 @@ importers:
       markmap-view:
         specifier: ^0.18.12
         version: 0.18.12(markmap-common@0.18.9)
-      prop-types:
-        specifier: ^15.8.1
-        version: 15.8.1
       react:
         specifier: ~18.3.1
         version: 18.3.1
+      webpack:
+        specifier: ^5.111.1
+        version: 5.111.1(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
 packages:
 
