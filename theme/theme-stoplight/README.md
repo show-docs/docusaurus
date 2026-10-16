@@ -13,7 +13,7 @@
 层栈里能看到 `theme/theme-stoplight/theme`。
 
 已实测到的：`@stoplight/elements` 进了懒加载 chunk（没命中 `oas3` 的页面不会下载它）、
-PostCSS 那两个插件的改写落在产物 CSS 里（`.stoplight-root .sl-elements*`、
+PostCSS 那一步的改写落在产物 CSS 里（`.stoplight-root .sl-elements*`、
 `[data-theme=light] .stoplight-root`），站点自己的 chrome（`.navbar` / `.footer` / `.container`）
 一条都没被前缀。**没实测到的**：浏览器里那一页真正渲染出 API —— 本地起 dev server 这一步不在
 自动门禁里，需要时 `pnpm start` 开一页 `oas3: <URL>` 自己看。
@@ -51,17 +51,24 @@ oas3: https://example.com/openapi.yaml
 ## 样式怎么圈住
 
 `@stoplight/elements` 的样式表是全局选择器，直接引进来会染到整站。入口的 `configurePostCss()`
-按顺序挂三个插件：
+只挂一个插件 —— `postcss-prefixwrap`：
 
-1. `postcss-prefixwrap`：把选择器统一加 `.stoplight-root` 前缀；`whitelist` 按**文件路径**匹配
-   （每一项都按正则解析），这里只放行路径含 `@stoplight` 的样式表 —— 站点自己的 CSS 不在名单里，
-   所以不动。
-2. `postcss-plugin-matcher`：只对路径含 `@stoplight` 的样式表执行下面的插件，别误伤站点自己的 CSS。
-3. `postcss-faster-namespace`：把 `.stoplight-root [data-theme=light]` 这类「作用域在前」的选择器
-   改写成 `[data-theme=light] .stoplight-root` —— 前者要求根节点自己带 `data-theme`，而暗亮是加在
-   `<html>` 上的，不改写就一条都不命中。
+- `whitelist` 按**文件路径**筛（每一项都按正则解析），只放行路径含 `@stoplight` 的样式表，
+  站点自己的 CSS 不在名单里，所以不动。
+- `prefixTransform` 接住「加前缀」这一步：它拿到的是**还没加前缀的原始选择器**与前缀本身，
+  返回什么就是最终的选择器。`[data-theme=light|dark]` 打头的那几条要特殊办 —— 暗亮属性挂在
+  `<html>` 上，是 `.stoplight-root` 的**祖先**，默认那种「前缀打头」的拼法（
+  `.stoplight-root [data-theme=dark] …`）一条都不命中，得写成
+  `[data-theme=dark] .stoplight-root …`。
 
 `.stoplight-root` 这个类名由 `components/stoplight-ui.tsx` 挂在最外层 `div` 上，站点侧不要改名。
+
+> 这一格原来站的是 `postcss-plugin-matcher` + `postcss-faster-namespace`：先由前者筛文件、
+> 后者把**已经加好前缀**的选择器重排回来。`postcss-faster-namespace` 在 npm 与 GitHub 上都已
+> 被作者删除，我们一度把它抄进仓库；后来发现 `postcss-prefixwrap` 自己就有等价的钩子
+> （`1.58.0` 起），抄本与 matcher 就一起撤了。换之前把两条管线跑在同一个输入上比对过：真实样式表
+> 里那 10 条 `[data-theme=…]` 选择器（含 `.sl-inverted` 的层层链），加上 `body`、`@keyframes`
+> 与属性在中间的样本，输出逐字节一致。
 
 ## 浏览器 bundle 要补两个 Node 核心模块
 

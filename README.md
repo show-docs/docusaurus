@@ -58,7 +58,6 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 | `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                             | 构建包（只编译入口与 loader；层与组件是源码）       | [示例页](./docs/markmap-demo.md)                         |
 | `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时把该页包成内嵌 iframe（开发模式只给链接） | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-iframe/README.md)                 |
 | `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成 Stoplight Elements 渲染的 OpenAPI 文档  | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-stoplight/README.md)              |
-| `plugins/postcss-faster-namespace/`   | 第三方 PostCSS 插件的**抄本**（上游在 npm 与 GitHub 都已删除），只给 `theme-stoplight` 用     | 免编译（`index.cjs` 就是发布形态，逐字对齐上游）    | [README](./plugins/postcss-faster-namespace/README.md)   |
 | `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                         | 免编译（没有 `src/`：入口与层都是源码，站点直接吃） | [README](./demo/README.md)                               |
 
 四个构建包都是 `tsc` 编译包：Node 侧要跑的源码 `.mts` 在包内 `src/`，产物在包内 `dist/`，
@@ -119,8 +118,6 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 - **Stoplight 主题**（`oas3:` 触发、`@stoplight/elements` 的样式怎么圈进 `.stoplight-root`、
   浏览器 bundle 要补哪两个 Node 模块）：
   [theme/theme-stoplight/README.md](./theme/theme-stoplight/README.md)
-- **那份第三方 CSS 插件的抄本**（为什么留在仓库、为什么不改它）：
-  [plugins/postcss-faster-namespace/README.md](./plugins/postcss-faster-namespace/README.md)
 - **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准
 
 ## 目录结构
@@ -133,7 +130,6 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 | 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`           | [README](./plugins/plugin-prev-layer-resolver/README.md)                                  |
 | 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                          | [示例页](./docs/markmap-demo.md)                                                          |
 | 整页交给外部站点或外部文档       | `theme/theme-iframe/`、`theme/theme-stoplight/` | [iframe](./theme/theme-iframe/README.md) · [stoplight](./theme/theme-stoplight/README.md) |
-| 那个上游已删除的 CSS 插件抄本    | `plugins/postcss-faster-namespace/`             | [README](./plugins/postcss-faster-namespace/README.md)                                    |
 | 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`       | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                             |
 | 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                 | [demo](./demo/README.md)                                                                  |
 | 站点页面（**不是主题层**）       | `src/pages/`                                    | [src](./src/README.md)                                                                    |

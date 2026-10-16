@@ -12,9 +12,6 @@ const ignores = [
   'theme/*/dist/**',
   '.docusaurus/**',
   '.temp/**',
-  // 第三方源码抄本：npm 上已删，本仓留着原样一份（缘由见 `plugins/postcss-faster-namespace/README.md`）。
-  // 逐字对齐上游就不该被 `--fix` 改写风格，否则下一次比对上游时对不上。
-  'plugins/postcss-faster-namespace/**',
 ];
 
 // Docusaurus 的虚拟模块 + 我们的 `@theme-prev*` specifier 族（口径产地见

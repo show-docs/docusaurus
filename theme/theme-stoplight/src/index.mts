@@ -40,30 +40,24 @@ export default function theme(): Plugin {
       };
     },
     configurePostCss(config) {
-      // `@stoplight/elements` 的样式表是全局选择器，会污染整站：把它包进 `.stoplight-root`
-      // 的作用域里，命名空间那条改写是给它的 `[data-theme=…]` 变体规则留的。
+      // `@stoplight/elements` 的样式表是全局选择器，会污染整站：把它们包进 `.stoplight-root`
+      // 的作用域里。`whitelist` 按**样式表的路径**筛（每一项都当正则解释），只动它包里的 CSS。
+      //
+      // `prefixTransform` 是给暗亮模式那一类留的：`data-theme` 挂在 `<html>` 上，那是
+      // `.stoplight-root` 的**祖先**，所以「前缀打头」那种默认拼法（`.stoplight-root
+      // [data-theme=dark] …`）一条都不命中 —— 要把属性选择器留在最前、前缀挪到它后面。
+      // 交给 `prefixwrap` 自己做，是因为它在加前缀那一步就把原始选择器交回给我们，
+      // 不需要先加一遍再改写第二遍。
       config.plugins.push(
         require('postcss-prefixwrap')('.stoplight-root', {
           whitelist: [/@stoplight/],
-        }),
-        require('postcss-plugin-matcher')({
-          include: ['**/@stoplight/**'],
-          plugins: [
-            require('postcss-faster-namespace')({
-              prefix: '.stoplight-root',
-              getCustomClass: ({ selector }: { selector: string }) => {
-                const themeClass =
-                  /\.stoplight-root\s\[data-theme=(light|dark)\]/;
-
-                return themeClass.test(selector)
-                  ? selector.replace(
-                      themeClass,
-                      '[data-theme=$1] .stoplight-root',
-                    )
-                  : selector;
-              },
-            }),
-          ],
+          prefixTransform: (selector: string, prefix: string): string =>
+            /^\[data-theme=(?:light|dark)\]/.test(selector)
+              ? selector.replace(
+                  /^(\[data-theme=(?:light|dark)\])/,
+                  (_matched, attr: string) => `${attr} ${prefix}`,
+                )
+              : `${prefix} ${selector}`,
         }),
       );
 

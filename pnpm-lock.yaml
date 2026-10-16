@@ -286,12 +286,6 @@ importers:
         specifier: ^5.111.1
         version: 5.111.1(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
-  plugins/postcss-faster-namespace:
-    dependencies:
-      postcss:
-        specifier: ^8.4.13
-        version: 8.5.29
-
   theme/theme-iframe:
     dependencies:
       '@docusaurus/types':
@@ -339,12 +333,6 @@ importers:
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
-      postcss-faster-namespace:
-        specifier: workspace:^
-        version: link:../../plugins/postcss-faster-namespace
-      postcss-plugin-matcher:
-        specifier: ^0.1.4
-        version: 0.1.4(postcss@8.5.29)
       postcss-prefixwrap:
         specifier: ^1.58.0
         version: 1.59.1(postcss@8.5.29)
@@ -7064,12 +7052,6 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       postcss: ^8.4
-
-  postcss-plugin-matcher@0.1.4:
-    resolution: {integrity: sha512-nbuyqBWqiNAyoKhOUSJUG3nfopkH9LdT7vzGr4joF8+zpMFbZxhgyyP8KQeLEUYeHPGzVM9tmJlxDPCCs+8U/w==}
-    engines: {node: '>=16.13.0 || ^12.22.0 || ^14.17.0'}
-    peerDependencies:
-      postcss: ^8.4.31
 
   postcss-prefixwrap@1.59.1:
     resolution: {integrity: sha512-WW9sOKX5cNTqQD4n3EIgx+/fboymdOqf5P3mGl2va0vItGhJUEQGk/H3hUK+hFASihOQ79Sa3vyJQC/cxnHmkw==}
@@ -17806,12 +17788,6 @@ snapshots:
     dependencies:
       postcss: 8.5.29
       postcss-value-parser: 4.2.0
-
-  postcss-plugin-matcher@0.1.4(postcss@8.5.29):
-    dependencies:
-      picomatch: 2.3.2
-      postcss: 8.5.29
-      slash: 3.0.0
 
   postcss-prefixwrap@1.59.1(postcss@8.5.29):
     dependencies:

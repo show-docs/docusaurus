@@ -22,7 +22,5 @@
     "coverage",
     "plugins/*/dist",
     "theme/*/dist",
-    // 第三方源码抄本（npm 已删），保持逐字与上游一致，不做本仓的类型改写。
-    "plugins/postcss-faster-namespace",
   ],
 }

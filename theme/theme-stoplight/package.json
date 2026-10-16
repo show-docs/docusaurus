@@ -24,8 +24,6 @@
   "dependencies": {
     "@stoplight/elements": "^9.0.24",
     "buffer": "^6.0.3",
-    "postcss-faster-namespace": "workspace:^",
-    "postcss-plugin-matcher": "^0.1.4",
     "postcss-prefixwrap": "^1.58.0",
     "url": "^0.11.4"
   },
