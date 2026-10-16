@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm build:core && docusaurus build",
-    "build:core": "pnpm --filter=@show-docs/docusaurus-plugin-prev-layer-resolver --filter=@show-docs/docusaurus-theme-markmap run build",
+    "build:core": "pnpm --filter=@show-docs/docusaurus-plugin-prev-layer-resolver --filter=@show-docs/docusaurus-theme-markmap --filter=@eaphone/docusaurus-theme-iframe run build",
     "clear": "docusaurus clear",
     "docusaurus": "docusaurus",
     "fmt:prettier": "prettier -w .",

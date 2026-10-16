@@ -1,0 +1,26 @@
+{
+  "//": "本包的构建项目：`src/` → `dist/`，与 `plugins/*`、`theme/theme-markmap` 同一套（站点按包名加载，取的就是这里的产物）",
+  "//compilerOptions": "相对 import 写**源码名**（`./x.mts`、`./x.tsx`），`rewriteRelativeImportExtensions` 在产出时改写成产物名（`./x.mjs`、`./x.jsx`）—— 这一条**必须写在本包**：它只由 `@nice-move/tsconfig/node-bundle.json` 提供，而本包 extends 的 `react.json`（→ `web.json` → `base.json`）那条链里没有它。`allowImportingTsExtensions` 反而不用写，`base.json` 已经给了。`types` 得自己列：`react.json` 只给 `[\"react\",\"react-dom\"]`，而本包入口是 Node 侧源码（读 `process.env`、算 `getThemePath()` 的绝对路径），不给 `node` 时 `node:path` 会报 TS2591。",
+  "//jsx": "`preserve`：类型检查照做，JSX 原样产出 `.jsx`，编译交给 Docusaurus 的 babel（口径与 `theme/theme-markmap` 一致；写成 `.js` 会在服务端构建里丢依赖）。",
+  "//files": "`@theme-prev/DocItem` 是构建期才存在的别名，类型口径的产地在仓库根 `types/`，本包 import 了它，构建项目就得把它列进来（`include` 只覆盖 `src`，够不到仓库根）。",
+  "extends": "@nice-move/tsconfig/react.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "jsx": "preserve",
+    "rewriteRelativeImportExtensions": true,
+    "types": [
+      "node",
+      "react",
+      "react-dom"
+    ],
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": [
+    "src"
+  ],
+  "files": [
+    "../../types/plugin-prev-layer-resolver.d.ts"
+  ]
+}
