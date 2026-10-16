@@ -3,6 +3,7 @@ import * as markmap from 'markmap-view';
 
 import { useEffect, useRef } from 'react';
 
+import { useColorMode } from '@docusaurus/theme-common';
 import Admonition from '@theme/Admonition';
 
 import type { MarkmapData } from '../types.mts';
@@ -16,6 +17,7 @@ interface Props {
 export function MindChart({ data }: Props) {
   const container = useRef<SVGSVGElement>(null);
   const toolbar = useRef<HTMLDivElement>(null);
+  const { colorMode } = useColorMode();
 
   const { styles, scripts, root, frontmatter: fm } = data;
 
@@ -43,7 +45,10 @@ export function MindChart({ data }: Props) {
       root,
     );
 
+    // 工具条默认带的「切换暗色」按钮改的是 `<html>` 上的 `markmap-dark` 类（全站生效，
+    // 离开本页也不还原），而本组件的明暗本来就跟着站点主题走，所以这个按钮不挂出来。
     const bar = Toolbar.create(mm);
+    bar.setItems(Toolbar.defaultItems.filter((item) => item !== 'dark'));
 
     toolbar.current!.append(bar.el);
 
@@ -53,7 +58,10 @@ export function MindChart({ data }: Props) {
   }, [data, options, root, scripts, styles]);
 
   return (
-    <div>
+    // markmap 的暗色口径是「祖先带 `markmap-dark`」的一组 CSS 变量（`.markmap-dark .markmap`、
+    // `.markmap-dark .mm-toolbar`），所以这里跟着站点的明暗把这个类挂在自己这一层，
+    // 不外溢到 `<html>`。
+    <div className={colorMode === 'dark' ? 'markmap-dark' : undefined}>
       {draft ? (
         <Admonition
           className="markmap-admonition"
