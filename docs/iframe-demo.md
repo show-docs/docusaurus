@@ -3,15 +3,17 @@ id: iframe-demo
 sidebar_position: 3
 title: iframe 示例
 description: 'frontmatter 写 iframe: <URL>，正文区换成那个页面（开发模式只给链接）。'
-# 命中 theme-iframe 那一层：正文区下面嵌一个 iframe。
+# 命中 theme-iframe 那一层：正文区换成这个地址。
 # 值以 `/` 开头 → 按当前站点 origin 补成绝对地址，所以这里嵌的是本站另一页（离线可看）。
 iframe: /markmap-demo
 ---
 
 # iframe 示例
 
-本文件的 frontmatter 写了 `iframe: /markmap-demo`，`theme/theme-iframe` 那一层命中后把
-`DocItem` 的内边距关掉（`shellPadding={false}`），iframe 占满正文区域。
+本文件的 frontmatter 写了 `iframe: /markmap-demo`，`theme/theme-iframe` 那一层命中后把**正文区**
+（官方的 `DocItem/Content` 那一格）换成 iframe，面包屑、页脚、翻页这些文档外壳照旧。
+
+下面这些正文在渲染后的页面上**看不到**：正文区整个被 iframe 占了，这一段是给读仓库源文件的人看的。
 
 - 这一页在**开发模式（`pnpm start`）不嵌**：本地改动会不断重载被嵌的页面，太吵。那时页面上
   是一段提示加一个可点开的链接，指向算出来的同一个 URL。要看真的 iframe 用构建产物：

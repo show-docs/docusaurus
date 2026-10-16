@@ -42,5 +42,6 @@ pnpm install
 pnpm start          # 本地预览
 pnpm build          # 构建
 pnpm test           # 单元测试：解析语义、链式不变量、真实 resolver 端到端
+pnpm test:e2e       # 构建产物起服务，在真浏览器里逐个点开下面这几张卡片的页面（只本地跑）
 pnpm verify:chain   # 读真实 build 产物，验证链式覆盖成立（先跑 pnpm build）
 ```

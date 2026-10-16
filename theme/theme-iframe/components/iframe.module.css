@@ -1,8 +1,9 @@
 .iframe {
-  flex: 1;
-  align-self: stretch;
   width: 100%;
-  height: 100%;
+  /* 本层把 iframe 放在正文那一格，那一列没有确定高度，`height: 100%` 在这里会退回
+     iframes 默认的 150px，所以高度跟视口走。 */
+  height: 70vh;
+  min-height: 420px;
 }
 
 .center {

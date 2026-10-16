@@ -1,34 +1,37 @@
 # theme/theme-iframe
 
-主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时，该文档页在 `DocItem` 里嵌一个 iframe，
-正文换成那个外部页面。
+主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时，该文档页把**正文区**换成那个外部页面，
+文档外壳（面包屑、页脚、翻页）照旧。
 
 入口只声明层目录（`getThemePath()`，另有一条给 `docusaurus swizzle` 用的
 `getTypeScriptThemePath()`）—— 不做解析、不带 loader。
 
 ## 状态：已接入站点
 
-`docusaurus.config.mjs` 的 `plugins` 里排在 `@show-docs/docusaurus-theme-markmap` **之后**
-（就是下面那张表的第一行），站点根的 `package.json` 声明了
+`docusaurus.config.mjs` 的 `plugins` 里排在 `@show-docs/docusaurus-theme-markmap` **之后**，
+站点根的 `package.json` 声明了
 `"@show-docs/docusaurus-theme-iframe": "workspace:^"`。`pnpm build` 与 `pnpm verify:chain` 都绿，
-推导出的层栈里有 `theme/theme-iframe/theme`，`@theme-prev/DocItem` 落回 `theme-markmap` 那一层。
+推导出的层栈里有 `theme/theme-iframe/theme`，`@theme-prev/DocItem/Content` 落回 theme-classic
+那一层（`DocItem/Content` 这根链上目前只有官方与本包提供它）。
 
 产物侧能看到的是这一层进了链、iframe 那份 CSS Module 被编译进站点样式；页面里真的嵌出外部站点
 只能在浏览器看（`pnpm build && pnpm serve`，开发模式按设计不嵌 —— 见上面那条注）。
+浏览器里的实测记在仓库根的 e2e（`test/e2e/iframe.spec.mts`，跑法见
+[`test/README.md`](../../test/README.md)）。
 
 包名挂 `@show-docs/`，与仓库其它包同一域，所以列进 `test/plugin.test.mts` 那条分包用例的目录清单
 只差改清单本身。
 
 ## 组成
 
-| 文件                           | 编译吗              | 职责                                                                            |
-| ------------------------------ | ------------------- | ------------------------------------------------------------------------------- |
-| `src/index.mts`                | ✅ `src/` → `dist/` | 插件入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算，就是 `../theme`） |
-| `theme/DocItem/index.tsx`      | ❌ 站点编译         | 层里的组件：命中 frontmatter 时包下层 `DocItem`，塞进 `FramePage`               |
-| `components/iframe.tsx`        | ❌ 站点编译         | `FramePage`：算最终 URL、开发模式给链接、生产模式给 `<iframe>`                  |
-| `components/iframe.module.css` | ❌ 站点编译         | CSS Module（`.iframe` / `.center`），放在用它的组件旁边                         |
-| `module-aliases.d.ts`          | 类型                | 引官方 `@docusaurus/module-type-aliases`，给构建期才存在的那些 import 补类型    |
-| `tsconfig.build.json`          | ——                  | 构建项目：只有 `src/`，所以本包的产物出口是 `dist/index.mjs`                    |
+| 文件                              | 编译吗              | 职责                                                                            |
+| --------------------------------- | ------------------- | ------------------------------------------------------------------------------- |
+| `src/index.mts`                   | ✅ `src/` → `dist/` | 插件入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算，就是 `../theme`） |
+| `theme/DocItem/Content/index.tsx` | ❌ 站点编译         | 层里的组件：命中 frontmatter 时把正文那一格换成 `FramePage`，否则原样交回下层   |
+| `components/iframe.tsx`           | ❌ 站点编译         | `FramePage`：算最终 URL、开发模式给链接、生产模式给 `<iframe>`                  |
+| `components/iframe.module.css`    | ❌ 站点编译         | CSS Module（`.iframe` / `.center`），放在用它的组件旁边                         |
+| `module-aliases.d.ts`             | 类型                | 引官方 `@docusaurus/module-type-aliases`，给构建期才存在的那些 import 补类型    |
+| `tsconfig.build.json`             | ——                  | 构建项目：只有 `src/`，所以本包的产物出口是 `dist/index.mjs`                    |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/` 里的
 `.tsx`，本包就不编译第二遍。口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -42,8 +45,9 @@ iframe: https://example.com/handbook/
 ---
 ```
 
-命中的页面上，`DocItem` 的内边距被关掉（`shellPadding={false}`），iframe 占满正文区域。
-没写这个键的文档页照常走下一层实现，本层等于透明。
+命中的页面上，正文那一格（官方 `DocItem/Content`）整个换成 iframe —— 这一页 markdown 的正文
+在渲染后的页面上看不到，和 `theme-stoplight` 那个「整页交给渲染器」是同一类取舍。
+没写这个键的文档页照常走下层实现，本层等于透明。
 
 URL 的算法（`getURL`）分三步，只有浏览器端才会全走完：
 
@@ -59,18 +63,20 @@ URL 的算法（`getURL`）分三步，只有浏览器端才会全走完：
 
 ## 放在层栈的哪一处
 
-`DocItem` 这根链上目前提供它的是 theme-classic、`theme-markmap`、本包与 `theme-stoplight`
-（demo 三个主题只覆盖 `DocItem/Footer`，不算 `DocItem`）。所以 `plugins` 里的位置会直接决定谁生效：
+本包覆盖的是 `DocItem/Content`，不是 `DocItem`：官方结构里 `DocItem`（theme-classic、
+`theme-markmap`、`theme-stoplight` 覆盖的是它）里面才是 Layout 留给正文的那一格。
+这一层因此不用挑位置，`plugins` 里排在哪个主题之后都不改变结果：
 
-| 位置                             | `@theme-prev/DocItem` 落到   | 结果                                                    |
-| -------------------------------- | ---------------------------- | ------------------------------------------------------- |
-| `theme-markmap` **之后**（末尾） | `theme-markmap` 的 `DocItem` | ✅ 导图在上、iframe 在正文区，两层串在一根链上          |
-| `theme-markmap` 之前             | `theme-classic` 的 `DocItem` | ⚠️ 两层各自包同一个内层，谁在最外谁赢，另一层被静默跳过 |
+- 与 `theme-markmap` **并存**：那一层的导图是 `DocItem` 的前一个兄弟节点，本层换的只是它里面的
+  正文格，所以同一页两个键都命中时两样都在（按机制说的；站点没有这样一页，未实测）。
+- 与 `theme-stoplight` **互斥**：那一层命中 `oas3:` 时不包下层 `DocItem`，官方结构里的正文格
+  根本不会被渲染，本层轮不到 —— 同一页同时写两个键时只有 Stoplight 出现。
 
-要「导图 + iframe 同时在同一页生效」就用第一行那个位置 —— 站点现在就在这一行。
-
-`theme-stoplight` 在本包**外侧**，而它命中 `oas3` 时不包下层 `DocItem`：同一页同时写 `iframe:`
-和 `oas3:` 时，整页交给 Stoplight，本层的 iframe 不出现。要让 iframe 赢，把两层的顺序调换。
+> **落点为什么是 `DocItem/Content` 而不是 `DocItem`**：官方 `DocItem` 渲染的是
+> `<DocItemLayout><MDXComponent /></DocItemLayout>`，那个 `MDXComponent` 就是它的
+> `props.content` —— **`props.children` 它一个字都不读**。上一版把 iframe 当 children 塞给
+> `DocItem`，页面静默退回普通正文，构建产物里 `iframe` 标签数为 0；而当时顺带写的
+> `shellPadding={false}` 在官方 `DocItem` 上没有这个 prop。
 
 ## 编译口径
 
@@ -80,11 +86,11 @@ URL 的算法（`getURL`）分三步，只有浏览器端才会全走完：
 - 入口里的 `getThemePath()` 返回 `../theme` —— 相对的是**产物**目录（`dist/`），不是 `src/`。
 - 层与组件不进构建项目，`files` 因此要点名三份：`["dist", "theme", "components"]`。只发 `dist`
   的话，包装上站点会报层目录不存在。
-- 那份 CSS Module 与用它的组件同目录，`theme/DocItem` 里的动态 import 写的是
-  `../../components/iframe.tsx` —— 磁盘上就是这个文件，未编译这一侧不存在「产物名改写」。
+- 那份 CSS Module 与用它的组件同目录，`theme/DocItem/Content` 里的动态 import 写的是
+  `../../../components/iframe.tsx` —— 磁盘上就是这个文件，未编译这一侧不存在「产物名改写」。
 - 改 `theme/` 与 `components/` 不用先编译，`pnpm start` 直接生效；改入口才要 `pnpm build:core`。
   这两份未编译的源码归仓库根 `tsconfig.json` 检查，所以 `pnpm lint:type` 就是它们的门：
-  `@theme-prev/DocItem` 的类型产地在解析器包里
+  `@theme-prev/DocItem/Content` 的类型产地在解析器包里
   [`types/theme-specifiers.d.ts`](../../plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts)，
   `*.module.css`、`@docusaurus/router` 那几条靠包根的 `module-aliases.d.ts`；
   `@theme-prev/X` 的语义见

@@ -17,6 +17,7 @@ pnpm typecheck      # tsc -b：demo 与 test 两份 composite 项目
 pnpm lint:eslint    # eslint
 pnpm test           # vitest 单元测试（解析语义 + 不变量 + 输入校验 + 真实 resolver 端到端）
 pnpm test:coverage  # 同上 + 覆盖率（红线 100% 只挂在这里：pnpm test 全绿 ≠ CI 全绿）
+pnpm test:e2e       # 构建产物起服务，Playwright 在真浏览器里点开每个主题的示例页（只本地跑）
 pnpm verify:chain   # 读真实 build 产物，验证 4 层链式覆盖成立（先跑 pnpm build）
 pnpm verify         # 一键全链路（组成见 package.json 的 verify；本表不复述，避免两处说法漂移）
 ```
@@ -51,13 +52,13 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 仓库里的分包**按「`src/` 要不要先编译」分两种形态**，不是按「像不像一个包」：
 
-| 目录                                  | 是什么                                                                                        | 形态                                                | 细节                                                     |
-| ------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------- |
-| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                 | 构建包（`src/` → `dist/`，改完要编译）              | [README](./plugins/plugin-prev-layer-resolver/README.md) |
-| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                             | 构建包（只编译入口与 loader；层与组件是源码）       | [示例页](./docs/markmap-demo.md)                         |
-| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时把该页包成内嵌 iframe（开发模式只给链接） | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-iframe/README.md)                 |
-| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成 Stoplight Elements 渲染的 OpenAPI 文档  | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-stoplight/README.md)              |
-| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                         | 免编译（没有 `src/`：入口与层都是源码，站点直接吃） | [README](./demo/README.md)                               |
+| 目录                                  | 是什么                                                                                           | 形态                                                | 细节                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------- | -------------------------------------------------------- |
+| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                    | 构建包（`src/` → `dist/`，改完要编译）              | [README](./plugins/plugin-prev-layer-resolver/README.md) |
+| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                | 构建包（只编译入口与 loader；层与组件是源码）       | [示例页](./docs/markmap-demo.md)                         |
+| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时把该页正文区换成那个页面（开发模式只给链接） | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-iframe/README.md)                 |
+| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成 Stoplight Elements 渲染的 OpenAPI 文档     | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-stoplight/README.md)              |
+| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                            | 免编译（没有 `src/`：入口与层都是源码，站点直接吃） | [README](./demo/README.md)                               |
 
 四个构建包都是 `tsc` 编译包：Node 侧要跑的源码 `.mts` 在包内 `src/`，产物在包内 `dist/`，
 `dist/index.mjs` 就是包出口（`exports`）—— 所以 `pnpm build:core` 是「编译这四个包」，
@@ -122,6 +123,8 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
   `static/openapi.yaml`），实现见
   [theme/theme-stoplight/README.md](./theme/theme-stoplight/README.md)
 - **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准
+- **每个主题在浏览器里是否真的工作**：`pnpm test:e2e`（跑的是构建产物，只本地跑），用例清单与
+  首次要装的浏览器见 [test/README.md](./test/README.md)
 
 ## 目录结构
 
@@ -147,7 +150,7 @@ tsconfig.json                      # 共享编译选项（noEmit）；demo / tes
 tsconfig.demo.json / tsconfig.test.json  # 两份 composite 项目，由 pnpm typecheck（tsc -b）跑
 docusaurus.config.mjs              # 站点配置（.mjs：站点根不是 ESM 包，靠扩展名拿 ESM；侧栏由 docs 插件按目录自动生成；docs 的路由前缀是 '/'，所以主页就是 docs/intro.md）
 pnpm-workspace.yaml                # pnpm 12 的配置落点：分包清单（packages:）+ 安装期依赖（configDependencies）+ 依赖安装脚本放行名单（allowBuilds）+ 扁平化（shamefullyHoist）
-eslint.config.mjs / syncpack.config.mjs / vitest.config.mts  # 三道检查各自的落点
+eslint.config.mjs / syncpack.config.mjs / vitest.config.mts / playwright.config.mts  # 四道检查各自的落点
 .github/workflows/                 # CI（GitHub Actions）
 ```
 

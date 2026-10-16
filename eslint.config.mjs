@@ -115,9 +115,11 @@ export default [
     // Docusaurus 的入口**按契约**只读 default 导出：主题组件、插件入口、页面、
     // 配置文件。改成命名导出不会报错，只会静默不生效 —— 这条在这里不是风格问题。
     // webpack loader 同理：Webpack 取的就是模块导出的那一个函数。
+    // Playwright 的配置也是同一类：加载器只认 default 导出的那个配置对象。
     files: [
       'src/**',
       '*.config.mjs',
+      'playwright.config.mts',
       'plugins/*/src/index.mts',
       'demo/*/index.mts',
       'demo/*/theme/**',

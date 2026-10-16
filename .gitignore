@@ -12,3 +12,7 @@ coverage
 
 # 测试夹具站点（必须待在仓库根才解析得到 node_modules；用例如常会自己清，残留不该进工作区）
 .temp/
+
+# Playwright 的运行输出：失败现场（trace、截图）与 html 报告，每次跑都重写
+/test-results/
+/playwright-report/
