@@ -318,12 +318,18 @@ export default function MyLogo(props) {
 （读真实 build 产物）断言，判据清单以脚本输出为准（本文件不抄第二份）：
 
 ```
-build/index.html               src/theme-logo > theme-c > theme-b > theme-a
+build/index.html               Logo 链：src/theme-logo > theme-c > theme-b > theme-a
                                       > src/theme > theme-a-footer
-build/markmap-demo/index.html  同一条链
+                               正文里另一条：theme-c > theme-b > theme-a
+build/markmap-demo/index.html  只有 Logo 那一条
 ```
 
 `build/index.html` 就是主页：站点没有单独的首页组件，`docs/intro.md` 以 `slug: /` 落在根。
+
+正文里那第二条走的是 `DocCardList` 这根链（demo 三层主题各包一层，站点没有 swizzle 它，所以链尾
+就是 `theme-a`）。它**只出现在主页**：站点里只有 `docs/intro.md` 写了 `<DocCardList />`，别的页面
+根本不渲染这个组件 —— 于是文档页那一格判据反过来，断言正文里没有这条链。「同一个组件被三层同时
+保留」因此有两根独立的链可看，而不是只有 `Logo` 一例。
 
 四层每层都被保留（`LogoC → LogoB → LogoA → theme-classic` 的真实 Logo）。链尾的
 theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。

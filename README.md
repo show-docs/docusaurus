@@ -18,7 +18,7 @@ pnpm lint:eslint    # eslint
 pnpm test           # vitest 单元测试（解析语义 + 不变量 + 输入校验 + 真实 resolver 端到端）
 pnpm test:coverage  # 同上 + 覆盖率（红线 100% 只挂在这里：pnpm test 全绿 ≠ CI 全绿）
 pnpm test:e2e       # 构建产物起服务，Playwright 在真浏览器里点开每个主题的示例页（只本地跑）
-pnpm verify:chain   # 读真实 build 产物，验证 4 层链式覆盖成立（先跑 pnpm build）
+pnpm verify:chain   # 读真实 build 产物，回读两条渲染链（Logo 四层、主页正文的 DocCardList 三层）
 pnpm verify         # 一键全链路（组成见 package.json 的 verify；本表不复述，避免两处说法漂移）
 ```
 

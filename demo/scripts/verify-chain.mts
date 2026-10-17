@@ -72,36 +72,98 @@ for (const l of layers) console.log(' '.repeat(3) + rel(l.owner));
 // ---- 2. 从真实 build 产物回读包裹链 ----
 // 主页就是 `docs/intro.md`（`routeBasePath: '/'` + `slug: /`），所以第一格是 `build/index.html`；
 // 第二格取另一份文档页，验证链不是只在某一页凑巧成立。
-const htmlFiles = ['build/index.html', 'build/markmap-demo/index.html'].filter(
-  (f) => fs.existsSync(path.join(root, f)),
-);
-if (htmlFiles.length === 0) {
+//
+// 每格钉两条链，因为它们走的是不同的路：
+// - **全页那条是 `Logo`**（导航栏 → theme-classic 起的四层）。
+// - **正文（`<article>`）里那条是 `DocCardList`**：站点里只有主页的 `docs/intro.md` 写了
+//   `<DocCardList />`，所以这条链只该出现在主页正文区，文档页的正文里则**不该有** ——
+//   两条判据一起才把「只在 intro 页」钉住。卡片列表由 theme-a/b/c 三层包住
+//   （站点没有 swizzle 它，所以这条链的链尾就是 theme-a）。
+const CARD_CHAIN = ['theme-c', 'theme-b', 'theme-a'];
+const pages = [
+  { cards: true, file: 'build/index.html' },
+  { cards: false, file: 'build/markmap-demo/index.html' },
+].filter(({ file }) => fs.existsSync(path.join(root, file)));
+
+if (pages.length === 0) {
   // 判红而不是「跳过并说明」：退出码 0 会让什么都没验的一次运行看起来和全过一样
   // （`pnpm verify` 里 build 先跑，所以那条链路不受影响；单独跑本脚本才会走到这里）。
   console.log('\n❌ 未找到 build 产物，请先执行 `pnpm build` 再运行本脚本。');
   process.exit(1);
 }
 
-let isOk = true;
-for (const file of htmlFiles) {
-  const html = fs.readFileSync(path.join(root, file), 'utf8');
-  const rendered = html
-    .matchAll(/data-(?:site|theme)-wrapper="([^"]+)"/g)
-    .map((m) => m[1])
+const WRAPPER = /data-(?:site|theme)-wrapper="([^"]+)"/g;
+const markersOf = (html: string): string[] =>
+  // 那条正则只有一个捕获组，`matchAll` 交回的每项都带着它
+  html
+    .matchAll(WRAPPER)
+    .map(([, layer]) => layer!)
     .toArray();
-  const expected = ['src/theme-logo', 'theme-c', 'theme-b', 'theme-a'];
-  const chainOk = rendered.some((_, i) =>
-    expected.every((layer, j) => rendered[i + j] === layer),
-  );
-  console.log(`\n${file} 渲染链：\n   ${rendered.join(' > ')}`);
+/** `chain` 是否作为**连续**的一段出现在 `rendered` 里（层与层之间不能夹别的标记） */
+const containsChain = (rendered: string[], chain: string[]): boolean =>
+  rendered.some((_, i) => chain.every((layer, j) => rendered[i + j] === layer));
+
+/**
+取正文那一格：从第一个 `<article …>` 到与它**配对**的那个 `</article>`。
+
+不能按「第一个闭合标签」切 —— 官方 `DocCard` 每张卡自己也是一个 `<article>`，卡片列表在正文里，
+于是主页的正文会被切成第一张卡（实测：切完只剩卡片那条链，页脚那两层标记掉到范围外）。
+*/
+function outerArticle(html: string): string {
+  const open = /<article\b[^>]*>/.exec(html);
+  if (!open) {
+    return '';
+  }
+  const start = open.index + open[0].length;
+  const tag = /<\/?article\b[^>]*>/g;
+  tag.lastIndex = start;
+
+  let depth = 1;
+  let match = tag.exec(html);
+  while (match) {
+    depth += match[0].startsWith('</') ? -1 : 1;
+    if (depth === 0) {
+      return html.slice(start, match.index);
+    }
+    match = tag.exec(html);
+  }
+  return html.slice(start);
+}
+
+let isOk = true;
+for (const { cards, file } of pages) {
+  const html = fs.readFileSync(path.join(root, file), 'utf8');
+  const rendered = markersOf(html);
+  // 导航栏的 Logo 标记在 article 之外，两条链因此不串在一起。
+  const inArticle = markersOf(outerArticle(html));
+
+  const logoOk = containsChain(rendered, ['src/theme-logo', ...CARD_CHAIN]);
+  const hasCards = containsChain(inArticle, CARD_CHAIN);
+  const cardOk = hasCards === cards;
+
+  console.log(`\n${file} 渲染链（全页）：\n   ${rendered.join(' > ')}`);
   console.log(
-    ' '.repeat(3) + (chainOk ? '✅ 链成立（4 层全部保留）' : '❌ 链不成立'),
+    `${file} 正文（article）里：\n   ${inArticle.join(' > ') || '(无)'}`,
   );
-  isOk &&= chainOk;
+  console.log(
+    ' '.repeat(3) +
+      (logoOk ? '✅ Logo 链成立（4 层全部保留）' : '❌ Logo 链不成立'),
+  );
+  console.log(
+    ' '.repeat(3) +
+      (cardOk
+        ? cards
+          ? '✅ DocCardList 链成立（三层全部保留）'
+          : '✅ 这一页没有卡片列表，正文里也没有那条链'
+        : `❌ DocCardList 链与预期不符：这一页${cards ? '该有' : '不该有'}它`),
+  );
+  isOk &&= logoOk && cardOk;
 }
 
 console.log(`
-期望渲染链： src/theme-logo > theme-c > theme-b > theme-a > (theme-classic 的真实 Logo)
+期望渲染链：
+- Logo：src/theme-logo > theme-c > theme-b > theme-a > (theme-classic 的真实 Logo)
+- 主页正文：theme-c > theme-b > theme-a > (theme-classic 的真实卡片列表)；文档页正文没有这一段
 说明：
 - 每一层的 @theme-prev/X 都解析为「紧邻下一层实现」，所以三层插件主题都被保留；
 - theme-a 的下一层是 preset 的 theme-classic，它不渲染 data-*-wrapper 标记，故链尾不可见；

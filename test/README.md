@@ -37,13 +37,13 @@ pnpm exec playwright install chromium # 只做一次：浏览器不在依赖里�
 `props.children`），落点因此改到 `DocItem/Content` —— 细节记在
 [`theme/theme-iframe/README.md`](../theme/theme-iframe/README.md)。
 
-| 文件                 | 钉住的行为                                                   |
-| -------------------- | ------------------------------------------------------------ |
-| `home.spec.mts`      | 主页卡片列表通向每个示例页，卡片说明取自各页 `description:`  |
-| `markmap.spec.mts`   | 导图画在正文上方（比较两者的位置），原文一行不少             |
-| `iframe.spec.mts`    | 正文区换成 iframe，被嵌页面在框里真渲染，文档外壳照旧        |
-| `stoplight.spec.mts` | 整页交给 OpenAPI 渲染器：导航、点接口、hash 路由，样式不外溢 |
-| `helpers.mts`        | `watchPageErrors()`：把浏览器运行期错误带回断言              |
+| 文件                 | 钉住的行为                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| `home.spec.mts`      | 卡片列表真被套进 theme-a/b/c 那三层的链里，并通向每个示例页；卡片说明取自各页 `description:` |
+| `markmap.spec.mts`   | 导图画在正文上方（比较两者的位置），原文一行不少                                             |
+| `iframe.spec.mts`    | 正文区换成 iframe，被嵌页面在框里真渲染，文档外壳照旧                                        |
+| `stoplight.spec.mts` | 整页交给 OpenAPI 渲染器：导航、点接口、hash 路由，样式不外溢                                 |
+| `helpers.mts`        | `watchPageErrors()`：把浏览器运行期错误带回断言                                              |
 
 > **只有本地跑**：`pnpm verify` 与 CI 都不含它（要额外下载浏览器，且依赖一个能起服务的端口）。
 > 配置落点是仓库根的 `playwright.config.mts`，用例目录 `test/e2e/`，产物目录
