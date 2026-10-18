@@ -38,7 +38,7 @@ import DocCardList from '@theme/DocCardList';
 ## 文档
 
 - 链式覆盖方案（docusaurus-plugin-prev-layer-resolver）—— 落地实现：`@theme-prev/X` 系列 specifier；正文在仓库里的 `plugins/plugin-prev-layer-resolver/README.md`（站点文档源只收 `docs/`，链接出去只会是死链）。
-- 各主题包的行为与约束：`theme/theme-{markmap,iframe,stoplight}/README.md`、`demo/theme-{a,b,c}/`，同样在仓库里。
+- 各主题包的行为与约束：`theme/theme-{markmap,iframe,stoplight,redoc}/README.md`、`demo/theme-{a,b,c}/`，同样在仓库里。
 
 ## 命令
 

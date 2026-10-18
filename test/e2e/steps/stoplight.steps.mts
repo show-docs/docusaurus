@@ -57,11 +57,6 @@ Then('地址跳到那条接口，标题换成它的名字', async ({ page }) => 
   );
 });
 
-// 命中时这一层**不包**下层 `DocItem`，所以这一页没有文档正文外壳。
-Then('这一页没有文档正文外壳', async ({ page }) => {
-  await expect(page.locator('article'), '整页没交给 Stoplight').toHaveCount(0);
-});
-
 // 圈样式这一格：`@stoplight/elements` 的表是全局选择器，入口的 postcss 那一步把每条
 // 都放进 `.stoplight-root`。判据直接问浏览器里的样式表：凡是提到 `.sl-` 的选择器都必须
 // 带着这个前缀。

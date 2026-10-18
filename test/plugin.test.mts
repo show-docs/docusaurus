@@ -455,6 +455,7 @@ describe('构建脚本与 CI 护栏', () => {
       'theme/theme-markmap',
       'theme/theme-iframe',
       'theme/theme-stoplight',
+      'theme/theme-redoc',
     ];
     const names: string[] = [];
     for (const dir of subpackages) {

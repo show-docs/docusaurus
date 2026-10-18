@@ -38,17 +38,21 @@ Playwright 跑的就是那份产物 —— 它是生成物，不进 git，也别
 浏览器 bundle 引用裸的 `process`，构建全绿、页面空白），二是「标签在 HTML 里，但 React 没把它
 渲染出来」。第一条靠 `watchPageErrors()`（收 `pageerror`）拦，第二条靠断言元素真的可见拦。
 
-这套用例上线第一次跑就抓到一处真缺陷：`theme-iframe` 那层静默不渲染（官方 `DocItem` 不读
-`props.children`），落点因此改到 `DocItem/Content` —— 细节记在
-[`theme/theme-iframe/README.md`](../theme/theme-iframe/README.md)。
+这套用例抓到过两处真缺陷，都是「构建全绿、类型全绿、只有开页面才看得见」的那类：
+`theme-iframe` 那层静默不渲染（官方 `DocItem` 不读 `props.children`），落点因此改到
+`DocItem/Content`；`theme-redoc` 的 `basePath` 用默认值时 Redoc 一声不吭地渲染**它自己那份 404**
+（左栏、样式全在，正文区写着 No page at this address，控制台干净）。细节分别记在
+[`theme/theme-iframe/README.md`](../theme/theme-iframe/README.md) 与
+[`theme/theme-redoc/README.md`](../theme/theme-redoc/README.md)。
 
-| 场景（`features/`） | 实现（`steps/`）      | 钉住的行为                                                                                              |
-| ------------------- | --------------------- | ------------------------------------------------------------------------------------------------------- |
-| `home.feature`      | `home.steps.mts`      | 卡片列表真被套进「站点层 + theme-a/b/c」那四层的链里，并通向每个示例页；卡片说明取自各页 `description:` |
-| `markmap.feature`   | `markmap.steps.mts`   | 导图画在正文上方（比较两者的位置），原文一行不少；这一页没有任何主题包裹标记                            |
-| `iframe.feature`    | `iframe.steps.mts`    | 正文区换成 iframe，被嵌页面在框里真渲染，文档外壳照旧                                                   |
-| `stoplight.feature` | `stoplight.steps.mts` | 整页交给 OpenAPI 渲染器：导航、点接口、hash 路由，样式不外溢                                            |
-| ——                  | `common.steps.mts`    | 每条用例最后一句「浏览器里没有运行期错误」，记录来自 `../helpers.mts` 的 `watchPageErrors()`            |
+| 场景（`features/`） | 实现（`steps/`）      | 钉住的行为                                                                                                                 |
+| ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `home.feature`      | `home.steps.mts`      | 卡片列表真被套进「站点层 + theme-a/b/c」那四层的链里，并通向每个示例页；卡片说明取自各页 `description:`                    |
+| `markmap.feature`   | `markmap.steps.mts`   | 导图画在正文上方（比较两者的位置），原文一行不少；这一页没有任何主题包裹标记                                               |
+| `iframe.feature`    | `iframe.steps.mts`    | 正文区换成 iframe，被嵌页面在框里真渲染，文档外壳照旧                                                                      |
+| `stoplight.feature` | `stoplight.steps.mts` | 整页交给 OpenAPI 渲染器：导航、点接口、hash 路由，样式被前缀圈进 `.stoplight-root`                                         |
+| `redoc.feature`     | `redoc.steps.mts`     | 整页交给 Redoc：左栏与详情在同一页里走（按路径的路由），容器让位，外溢的样式等于记下的那三条                               |
+| ——                  | `common.steps.mts`    | 两层共用的两句：「浏览器里没有运行期错误」（记录来自 `../helpers.mts` 的 `watchPageErrors()`）、「这一页没有文档正文外壳」 |
 
 > **只有本地跑**：`pnpm verify` 与 CI 都不含它（要额外下载浏览器，且依赖一个能起服务的端口）。
 > 配置落点是仓库根的 `playwright.config.mts`（`testDir` 由 `defineBddConfig()` 给出），

@@ -28,9 +28,12 @@ const config = {
     '@show-docs/docusaurus-theme-markmap',
     // iframe 主题层：md 里 `iframe: <URL>` 即把正文区换成那个外部页面
     '@show-docs/docusaurus-theme-iframe',
-    // Stoplight 主题层（栈在最外）：md 里 `oas3: <URL>` 即整页交给 OpenAPI 渲染器；
-    // 三层的 DocItem 各判各的 frontmatter，不命中就把 props 交回 `@theme-prev/DocItem`。
+    // Stoplight 主题层：md 里 `oas3: <URL>` 即整页交给 OpenAPI 渲染器；
+    // 各层的 DocItem 各判各的 frontmatter，不命中就把 props 交回 `@theme-prev/DocItem`。
     '@show-docs/docusaurus-theme-stoplight',
+    // Redoc 主题层（栈在最外）：md 里 `redoc: <URL>` 即整页换成 Redoc 渲染的 API 文档。
+    // 它不做样式圈定（Redoc 的 CSS 是运行时注入的），代价记在 `theme/theme-redoc/README.md`。
+    '@show-docs/docusaurus-theme-redoc',
   ],
 
   presets: [

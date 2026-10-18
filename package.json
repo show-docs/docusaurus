@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm build:core && docusaurus build",
-    "build:core": "pnpm --filter=@show-docs/docusaurus-plugin-prev-layer-resolver --filter=@show-docs/docusaurus-theme-markmap --filter=@show-docs/docusaurus-theme-iframe --filter=@show-docs/docusaurus-theme-stoplight run build",
+    "build:core": "pnpm --filter=@show-docs/docusaurus-plugin-prev-layer-resolver --filter=@show-docs/docusaurus-theme-markmap --filter=@show-docs/docusaurus-theme-iframe --filter=@show-docs/docusaurus-theme-stoplight --filter=@show-docs/docusaurus-theme-redoc run build",
     "clear": "docusaurus clear",
     "docusaurus": "docusaurus",
     "fmt:prettier": "prettier -w .",
@@ -35,6 +35,7 @@
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
     "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "@show-docs/docusaurus-theme-markmap": "workspace:^",
+    "@show-docs/docusaurus-theme-redoc": "workspace:^",
     "@show-docs/docusaurus-theme-stoplight": "workspace:^",
     "@show-docs/theme-a": "workspace:^",
     "@show-docs/theme-b": "workspace:^",

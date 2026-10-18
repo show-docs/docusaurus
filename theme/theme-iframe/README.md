@@ -63,14 +63,14 @@ URL 的算法（`getURL`）分三步，只有浏览器端才会全走完：
 
 ## 放在层栈的哪一处
 
-本包覆盖的是 `DocItem/Content`，不是 `DocItem`：官方结构里 `DocItem`（theme-classic、
-`theme-markmap`、`theme-stoplight` 覆盖的是它）里面才是 Layout 留给正文的那一格。
+本包覆盖的是 `DocItem/Content`，不是 `DocItem`：官方结构里 `DocItem`（`theme-markmap`、
+`theme-stoplight`、`theme-redoc` 覆盖的是它）里面才是 Layout 留给正文的那一格。
 这一层因此不用挑位置，`plugins` 里排在哪个主题之后都不改变结果：
 
 - 与 `theme-markmap` **并存**：那一层的导图是 `DocItem` 的前一个兄弟节点，本层换的只是它里面的
   正文格，所以同一页两个键都命中时两样都在（按机制说的；站点没有这样一页，未实测）。
-- 与 `theme-stoplight` **互斥**：那一层命中 `oas3:` 时不包下层 `DocItem`，官方结构里的正文格
-  根本不会被渲染，本层轮不到 —— 同一页同时写两个键时只有 Stoplight 出现。
+- 与 `theme-stoplight`、`theme-redoc` **互斥**：那两层命中 `oas3:` / `redoc:` 时不包下层 `DocItem`，
+  官方结构里的正文格根本不会被渲染，本层轮不到 —— 同一页同时写两个键时只有最外那层出现。
 
 > **落点为什么是 `DocItem/Content` 而不是 `DocItem`**：官方 `DocItem` 渲染的是
 > `<DocItemLayout><MDXComponent /></DocItemLayout>`，那个 `MDXComponent` 就是它的

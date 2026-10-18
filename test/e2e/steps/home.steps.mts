@@ -8,7 +8,12 @@ const { Given, When, Then } = createBdd();
 
 // 卡片由 `@theme/DocCardList` 按侧边栏自动给，所以这里钉的是「每张卡真能点进对应页」，
 // 不钉清单本身（清单口径的产地在 docs/intro.md 与 test/plugin.test.mts）。
-const demoHrefs = ['/markmap-demo', '/iframe-demo', '/stoplight-demo'];
+const demoHrefs = [
+  '/markmap-demo',
+  '/iframe-demo',
+  '/stoplight-demo',
+  '/redoc-demo',
+];
 
 /**
 主页正文里那条链：站点层加 demo 那三层主题，从外到内 `src/theme > theme-c > theme-b > theme-a`，
@@ -37,7 +42,7 @@ Then('卡片列表被套进四层主题的链里', async ({ page }) => {
 });
 
 Then(
-  '链里有三张分别指向 markmap、iframe、stoplight 示例页的卡片',
+  '链里有四张分别指向 markmap、iframe、stoplight、redoc 示例页的卡片',
   async ({ page }) => {
     for (const href of demoHrefs) {
       await expect(

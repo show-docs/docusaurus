@@ -1,0 +1,25 @@
+/* Redoc 渲染区的落位。站点没有 scss 规则（Docusaurus 只内置 css），所以这份是纯 CSS，
+   `.redoc-root` 是组件挂的那层壳。
+
+   与 theme-stoplight 不同的一处：Redoc 的样式是 styled-components 在**运行时**注入的
+   `\3c style>`，构建期那份静态样式表根本不存在，`configurePostCss()` 圈不住它 ——
+   这一层不装样子做圈定。实测产物里那 709 条规则全都挂在 Redoc 自己生成的类上
+   （`.YjVcs`、`.bImkMT:hover` 这种），一条都没有打到站点的元素上，所以这里只处理
+   「整页交给 Redoc 时容器留白」这一格；判据由 e2e 钉住（`test/e2e/features/redoc.feature`）。 */
+
+.redoc-root {
+  position: relative;
+  height: calc(100vh - var(--ifm-navbar-height));
+  overflow: hidden;
+}
+
+.redoc-root > div {
+  height: 100%;
+}
+
+/* 整页交给 Redoc 时，正文容器的内边距与最大宽度都不要了（这条与 stoplight 那层同形）。 */
+
+.container:has(.redoc-root) {
+  padding: 0 !important;
+  max-width: unset !important;
+}
