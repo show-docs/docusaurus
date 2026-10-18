@@ -1,9 +1,9 @@
 import config from '@nice-move/all-in-react/eslint';
 import { createNodeResolver } from 'eslint-plugin-import-x';
 
-// 生成物不参与 lint：`build/`、`coverage/`、编译产物 `dist/`、Docusaurus 缓存，
-// 以及测试夹具站点（用例超时时会泄漏在仓库根）。本脚本带 `--fix`，
-// 少挡一条就等于让 lint 去改写产物。
+// 生成物不参与 lint：`build/`、`coverage/`、编译产物 `dist/`、Docusaurus 缓存、
+// `bddgen` 从 `.feature` 生成的 Playwright 文件，以及测试夹具站点（用例超时时会泄漏在仓库根）。
+// 本脚本带 `--fix`，少挡一条就等于让 lint 去改写产物。
 const ignores = [
   'build/**',
   'coverage/**',
@@ -11,6 +11,7 @@ const ignores = [
   'plugins/*/dist/**',
   'theme/*/dist/**',
   '.docusaurus/**',
+  '.features-gen/**',
   '.temp/**',
 ];
 

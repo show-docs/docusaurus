@@ -303,7 +303,7 @@ export default function MyLogo(props) {
 **3. 站点层 `src/theme` 原有代码不用改**
 
 继续用官方 `@theme-original/X` 即可（它本来就只在最外层安全，语义不变）。
-想统一写法也可以用 `@theme-prev/X`（本仓库的 `src/theme/Logo` 就是这么写的）。
+想统一写法也可以用 `@theme-prev/X`（本仓库的 `src/theme/DocCardList` 就是这么写的）。
 
 ## 实测
 
@@ -314,25 +314,22 @@ export default function MyLogo(props) {
 - 层栈与官方 `loadThemeAliases` 入参同序、层路径已归一
   → `test/discover.test.mts` 与 `test/layers.test.mts`。
 
-需要真实产物的（两条页面的渲染链）由 `pnpm build && pnpm verify:chain`
+需要真实产物的（那条渲染链在两页上的样子）由 `pnpm build && pnpm verify:chain`
 （读真实 build 产物）断言，判据清单以脚本输出为准（本文件不抄第二份）：
 
 ```
-build/index.html               Logo 链：src/theme-logo > theme-c > theme-b > theme-a
-                                      > src/theme > theme-a-footer
-                               正文里另一条：theme-c > theme-b > theme-a
-build/markmap-demo/index.html  只有 Logo 那一条
+build/index.html               正文里：src/theme > theme-c > theme-b > theme-a
+build/markmap-demo/index.html  整页没有任何包裹标记
 ```
 
 `build/index.html` 就是主页：站点没有单独的首页组件，`docs/intro.md` 以 `slug: /` 落在根。
 
-正文里那第二条走的是 `DocCardList` 这根链（demo 三层主题各包一层，站点没有 swizzle 它，所以链尾
-就是 `theme-a`）。它**只出现在主页**：站点里只有 `docs/intro.md` 写了 `<DocCardList />`，别的页面
-根本不渲染这个组件 —— 于是文档页那一格判据反过来，断言正文里没有这条链。「同一个组件被三层同时
-保留」因此有两根独立的链可看，而不是只有 `Logo` 一例。
+这条链走的是 `DocCardList`：站点层 `src/theme` 加 demo 三层主题各包一层，最里面才是 theme-classic
+真实的卡片列表。它**只出现在主页** —— 站点里只有 `docs/intro.md` 写了 `<DocCardList />`，别的页面
+根本不渲染这个组件，于是文档页那一格判据反过来，断言整页一个包裹标记都没有。
 
-四层每层都被保留（`LogoC → LogoB → LogoA → theme-classic` 的真实 Logo）。链尾的
-theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。
+四层每层都被保留（站点层 → `theme-c` → `theme-b` → `theme-a` → theme-classic 的真实卡片列表）。
+链尾的 theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。
 
 > **💡 对照实验**
 > 插件主题里用官方的 `@theme-original` 包裹会 💥 **OOM**（`heap out of memory`）；
@@ -393,7 +390,7 @@ theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。
 
 - **`@theme-original` 语义零改动**：仍等于 `@theme/X`（全局赢家），内置组件 / 既有 swizzle 不受影响。
 - **只在「导入者属于某个已知主题层」时生效**；最内层、以及不在任何主题层内的导入者保持官方行为。
-- **链底必须有实现**：`theme-a` 能包裹是因为 preset 的 `theme-classic` 提供了 `Logo`；
+- **链底必须有实现**：`theme-a` 能包裹是因为 preset 的 `theme-classic` 提供了 `DocCardList`；
   某组件在所有主题里都没实现时，最内层包裹者无东西可包（回落官方别名 → 真实的 Module not found）。
 - **无需配置清单、无需补丁**：层栈顺序 = `plugins` 数组顺序，插件自己读取。
 - **`NODE_ENV` 相关的层栈漂移**：`docusaurus start` 下 `plugin-debug` 会进层栈（见上文）；

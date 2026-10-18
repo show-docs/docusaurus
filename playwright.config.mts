@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { defineBddConfig } from 'playwright-bdd';
 
 const port = 3021;
 
@@ -7,10 +8,19 @@ const port = 3021;
 「命中 frontmatter 之后那一页到底长什么样」。这三层的命中效果在构建产物里是空的
 （`lazy` + 只在浏览器渲染），所以静态回读的 `verify:chain` 覆盖不到它。
 
+用例写成 Gherkin（`test/e2e/features/*.feature`），步骤实现写在 `test/e2e/steps/`；
+`bddgen` 把两者生成到 `.features-gen/` 里的 Playwright 测试文件，`testDir` 就指那里 ——
+所以那个目录是产物，不进 git，也不要手改。
+
 前置是先 `pnpm build`：`docusaurus serve` 服务的是 `build/`，没有它起不来。
 */
 export default defineConfig({
-  testDir: './test/e2e',
+  testDir: defineBddConfig({
+    featuresRoot: 'test/e2e/features',
+    steps: 'test/e2e/steps/*.steps.mts',
+    // 步骤里有句子却没实现 → 生成阶段就红，而不是跑到一半才发现漏了。
+    missingSteps: 'fail-on-gen',
+  }),
   // 四条用例共用一个 serve 进程与同一份产物；并发只会让浏览器启动来争要 CPU 的
   // 构建，本仓单测已经栽过这个坑（见 vitest.config.mts 的 testTimeout 注释）。
   workers: 1,

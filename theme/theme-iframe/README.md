@@ -16,7 +16,7 @@
 
 产物侧能看到的是这一层进了链、iframe 那份 CSS Module 被编译进站点样式；页面里真的嵌出外部站点
 只能在浏览器看（`pnpm build && pnpm serve`，开发模式按设计不嵌 —— 见上面那条注）。
-浏览器里的实测记在仓库根的 e2e（`test/e2e/iframe.spec.mts`，跑法见
+浏览器里的实测记在仓库根的 e2e（`test/e2e/features/iframe.feature`，跑法见
 [`test/README.md`](../../test/README.md)）。
 
 包名挂 `@show-docs/`，与仓库其它包同一域，所以列进 `test/plugin.test.mts` 那条分包用例的目录清单

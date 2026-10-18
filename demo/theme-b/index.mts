@@ -5,7 +5,7 @@ import type { Plugin } from '@docusaurus/types';
 const thisDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
-本地主题插件 B：同样提供 Logo 覆盖
+本地主题插件 B：同样覆盖 DocCardList
 */
 export default function themeB(): Plugin {
   return {

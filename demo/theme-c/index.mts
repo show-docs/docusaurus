@@ -5,7 +5,7 @@ import type { Plugin } from '@docusaurus/types';
 const thisDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
-本地主题插件 C：第三个覆盖 Logo，用于验证链式覆盖可任意加长
+本地主题插件 C：第三层覆盖 DocCardList，用于验证链式覆盖可任意加长
 */
 export default function themeC(): Plugin {
   return {

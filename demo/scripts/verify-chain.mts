@@ -1,5 +1,5 @@
 /**
-验证「多主题链式覆盖同一组件」在**真实 build 产物**里成立（两条页面的渲染链）。
+验证「多主题链式覆盖同一组件」在**真实 build 产物**里成立（同一条链在两个页面上的样子）。
 运行：pnpm build && pnpm verify:chain
 
 免 build 的判据已迁到单测、随 `pnpm test` 常规运行（无需等一次真实 build）：
@@ -71,18 +71,17 @@ for (const l of layers) console.log(' '.repeat(3) + rel(l.owner));
 
 // ---- 2. 从真实 build 产物回读包裹链 ----
 // 主页就是 `docs/intro.md`（`routeBasePath: '/'` + `slug: /`），所以第一格是 `build/index.html`；
-// 第二格取另一份文档页，验证链不是只在某一页凑巧成立。
+// 第二格取另一份文档页。
 //
-// 每格钉两条链，因为它们走的是不同的路：
-// - **全页那条是 `Logo`**（导航栏 → theme-classic 起的四层）。
-// - **正文（`<article>`）里那条是 `DocCardList`**：站点里只有主页的 `docs/intro.md` 写了
-//   `<DocCardList />`，所以这条链只该出现在主页正文区，文档页的正文里则**不该有** ——
-//   两条判据一起才把「只在 intro 页」钉住。卡片列表由 theme-a/b/c 三层包住
-//   （站点没有 swizzle 它，所以这条链的链尾就是 theme-a）。
-const CARD_CHAIN = ['theme-c', 'theme-b', 'theme-a'];
+// 站点只有一条链，判据把它两头钉住：
+// - **主页正文（`<article>`）里那四层必须连续出现**：`src/theme > theme-c > theme-b > theme-a`，
+//   链尾下面才是 theme-classic 的真实卡片列表。
+// - 站点里只有主页写了 `<DocCardList />`，别的页面根本不渲染这个组件，所以**文档页整页都不该有
+//   包裹标记** —— 两条一起才把「只在 intro 页」钉住。
+const CHAIN = ['src/theme', 'theme-c', 'theme-b', 'theme-a'];
 const pages = [
-  { cards: true, file: 'build/index.html' },
-  { cards: false, file: 'build/markmap-demo/index.html' },
+  { chain: true, file: 'build/index.html' },
+  { chain: false, file: 'build/markmap-demo/index.html' },
 ].filter(({ file }) => fs.existsSync(path.join(root, file)));
 
 if (pages.length === 0) {
@@ -107,7 +106,7 @@ const containsChain = (rendered: string[], chain: string[]): boolean =>
 取正文那一格：从第一个 `<article …>` 到与它**配对**的那个 `</article>`。
 
 不能按「第一个闭合标签」切 —— 官方 `DocCard` 每张卡自己也是一个 `<article>`，卡片列表在正文里，
-于是主页的正文会被切成第一张卡（实测：切完只剩卡片那条链，页脚那两层标记掉到范围外）。
+于是正文会被切在头一张卡后面（实测主页上 5 开 5 闭）。
 */
 function outerArticle(html: string): string {
   const open = /<article\b[^>]*>/.exec(html);
@@ -131,41 +130,39 @@ function outerArticle(html: string): string {
 }
 
 let isOk = true;
-for (const { cards, file } of pages) {
+for (const { chain, file } of pages) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   const rendered = markersOf(html);
-  // 导航栏的 Logo 标记在 article 之外，两条链因此不串在一起。
   const inArticle = markersOf(outerArticle(html));
 
-  const logoOk = containsChain(rendered, ['src/theme-logo', ...CARD_CHAIN]);
-  const hasCards = containsChain(inArticle, CARD_CHAIN);
-  const cardOk = hasCards === cards;
+  // 期望有链的那一格只认「四层连续出现在正文里」；期望没有的那一格反过来，
+  // 整页一个标记都不该有（这条链不在别处渲染，页面上也没有别的 swizzle）。
+  const verdict = chain
+    ? containsChain(inArticle, CHAIN)
+    : rendered.length === 0;
 
-  console.log(`\n${file} 渲染链（全页）：\n   ${rendered.join(' > ')}`);
+  console.log(
+    `\n${file} 渲染链（全页）：\n   ${rendered.join(' > ') || '(无)'}`,
+  );
   console.log(
     `${file} 正文（article）里：\n   ${inArticle.join(' > ') || '(无)'}`,
   );
   console.log(
     ' '.repeat(3) +
-      (logoOk ? '✅ Logo 链成立（4 层全部保留）' : '❌ Logo 链不成立'),
+      (verdict
+        ? chain
+          ? '✅ DocCardList 链成立（4 层全部保留）'
+          : '✅ 这一页不渲染卡片列表，整页也确实没有包裹标记'
+        : `❌ 与预期不符：这一页${chain ? '该有那条四层链' : '不该有任何包裹标记'}`),
   );
-  console.log(
-    ' '.repeat(3) +
-      (cardOk
-        ? cards
-          ? '✅ DocCardList 链成立（三层全部保留）'
-          : '✅ 这一页没有卡片列表，正文里也没有那条链'
-        : `❌ DocCardList 链与预期不符：这一页${cards ? '该有' : '不该有'}它`),
-  );
-  isOk &&= logoOk && cardOk;
+  isOk &&= verdict;
 }
 
 console.log(`
-期望渲染链：
-- Logo：src/theme-logo > theme-c > theme-b > theme-a > (theme-classic 的真实 Logo)
-- 主页正文：theme-c > theme-b > theme-a > (theme-classic 的真实卡片列表)；文档页正文没有这一段
+期望渲染链（主页正文）：
+  src/theme > theme-c > theme-b > theme-a > (theme-classic 的真实卡片列表)
 说明：
-- 每一层的 @theme-prev/X 都解析为「紧邻下一层实现」，所以三层插件主题都被保留；
+- 每一层的 @theme-prev/X 都解析为「紧邻下一层实现」，所以站点层加三层插件主题都被保留；
 - theme-a 的下一层是 preset 的 theme-classic，它不渲染 data-*-wrapper 标记，故链尾不可见；
 - @theme-original/X 保持官方语义（全局赢家），本机制没有改动它（test/layers.test.mts 钉住）。
 `);

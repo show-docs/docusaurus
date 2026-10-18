@@ -27,12 +27,13 @@ import DocCardList from '@theme/DocCardList';
 不用在这里抄第二份。卡片上那行说明取自各页 frontmatter 的 `description:`。
 这一页自己也在侧边栏里，所以列表的头一张是它本身。
 
-这一整张卡片列表外面套着三层主题的标记（`[C]` 包 `[B]`、`[B]` 包 `[A]`，最里面才是卡片）：
-本页是站点唯一渲染 `<DocCardList />` 的地方，所以「多个主题链式覆盖同一个组件」就发生在你正看着的
-这一格里。导航栏那个 `Logo` 是同一规则的第二例（`[SITE]` 再往外包了三层）。
+这一整张卡片列表外面套着四层主题的标记（`[SITE]` 包 `[C]`、`[C]` 包 `[B]`、`[B]` 包 `[A]`，
+最里面才是卡片）：本页是站点唯一渲染 `<DocCardList />` 的地方，所以「多个主题链式覆盖同一个组件」
+就发生在你正看着的这一格里。
 
-链式覆盖不需要单独的示例页：判据是两条渲染链 —— `Logo` 四层、本页 `DocCardList` 三层，
-`pnpm build && pnpm verify:chain` 从构建产物里回读，浏览器里的嵌套由 `pnpm test:e2e` 的主页用例钉住。
+链式覆盖不需要单独的示例页：判据就是这一条四层链，`pnpm build && pnpm verify:chain`
+从构建产物里回读它（并回读文档页 —— 那一页一个包裹标记都不该有），
+浏览器里的嵌套由 `pnpm test:e2e` 的主页用例钉住。
 
 ## 文档
 
@@ -47,5 +48,5 @@ pnpm start          # 本地预览
 pnpm build          # 构建
 pnpm test           # 单元测试：解析语义、链式不变量、真实 resolver 端到端
 pnpm test:e2e       # 构建产物起服务，在真浏览器里逐个点开下面这几张卡片的页面（只本地跑）
-pnpm verify:chain   # 读真实 build 产物，回读两条渲染链（Logo 四层、本页 DocCardList 三层）
+pnpm verify:chain   # 读真实 build 产物，回读那条四层渲染链（src/theme > theme-c > theme-b > theme-a）
 ```

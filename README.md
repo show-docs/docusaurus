@@ -18,7 +18,7 @@ pnpm lint:eslint    # eslint
 pnpm test           # vitest 单元测试（解析语义 + 不变量 + 输入校验 + 真实 resolver 端到端）
 pnpm test:coverage  # 同上 + 覆盖率（红线 100% 只挂在这里：pnpm test 全绿 ≠ CI 全绿）
 pnpm test:e2e       # 构建产物起服务，Playwright 在真浏览器里点开每个主题的示例页（只本地跑）
-pnpm verify:chain   # 读真实 build 产物，回读两条渲染链（Logo 四层、主页正文的 DocCardList 三层）
+pnpm verify:chain   # 读真实 build 产物，回读主页那条四层渲染链（src/theme > theme-c > theme-b > theme-a）
 pnpm verify         # 一键全链路（组成见 package.json 的 verify；本表不复述，避免两处说法漂移）
 ```
 
@@ -123,24 +123,25 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
   `static/openapi.yaml`），实现见
   [theme/theme-stoplight/README.md](./theme/theme-stoplight/README.md)
 - **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准
-- **每个主题在浏览器里是否真的工作**：`pnpm test:e2e`（跑的是构建产物，只本地跑），用例清单与
-  首次要装的浏览器见 [test/README.md](./test/README.md)
+- **每个主题在浏览器里是否真的工作**：`pnpm test:e2e`（跑的是构建产物，只本地跑）。用例是
+  Given/When/Then 句子（Gherkin 写在 `test/e2e/features/`，步骤实现在 `test/e2e/steps/`），
+  用例清单与首次要装的浏览器见 [test/README.md](./test/README.md)
 
 ## 目录结构
 
 「职责」比「位置」重要 —— 放错地方的代价不是不好看，而是行为变了（把 specifier 写在层外文件里
 就是**硬失败**，不是「有时灵有时不灵」）。**先按「你想改什么」找，再在对应文档里看细节。**
 
-| 你想改什么                       | 动哪里                                                     | 细节                                                                                                                                                                       |
-| -------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`                      | [README](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                                   |
-| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                                     | [示例页](./docs/markmap-demo.md)                                                                                                                                           |
-| 整页交给外部站点或外部文档       | `theme/theme-iframe/`、`theme/theme-stoplight/`            | [示例页](./docs/iframe-demo.md) · [stoplight 示例页](./docs/stoplight-demo.md) · [iframe](./theme/theme-iframe/README.md) · [stoplight](./theme/theme-stoplight/README.md) |
-| 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`                  | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                                                                                                              |
-| 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                            | [demo](./demo/README.md)                                                                                                                                                   |
-| 站点主页与文档                   | `docs/`（`intro.md` 带 `slug: /`，路由前缀在配置里挪到根） | [`docs/intro.md`](./docs/intro.md)                                                                                                                                         |
-| 单测与夹具                       | `test/`                                                    | [README](./test/README.md)                                                                                                                                                 |
-| `@theme*` 的类型声明             | `plugins/plugin-prev-layer-resolver/types/`                | [README「类型声明」](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                       |
+| 你想改什么                       | 动哪里                                                                 | 细节                                                                                                                                                                       |
+| -------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`                                  | [README](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                                   |
+| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                                                 | [示例页](./docs/markmap-demo.md)                                                                                                                                           |
+| 整页交给外部站点或外部文档       | `theme/theme-iframe/`、`theme/theme-stoplight/`                        | [示例页](./docs/iframe-demo.md) · [stoplight 示例页](./docs/stoplight-demo.md) · [iframe](./theme/theme-iframe/README.md) · [stoplight](./theme/theme-stoplight/README.md) |
+| 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`                              | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                                                                                                              |
+| 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                                        | [demo](./demo/README.md)                                                                                                                                                   |
+| 站点主页与文档                   | `docs/`（`intro.md` 带 `slug: /`，路由前缀在配置里挪到根）             | [`docs/intro.md`](./docs/intro.md)                                                                                                                                         |
+| 单测、浏览器用例与夹具           | `test/`（e2e 的句子在 `test/e2e/features/`，实现在 `test/e2e/steps/`） | [README](./test/README.md)                                                                                                                                                 |
+| `@theme*` 的类型声明             | `plugins/plugin-prev-layer-resolver/types/`                            | [README「类型声明」](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                       |
 
 仓库级只有这些不在分包里的东西：
 
@@ -150,7 +151,8 @@ tsconfig.json                      # 共享编译选项（noEmit）；demo / tes
 tsconfig.demo.json / tsconfig.test.json  # 两份 composite 项目，由 pnpm typecheck（tsc -b）跑
 docusaurus.config.mjs              # 站点配置（.mjs：站点根不是 ESM 包，靠扩展名拿 ESM；侧栏由 docs 插件按目录自动生成；docs 的路由前缀是 '/'，所以主页就是 docs/intro.md）
 pnpm-workspace.yaml                # pnpm 12 的配置落点：分包清单（packages:）+ 安装期依赖（configDependencies）+ 依赖安装脚本放行名单（allowBuilds）+ 扁平化（shamefullyHoist）
-eslint.config.mjs / syncpack.config.mjs / vitest.config.mts / playwright.config.mts  # 四道检查各自的落点
+eslint.config.mjs / syncpack.config.mjs / vitest.config.mts / playwright.config.mts  # 四道检查各自的落点（后者同时是 BDD 的落点：`defineBddConfig()` 说清 `.feature` 与步骤在哪，`testDir` 由它给出）
+.features-gen/                       # `bddgen` 从 `.feature` 生成的 Playwright 文件（git 忽略，别手改）
 .github/workflows/                 # CI（GitHub Actions）
 ```
 

@@ -16,3 +16,6 @@ coverage
 # Playwright 的运行输出：失败现场（trace、截图）与 html 报告，每次跑都重写
 /test-results/
 /playwright-report/
+
+# playwright-bdd 的生成产物：bddgen 从 *.feature 生成，跑了再删也无所谓，别进工作区
+/.features-gen/
