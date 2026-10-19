@@ -287,8 +287,9 @@ export default config;
 
 ```js
 // plugins/theme-x/theme/Logo/index.tsx —— 任意多个插件都这么写
-import React from 'react';
 import PrevLogo from '@theme-prev/Logo'; // = 我下面那一层
+
+import React from 'react';
 
 export default function MyLogo(props) {
   return (

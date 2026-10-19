@@ -1,8 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { makeFixtureSite, type ThemeLayer } from './helpers.mts';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mts';
+
+import { makeFixtureSite, type ThemeLayer } from './helpers.mts';
 
 const { normalizeLayerPath } =
   await import('../plugins/plugin-prev-layer-resolver/src/layers.mts');

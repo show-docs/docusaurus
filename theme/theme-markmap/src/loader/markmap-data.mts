@@ -1,5 +1,5 @@
 import { wrapFunction } from 'markmap-common';
-import { Transformer, builtInPlugins } from 'markmap-lib';
+import { builtInPlugins, Transformer } from 'markmap-lib';
 
 import type { MarkmapData } from '../types.mts';
 

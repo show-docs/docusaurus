@@ -1,5 +1,4 @@
 import { Component } from 'react';
-
 import type { ReactNode } from 'react';
 
 import Admonition from '@theme/Admonition';

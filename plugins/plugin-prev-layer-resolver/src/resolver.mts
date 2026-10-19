@@ -9,8 +9,8 @@ import {
 import type {
   LoggerLike,
   ResolveContextLike,
-  ResolveRequestLike,
   ResolvedThemeTarget,
+  ResolveRequestLike,
   ResolverLike,
   ThemeLayer,
 } from './types.mts';

@@ -1,4 +1,5 @@
 import type { LoadContext, Plugin } from '@docusaurus/types';
+
 import { layersFromPlugins } from './layers.mts';
 import { PluginDiscovery } from './plugins.mts';
 import { PrevLayerResolverPlugin } from './resolver.mts';

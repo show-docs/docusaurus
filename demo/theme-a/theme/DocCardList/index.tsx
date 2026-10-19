@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-
 import PrevDocCardList from '@theme-prev/DocCardList';
+
+import type { ReactNode } from 'react';
 
 /**
 theme-a：DocCardList 这根链的第一层（`@theme-prev/DocCardList` = 下面那层 theme-classic）。

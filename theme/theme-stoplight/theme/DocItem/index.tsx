@@ -1,8 +1,7 @@
-import { lazy, Suspense } from 'react';
-
-import type { ComponentType, ReactNode } from 'react';
-
 import DocItem from '@theme-prev/DocItem';
+
+import { lazy, Suspense } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 
 // md 的 frontmatter 里 `oas3` 的值：OpenAPI 文档的地址
 type MDXContent = ComponentType<Record<string, unknown>> & {

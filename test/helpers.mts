@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
 import { resolveCoreModule } from '../plugins/plugin-prev-layer-resolver/src/layers.mts';
 import type {
   DocusaurusPluginLike,

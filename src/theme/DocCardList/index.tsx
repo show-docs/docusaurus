@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-
 import PrevDocCardList from '@theme-prev/DocCardList';
+
+import type { ReactNode } from 'react';
 
 /**
 站点层 swizzle：链在「最后一层插件主题」之上，所以这条链在这里是四层。

@@ -1,7 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { makeFixtureSite, withFixedTarget } from './helpers.mts';
+
 const { PrevLayerResolverPlugin } =
   await import('../plugins/plugin-prev-layer-resolver/src/resolver.mts');
 

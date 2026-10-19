@@ -1,6 +1,7 @@
 import { realpathSync } from 'node:fs';
 import path, { dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
 import {
   normalizeLayerPath,
   resolveCoreModule,

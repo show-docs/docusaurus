@@ -1,14 +1,17 @@
-import { describe, it, expect, vi, afterAll } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { afterAll, describe, expect, it, vi } from 'vitest';
+
 import type { Plugin } from '@docusaurus/types';
 
 import prevLayerResolverPlugin, {
   type PrevLayerResolverOptions,
 } from '../plugins/plugin-prev-layer-resolver/src/index.mts';
 import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mts';
+
 import { mkdtempReal } from './helpers.mts';
 import type { DocusaurusPluginLike, ThemeLayer } from './helpers.mts';
 

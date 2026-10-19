@@ -1,10 +1,9 @@
-import { lazy, Suspense } from 'react';
+import Content from '@theme-prev/DocItem/Content';
 
+import { lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
 
 import { useDoc } from '@docusaurus/plugin-content-docs/client';
-
-import Content from '@theme-prev/DocItem/Content';
 
 const FramePage = lazy(() =>
   import('../../../components/iframe.tsx').then(({ FramePage: View }) => ({

@@ -1,4 +1,5 @@
 import path from 'node:path';
+
 import { isFile } from './layers.mts';
 import type { ResolveRequestLike, ThemeLayer } from './types.mts';
 

@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createRequire } from 'node:module';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { fakeCore, makePluginSite } from './helpers.mts';
 
 const { PluginDiscovery } =

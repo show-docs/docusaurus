@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-
 import PrevDocCardList from '@theme-prev/DocCardList';
+
+import type { ReactNode } from 'react';
 
 /**
 theme-c：DocCardList 这根链的第三层（声明顺序最后 → 赢得 `@theme/DocCardList`）。

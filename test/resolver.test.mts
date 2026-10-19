@@ -1,6 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mts';
+
 import {
   makeFixtureSite,
   tick,
@@ -8,8 +12,6 @@ import {
   withFixedTarget,
   type ThemeLayer,
 } from './helpers.mts';
-
-import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mts';
 
 type FixtureSite = ReturnType<typeof makeFixtureSite>;
 

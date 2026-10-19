@@ -1,13 +1,11 @@
-import { lazy, Suspense } from 'react';
-
-import type { ComponentType, ReactNode } from 'react';
-
 import DocItem from '@theme-prev/DocItem';
 
-import { ErrorBoundary } from '../../components/error-boundary.tsx';
+import { lazy, Suspense } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 
-import type { MarkmapData } from '../../src/types.mts';
+import { ErrorBoundary } from '../../components/error-boundary.tsx';
 import { HackStyle } from '../../components/hack-style.tsx';
+import type { MarkmapData } from '../../src/types.mts';
 
 const MindChart = lazy(() =>
   import('../../components/markmap.tsx').then(({ MindChart: View }) => ({

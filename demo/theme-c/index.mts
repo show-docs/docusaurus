@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
 import type { Plugin } from '@docusaurus/types';
 
 const thisDir = path.dirname(fileURLToPath(import.meta.url));
