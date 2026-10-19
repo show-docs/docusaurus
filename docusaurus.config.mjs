@@ -31,8 +31,10 @@ const config = {
     // Stoplight 主题层：md 里 `oas3: <URL>` 即整页交给 OpenAPI 渲染器；
     // 各层的 DocItem 各判各的 frontmatter，不命中就把 props 交回 `@theme-prev/DocItem`。
     '@show-docs/docusaurus-theme-stoplight',
-    // Redoc 主题层（栈在最外）：md 里 `redoc: <URL>` 即整页换成 Redoc 渲染的 API 文档。
-    // 它不做样式圈定（Redoc 的 CSS 是运行时注入的），代价记在 `theme/theme-redoc/README.md`。
+    // Redoc 主题层（栈在最外）：md 里 `redoc: <URL>` 即整页换成一个 iframe，框里是本包自己那条
+    // `/redoc-view` 页面，Redoc 在那份文档里渲染。它同时注册那条路由；Redoc 的 CSS 由
+    // styled-components 在运行时注入，构建期圈不住，但有了文档边界就不需要圈 —— 运行期那条链上
+    // 只剩「把它的暗色表改挂到站点的 data-theme 上」这一件事，口径记在 `theme/theme-redoc/README.md`。
     '@show-docs/docusaurus-theme-redoc',
   ],
 

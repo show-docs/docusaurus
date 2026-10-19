@@ -52,14 +52,14 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 仓库里的分包**按「`src/` 要不要先编译」分两种形态**，不是按「像不像一个包」：
 
-| 目录                                  | 是什么                                                                                       | 形态                                                | 细节                                                     |
-| ------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------- |
-| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                | 构建包（`src/` → `dist/`，改完要编译）              | [README](./plugins/plugin-prev-layer-resolver/README.md) |
-| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                            | 构建包（只编译入口与 loader；层与组件是源码）       | [示例页](./docs/markmap-demo.md)                         |
-| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时整页换成那个页面（文档正文外壳一并不要） | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-iframe/README.md)                 |
-| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成 Stoplight Elements 渲染的 OpenAPI 文档 | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-stoplight/README.md)              |
-| `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成 Redoc 渲染的 API 文档                 | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-redoc/README.md)                  |
-| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                        | 免编译（没有 `src/`：入口与层都是源码，站点直接吃） | [README](./demo/README.md)                               |
+| 目录                                  | 是什么                                                                                                                                    | 形态                                                | 细节                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                                                             | 构建包（`src/` → `dist/`，改完要编译）              | [README](./plugins/plugin-prev-layer-resolver/README.md) |
+| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                                                         | 构建包（只编译入口与 loader；层与组件是源码）       | [示例页](./docs/markmap-demo.md)                         |
+| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时整页换成那个页面（文档正文外壳一并不要）                                              | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-iframe/README.md)                 |
+| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成 Stoplight Elements 渲染的 OpenAPI 文档                                              | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-stoplight/README.md)              |
+| `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成一个 iframe，框里是本包自己那条 `/redoc-view` 页面，Redoc 在那份文档里渲染 API 文档 | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-redoc/README.md)                  |
+| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                                                                     | 免编译（没有 `src/`：入口与层都是源码，站点直接吃） | [README](./demo/README.md)                               |
 
 五个构建包都是 `tsc` 编译包：Node 侧要跑的源码 `.mts` 在包内 `src/`，产物在包内 `dist/`，
 `dist/index.mjs` 就是包出口（`exports`）—— 所以 `pnpm build:core` 是「编译这五个包」，
@@ -124,7 +124,8 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
   行为见 [docs/stoplight-demo.md](./docs/stoplight-demo.md)（示例取
   `static/openapi.yaml`），实现见
   [theme/theme-stoplight/README.md](./theme/theme-stoplight/README.md)
-- **Redoc 主题**（`redoc:` 触发、它自带的那套路由为什么钉成 hash、样式为什么要在运行期圈定）：
+- **Redoc 主题**（`redoc:` 触发、渲染为什么挪到本包自己那条 `/redoc-view` 页面、地址栏里 `#`
+  那一段怎么在两份文档之间对齐、样式为什么不需要圈定而暗色表仍要在运行期改挂）：
   行为见 [docs/redoc-demo.md](./docs/redoc-demo.md)（同一份 `static/openapi.yaml`），实现见
   [theme/theme-redoc/README.md](./theme/theme-redoc/README.md)
 - **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准

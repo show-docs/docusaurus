@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import type { Locator, Page } from '@playwright/test';
+import type { FrameLocator, Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
 import { watchPageErrors } from '../helpers.mts';
@@ -7,22 +7,38 @@ import { watchPageErrors } from '../helpers.mts';
 const { Given, When, Then } = createBdd();
 
 /**
-Redoc 的路由走 **hash**：左栏那些链接由它自己拼成 `#/orders/…`，整页地址是
-`/redoc-demo#/orders/createorder`。它把 `operationId` 小写进地址（`createOrder` →
-`createorder`），下面的 href 按浏览器里真的那串写。
+## 这一层的判据分两份文档量
 
-href 不带路径前缀，是因为组件里 `basePath` 用的是默认值 `/`：hash 段自己就是一个完整的地址，
-与这一页挂在站点哪一处无关（口径记在 `theme/theme-redoc/README.md`）。
+命中页（`/redoc-demo`）里只有一个 iframe，Redoc 整个跑在框内那份文档（本包那条插件路由
+`/redoc-view`）上。所以每条判据都得指名站在哪一份文档里量：
+
+- 外层：`page.locator(...)` —— 这一份里**不该**有任何 Redoc 的东西（边界由浏览器给，
+  本层不再做样式圈定，口径见包 README 的「样式」一节）；
+- 框内：`frameDoc(page)` —— 它是那一份文档的**框**（`Locator#contentFrame()` 交回 `FrameLocator`，
+  只给 `locator()` 不给你 `evaluate()`），后面的选择器都从它往下找；要跑脚本就先取它下面的
+  `html` 那一颗，回调里再拿 `el.ownerDocument`。
+
+同源，所以两边都能直接读 DOM 与 CSSOM，不需要往测试里塞第二层通道。
+
+Redoc 的路由走 hash：左栏那些链接由它自己拼成 `#/orders/…`；`operationId` 被小写进地址
+（`createOrder` → `createorder`），下面的 href 按浏览器里真的那串写。href 不带路径前缀，
+是因为组件里 `basePath` 用的是默认值 `/`（口径记在 `theme/theme-redoc/README.md`）。
 
 每条都限定在 `.menu-content` 里：正文面板上也有指向同一个接口的锚（标签标题旁那个
 「link to orders」），不限定就会命中两处，Playwright 的严格模式直接报错。
 */
-const menu = (page: Page): Locator => page.locator('.redoc-root .menu-content');
+const frameElement = (page: Page): Locator =>
+  page.locator('iframe.redoc-frame');
+
+const frameDoc = (page: Page): FrameLocator =>
+  frameElement(page).contentFrame();
+
+const menu = (page: Page): Locator =>
+  frameDoc(page).locator('.redoc-root .menu-content');
+
+const root = (page: Page): Locator => frameDoc(page).locator('.redoc-root');
 
 const menuHref = (name: string): string => `#/orders/${name}`;
-
-/** Redoc 渲染的容器，也是本层挂上去的那一格。 */
-const root = (page: Page): Locator => page.locator('.redoc-root');
 
 Given('我打开 redoc 示例页', async ({ page }) => {
   watchPageErrors(page);
@@ -30,9 +46,9 @@ Given('我打开 redoc 示例页', async ({ page }) => {
 });
 
 /**
-整页加载一条**别人转发过来的接口地址**：`#/orders/createorder` 这段是 Redoc 点进接口之后
-写进地址栏的。这一条用例钉的就是它在静态产物里也打得开，而且是 **HTTP 200** ——
-页面本身是 `build/redoc-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
+整页加载一条**别人转发过来的接口地址**：`#/orders/createorder` 这段是框里点了接口之后
+由 postMessage 送进外层地址栏的。这一条用例钉的是它在静态产物里也打得开，而且是 **HTTP 200**
+—— 页面本身是 `build/redoc-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
 （换成按路径的路由就是 404，取舍与理由见包 README 的「深链」一节。）
 */
 Given('我直达 redoc 那条接口的地址', async ({ page }) => {
@@ -42,28 +58,27 @@ Given('我直达 redoc 那条接口的地址', async ({ page }) => {
 });
 
 /**
-地址里那一段指哪条接口，正文区就摆哪条接口。
+命中页放的就那一个 iframe，`src` 指向本包那条插件路由。
 
-这一句**不复用**上面那句「详情面板换成那条接口」：那一句是「先打开这一页再点下去」的判据，
-四条标题（API 标题、分组、两条接口）都在。整页直达时 Redoc 从地址指的那一格往下铺，
-实测 DOM 里只有「列出订单」「新建订单」这两个 `h2`，API 标题与分组那两条不在 ——
-那是它自己的路由行为，不是本层丢了内容，所以这里按直达那一份清单钉。
+地址里带的是 frontmatter 那个 spec 地址（编码成 `src` 参数），**不带** hash：iframe 的 `src`
+只由配置决定，服务端与客户端算出的完全一样，深链那一段靠框里那句 ready 换进框内（见包 README
+的「深链」）。这里比的是属性原文，不是解析后的绝对地址。
 */
-Then('那条接口从地址里也认得出来', async ({ page }) => {
-  await expect(page).toHaveURL(/\/redoc-demo#\/orders\/createorder$/);
-  await expect(
-    root(page).locator('h1, h2'),
-    '正文区没摆出地址里那条接口',
-  ).toContainText(['列出订单', '新建订单']);
+Then('这一页放的是一个 iframe，指向本包那条独立页面', async ({ page }) => {
+  await expect(frameElement(page), '命中页没有那一个 iframe').toHaveCount(1);
+  await expect(frameElement(page)).toHaveAttribute(
+    'src',
+    '/redoc-view?src=%2Fopenapi.yaml',
+  );
 });
 
-// 取的是 `static/openapi.yaml`（产物里的 `/openapi.yaml`）：文档标题先证明它真取到了。
-Then('Redoc 接管了这一页，读的是本站那份 yaml', async ({ page }) => {
+// 取的是 `static/openapi.yaml`（产物里的 `/openapi.yaml`）：文档标题先证明框里真取到了。
+Then('Redoc 在框里接管了这一屏，读的是本站那份 yaml', async ({ page }) => {
   await expect(
     root(page),
-    '`.redoc-root` 没出现：`redoc:` 那一步没命中或浏览器端没渲染',
+    '框里没有 `.redoc-root`：`redoc:` 那一步没命中，或框内那份文档没渲染',
   ).toBeVisible();
-  await expect(root(page), '左栏没有 API 标题：spec 没取到').toContainText(
+  await expect(root(page), '框里左栏没有 API 标题：spec 没取到').toContainText(
     '主题覆盖演示 API',
   );
 });
@@ -74,7 +89,7 @@ Then('Redoc 接管了这一页，读的是本站那份 yaml', async ({ page }) =
 Then('Redoc 自己的 404 没有出现', async ({ page }) => {
   await expect(
     root(page).locator('.not-found-page'),
-    'Redoc 没匹配到当前地址：hash 那一段没对上',
+    'Redoc 没匹配到当前地址：那一段没送进框里',
   ).toHaveCount(0);
 });
 
@@ -98,10 +113,16 @@ When('我点开 Redoc 左栏里新建订单那条接口', async ({ page }) => {
     .click();
 });
 
-// 地址换成那条接口的 hash，详情面板的标题也跟着换 —— 到这一步才算真渲染了内容。
-// 这份四条清单只适用于「先打开这一页再点下去」，整页直达那条用例另有判据（见上）。
+/**
+接口详情换到那条接口，**外层**地址栏里那一段也跟着换。
+
+后半句量的就是框内 → 外层那一条 postMessage：框里点一条接口走的是 `history.pushState`，
+它不触发 `hashchange`，外层只能听 Redoc 的路由自己报（`redoc-ui.tsx` 里那个 `LocationMirror`）。
+这一句红了通常就是那条通道断了，而不是 Redoc 没渲染。
+
+这份四条清单只适用于「先打开这一页再点下去」，整页直达那条用例另有判据（见下）。
+*/
 Then('详情面板换成那条接口', async ({ page }) => {
-  await expect(page).toHaveURL(/\/redoc-demo#\/orders\/createorder$/);
   await expect(
     root(page).locator('h1, h2'),
     '接口详情没渲染出来',
@@ -111,27 +132,44 @@ Then('详情面板换成那条接口', async ({ page }) => {
     '列出订单',
     '新建订单',
   ]);
+  await expect(page).toHaveURL(/\/redoc-demo#\/orders\/createorder$/);
 });
 
-// 整页交给 Redoc 时容器不留白：`redoc-ui.css` 那条 `.container:has(.redoc-root)`。
+/**
+地址里那一段指哪条接口，框里的正文区就摆哪条接口。
+
+这一句**不复用**上一条：那一条是「先打开这一页再点下去」的判据，四条标题都在。整页直达时
+Redoc 从地址指的那一格往下铺，实测 DOM 里只有「列出订单」「新建订单」这两个 `h2`，
+API 标题与分组那两条不在 —— 那是它自己的路由行为，不是本层丢了内容，所以这里按直达那一份
+清单钉。
+*/
+Then('那条接口从地址里也认得出来', async ({ page }) => {
+  await expect(
+    root(page).locator('h1, h2'),
+    '框里的正文区没摆出地址里那条接口：那一段没送进框里',
+  ).toContainText(['列出订单', '新建订单']);
+});
+
+/**
+整页交给这个框时容器不留白：`redoc-frame.css` 那条 `.container:has(.redoc-frame)`。
+
+认的是本包那个类名，不是裸 `iframe` —— 后者是 theme-iframe 那层自己声明的边界
+（`.container:has(iframe)`），本层不复用别人的选择器。
+*/
 Then('正文容器在这一页让位', async ({ page }) => {
-  const container = page.locator('.container:has(.redoc-root)');
-  await expect(container, 'Redoc 没落在 `.container` 里').toHaveCount(1);
+  const container = page.locator('.container:has(.redoc-frame)');
+  await expect(container, 'iframe 没落在 `.container` 里').toHaveCount(1);
   await expect(container).toHaveCSS('padding', '0px');
 });
 
 /**
-Redoc 的左栏是一条 `height: calc(100dvh - var(--navbar-stack-height))` 的 sticky，而
-`--navbar-stack-height` 由它自己在渲染时按 `scrollYOffset` 那个函数算出来、写进容器
-（口径记在包 README 的「高度」一节）。这一条钉算出来的那一格正好是 navbar 以下的一屏：
-上沿贴着 navbar 的下沿、下沿贴着视口的下沿，两边各留 1px 的容差。
+外层这一格：iframe 的上沿贴着 navbar 的下沿、下沿贴着视口的下沿，两边各留 1px 容差。
 
-`scrollTop` 那一句钉的是另一半：这一层不给容器定高，容器就不该变成滚动容器。曾经
-「定高 + `overflow: hidden`」的那一版里，点接口（以及整页直达那条深链）滚走的是这一格而不是
-文档 —— 实测 `scrollTop` 停在 502，左栏整条往上跑出可视区，navbar 以下只剩一片底色。
+改造之前钉的是 Redoc 的左栏，现在外层没有左栏，占满那一屏的是这个框本身
+（`redoc-frame.css` 里 `height: calc(100vh - var(--ifm-navbar-height))`）。
 */
-Then('左栏占满 navbar 以下那一屏', async ({ page }) => {
-  const box = await menu(page).evaluate((el) => {
+Then('框占满 navbar 以下那一屏', async ({ page }) => {
+  const box = await frameElement(page).evaluate((el) => {
     const { innerHeight } = el.ownerDocument.defaultView ?? { innerHeight: 0 };
     const rect = el.getBoundingClientRect();
     return {
@@ -141,17 +179,45 @@ Then('左栏占满 navbar 以下那一屏', async ({ page }) => {
             .bottom ?? 0),
       ),
       gapToViewport: Math.round(innerHeight - rect.bottom),
-      rootScrollTop: el.closest('.redoc-root')?.scrollTop ?? -1,
     };
   });
 
   expect(
     Math.abs(box.gapToNavbar),
-    `左栏的上沿没贴住 navbar：差 ${box.gapToNavbar}px`,
+    `框的上沿没贴住 navbar：差 ${box.gapToNavbar}px`,
   ).toBeLessThanOrEqual(1);
   expect(
     Math.abs(box.gapToViewport),
-    `左栏的下沿没贴住视口：差 ${box.gapToViewport}px`,
+    `框的下沿没贴住视口：差 ${box.gapToViewport}px`,
+  ).toBeLessThanOrEqual(1);
+});
+
+/**
+框内那一格：Redoc 的左栏占满**框内那份文档**的整屏（那份文档没有 navbar，上沿就是 0）。
+
+`scrollTop` 那一句钉的是另一半：这一层不给容器定高，容器就不该变成滚动容器。曾经
+「定高 + `overflow: hidden`」的那一版里，点接口（以及整页直达那条深链）滚走的是这一格而不是
+文档 —— 实测 `scrollTop` 停在 502，左栏整条往上跑出可视区，上方只剩一片底色。现在滚动条长在
+框内那份文档上，那一格仍然不该是自己滚的。
+*/
+Then('框里的左栏占满整屏', async ({ page }) => {
+  const box = await menu(page).evaluate((el) => {
+    const view = el.ownerDocument.defaultView;
+    const rect = el.getBoundingClientRect();
+    return {
+      gapToTop: Math.round(rect.top),
+      gapToViewport: Math.round((view?.innerHeight ?? 0) - rect.bottom),
+      rootScrollTop: el.closest('.redoc-root')?.scrollTop ?? -1,
+    };
+  });
+
+  expect(
+    Math.abs(box.gapToTop),
+    `框里左栏的上沿没贴住那份文档的顶：差 ${box.gapToTop}px`,
+  ).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(box.gapToViewport),
+    `框里左栏的下沿没贴住那份文档的底：差 ${box.gapToViewport}px`,
   ).toBeLessThanOrEqual(1);
   expect(
     box.rootScrollTop,
@@ -160,183 +226,44 @@ Then('左栏占满 navbar 以下那一屏', async ({ page }) => {
 });
 
 /**
-这一层的样式**不做构建期圈定**：Redoc 的样式是 styled-components 在运行时插进 `<head>`
-的，PostCSS 那一遍拿不到那份文件。改在运行期圈 —— `StyleSheetManager` 的 `stylisPlugins`
-（`components/redoc-style-scope.ts`），口径与理由记在 `theme/theme-redoc/README.md`。
+这一条量的是「隔离」这件事本身：外层那份文档里**没有任何** Redoc 的痕迹 ——
+styled-components 那张运行期注入的 `<style>` 一张都没有（改造前它就在外层 `<head>` 里，
+470 来条规则），`.redoc-root` 那一格也不存在，正文文字更不在外层文档里。
 
-剩下的外溢不是猜的，是量的：把那张表的每条规则真的拿去问 DOM —— 命中的元素里有 **不在
-`.redoc-root` 里** 的、并且改的是**真属性**（不是 `--*` 那种自定义变量），就算漏出去了。
-`redoc@3.0.1` 圈完之后在这一页只剩一条：
-
-- `:root *` —— 全局 `box-sizing: border-box`。**故意不圈**：站点自己的 `*` 规则同值
-  （实测计算样式差为 0），圈它只会让 Redoc 挂到 `body` 的浮层丢掉 border-box。
-
-原来那两条已经收进 `.redoc-root`：裸标签 `button` 变成 `:where(.redoc-root) button`；
-`:root` 里那三条真属性（背景色、文字色、字体）挪到 `.redoc-root` 上，剩下的 2882 条变量
-仍留在 `:root`（浮层靠继承取值，见「圈定没有把 Redoc 自己的样式压掉」那一条）。
-
-这里钉的是**集合等于这一条**：将来 Redoc 再往全局多写一条、或者改了写法让圈定失效，用例就红，
-文档得跟着改 —— 而不是让它静悄悄生效。（离开这一页之后 styled-components 会回收这些规则，
-主页上的 `<html>` 与按钮实测照旧。）
-
-这一句是在**站点亮色**下量的：判据问的是「这条规则现在打到哪些元素」，而改挂到
-`:root[data-theme="dark"]` 的那套暗色表在亮色下匹配不到任何东西，所以不进这个集合。
-站点一进暗色，它命中的就是 `<html>` 本身，里面除变量外还有一条真属性 `color-scheme`；
-这一格的后果另有判据 ——「站点自己的那几处样式在暗色下也不被 Redoc 改写」那条量的是值，
-站点自己写的也是 `dark`，同值。
-
-DOM 元素从外面递进来（取的是 `el.ownerDocument`，不写裸的 `document`）：`evaluate` 的回调
-是在浏览器里跑的独立函数，闭不到 Node 侧的名字 —— 漏了就是一处只在浏览器里炸的引用。
+框内那一份文档里 Redoc 的样式往哪儿打，本层不再钉：曾经那两条判据（外溢只剩 `:root *`、
+圈定没把 Redoc 自己的样式压掉）钉的是运行期圈定的效果，圈定随 iframe 改造一起删了 ——
+Redoc 关在自己那份文档里，「不打到站点上」由浏览器给的文档边界负责，理由记在包 README 的
+「样式」一节。
 */
-Then('Redoc 外溢到站点元素的只剩那一条', async ({ page }) => {
-  const escaping = await page.locator('html').evaluate((el) => {
-    const found: string[] = [];
-
-    // `ownerNode` 的类型上还有 `ProcessingInstruction` 那一格（XML 样式处理指令），
-    // 本仓的表都是 `<style>`，按元素取属性前先收窄。
-    const sheet = [...el.ownerDocument.styleSheets].find(
-      (s) =>
-        (s.ownerNode as Element | null)?.hasAttribute('data-styled-version') ??
-        false,
-    );
-    if (!sheet?.cssRules) {
-      return ['浏览器里没找到 styled-components 注入的那张样式表'];
-    }
-
-    const walk = (rules: CSSRuleList) => {
-      for (const rule of rules) {
-        const grouped = rule as CSSGroupingRule;
-        if (grouped.cssRules && !(rule as CSSStyleRule).selectorText) {
-          // `@media` 这类容器：往里走。`@keyframes` 里的 from/to 没有选择器，不参与判型。
-          if ((rule as unknown as { type?: number }).type !== 7) {
-            walk(grouped.cssRules);
-          }
-          continue;
-        }
-
-        const styleRule = rule as CSSStyleRule;
-        const selector = styleRule.selectorText;
-        if (!selector || !styleRule.style) {
-          continue;
-        }
-
-        let matched: Element[];
-        try {
-          matched = [...el.ownerDocument.querySelectorAll(selector)];
-        } catch {
-          found.push(`读不了的 selector：${selector}`);
-          continue;
-        }
-        if (matched.every((node) => node.closest('.redoc-root'))) {
-          continue;
-        }
-
-        const written: string[] = [];
-        for (let i = 0; i < styleRule.style.length; i += 1) {
-          const name = styleRule.style.item(i);
-          if (name && !name.startsWith('--')) {
-            written.push(name);
-          }
-        }
-        if (written.length > 0) {
-          found.push(selector);
-        }
-      }
-    };
-
-    try {
-      walk(sheet.cssRules);
-    } catch {
-      // 跨源样式表读不到规则（本仓没有这种表）。
-      return ['读不到 styled-components 那张表的规则'];
-    }
-
-    return [...new Set(found)];
-  });
-
-  // 按**集合**比，不按顺序：这一步要钉的是「圈完之后只剩这一条」，多一条少一条都算红。
-  expect(
-    new Set(escaping),
-    `圈定之后仍然外溢的选择器不等于记下的那一条，实际是：${escaping.join('、')}`,
-  ).toEqual(new Set([':root *']));
-});
-
-/**
-圈定是**双向**的判据：上一条说「打到站点上的只剩一条」，这一条说「圈定没把 Redoc 自己改坏」。
-后者不是显然的 —— 给裸标签加前缀会把这条规则的优先级从 (0,0,1) 抬到 (0,1,1)，抬过去它就压过
-Redoc 自己那些 (0,1,0) 的类名规则了。实测过这个错法：右栏那颗 Copy 按钮的边框从 `solid 1px`
-变成 `none`。所以前缀写成 `:where(.redoc-root)`（自身优先级 0，只收范围不动层叠）。
-
-钉三样，都是量出来的：
-
-1. 那条裸 `button` 确实变成了带范围的写法，裸的那条不在表里了 —— 证明圈定真的跑过，
-   而不是靠别的东西把效果遮掉；
-2. Redoc 自己的按钮仍然带着它类名规则给的那圈实线边框；
-3. `--bg-color` 仍然能在 `<html>` 上取到值 —— Redoc 的下拉、提示、弹窗是
-   `createPortal(…, document.body)` 挂到 body 的，变量必须留在 `:root` 它们才继承得到。
-*/
-Then('圈定没有把 Redoc 自己的样式压掉', async ({ page }) => {
+Then('外层文档里没有 Redoc 的运行时样式表', async ({ page }) => {
   const state = await page.locator('html').evaluate((el) => {
-    let scopedButton = 0;
-    let bareButton = 0;
-    for (const sheet of el.ownerDocument.styleSheets) {
-      const node = sheet.ownerNode;
-      if (
-        !(node instanceof HTMLElement) ||
-        !Object.hasOwn(node.dataset, 'styled')
-      )
-        continue;
-      let rules: CSSRuleList;
-      try {
-        rules = sheet.cssRules;
-      } catch {
-        continue;
-      }
-      for (const rule of rules) {
-        const selector = (rule as CSSStyleRule).selectorText;
-        if (selector === ':where(.redoc-root) button') scopedButton += 1;
-        else if (selector === 'button') bareButton += 1;
-      }
-    }
-
-    const copy = [...document.querySelectorAll('.redoc-root button')].find(
-      (b) => b.textContent?.trim() === 'Copy',
-    );
-    const computed = copy ? getComputedStyle(copy) : null;
+    const doc = el.ownerDocument;
     return {
-      scopedButton,
-      bareButton,
-      copyBorderStyle: computed?.borderTopStyle ?? '页面上没有 Copy 那颗按钮',
-      copyBorderWidth: computed?.borderTopWidth ?? '',
-      bgColorOnHtml: getComputedStyle(document.documentElement)
-        .getPropertyValue('--bg-color')
-        .trim(),
+      styledSheets: [...doc.styleSheets].filter(
+        (sheet) =>
+          (sheet.ownerNode as Element | null)?.hasAttribute(
+            'data-styled-version',
+          ) ?? false,
+      ).length,
+      redocRoot: doc.querySelectorAll('.redoc-root').length,
+      hasSpecText: (doc.body.textContent ?? '').includes('主题覆盖演示 API'),
     };
   });
 
-  expect(state.scopedButton, '裸标签那条没被改成带范围的写法').toBeGreaterThan(
+  expect(state.styledSheets, '外层文档里出现了 styled-components 那张表').toBe(
     0,
   );
-  expect(state.bareButton, '表里仍然留着裸的 `button` 那条').toBe(0);
-  expect(
-    state.copyBorderStyle,
-    'Redoc 自己的按钮边框被圈定的规则压掉了（前缀要用 :where() 才不改优先级）',
-  ).not.toBe('none');
-  expect(state.copyBorderWidth, '同上：边框宽度归零').not.toBe('0px');
-  expect(
-    state.bgColorOnHtml,
-    'Redoc 的 CSS 变量没留在 <html> 上，挂到 body 的浮层会取不到值',
-  ).not.toBe('');
+  expect(state.redocRoot, '外层文档里出现了 `.redoc-root` 那一格').toBe(0);
+  expect(state.hasSpecText, '外层文档里有 Redoc 渲染出来的文字').toBe(false);
 });
 
 /**
-上一条钉的是「圈定没把 Redoc 改坏」，这一条钉「站点这一侧确实不受影响」。
-判据不把站点该有的值一个个抄成数字（那样换个主题就得改），而是拿同一批元素在两个页面上各算
-一遍 computed style：这一页（挂着 `.redoc-root`，Redoc 的表在）与主页（没挂），必须一模一样。
-量两处：navbar 上那颗 `<button class="clean-btn">`（裸标签那条打的就是它）与 `<html>` 本身
-（`:root` 那三条真属性打的就是它，另有暗色表往 `<html>` 上写的那条 `color-scheme`）。
+这一条量的是**外层**那一份文档：站点自己的壳（navbar 那颗按钮、`<html>` 本身）在命中页与
+主页上必须一模一样。改造之后外层根本没有 Redoc 的运行时样式表（上一条钉的就是这个），
+所以这一句几乎是显然的 —— 留着是因为它按**值**比，不抄站点该有的值，哪天有人在站点这一侧
+重新引一份 Redoc 的样式，它会红。
 
-主页是**整页重新加载**去的：客户端跳过去时 styled-components 那张表还在，量到的仍是污染后的值。
+主页是**整页重新加载**去的。
 */
 const toggleProps = [
   'background-color',
@@ -364,38 +291,31 @@ interface SiteStyles {
 }
 
 /**
+同一批属性在**外层这一份文档**上算一遍。先把鼠标挪开再量：点完 navbar 那颗按钮之后指针正好停在
+它上面，不挪开就量到「悬停的那一颗」，跟另一个页面上没悬停的那一颗比，差的是指针位置而不是样式外溢。
+
 这颗按钮的悬停底色是带过渡的（站点自己的 `.toggleButton:hover { background: var(--ifm-color-emphasis-200) }`，
-时长走 `--ifm-transition-fast`），所以指针刚从它上面挪开的那一刻量到的是**半路中的值**
-（实测读到过 `rgba(130, 134, 140, 0.004)`，而落点是 `rgba(0, 0, 0, 0)`）。
-这里不写死等待时长，而是逐帧问一次：值连着两帧不变就算落定了。
+时长走 `--ifm-transition-fast`，实测 `transition: background / 0.2s`），所以指针刚从它上面
+挪开的那一刻量到的是**半路中的值**（实测淡出曲线 `rgba(68, 73, 80, 0.282)` → `0.125` →
+`0.043` → `0.008` → `rgba(0, 0, 0, 0)`，落点与主页一致）。
+
+这里不写死等待时长，也不再看「连续两帧值相同」：解除 `:hover` 要等一次样式刷新，淡出是**从
+那一刻才开始**的，于是开头那一两帧读到的还是悬停色、值当然相同 —— 判据当场成立，紧跟着的
+那次读就落在曲线中段。慢机器上（跑 e2e 开着 trace，实测 10 次红 3 次）就是这么红的。
+改成问过渡自己的状态：确认真离开了悬停，把这两个元素上还在跑的过渡 `finished` 掉，
+再把同一批属性连读两遍、直到两遍一致。
 */
-const settleHover = (page: Page): Promise<void> =>
-  page
-    .locator('.navbar button.clean-btn')
-    .first()
-    .evaluate(async (el) => {
+const siteStyles = async (page: Page): Promise<SiteStyles> => {
+  await page.mouse.move(0, 0);
+  return page.locator('html').evaluate(
+    async (el, props) => {
       const frame = () =>
         new Promise<void>((resolve) => {
           requestAnimationFrame(() => resolve());
         });
-      let last = getComputedStyle(el).backgroundColor;
-      for (let i = 0; i < 20; i += 1) {
-        await frame();
-        const now = getComputedStyle(el).backgroundColor;
-        if (now === last) return;
-        last = now;
-      }
-    });
-
-/**
-同一批属性在**当前这一页**上算一遍。先把鼠标挪开再量：点完 navbar 那颗按钮之后指针正好停在
-它上面，不挪开就量到「悬停的那一颗」，跟另一个页面上没悬停的那一颗比，差的是指针位置而不是样式外溢。
-*/
-const siteStyles = async (page: Page): Promise<SiteStyles> => {
-  await page.mouse.move(0, 0);
-  await settleHover(page);
-  return page.locator('html').evaluate(
-    (el, props) => {
+      const equal = (a: SiteStyles, b: SiteStyles): boolean =>
+        JSON.stringify(a) === JSON.stringify(b);
+      const toggle = el.querySelector(':scope .navbar button.clean-btn');
       const pick = (target: Element | null, names: readonly string[]) => {
         const out: Record<string, string> = {};
         if (!target) return out;
@@ -403,14 +323,37 @@ const siteStyles = async (page: Page): Promise<SiteStyles> => {
         for (const name of names) out[name] = computed.getPropertyValue(name);
         return out;
       };
-
-      return {
-        toggle: pick(
-          el.querySelector(':scope .navbar button.clean-btn'),
-          props.toggle,
-        ),
+      const snapshot = (): SiteStyles => ({
+        toggle: pick(toggle, props.toggle),
         html: pick(el, props.html),
+      });
+      /** 这两个元素上还在跑的过渡（悬停淡出、换主题的变色都算）跑完为止。 */
+      const waitTransitions = async (): Promise<void> => {
+        const running = [
+          ...el.getAnimations(),
+          ...(toggle?.getAnimations() ?? []),
+        ];
+        await Promise.all(
+          running.map((animation) => animation.finished.catch(() => undefined)),
+        );
       };
+
+      let previous = snapshot();
+      for (let i = 0; i < 120; i += 1) {
+        // 指针还没挪开就先只等这一格，别把悬停态读成落定值
+        if (toggle?.matches(':hover')) {
+          await frame();
+          continue;
+        }
+        await waitTransitions();
+        const next = snapshot();
+        if (equal(previous, next)) {
+          return next;
+        }
+        previous = next;
+        await frame();
+      }
+      return previous;
     },
     { toggle: [...toggleProps], html: [...htmlProps] },
   );
@@ -429,10 +372,11 @@ Then('站点自己的那几处样式不被 Redoc 改写', async ({ page }) => {
 });
 
 /**
-Redoc 左栏底部那一排图标里有一颗它自己的亮暗切换按钮。本层把暗色表改挂在站点的
-`data-theme` 上之后，点它只会改 `<html>` 的类名、页面上没有任何反应 —— 一颗按了没反应的按钮，
-还跟 navbar 上那颗重复，所以 `redoc-ui.css` 把它收掉了。这一条钉它确实看不见
-（元素还在 DOM 里，是 `display: none`，所以判据用可见性而不是数量）。
+Redoc 左栏底部那一排图标里有一颗它自己的亮暗切换按钮。本层把暗色表改挂在
+`<html data-redoc-mode>`（值由站点的开关送进框内）上之后，点它只会改那份文档的 `<html>` 类名、
+页面上没有任何反应 —— 一颗按了没反应的按钮，还跟 navbar 上那颗重复，所以 `redoc-ui.css`
+把它收掉了。
+这一条钉它确实看不见（元素还在 DOM 里，是 `display: none`，所以判据用可见性而不是数量）。
 */
 Then('Redoc 自己那颗亮暗切换按钮不出现', async ({ page }) => {
   await expect(
@@ -472,7 +416,7 @@ Then('章节标题旁那一整格操作按钮不出现', async ({ page }) => {
 
   expect(
     await pageActions.count(),
-    '这一页上没有章节标题那一格操作按钮，选择器先失效了',
+    '框里没有章节标题那一格操作按钮，选择器先失效了',
   ).toBeGreaterThan(0);
   await expect(
     root(page).locator('[data-testid="page-actions"]:visible'),
@@ -504,18 +448,46 @@ Redoc 自带一套亮暗模式，判据是**操作系统**的偏好（`matchMedi
 规则全挂在 `:root.dark` 开头。站点自己另有一个开关（`<html data-theme>`），两处各切各的就会
 打架：实测「站点亮色 + 操作系统深色」时这一页自己变暗，跟站点的开关无关。
 
-本层在运行期把 `:root.dark` 改挂到 `:root[data-theme="dark"]`（`redoc-style-scope.ts`），
-于是站点那个开关成为唯一的驱动。下面这几步钉的是这个关系的两头，都不抄具体色值：
+本层在运行期把 `:root.dark` 改挂到 `:root[data-redoc-mode="dark"]`（`redoc-color-mode.ts`），
+于是站点那个开关成为唯一的驱动。改造之后多出一格：那个开关写在**外层**文档的 `<html>` 上，
+而配色在**框内**那份文档里 —— 这一格由本层自己接：外层读 `useColorMode()`，把模式随那条
+postMessage 通道送进框内，框内往自己 `<html>` 上写这条属性（`redoc-frame.tsx` 送、
+`redoc-view.tsx` 收）。框内那份文档不挂站点的 `ColorModeProvider`，站点那条 `data-theme`
+在这里只是加载时内联脚本写死的一份、没人维护，本层不读它。
 
-- 操作系统换偏好，这一页的底色**不变**；
-- 站点换模式，这一页的底色**跟着变**；
-- 第二头是在「`<html>` 的类名没跟着变」的状态下量的（切站点模式不会动 Redoc 写的那个类名），
-  所以它同时也证明驱动配色的不是类名；
-- 改挂之后站点一进暗色就会激活 Redoc 那套暗色表，所以站点自己的那几处样式在**暗色下**也要
-  再量一遍（见最后那一步）。
+下面这几步钉的是这一串关系的两头，都不抄具体色值：
+
+- 操作系统换偏好，框内那一页的底色**不变**；
+- 站点换模式，框内那一页的底色**跟着变**，而且**不重新加载**那份文档（重新加载也能翻对颜色，
+  但会把 Redoc 的展开状态、滚动位置一起冲掉，所以单独钉）；
+- Redoc 写的那个类名落在**框内**那份文档上、配色却是站点这一头的，这才证明驱动的不是类名。
+
+量的那一格是**框内那份文档的 `<html>`**：Redoc 那条 `:root { background-color: var(--bg-color) }`
+现在原样落在 `<html>` 上（运行期圈定删掉之前，这条真属性是被挪进 `.redoc-root` 的，那时量的是
+那一格）。暗色表换掉的正是 `--bg-color` 那组变量，所以同一个属性跟着翻 —— 这也是为什么这里不能
+改去量 `.redoc-root`：那是本层包的一层壳，它自己没有底色。
 */
 const redocBackground = (page: Page): Promise<string> =>
-  root(page).evaluate((el) => getComputedStyle(el).backgroundColor);
+  frameDoc(page)
+    .locator('html')
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+
+/**
+「做个记号」那一步存下来的两样，都存在 Node 侧：切暗色之前框内那一页的底色，与那份文档自己的
+起始时刻（`performance.timeOrigin`）。后者就是「有没有重新加载」的判据，见下面那一步的注释。
+*/
+interface FrameMark {
+  background: string;
+  timeOrigin: number;
+}
+
+const marks = new WeakMap<Page, FrameMark>();
+
+/** 框内那份文档的起始时刻：每加载一份新文档就是一个新的数。 */
+const frameTimeOrigin = (page: Page): Promise<number> =>
+  frameDoc(page)
+    .locator('body')
+    .evaluate(() => performance.timeOrigin);
 
 Given('我按操作系统的深色偏好打开 redoc 示例页', async ({ page }) => {
   watchPageErrors(page);
@@ -527,10 +499,16 @@ Given('我按操作系统的深色偏好打开 redoc 示例页', async ({ page }
 Then('站点的亮暗模式不受操作系统影响', async ({ page }) => {
   // 本站 `themeConfig.colorMode` 没开 `respectPrefersColorScheme`，所以系统深色时站点仍是亮色。
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  // Redoc 自己那份按操作系统的判定确实跑过了：`<html>` 上带着它写的 `dark` 类。
+  // 框内那一格的亮暗由外层送进来（不是它自己读的），所以这一句钉的是那条消息确实到了、
+  // 值是站点这一头的亮色。属性名与 `redoc-color-mode.ts` 里的 `COLOR_MODE_ATTRIBUTE` 同值。
+  await expect(frameDoc(page).locator('html')).toHaveAttribute(
+    'data-redoc-mode',
+    'light',
+  );
+  // Redoc 自己那份按操作系统的判定确实跑过了：框内那份文档的 `<html>` 上带着它写的 `dark` 类。
   // 这一句是给下一条当前提 —— 类名在、配色却是亮的，才说明驱动配色的不是这个类名。
   // （哪天 Redoc 不再往 `<html>` 上写类名了，这一句会红，删掉即可。）
-  await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+  await expect(frameDoc(page).locator('html')).toHaveClass(/\bdark\b/);
 });
 
 Then('Redoc 的配色不跟操作系统走', async ({ page }) => {
@@ -542,9 +520,25 @@ Then('Redoc 的配色不跟操作系统走', async ({ page }) => {
 
   expect(
     onLightSystem,
-    `操作系统的偏好换了，这一页的底色跟着换了（${onDarkSystem} → ${onLightSystem}）：` +
+    `操作系统的偏好换了，框里那一页的底色跟着换了（${onDarkSystem} → ${onLightSystem}）：` +
       '暗色表还挂在 Redoc 自己那个类名上',
   ).toBe(onDarkSystem);
+});
+
+// 「做个记号」= 把切暗色**之前**的两样先存下来。判「有没有重新加载」用的是那份文档自己的
+// 起始时刻（`performance.timeOrigin`）：每加载一份新文档就是另一个数，而换配色只是往 `<html>`
+// 上改一个属性，那个数不动。
+//
+// 另外三个写法各避开一格：往 DOM 上写 `data-*` 就是往 `evaluate` 传进来的那个元素写属性，
+// `no-param-reassign` 拦它，而 `eslint --fix` 又把 `setAttribute('data-…')` 自动改回
+// `el.dataset.…`，两头来回改个没完；往 `window` 上挂一个全局，被
+// `unicorn/no-global-object-property-assignment` 拦；`window.name` 更是**跨重新加载保留**，
+// 用它等于什么都没钉。
+When('我在框里那份文档上做个记号', async ({ page }) => {
+  marks.set(page, {
+    background: await redocBackground(page),
+    timeOrigin: await frameTimeOrigin(page),
+  });
 });
 
 When('我把站点切成暗色', async ({ page }) => {
@@ -553,24 +547,36 @@ When('我把站点切成暗色', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 
-Then('Redoc 的配色跟着站点翻过去', async ({ page }) => {
+Then('框里的配色跟着站点翻过去，那份文档没有重新加载', async ({ page }) => {
+  // 开关跨过 iframe 的边界：外层那条消息送到了，框内那份文档的 `<html data-redoc-mode>` 也是 dark。
+  await expect(frameDoc(page).locator('html')).toHaveAttribute(
+    'data-redoc-mode',
+    'dark',
+  );
+  const mark = marks.get(page);
+  expect(
+    mark,
+    '上一步没记号，这两句都比不了（应先走「我在框里那份文档上做个记号」）',
+  ).not.toBeUndefined();
+
   const onDarkSite = await redocBackground(page);
-
-  await page.locator('.navbar button.clean-btn').first().click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  const onLightSite = await redocBackground(page);
-
   expect(
     onDarkSite,
-    `站点换了模式，这一页的底色没跟着换（两边都是 ${onLightSite}）`,
-  ).not.toBe(onLightSite);
+    `站点换了模式，框里那一页的底色没跟着换（两边都是 ${mark?.background}）`,
+  ).not.toBe(mark?.background);
+  expect(
+    await frameTimeOrigin(page),
+    '框里那份文档被重新加载了：底色确实翻了，但起始时刻换了另一个数 —— ' +
+      'Redoc 的展开状态与滚动位置一起被冲掉',
+  ).toBe(mark?.timeOrigin);
 });
 
 /**
 「站点这一侧不受影响」那一条是在亮色下量的，而改挂之后多出一格亮色碰不到的：站点一进暗色，
-Redoc 那 330 条暗色变量连同一条 `color-scheme` 就一起落在 `<html>` 上。同一批属性（含
-`color-scheme`）在两个页面上各算一遍比相等 —— 实测这一页暗色的 `<html>` 是
-`background-color: rgb(27, 27, 29)`、`color: rgb(227, 227, 227)`、`color-scheme: dark`，
+Redoc 那 330 条暗色变量连同一条 `color-scheme` 就一起落在**框内那份文档**的 `<html>` 上
+（外层那份根本没这些规则）。这里量的还是外层：外层在暗色下的那几处站点属性必须与暗色下的主页
+一样。同一批属性（含 `color-scheme`）在两个页面上各算一遍比相等 —— 实测这一页暗色的 `<html>`
+是 `background-color: rgb(27, 27, 29)`、`color: rgb(227, 227, 227)`、`color-scheme: dark`，
 主页暗色一字不差。
 */
 Then('站点自己的那几处样式在暗色下也不被 Redoc 改写', async ({ page }) => {
@@ -583,4 +589,41 @@ Then('站点自己的那几处样式在暗色下也不被 Redoc 改写', async (
     await siteStyles(page),
     `暗色下这一页的站点壳与主页不一样：${JSON.stringify(onRedocPage)}`,
   ).toEqual(onRedocPage);
+});
+
+/**
+框内那条地址本身也是站点的一条页面：带着 `src` 就能独立打开（调试用，也证明这一层没有把
+渲染绑死在 iframe 上）。`src` 按 frontmatter 那个值写，与 iframe 属性里那条一字不差。
+*/
+Given('我直接打开框内那条地址', async ({ page }) => {
+  watchPageErrors(page);
+  const response = await page.goto('/redoc-view?src=%2Fopenapi.yaml');
+  expect(response?.status(), '框内那条地址在产物里不存在').toBe(200);
+});
+
+Then('这一页直接渲染 Redoc', async ({ page }) => {
+  await expect(page.locator('.redoc-root')).toBeVisible();
+  await expect(page.locator('.redoc-root')).toContainText('主题覆盖演示 API');
+});
+
+// 这一页不给外壳：没有 navbar、没有 footer，整屏都是 Redoc 的（iframe 里再套一层 navbar
+// 既占高度又是重复的壳）。
+Then('这一页没有站点的 navbar', async ({ page }) => {
+  await expect(page.locator('.navbar')).toHaveCount(0);
+});
+
+When('我把地址里那一段 spec 去掉', async ({ page }) => {
+  await page.goto('/redoc-view');
+});
+
+/**
+地址里缺 `src`（或写成解析不成 http(s) 的东西）时这一格什么都不摆。
+
+钉这一句是因为 Redoc 拿到空地址**不报错**，而是把它自己那份「No page at this address」摆在
+正文区 —— 看着像渲染器坏了。这一页是条公开地址，任何人都能直接打开它，所以这一格要按
+「什么都不摆」钉死。
+*/
+Then('这一页什么都不摆', async ({ page }) => {
+  await expect(page.locator('.redoc-root')).toHaveCount(0);
+  await expect(page.locator('.not-found-page')).toHaveCount(0);
 });

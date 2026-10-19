@@ -25,7 +25,7 @@ PostCSS 那一步的改写落在产物 CSS 里（`.stoplight-root .sl-elements*`
 | ----------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.mts`               | ✅ `src/` → `dist/` | 入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算就是 `../theme`），加 `configurePostCss()` 与 `configureWebpack()`                                                                                                |
 | `theme/DocItem/index.tsx`     | ❌ 站点编译         | 层里的组件：命中 `oas3` 时整页换成 `StoplightUI`，没命中就交回下层 `DocItem`                                                                                                                                              |
-| `components/stoplight-ui.tsx` | ❌ 站点编译         | 只在浏览器端渲染 `API`（SSR 阶段返回 `null`），`url` 走 `apiDescriptionUrl`，`data` 走内联文档                                                                                                                            |
+| `components/stoplight-ui.tsx` | ❌ 站点编译         | 只在浏览器端渲染 `API`（SSR 阶段返回 `null`），只收 `url` 那一格，交给 `apiDescriptionUrl`                                                                                                                                |
 | `components/stoplight-ui.css` | ❌ 站点编译         | 本包自己那部分版式（高度、把 `pre` / 链接的默认样式还原给站点主题）                                                                                                                                                       |
 | `module-aliases.d.ts`         | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型。`@stoplight/elements` 自己那一格（`exports` 里没 `types`）由仓库根 `tsconfig.json` 的 `paths` 补，只影响类型检查 |
 | `tsconfig.build.json`         | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                    |
@@ -33,8 +33,10 @@ PostCSS 那一步的改写落在产物 CSS 里（`.stoplight-root .sl-elements*`
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
 版式那份本来是 `.scss`，站点没有 scss 规则（内置的只有 css），所以按嵌套展开拍平成了 `.css`。
-组件的 props 是**两支的并集**（给 `url` / 给内联 `data`）：`@stoplight/elements` 的 `APIProps`
-就是这个形状，两个 prop 同时出现谁都不落，所以组件里按 `url` 分叉渲染，而不是把另一支传 `undefined`。
+组件的入参只有 `url` 那一格：`@stoplight/elements` 的 `APIProps` 本来是「给地址」与「给内联文档」
+两支的并集（两个 prop 同时出现谁都不落，所以原先按并集写、组件里按 `url` 分叉），而本层唯一的入参
+来自 `frontMatter.oas3`，那是个地址，内联那一支从来没有调用方 —— 已经删掉，[`theme-redoc` 的
+`RedocUI`](../theme-redoc/README.md) 那一份同形同判、一起删的。
 
 ## 怎么用
 
