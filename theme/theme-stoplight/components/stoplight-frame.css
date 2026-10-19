@@ -1,0 +1,30 @@
+/* 外层文档页里那一个框的版式（类名由 `stoplight-frame-sync.ts` 那一份常量给出）。
+   这一份 CSS 与框内那份（`stoplight-ui.css`）分别站在 iframe 的两侧，各管各的文档。 */
+
+/* 框占满 navbar 以下那一屏。
+
+   这里**要**定高：滚动条长在框里那一份文档上，外层这一格给多高它就占多高，两层滚动容器
+   各滚各的文档，互不打扰。与 theme-redoc 同一条式子，也与 theme-iframe 同一口径。 */
+
+.stoplight-frame {
+  display: block;
+  border: 0;
+  width: 100%;
+  height: calc(100vh - var(--ifm-navbar-height));
+}
+
+/* 整页交给这个框时，正文容器的内边距与最大宽度都不要了（这条与 redoc 那层同形，
+   只是选择器换成认本包那个类名 —— 站点上任何 iframe 都会命中 `.container:has(iframe)`
+   那一格，那是 theme-iframe 那层自己声明的边界，本层不复用它）。
+
+   页脚一并收掉：框已经占满 navbar 以下那一屏，页脚留在下面只会被推出可视区，
+   显式收掉与改造前「整页交给 Elements」的观感一致。 */
+
+.container:has(.stoplight-frame) {
+  padding: 0 !important;
+  max-width: unset !important;
+}
+
+.main-wrapper:has(.stoplight-frame) + .footer {
+  display: none;
+}

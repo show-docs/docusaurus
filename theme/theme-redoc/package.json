@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@redocly/config": "^0.66.0",
+    "@show-docs/theme-frame-kit": "workspace:^",
     "react-router": "^7.18.4",
     "redoc": "^3.0.1",
     "styled-components": "^6.6.0"

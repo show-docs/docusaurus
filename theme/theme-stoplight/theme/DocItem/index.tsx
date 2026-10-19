@@ -10,20 +10,26 @@ type MDXContent = ComponentType<Record<string, unknown>> & {
 
 type Props = { content?: MDXContent };
 
-const Stoplight = lazy(() =>
-  import('../../components/stoplight-ui.tsx').then(({ StoplightUI }) => ({
-    default: StoplightUI,
-  })),
+const StoplightFrame = lazy(() =>
+  import('../../components/stoplight-frame.tsx').then(
+    ({ StoplightFrame: View }) => ({
+      default: View,
+    }),
+  ),
 );
 
 export default function DocItemStoplight(props: Props): ReactNode {
   const url = props.content?.frontMatter?.oas3;
 
-  // 命中时本层**不包下层 DocItem**（与 theme-iframe、theme-redoc 同一落点），整页换成 Stoplight；
-  // `lazy` 出来的组件必须在 Suspense 里，否则渲染到它就直接抛
+  // 命中时本层**不包下层 DocItem**（与 theme-iframe、theme-redoc 同一落点），整页换成那一个
+  // iframe；`lazy` 出来的组件必须在 Suspense 里，否则渲染到它就直接抛。
+  //
+  // Elements 不再在这一页里渲染：它跑在 iframe 里面那份文档中（地址由
+  // `components/stoplight-frame.tsx` 拼，页面本身是 `theme/StoplightPage`，见包 README 的
+  // 「渲染放在独立页面，文档页只嵌它」一节）。所以这一格挂的是框，不是 `StoplightUI`。
   return url ? (
     <Suspense fallback={null}>
-      <Stoplight url={url} />
+      <StoplightFrame specUrl={url} />
     </Suspense>
   ) : (
     <DocItem {...props} />

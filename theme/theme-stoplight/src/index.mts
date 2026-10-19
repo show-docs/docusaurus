@@ -2,14 +2,92 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { Plugin } from '@docusaurus/types';
+import type { LoadContext, Plugin, RouteConfig } from '@docusaurus/types';
 
 const require = createRequire(import.meta.url);
+
+/** `configureWebpack` 第一个参数的类型：从官方那份签名推出来，本包不直接引 `webpack`。 */
+type WebpackConfig = Parameters<NonNullable<Plugin['configureWebpack']>>[0];
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
 
-export default function theme(): Plugin {
+/**
+Elements 那一页挂在哪一条路径上。
+
+这个名字在 `components/stoplight-frame-sync.ts` 里还有一份：那一份拼 iframe 的地址，
+这一份注册路由。两边站在编译边界的两侧（`src/` 经 tsc 进 `dist/`，`components/` 是源码、
+由用本包的站点编译），共享不了，改要一起改。`baseUrl` 不在这里出现两次：
+这一格从 context 取，那一份从 `useDocusaurusContext()` 取，都是站点配置里的同一个值。
+*/
+const STOPLIGHT_VIEW_ROUTE = 'stoplight-view';
+
+/**
+## Elements 那份静态样式表怎么不进站点那一份 css
+
+站点只有一份全站 css：Docusaurus 把每一个 css 导入都并进同一个 `styles` chunk
+（`splitChunks.styles` 那条 `type: 'css/mini-extract'` 加 `enforce: true`，为的就是不让多份 css
+的加载顺序变成不确定的）。所以 `import '@stoplight/elements/styles.min.css'` 一定落进全站那一份，
+每个页面都带上它 —— iframe 拦得住 DOM、脚本、localStorage 和路由，拦不住这种静态样式：
+框内那份文档 `<link>` 的也是同一个文件，它的地址在构建期就写进了 html。
+
+本层的做法是**别让这份文件进打包**：webpack 的 `asset/resource` 把它当一个资源原样发出去，
+产物里是一个独立的 css 文件，`import` 拿到的就是它的地址（一个字符串），由框内那份文档自己挂
+一条 `<link>`（见 `components/stoplight-ui.tsx`）。站点那一份 css 里一条 `.sl-` 规则都没有，
+Elements 的样式只在框内那份文档里生效，边界是浏览器给的文档边界，不需要构建期圈定。
+
+两条规则同时命中同一份文件会把 loaders 和资源类型叠在一起，所以除了加规则，还得把这份文件从
+**带 loader 的规则**里摘出去。判据不是抄官方那条 `.css` 规则的正则（版本一变就对不上），而是拿
+一个假的 Elements 路径去试每一条带 `use` 的规则 —— 官方哪天改了规则的形状，这一条会失配，
+表现是产物里少了那个独立 css 文件、样式漏回全站那一份，e2e 会红（口径见包 README 的「样式」一节）。
+
+`?url` 那种行内查询是 Vite / Rspack 的写法，webpack 5 没有这一条（实测：请求连规则匹配都没走到，
+先在包的 `exports` 那一步就报 `./styles.min.css?url is not exported`）；这里靠规则匹配，不靠查询串。
+*/
+const ELEMENTS_CSS = /[\\/]@stoplight[\\/]elements[\\/][^\\/]+\.css$/i;
+
+/** 探测用的假路径：pnpm 把包装在 `.pnpm/@stoplight+elements@…\/node_modules/` 下，真路径同样命中这一条。 */
+const ELEMENTS_CSS_PROBE = '/a/node_modules/@stoplight/elements/styles.min.css';
+
+/** 把 Elements 的 css 从「交给 css-loader 处理」改成「当一个资源发出去」。 */
+function isolateElementsCss(config: WebpackConfig): void {
+  const rules = config.module?.rules;
+  if (!rules) {
+    return;
+  }
+
+  rules.unshift({
+    test: ELEMENTS_CSS,
+    type: 'asset/resource',
+    generator: { filename: 'assets/css/[name].[contenthash:8][ext]' },
+  });
+
+  for (const rule of rules) {
+    // 只看**带 loader** 的规则：上面那条资源规则没有 `use`，不该被摘出去。
+    if (
+      typeof rule !== 'object' ||
+      rule === null ||
+      !('use' in rule) ||
+      rule.use === undefined ||
+      !('test' in rule) ||
+      !(rule.test instanceof RegExp)
+    ) {
+      continue;
+    }
+
+    // 新建一个正则再试：带 `g` 标志的正则 `test` 会推进 `lastIndex`，同一条规则试两次结果就变了。
+    const matches = new RegExp(rule.test.source, rule.test.flags).test(
+      ELEMENTS_CSS_PROBE,
+    );
+    if (!matches) {
+      continue;
+    }
+
+    rule.exclude = rule.exclude ? [rule.exclude, ELEMENTS_CSS] : ELEMENTS_CSS;
+  }
+}
+
+export default function theme(context: LoadContext): Plugin {
   return {
     name: '@show-docs/docusaurus-theme-stoplight',
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
@@ -17,11 +95,18 @@ export default function theme(): Plugin {
     getThemePath() {
       return resolve(thisDir, '../theme');
     },
-    configureWebpack(_config, isServer, utils) {
+    configureWebpack(config, isServer, utils) {
+      // 这份样式表的边界客户端与服务端都要改（上面那一节的理由）；补 Node 核心模块那几样
+      // 只有浏览器 bundle 需要。
+      isolateElementsCss(config);
+
       // `@stoplight/elements` 的依赖树里还在 `require` Node 的 `url` / `buffer`，而
       // webpack 5 起不再自动补核心模块。服务端那份构建本来就有真的 Node 模块，
       // 只有浏览器 bundle 需要补 —— 而且补的是包里的 polyfill，不是空模块：
       // 这两个都走在「按 URL 取 schema」那条路上，置 false 会在运行时抛。
+      //
+      // 这一格现在服务的是**框内那份文档**：Elements 整个搬进 `/stoplight-view` 那份文档里跑，
+      // 站点自己的文档页只嵌一个 iframe，不再加载它。补的还是同一批东西。
       //
       // `process` 补的是**另一种形状**：`@stoplight/json-schema-ref-parser` 里写的不是
       // `require('process')`，而是裸的全局 `process.browser` / `process.cwd()` /
@@ -32,6 +117,7 @@ export default function theme(): Plugin {
       // 和 `plugin-prev-layer-resolver` 一样**只返回自己新增的那一格**：官方
       // `applyConfigureWebpack` 用 webpack-merge 拼接，改完整个 config 再返回去，
       // 数组会被 concat 一遍（`rules` 翻倍 → 每个 css 文件被 css-loader 处理两次）。
+      // 上面那一格改的是传进来的 config 本身，不走返回值的数组。
       if (isServer) {
         return {};
       }
@@ -53,29 +139,20 @@ export default function theme(): Plugin {
         },
       };
     },
-    configurePostCss(config) {
-      // `@stoplight/elements` 的样式表是全局选择器，会污染整站：把它们包进 `.stoplight-root`
-      // 的作用域里。`whitelist` 按**样式表的路径**筛（每一项都当正则解释），只动它包里的 CSS。
+    contentLoaded({ actions }) {
+      // 给 Elements 用的那一个**独立页面**：它不是文档页，没有 frontmatter 可判，所以走官方
+      // 那条插件路由 API（和 `theme-search-algolia` 注册搜索页、本层兄弟 `theme-redoc`
+      // 同一形状）。命中 `oas3:` 的文档页把这个地址嵌进 iframe，Elements 的运行时（它自己的
+      // 路由、它的 localStorage 与它那份 `<link>` 的样式表）就整个关在框里那份文档内，
+      // 站点的文档页一行都碰不到 —— 所以本层**不再**需要构建期把样式圈进某个容器。
       //
-      // `prefixTransform` 是给暗亮模式那一类留的：`data-theme` 挂在 `<html>` 上，那是
-      // `.stoplight-root` 的**祖先**，所以「前缀打头」那种默认拼法（`.stoplight-root
-      // [data-theme=dark] …`）一条都不命中 —— 要把属性选择器留在最前、前缀挪到它后面。
-      // 交给 `prefixwrap` 自己做，是因为它在加前缀那一步就把原始选择器交回给我们，
-      // 不需要先加一遍再改写第二遍。
-      config.plugins.push(
-        require('postcss-prefixwrap')('.stoplight-root', {
-          whitelist: [/@stoplight/],
-          prefixTransform: (selector: string, prefix: string): string =>
-            /^\[data-theme=(?:light|dark)\]/.test(selector)
-              ? selector.replace(
-                  /^(\[data-theme=(?:light|dark)\])/,
-                  (_matched, attr: string) => `${attr} ${prefix}`,
-                )
-              : `${prefix} ${selector}`,
-        }),
-      );
-
-      return config;
+      // `component` 写别名而不是绝对路径：`theme/` 由 `getThemePath()` 挂进 `@theme/*`，
+      // 打包器按这个别名找得到，站点那边的 swizzle 也还能覆写它。
+      actions.addRoute({
+        path: `${context.siteConfig.baseUrl.replace(/\/$/, '')}/${STOPLIGHT_VIEW_ROUTE}`,
+        component: '@theme/StoplightPage',
+        exact: true,
+      } satisfies RouteConfig);
     },
   };
 }

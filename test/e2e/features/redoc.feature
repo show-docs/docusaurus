@@ -5,7 +5,7 @@ Feature: theme-redoc
 
   Scenario: 命中页整页交给 iframe，Redoc 在框里渲染
     Given 我打开 redoc 示例页
-    Then 这一页放的是一个 iframe，指向本包那条独立页面
+    Then 这一页放的是一个 iframe，指向 redoc 那条独立页面
     And Redoc 在框里接管了这一屏，读的是本站那份 yaml
     And Redoc 自己的 404 没有出现
     When 我点开 Redoc 左栏的 orders 分组
@@ -32,7 +32,7 @@ Feature: theme-redoc
     Given 我直达 redoc 那条接口的地址
     Then Redoc 在框里接管了这一屏，读的是本站那份 yaml
     And Redoc 自己的 404 没有出现
-    And 那条接口从地址里也认得出来
+    And Redoc 框里摆的是地址里那条接口
     And 这一页没有文档正文外壳
     And 正文容器在这一页让位
     And 框占满 navbar 以下那一屏
@@ -47,18 +47,20 @@ Feature: theme-redoc
   Scenario: 亮暗模式跟站点走，不跟操作系统走
     Given 我按操作系统的深色偏好打开 redoc 示例页
     Then 站点的亮暗模式不受操作系统影响
+    And Redoc 那一格收的是站点这一头的亮色，类名却写着深色
     And Redoc 的配色不跟操作系统走
     When 我在框里那份文档上做个记号
     And 我把站点切成暗色
     Then 框里的配色跟着站点翻过去，那份文档没有重新加载
+    And Redoc 那一格也收到站点送进来的暗色
     And 站点自己的那几处样式在暗色下也不被 Redoc 改写
 
   # 框内那条地址本身也是站点的一条页面：带着 `src` 就能独立打开（调试、别人点到它），
   # 缺了 `src` 就什么都不摆 —— 它不该把 Redoc 那份「No page at this address」摆出来。
   Scenario: 框内那条地址带着地址能独立打开，缺了就什么都不摆
-    Given 我直接打开框内那条地址
+    Given 我直接打开 redoc 框内那条地址
     Then 这一页直接渲染 Redoc
     And 这一页没有站点的 navbar
-    When 我把地址里那一段 spec 去掉
-    Then 这一页什么都不摆
+    When 我把 redoc 框内那条地址里的 spec 去掉
+    Then Redoc 那一格不出现，它那份 404 也不出现
     And 浏览器里没有运行期错误

@@ -53,12 +53,15 @@ Then(
   },
 );
 
-// 卡片那行说明取自各页 frontmatter 的 `description:`
+// 卡片那行说明取自各页 frontmatter 的 `description:`（这句话改了示例页的 description 就要跟着改，
+// 两处是同一件事的两个写法，不是两份独立的判据）
 Then(
   '卡片上那行说明取自示例页 frontmatter 的 description',
   async ({ page }) => {
     await expect(
-      page.getByText('frontmatter 写 oas3: <URL>，整页交给 OpenAPI 渲染器。'),
+      page.getByText(
+        'frontmatter 写 oas3: <URL>，整页换成一个 iframe，框里用 Stoplight Elements 渲染 API 文档。',
+      ),
     ).toBeVisible();
   },
 );

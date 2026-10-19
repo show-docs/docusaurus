@@ -11,7 +11,7 @@
 pnpm install
 pnpm start          # 本地预览 http://localhost:3000
 pnpm build          # 编译需要编译的分包 + 构建静态站点
-pnpm build:core     # 只用 tsc 编译那五个「构建包」（plugins/* 与 theme/*）到各自的 dist（即包出口）
+pnpm build:core     # 只用 tsc 编译那五个「构建包」（核心包 + theme/theme-* 那四个主题包）到各自的 dist（即包出口）；theme/frame-kit 不在里面，它不发编译产物
 pnpm lint:type      # tsc -p tsconfig.json：唯一把站点根与 *.config.mjs 纳进来的一道（提交钩子也跑）
 pnpm typecheck      # tsc -b：demo 与 test 两份 composite 项目
 pnpm lint:eslint    # eslint
@@ -52,14 +52,15 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 仓库里的分包**按「`src/` 要不要先编译」分两种形态**，不是按「像不像一个包」：
 
-| 目录                                  | 是什么                                                                                                                                    | 形态                                                | 细节                                                     |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------- |
-| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                                                             | 构建包（`src/` → `dist/`，改完要编译）              | [README](./plugins/plugin-prev-layer-resolver/README.md) |
-| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                                                         | 构建包（只编译入口与 loader；层与组件是源码）       | [示例页](./docs/markmap-demo.md)                         |
-| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时整页换成那个页面（文档正文外壳一并不要）                                              | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-iframe/README.md)                 |
-| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成 Stoplight Elements 渲染的 OpenAPI 文档                                              | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-stoplight/README.md)              |
-| `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成一个 iframe，框里是本包自己那条 `/redoc-view` 页面，Redoc 在那份文档里渲染 API 文档 | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-redoc/README.md)                  |
-| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                                                                     | 免编译（没有 `src/`：入口与层都是源码，站点直接吃） | [README](./demo/README.md)                               |
+| 目录                                  | 是什么                                                                                                                                          | 形态                                                         | 细节                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
+| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                                                                   | 构建包（`src/` → `dist/`，改完要编译）                       | [README](./plugins/plugin-prev-layer-resolver/README.md) |
+| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                                                               | 构建包（只编译入口与 loader；层与组件是源码）                | [示例页](./docs/markmap-demo.md)                         |
+| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时整页换成那个页面（文档正文外壳一并不要）                                                    | 构建包（同上，`src/` 里只有入口那一份）                      | [README](./theme/theme-iframe/README.md)                 |
+| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成一个 iframe，框里是本包自己那条 `/stoplight-view` 页面，Elements 在那份文档里渲染 API 文档 | 构建包（同上，`src/` 里只有入口那一份）                      | [README](./theme/theme-stoplight/README.md)              |
+| `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成一个 iframe，框里是本包自己那条 `/redoc-view` 页面，Redoc 在那份文档里渲染 API 文档       | 构建包（同上，`src/` 里只有入口那一份）                      | [README](./theme/theme-redoc/README.md)                  |
+| `theme/frame-kit/`                    | **不是主题层**：上面两条 API 层共用的那一份约定 —— iframe 地址怎么拼、三条 postMessage 的形状、两侧的监听                                       | 免编译（没有 `src/`：`main` 直接指 `lib/index.ts` 那份源码） | [README](./theme/frame-kit/README.md)                    |
+| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                                                                           | 免编译（没有 `src/`：入口与层都是源码，站点直接吃）          | [README](./demo/README.md)                               |
 
 五个构建包都是 `tsc` 编译包：Node 侧要跑的源码 `.mts` 在包内 `src/`，产物在包内 `dist/`，
 `dist/index.mjs` 就是包出口（`exports`）—— 所以 `pnpm build:core` 是「编译这五个包」，
@@ -68,12 +69,16 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 主题包的**主题层与组件不进这份编译**：`theme/*/theme/**` 与 `theme/*/components/**` 是未编译的
 `.tsx` / `.jsx`，随包发布，由用它们的站点的 babel 编译 —— 判据只有一条：**谁编译，就不编译第二遍**。
 `demo/theme-*/` 是这个形态的完整版，连入口 `index.mts` 都由 Docusaurus 的 jiti 直接加载。
+`theme/frame-kit/` 是同一判据推到头的另一格：它只在浏览器里跑，所以连 `src/` 都没有，`package.json`
+的 `main` 与 `types` 直接指向 `lib/index.ts` 那份 `.ts` 源码，`build:core` 里也没有它。
 
 > **`theme/theme-iframe/`、`theme/theme-stoplight/` 与 `theme/theme-redoc/` 已接进站点**
 > （`plugins` 里的顺序 = 层栈顺序，三者都在 `theme-markmap` 往外那一侧），接入位置、触发键与
 > 各自验证到哪一步以 [iframe 的 README](./theme/theme-iframe/README.md)、
 > [stoplight 的 README](./theme/theme-stoplight/README.md)、
 > [redoc 的 README](./theme/theme-redoc/README.md) 为准，这里不抄第二份。
+> `theme/frame-kit/` 不在 `plugins` 里：它不是 Docusaurus 插件，也不是一条主题层，
+> 被上面那两条 API 层当普通依赖用。
 
 ### 构建包的编译口径
 
@@ -87,7 +92,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 | 层与组件为什么不编译     | 用它们的站点会编译，编译两遍只是多出一份要 `files` 点名、会和源码漂移的产物。实测根据：`demo/theme-*/theme/**` 一直是未编译的 `.tsx`，站点收进层栈照样绿 —— `pnpm verify:chain` 打印的层栈里就有那一格。                                                                                                                                                                                                                                           |
 | 让 `tsc` 编 JSX 要付什么 | 多一条产物口径：`react.json` 给的 `react-jsx` 会把 JSX 编成 `.js`，而包是 `"type": "module"`，服务端构建里 babel 先把 `import()` 变成 `require('./x.js')` —— 纯 ESM 模块的 parser 不认 `require`，依赖进不了 bundle，静态渲染阶段报 `Cannot find module`；要躲它得单独钉 `jsx: "preserve"`。少编译一层就少一条这种口径。                                                                                                                           |
 | 相对 import              | 统一写**源码名**（`./x.mts` / `./x.tsx`）。编译过的由 `node-bundle.json` 的 `rewriteRelativeImportExtensions` 在产出时改成产物名（`./x.mjs`）；未编译的那份原样交给 webpack，磁盘上就是这个文件，所以两种写法都指得到。`allowImportingTsExtensions` 不用写 —— `base.json` 已给。                                                                                                                                                                   |
-| 样式表                   | 不是模块，`tsc` 也不搬：`theme-markmap` 那份留在包根 `styles/`，走 `getClientModules()`；iframe 那份 CSS Module 直接放在用它的组件旁边。                                                                                                                                                                                                                                                                                                           |
+| 样式表                   | 不是模块，`tsc` 也不搬：`theme-markmap` 那份留在包根 `styles/`，走 `getClientModules()`；iframe 那份 CSS Module 直接放在用它的组件旁边。第三方那份**静态**样式表（`@stoplight/elements`）不进这条流水线：由 `theme-stoplight` 的入口在构建配置期把它从「打进全站那一份 css」改成「单独一个产物」，只由框内那份文档 `<link>`（口径见它的 README 的「样式」一节）。                                                                                  |
 | 未编译源码的类型检查     | 由仓库根 `tsconfig.json` 接手（默认 include `**/*`，`types` 同时列 `node` 与 `react` / `react-dom`）。所以构建项目不再需要 `jsx`、不需要 react 那两条 `types`。`@theme*` 那三条 specifier 的声明归解析器包（`plugins/plugin-prev-layer-resolver/types/`），由 `tsconfig.demo/test` 列进 `files`。`*.module.css`、`@docusaurus/router` 这类只在构建期存在的依赖，由包内一份 `module-aliases.d.ts` 引用官方 `@docusaurus/module-type-aliases` 说明。 |
 
 其余目录不是包，只是仓库根的一部分：
@@ -119,15 +124,18 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 - **iframe 主题**（frontmatter 触发、URL 怎么算、在层栈里放哪一格、命中时丢掉的是哪一块）：
   行为见 [docs/iframe-demo.md](./docs/iframe-demo.md)，实现见
   [theme/theme-iframe/README.md](./theme/theme-iframe/README.md)
-- **Stoplight 主题**（`oas3:` 触发、`@stoplight/elements` 的样式怎么圈进 `.stoplight-root`、
-  浏览器 bundle 要补哪三样 Node 侧依赖）：
+- **Stoplight 主题**（`oas3:` 触发、渲染为什么挪到本包自己那条 `/stoplight-view` 页面、那份静态
+  样式表怎么只出现在框内那一页、浏览器 bundle 要补哪几样 Node 侧依赖）：
   行为见 [docs/stoplight-demo.md](./docs/stoplight-demo.md)（示例取
   `static/openapi.yaml`），实现见
   [theme/theme-stoplight/README.md](./theme/theme-stoplight/README.md)
-- **Redoc 主题**（`redoc:` 触发、渲染为什么挪到本包自己那条 `/redoc-view` 页面、地址栏里 `#`
-  那一段怎么在两份文档之间对齐、样式为什么不需要圈定而暗色表仍要在运行期改挂）：
+- **Redoc 主题**（`redoc:` 触发、渲染为什么挪到本包自己那条 `/redoc-view` 页面、样式为什么不需要
+  构建期处理而暗色表仍要在运行期改挂）：
   行为见 [docs/redoc-demo.md](./docs/redoc-demo.md)（同一份 `static/openapi.yaml`），实现见
   [theme/theme-redoc/README.md](./theme/theme-redoc/README.md)
+- **把渲染器关进一个框之后要对齐的那两格**（地址栏里 `#` 那一段与站点的亮暗模式，两边怎么跨文档
+  送、为什么要各推一次）：
+  [theme/frame-kit/README.md](./theme/frame-kit/README.md) —— 上面两条 API 层共用同一份实现
 - **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准
 - **每个主题在浏览器里是否真的工作**：`pnpm test:e2e`（跑的是构建产物，只本地跑）。用例是
   Given/When/Then 句子（Gherkin 写在 `test/e2e/features/`，步骤实现在 `test/e2e/steps/`），
@@ -138,22 +146,22 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 「职责」比「位置」重要 —— 放错地方的代价不是不好看，而是行为变了（把 specifier 写在层外文件里
 就是**硬失败**，不是「有时灵有时不灵」）。**先按「你想改什么」找，再在对应文档里看细节。**
 
-| 你想改什么                       | 动哪里                                                                 | 细节                                                                                                                                                                                                                                                       |
-| -------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`                                  | [README](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                                                                                                                   |
-| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                                                 | [示例页](./docs/markmap-demo.md)                                                                                                                                                                                                                           |
-| 整页交给外部站点或外部文档       | `theme/theme-iframe/`、`theme/theme-stoplight/`、`theme/theme-redoc/`  | [示例页](./docs/iframe-demo.md) · [stoplight 示例页](./docs/stoplight-demo.md) · [redoc 示例页](./docs/redoc-demo.md) · [iframe](./theme/theme-iframe/README.md) · [stoplight](./theme/theme-stoplight/README.md) · [redoc](./theme/theme-redoc/README.md) |
-| 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`                              | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                                                                                                                                                                                              |
-| 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                                        | [demo](./demo/README.md)                                                                                                                                                                                                                                   |
-| 站点主页与文档                   | `docs/`（`intro.md` 带 `slug: /`，路由前缀在配置里挪到根）             | [`docs/intro.md`](./docs/intro.md)                                                                                                                                                                                                                         |
-| 单测、浏览器用例与夹具           | `test/`（e2e 的句子在 `test/e2e/features/`，实现在 `test/e2e/steps/`） | [README](./test/README.md)                                                                                                                                                                                                                                 |
-| `@theme*` 的类型声明             | `plugins/plugin-prev-layer-resolver/types/`                            | [README「类型声明」](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                                                                                                       |
+| 你想改什么                       | 动哪里                                                                                                         | 细节                                                                                                                                                                                                                                                                                                  |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`                                                                          | [README](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                                                                                                                                                              |
+| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                                                                                         | [示例页](./docs/markmap-demo.md)                                                                                                                                                                                                                                                                      |
+| 整页交给外部站点或外部文档       | `theme/theme-iframe/`、`theme/theme-stoplight/`、`theme/theme-redoc/`（跨 iframe 那两格在 `theme/frame-kit/`） | [示例页](./docs/iframe-demo.md) · [stoplight 示例页](./docs/stoplight-demo.md) · [redoc 示例页](./docs/redoc-demo.md) · [iframe](./theme/theme-iframe/README.md) · [stoplight](./theme/theme-stoplight/README.md) · [redoc](./theme/theme-redoc/README.md) · [frame-kit](./theme/frame-kit/README.md) |
+| 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`                                                                      | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                                                                                                                                                                                                                                         |
+| 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                                                                                | [demo](./demo/README.md)                                                                                                                                                                                                                                                                              |
+| 站点主页与文档                   | `docs/`（`intro.md` 带 `slug: /`，路由前缀在配置里挪到根）                                                     | [`docs/intro.md`](./docs/intro.md)                                                                                                                                                                                                                                                                    |
+| 单测、浏览器用例与夹具           | `test/`（e2e 的句子在 `test/e2e/features/`，实现在 `test/e2e/steps/`）                                         | [README](./test/README.md)                                                                                                                                                                                                                                                                            |
+| `@theme*` 的类型声明             | `plugins/plugin-prev-layer-resolver/types/`                                                                    | [README「类型声明」](./plugins/plugin-prev-layer-resolver/README.md)                                                                                                                                                                                                                                  |
 
 仓库级只有这些不在分包里的东西：
 
 ```
 dist/.tsbuildinfo/                 # `tsc -b` 的增量信息（git 忽略）；构建包的产物在各包自己目录里
-tsconfig.json                      # 共享编译选项（noEmit）；demo / test 各一份 extends，四个构建包在包内自带 tsconfig.build.json
+tsconfig.json                      # 共享编译选项（noEmit）；demo / test 各一份 extends，五个构建包在包内自带 tsconfig.build.json
 tsconfig.demo.json / tsconfig.test.json  # 两份 composite 项目，由 pnpm typecheck（tsc -b）跑
 docusaurus.config.mjs              # 站点配置（.mjs：站点根不是 ESM 包，靠扩展名拿 ESM；侧栏由 docs 插件按目录自动生成；docs 的路由前缀是 '/'，所以主页就是 docs/intro.md）
 pnpm-workspace.yaml                # pnpm 12 的配置落点：分包清单（packages:）+ 安装期依赖（configDependencies）+ 依赖安装脚本放行名单（allowBuilds）+ 扁平化（shamefullyHoist）

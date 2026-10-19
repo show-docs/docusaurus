@@ -1,11 +1,28 @@
-/* Stoplight 渲染区的落位与局部覆盖。站点没有 scss 规则（Docusaurus 只内置 css），
-   所以这份是拍平后的纯 CSS：嵌套关系写在选择器里，`.stoplight-root` 是组件挂的那层壳。 */
+/* Elements 渲染区的落位。**这一份 CSS 生效在框内那一页**（`/stoplight-view`，见包 README 的
+   「渲染放在独立页面，文档页只嵌它」一节）：站点的文档页里根本没有 `.stoplight-root` 这一格，
+   下面每条规则的落点都是框内那份文档。
+
+   与 theme-stoplight 的老口径不同的一处：这里**不再**依赖构建期把 Elements 那份全局样式表
+   逐条圈进 `.stoplight-root`（那是 `configurePostCss()` + `postcss-prefixwrap` 干的，已随
+   iframe 改造删掉）。站点那一页只放一个框，Elements 的 `body`、裸标签与 `[data-theme=…]`
+   上的那批变量打不到站点的壳上 —— 边界由浏览器给的文档边界负责，与 `theme-redoc` 同一取舍。
+   框内这份文档里除下面这一层壳之外没有别的元素可被打到（那一份文档没有 navbar、没有 footer、
+   没有正文容器）。
+
+   站点侧的尺寸与留白在 `stoplight-frame.css`，两边各管各的文档。 */
+
+/* 这一层要定高：Elements 自带内层滚动（左栏与右侧正文各是一条滚动容器），
+   与 Redoc 那种「整份文档跟着滚动」的模型相反，所以这一格给定高不会凭空多出一层抢滚动的容器。
+   高度取整屏：这里的一屏就是**框**那一格的大小，框内那份文档没有 navbar，
+   `--ifm-navbar-height` 在这一页没有对应的那条栏，不该从高度里扣掉。 */
 
 .stoplight-root {
   position: relative;
-  height: calc(100vh - var(--ifm-navbar-height));
-  min-height: initial !important;
+  height: 100vh;
 }
+
+/* 下面几条是把站点主题加在 Elements 上的默认样式还原回去：这一份文档虽然与站点共用同一批
+   CSS（同一份样式表产物），但 `pre`、字号这些落在 Elements 的子树里观感不对。 */
 
 .stoplight-root pre {
   border-radius: unset;
@@ -19,6 +36,10 @@
   font-size: 14px !important;
 }
 
+/* 左栏底部那条「Powered by Stoplight」的链接收掉：认的是它**是什么**（那一栏最后一条指向
+   stoplight.io 的链接），不是它包里的类名 —— 换个版本布局就重排。口径与 `theme-redoc` 收
+   Redocly 署名那一条相同。 */
+
 .stoplight-root
   .sl-elements-api
   > div
@@ -26,9 +47,16 @@
   display: none;
 }
 
+/* 改造前就在收的这两颗按钮，位置没变、口径也没变：按 DOM 里的位置认（那一格的最后一颗），
+   不认它包里的类名。这一格与暗色那条属性不同，没有可核对的语义标识可用，所以哪天 Elements
+   换了这里的结构，这两条就收不住 —— `test/e2e/features/stoplight.feature` 里对应那一句会红。 */
+
 .stoplight-root .SendButtonHolder > div > button:first-of-type {
   display: none;
 }
+
+/* 滚动条：Elements 那两条内层滚动容器沿用站点的粗细与配色（变量由站点那份 CSS 提供，
+   这一页与站点共用同一份样式表产物，所以取到的是同一批值）。 */
 
 .stoplight-root * {
   scrollbar-width: thin;
@@ -51,15 +79,4 @@
 
 .stoplight-root *::-webkit-scrollbar-thumb:hover {
   background: var(--ifm-scrollbar-thumb-hover-background-color);
-}
-
-/* 整页交给 Stoplight 时，页脚的占位与正文容器的留白都不要了。 */
-
-.main-wrapper:has(.stoplight-root) + .footer {
-  display: none;
-}
-
-.container:has(.stoplight-root) {
-  padding: 0 !important;
-  max-width: unset !important;
 }

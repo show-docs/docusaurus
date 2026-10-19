@@ -22,13 +22,15 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
+    "@show-docs/theme-frame-kit": "workspace:^",
     "@stoplight/elements": "^9.0.24",
     "buffer": "^6.0.3",
-    "postcss-prefixwrap": "^1.58.0",
     "process": "^0.11.10",
+    "react-router-dom": "^6.30.6",
     "url": "^0.11.4"
   },
   "peerDependencies": {
+    "@docusaurus/theme-common": "^3.10.2",
     "@docusaurus/types": "^3.10.2",
     "react": "~18.3.1"
   },

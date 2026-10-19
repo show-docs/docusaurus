@@ -5,8 +5,10 @@
 那一份文档里。
 
 形状与 [`theme-stoplight`](../theme-stoplight/README.md) 是一对一的（入口声明层目录、层里的
-`DocItem` 判 frontmatter、组件只在浏览器端渲染），差的三处是：这一格要补的 Node 侧依赖不一样、
-它自带一个路由而本层把它钉成 hash、以及**渲染根本不在文档页里，而在另一份文档里**（都见下）。
+`DocItem` 判 frontmatter、命中就换成一个框、跨文档那两格走
+[`theme/frame-kit`](../frame-kit/README.md) 那份共享约定），差的三处是：这一格要补的 Node 侧
+依赖不一样、它的暗色表挂在 Redoc 自己按操作系统写的类名上（所以要多一个运行期中间件）、
+以及**它的样式表是运行期注入的，所以本层什么都不用做**（都见下）。
 
 ## 组成
 
@@ -15,10 +17,10 @@
 | `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：`getThemePath()` 指向包根的 `theme/`，`configureWebpack()` 补 Node 侧那一格，`contentLoaded()` 用 `addRoute` 注册 `/redoc-view` 那一条页面             |
 | `theme/DocItem/index.tsx`        | ❌ 站点编译         | 层里的组件：命中 `redoc` 时整页换成那一个 iframe（`RedocFrame`），没命中就交回下层 `DocItem`                                                                 |
 | `theme/RedocPage/index.tsx`      | ❌ 站点编译         | 那条插件路由落到的组件：只放 `RedocView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                              |
-| `components/redoc-frame.tsx`     | ❌ 站点编译         | **外层**文档页里那一格：算 iframe 的 `src`、与框里那份文档双向对齐地址栏里 `#` 那一段，再把站点的亮暗模式送进框内                                            |
+| `components/redoc-frame.tsx`     | ❌ 站点编译         | **外层**文档页里那一格：算 iframe 的 `src`，把 ref 与本层那份消息约定交给共享层的 `useOuterFrameSync`（对齐 `#` 段与送亮暗模式都在那一份里）                 |
 | `components/redoc-frame.css`     | ❌ 站点编译         | 外层那一格的尺寸：框定高占满 navbar 以下那一屏，正文容器去掉内边距与最大宽度（见「高度」一节）                                                               |
-| `components/redoc-frame-sync.ts` | ❌ 站点编译         | 两边共同的约定：路由名、iframe 地址怎么拼、那三条消息（接口地址、框里起来了、亮暗模式）的形状、收到的数据怎么判型（纯函数）                                  |
-| `components/redoc-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Redoc、与外层对齐 `#` 那一段，收到外层的模式就写到自己 `<html>` 上；服务端那一遍在这一格挡住                     |
+| `components/redoc-frame-sync.ts` | ❌ 站点编译         | 本层专属的那三个名字（消息命名空间、框内那条路由的路径、spec 那一条查询参数名）+ iframe 的类名；地址怎么拼、消息怎么造都在共享层                             |
+| `components/redoc-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Redoc，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`                                      |
 | `components/redoc-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `RedocStandalone`（只收地址那一种入参），外面套 `HashRouter` 与 `StyleSheetManager`；`LocationMirror` 把路由变化报给外层                        |
 | `components/redoc-color-mode.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的编译中间件：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到 `<html data-redoc-mode="dark">` 上（见「亮暗模式」一节）              |
 | `components/redoc-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Redoc 自己的三处东西（它那颗亮暗切换按钮、左栏底部的 Redocly 署名、章节标题旁那一整格操作按钮）。高度为什么不写在这里，见「高度」一节 |
@@ -27,6 +29,12 @@
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
+
+跨 iframe 的那一套（地址怎么拼、三条消息的形状、来源校验、两侧的监听）**不在本包**，
+在 [`@show-docs/theme-frame-kit`](../frame-kit/README.md)；本包只交出命名空间、路由名、参数名和
+那个类名，以及 iframe 那一格自己的尺寸。为什么两侧各推一次消息、为什么框内 → 外层不听
+`hashchange`、为什么外层写地址用替换而不是新增，那几条理由记在共享层的 README，这里不抄第二遍
+—— 只有**在 Redoc 这一层实测到的那一次**（见「深链」一节）留在这里。
 
 ## 怎么用
 
@@ -77,10 +85,11 @@ iframe 的边界是浏览器给的，不是靠枚举规则拼出来的：框里�
 ### 同源，但每条消息仍然校验
 
 框里那一页是站点自己的一条路由，和外层同一个源，`src` 由本包自己拼，本来不存在跨源信任问题。
-每条消息还是要过 origin 与来源窗口那两格（`isTrustedMessage`）：防的是「别人往这一页
+每条消息还是要过 origin 与来源窗口那两格（共享层的 `isTrustedMessage`）：防的是「别人往这一页
 postMessage」时不被当成自家消息，而不是防自己。`/redoc-view?src=…` 是条公开地址，任何人都能
-手工拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（`specUrlFromSearch`），
-拿不到就整格什么都不渲染。
+手工拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`，
+本层用 `redocSpecUrlFromSearch` 转手调它），拿不到就整格什么都不渲染。这两格与亮暗、地址那两条
+监听一道住在 [`theme/frame-kit`](../frame-kit/README.md)，两条层共用同一份。
 
 ## 浏览器 bundle 要补的那一格 Node 侧依赖
 
@@ -98,16 +107,17 @@ SSG 跑在 Node 里，那模块本来就有。
 > 只是把浏览器 bundle 撑大一圈。
 
 > 同款坑：`configureWebpack()` **只返回自己新增的那一格**，不能改完整个 config 再返回去。
-> 细节记在 [`theme-stoplight` 的 README](../theme-stoplight/README.md) 末尾与
+> 细节记在 [`theme-stoplight` 的 README](../theme-stoplight/README.md) 的「样式」一节与
 > `plugins/plugin-prev-layer-resolver` 的 README。改了它要 `pnpm clear` 再 `pnpm build`：
 > webpack 的持久化缓存不认配置函数的改动。
 
 ## 样式：Redoc 那张运行期注入的表不外溢，靠的是文档边界
 
-theme-stoplight 用 `configurePostCss()` + `postcss-prefixwrap` 把第三方全局样式圈进
-`.stoplight-root`，靠的是那份 CSS 是**磁盘上的静态文件**、能进 PostCSS 管道。Redoc 不是：它的
-样式由 `styled-components` 在**运行时**往 `<head>` 里插一张 `<style data-styled-version>`，
-构建期产物里根本没有这份 CSS 可供改写 —— 所以那一层能做的事（构建期加前缀）在这里本来就做不了。
+[`theme-stoplight`](../theme-stoplight/README.md) 那一条层要在构建期动手，因为 Elements 的样式是
+**磁盘上的静态文件**，会被并进全站那一份 css bundle，iframe 拦不住它。Redoc 不是：它的样式由
+`styled-components` 在**运行期**往它自己那份文档的 `<head>` 里插一张
+`<style data-styled-version>`，构建期产物里根本没有这份东西，站点那一份 css 里一条都没有。
+所以渲染挪进 `/redoc-view` 之后，本层在样式这一格一行代码都不剩 —— 边界就是文档边界。
 
 本层曾经补的是**运行期圈定**：在 `StyleSheetManager` 的 `stylisPlugins`（styled-components
 编译每条规则时经过的中间件链）上，给裸标签选择器加 `:where(.redoc-root)` 前缀、把 `:root` 里
@@ -173,15 +183,19 @@ Redoc 自带一套亮暗，判据是它自己的：读 `matchMedia('(prefers-col
 ### 模式怎么跨过 iframe 的边界
 
 navbar 那颗按钮点的是**外层**文档的 `<html data-theme>`，而配色在**框内**那份文档里，所以这一格
-要本层自己接：**外层读 `useColorMode()`，把当前模式随那条已经存在的 postMessage 通道送进框内**
-（`redocModeMessage`，`components/redoc-frame.tsx` 送、`redoc-view.tsx` 收，框内把它写到自己
-`<html>` 上）。落地是这样的：
+要跨文档送一个值。**送与收都住在共享层**：外层 `useOuterFrameSync` 读调用方给它的 `useColorMode()`
+结果推 `mode`，框内 `useInnerFrameSync` 收到后按调用方给的属性名写到自己 `<html>` 上
+（`@show-docs/theme-frame-kit`，见它的 README；本层交出的是 `data-redoc-mode` 与那份以包名做
+前缀的消息约定 `redocFrameMessages`）。为什么这条属性不直接叫 `data-theme` ——
+`theme-stoplight` 那边就叫这个，因为 Elements 的暗色表本来就挂在这条属性上，搬过去就地生效；
+Redoc 的暗色表挂在它自己按操作系统写的 `:root.dark` 上，本层要改的是它的生效条件（上面那一节），
+开一条自己的属性才不会和那份加载时写死的 `data-theme` 混在一起。落地是这样的：
 
-- 站点起得来的那一次：**两侧各推一次** —— 框里那份文档先向外层要一次（就是深链用的那句
-  `redocReadyMessage`），外层装好自己的监听器也主动推一次；两条送的是同一份内容（地址里那一段
-  - 当前模式）。为什么要两条而不是一条，实测过程记在「深链」一节。
-- 之后外层点开关：那一次变化框里收不到（它只问一次 ready），由外层主动推。这里的 effect 依赖
-  带着模式，变了就重挂一次监听器并连带把新值送出去。
+- 站点起得来的那一次：**两侧各推一次** —— 框里那份文档先向外层要一次（就是深链用的那句 `ready`），
+  外层装好自己的监听器也主动推一次；两条送的是同一份内容（地址里那一段 + 当前模式）。为什么要两条
+  而不是一条，实测过程记在「深链」一节。
+- 之后外层点开关：那一次变化框里收不到（它只问一次 ready），由外层主动推。共享层那个 effect 的
+  依赖带着模式，变了就重挂一次监听器并连带把新值送出去。
 - 模式**不**塞进 iframe 的 `src`：那个地址必须服务端与客户端算出同一个字符串（同深链那一段的
   理由，见「深链」一节），而它会跟着开关变。
 
@@ -309,34 +323,30 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 
 能发给别人的是**外层**那条地址：`/redoc-demo#/orders/createorder`。hash 段不参与取文件，浏览器
 请求的还是这一页自己的那份 html，产物里有它，所以 `pnpm serve` 回 **HTTP 200**。但 Redoc 在框里，
-那一段得送进另一份文档去 —— 两边靠 postMessage 双向对齐，约定写在 `components/redoc-frame-sync.ts`。
+那一段得送进另一份文档去。
 
-四个方向各有一条路，理由都不一样：
+**四个方向各走哪条路、为什么这么走，记在
+[`theme/frame-kit` 的 README](../frame-kit/README.md) 的「四个方向各走一条路」一节**，
+两条形同这一层（`theme-stoplight` 那条也是这一套）。本层交出去的只有名字：命名空间
+`@show-docs/docusaurus-theme-redoc`、路由 `redoc-view`、参数 `src`，拼地址走 `redocViewSrc()`
+（它转手调共享层的 `frameViewSrc()`，`src` 里只编码 spec，不编码 hash）。
 
-- **iframe 的 `src` 不带 hash**（`redocViewSrc()` 只把 spec 地址编码进去）。`src` 因此只由
-  frontmatter 决定，服务端与客户端算出的完全一样，SSR 那份 html 与客户端第一次渲染不会在
-  这一格上对不上。
-- **外层 → 框内**：**两侧各推一次** —— 框里那份文档起来先向外层要一次（`redocReadyMessage`），
-  外层装好自己的监听器也主动推一次。框内收到哪一条都一样：写 `location.hash`，React Router
-  把它当成一次浏览器导航收下，Redoc 换到那条接口，整份文档不重新加载。
-  为什么要两条而不是一条：**外层那只监听器要等它自己的 React 挂载跑完才装上**，而 iframe 的
-  `src` 就写在外层那份 SSR html 里，浏览器解析到那一格就开始加载框里那份文档 —— 命中缓存时它完全
-  能先于外层的水合跑完，于是框里问的那句没人接。实测栽过一回：e2e 里 `page.reload()` 之后（跑着
-  trace、外层那份页面的脚本被拖慢时），框里那份文档连一条消息都没收到 —— 亮暗模式那一段就是死的，
-  按同一条握手，那一段深链也送不进去，而控制台一个字都不报。外层只守 iframe 的 `load` 事件是同一个
-  坑的另一个方向（那个事件也能先于监听器发生），所以两边各推一次、谁先谁后都不丢。
-  外层那一次主动推有个前提：框里那份文档已经站在同一个源上了 —— 还没开始加载时它是
-  `about:blank`，那条消息会被浏览器按目标源不匹配丢掉，白刷一条控制台报错，判据见
-  `redoc-frame.tsx` 里的 `isFrameLoaded`。
-- **框内 → 外层**：**听路由自己报**，不听 `hashchange`。框里点一条接口走的是 React Router 的
-  `history.pushState`，**它不触发 `hashchange`**（实测：框内地址变了、外层一次都没收到）。
-  `redoc-ui.tsx` 里那个 `LocationMirror` 站在 `HashRouter` 里面用 `useLocation()` 镜像当前地址，
-  报出去；刚挂载那一次不报，否则初始的 `#/` 会先把外层地址栏里那条深链擦掉。
-- **外层写地址用 `replaceState`**，不是 `pushState`：框里换一条接口不该在浏览器历史里多出一格，
-  那会让「后退」变成在同一页的两条接口之间来回走。反过来，前进/后退改的是外层地址，`popstate`
-  时外层再把它送进框里一次。
+这里留下只属于 Redoc 这一层的两条实测：
 
-同源，所以两边都按 `window.location.origin` 发、并按来源窗口校验收到的事件（`isTrustedMessage`）。
+- **那一次丢消息是在这一页上撞见的**：e2e 里 `page.reload()` 之后（跑着 trace、外层那份页面的
+  脚本被拖慢时），框里那份文档连一条消息都没收到 —— 亮暗模式那一段是死的，按同一条握手，
+  那一段深链也送不进去，而控制台一个字都不报。当时外层只守 iframe 的 `load` 事件，那是同一个坑的
+  另一个方向（那个事件也能先于监听器发生）。改成两侧各推一次之后不丢；那一句「框里那份文档已经
+  站在同一个源上」的判据（共享层 `frame-sync.ts` 里的 `isFrameLoaded`，靠试读
+  `contentWindow.location.origin`）也是从这里长出去的 —— 还没开始加载时它是 `about:blank`，
+  那条消息会被浏览器按目标源不匹配丢掉，白刷一条控制台报错。
+- **直达一条深链时 Redoc 的正文比「先打开再点下去」短**：它从地址指的那一格往下铺，标题清单少两条
+  （只有 `列出订单`、`新建订单` 这两个 `h2`，API 标题与分组那两条不在）。那是 Redoc 自己的路由行为，
+  不是本层丢了内容，所以 e2e 两条用例各钉各的清单，没有共用一句判据。
+
+框内 → 外层那一条由 `redoc-ui.tsx` 里那个 `LocationMirror` 站在 `HashRouter` 里面用
+`useLocation()` 报出去（`createRouteReporter()` 造的函数），**刚挂载那一次不报** —— 那一次报的是
+初始位置 `#/`，会先把外层地址栏里那条深链擦掉。
 
 一条要说清的差别：整页直达一条深链时，Redoc **从地址指的那一格往下铺**，正文里的标题清单比
 「先打开页面再点下去」少两条（只有 `列出订单`、`新建订单` 这两个 `h2`，API 标题与分组那两条不在）。
@@ -375,9 +385,10 @@ hash，也不该有人拿它当分享链接 —— 这一条另有用例钉「�
   字体三条真属性（改造前那三条是被运行期圈定挪进 `.redoc-root` 的，现在原样落在 `<html>` 上）。
   这一份文档整份就是给 Redoc 的，没有别的元素受害；站点那一页收不到，因为外层根本没有那张表。
   那批变量与站点自己用到的 `var(…)` 实测零重名。
-- **亮暗模式要跨两份文档**：靠的是本层那条 postMessage（外层读 `useColorMode()` 送进来，见
-  「亮暗模式」一节），不是框架的存储同步。代价是这一格只有一个来源：**框里那份文档自己不再判断
-  模式**。直接打开 `/redoc-view?src=…`（没有外层给它送）时，那条属性始终是空的，也就一直是亮色；
+- **亮暗模式要跨两份文档**：靠的是共享层那条 `mode` 消息（外层读 `useColorMode()` 交给
+  `useOuterFrameSync` 送进来，见「亮暗模式」一节与
+  [`theme/frame-kit` 的 README](../frame-kit/README.md)），不是框架的存储同步。代价是这一格只有一个
+  来源：**框里那份文档自己不再判断模式**。直接打开 `/redoc-view?src=…`（没有外层给它送）时，那条属性始终是空的，也就一直是亮色；
   这一条与「那条地址不该发给别人」是同一件事（见上面「两份文档各管什么」）。本站的默认模式是
   亮色，所以「那一句送达之前先亮一下」在站点这一侧看不出来；把 `themeConfig.colorMode` 的
   默认值改成暗色，这一页就会露那一格亮。
@@ -425,15 +436,19 @@ hash，也不该有人拿它当分享链接 —— 这一条另有用例钉「�
 - 框内那条地址独立打开：带 `src` 就渲染，`src` 去掉就什么都不摆（不出现 Redoc 那份 404）。
 
 顺带记两处不报错的形状：SSR 两遍都不渲染 —— 外层那份 html 里只有 iframe 标签本身，框内那份也是
-空的（组件只在浏览器端出东西）；`pnpm build` 时控制台会冒一句
-`[zustand persist middleware] … 'mosaic-theme' … does not contain a 'removeItem' method` ——
-那是预渲染阶段加载 Redoc 模块时它自己的 store 在抱怨，不影响产物，也不是本仓的代码。
-`redoc` 进了懒加载 chunk（实测产物里 `assets/js/973.*.js`，2.1 MB 上下；没命中 `redoc:` 的页面不下载它），
+空的（组件只在浏览器端出东西）；`redoc` 进了懒加载 chunk（实测产物里 `assets/js/973.*.js`，
+2.1 MB 上下；主页那份 html 里既没有它也没有 Elements 那一个 `564.*.js`，也就是没命中的页面不下载它），
 框内那一页与本层那两个组件各自另成小 chunk。
+
+> `pnpm build` 时控制台会冒一句 `[zustand persist middleware] … 'mosaic-theme' … does not contain a
+'removeItem' method` —— 那一格**不属于本层**：`mosaic-theme` 是 `@stoplight/mosaic` 的存储键
+> （产物里只有 `@stoplight/elements` 与 `@stoplight/mosaic` 两个包提到它），是预渲染
+> `/stoplight-view` 时求值 Elements 模块树里那个 store 在抱怨，不影响产物。口径记在
+> [`theme-stoplight` 的 README](../theme-stoplight/README.md) 的「状态」一节。
 
 没实测到的：AsyncAPI / GraphQL 那两种 `specType` 没试。
 
 `RedocUI` 原先还留着「给内联文档」那一支（`spec` 收解析好的对象或 YAML/JSON 文本），和
 [`theme-stoplight` 的组件](../theme-stoplight/components/stoplight-ui.tsx)是同一形状的 `Props`。
-两支在两条层里都没有调用方（frontmatter 取的就是一个地址），所以两条一起删了，理由与去向记在
-stoplight 那份 README 的「组成」一节。
+两支在两条层里都没有调用方（frontmatter 取的就是一个地址），所以两条一起删了，理由记在
+stoplight 那份 README 的「怎么用」一节。
