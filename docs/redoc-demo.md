@@ -15,14 +15,20 @@ redoc: /openapi.yaml
 
 - 取的是 `static/openapi.yaml`（构建产物里的 `/openapi.yaml`）：与 stoplight 那页同一份输入，
   为的是两个渲染器能横向比对，也保证离线就能看完整渲染。
-- **样式不做构建期圈定**：Redoc 的 CSS 由 styled-components 在运行时插进 `<head>`，
-  构建期产物里没有这份文件可供前缀改写。实测漏到站点元素上的就三条 ——
-  `:root`（整页底色与字体）、`:root *`（全局 `box-sizing`）、`button`（navbar 上那个
-  亮/暗切换按钮会被 Redoc 的按钮样式接管）。三条都由端到端用例钉住，Redoc 多写一条就红。
-  原因与备选路子记在 `theme/theme-redoc/README.md`（站点文档源只收 `docs/`，链接出去只会是死链）。
-- **点进接口后的地址不能分享**：Redoc 3 的路由是按路径的（不是 hash），地址会变成
-  `/redoc-demo/orders/createorder`，而静态产物里没有这一格，`pnpm serve` 直接回 404。
-  在同一页里点来点去是正常的。
+- **样式在运行期圈进 `.redoc-root`**：Redoc 的 CSS 由 styled-components 在运行时插进
+  `<head>`，构建期产物里没有这份文件可供前缀改写，所以圈定发生在它编译每条规则的那一步
+  （`StyleSheetManager` 的 `stylisPlugins`）。收进来的是两类：裸标签 `button`（原本会打到
+  navbar 那个亮/暗切换按钮上）与 `:root` 里那三条真属性（整页底色与字体）。实测剩下的外溢
+  只有一条 `:root *`（全局 `box-sizing`，与站点自己的 `*` 同值，故意不动）。端到端用例把
+  这个集合钉成等于它，Redoc 多写一条、或者圈定失效，就红；同一批元素在 redoc 页与主页各算
+  一遍 computed style 比相等，站点这一侧不受影响。原因、`:where()` 那个优先级坑与备选路子
+  记在 `theme/theme-redoc/README.md`（站点文档源只收 `docs/`，链接出去只会是死链）。
+- **点进接口后的地址也能分享**：Redoc 有自己的路由，本层把它钉成 **hash** 那一种，于是地址是
+  `/redoc-demo#/orders/createorder`。hash 段不参与取文件，浏览器请求的还是这一页自己的那份 html，
+  所以 `pnpm serve` 对它回 **HTTP 200**，页面加载完 Redoc 自己读那段地址、把那条接口摆进正文区。
+  要说清楚两点：每条接口在产物里**没有自己的 html**（内容仍只有 `build/redoc-demo/index.html`，
+  那一格是客户端渲染的）；按路径的那一形状（`/redoc-demo/orders/createorder`）现在退回站点
+  自己的 404 页。做法与取舍记在 `theme/theme-redoc/README.md`。
 - 组件只在浏览器端渲染（SSR 阶段返回 `null`），所以 `build/redoc-demo/index.html` 里这一格是空的，
   要看结果得 `pnpm build && pnpm serve`。
 

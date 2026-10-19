@@ -1,11 +1,13 @@
 /* Redoc 渲染区的落位。站点没有 scss 规则（Docusaurus 只内置 css），所以这份是纯 CSS，
-   `.redoc-root` 是组件挂的那层壳。
+   `.redoc-root` 是组件挂的那层壳（类名由 `redoc-style-scope.ts` 那一份常量给出）。
 
    与 theme-stoplight 不同的一处：Redoc 的样式是 styled-components 在**运行时**注入的
-   `\3c style>`，构建期那份静态样式表根本不存在，`configurePostCss()` 圈不住它 ——
-   这一层不装样子做圈定。实测产物里那 709 条规则全都挂在 Redoc 自己生成的类上
-   （`.YjVcs`、`.bImkMT:hover` 这种），一条都没有打到站点的元素上，所以这里只处理
-   「整页交给 Redoc 时容器留白」这一格；判据由 e2e 钉住（`test/e2e/features/redoc.feature`）。 */
+   `\3c style>`，构建期那份静态样式表根本不存在，`configurePostCss()` 圈不住它。这一层改在
+   运行期圈：`StyleSheetManager` 的 `stylisPlugins` 把裸标签（`button`）与 `:root` 里的
+   真属性收进 `.redoc-root` 里面，见 `redoc-style-scope.ts` 与包 README 的
+   「样式：运行期圈定」一节。因此本文件**不再**需要按回站点按钮的那类规则 —— 那条曾经写在
+   这里，靠特异度压 Redoc 的裸 `button`，现在由机制代劳，判据也还在 e2e
+   （`test/e2e/features/redoc.feature`）。 */
 
 .redoc-root {
   position: relative;

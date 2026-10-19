@@ -124,8 +124,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
   行为见 [docs/stoplight-demo.md](./docs/stoplight-demo.md)（示例取
   `static/openapi.yaml`），实现见
   [theme/theme-stoplight/README.md](./theme/theme-stoplight/README.md)
-- **Redoc 主题**（`redoc:` 触发、它的 `basePath` 为什么要吃这一页的 `permalink`、样式为什么
-  不做构建期圈定、深链为什么在静态托管上打不开）：
+- **Redoc 主题**（`redoc:` 触发、它自带的那套路由为什么钉成 hash、样式为什么要在运行期圈定）：
   行为见 [docs/redoc-demo.md](./docs/redoc-demo.md)（同一份 `static/openapi.yaml`），实现见
   [theme/theme-redoc/README.md](./theme/theme-redoc/README.md)
 - **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准
