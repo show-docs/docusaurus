@@ -2,7 +2,7 @@
   "private": true,
   "name": "@show-docs/docusaurus-theme-iframe",
   "version": "0.0.0",
-  "description": "Md 的 frontmatter 写 iframe: <目标 URL> 时把该页正文区换成那个页面",
+  "description": "Md 的 frontmatter 写 iframe: <目标 URL> 时把该页整页换成那个页面",
   "types": "dist/index.d.mts",
   "main": "dist/index.mjs",
   "exports": {

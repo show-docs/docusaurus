@@ -45,7 +45,7 @@ oas3: https://example.com/openapi.yaml
 ---
 ```
 
-命中时本层**不包下层 `DocItem`**（与 `theme-iframe` 那层不同），所以那一页不会有文档正文外壳、
+命中时本层**不包下层 `DocItem`**（与 `theme-iframe`、`theme-redoc` 同一落点），所以那一页不会有文档正文外壳、
 也不会再有导图。要「其它页照常、这页是 API 文档」就是这个位置；想让它嵌在 `DocItem` 的正文区里，
 改 `theme/DocItem/index.tsx` 的那一支返回，别改层栈顺序。
 

@@ -31,7 +31,7 @@ redoc: /openapi.yaml
 ---
 ```
 
-命中时本层**不包下层 `DocItem`**（与 theme-stoplight 同一位置，与 `theme-iframe` 那层不同），
+命中时本层**不包下层 `DocItem`**（与 theme-stoplight、`theme-iframe` 同一落点），
 所以那一页不会有文档正文外壳、也不会再有导图。要「其它页照常、这页是 API 文档」就是这个位置。
 
 ## 浏览器 bundle 要补的那一格 Node 侧依赖

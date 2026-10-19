@@ -3,10 +3,7 @@ import { useMemo } from 'react';
 import { useLocation } from '@docusaurus/router';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 
-import css from './iframe.module.css';
-
-/* globals process */
-const notDev = process.env.NODE_ENV !== 'development';
+import './iframe.css';
 
 function getURL({ src, search }: { src: string; search: string }): string {
   const path = new URLSearchParams(search).get('path') || '';
@@ -29,14 +26,5 @@ export function FramePage({ src }: { src: string }) {
     [isBrowser, search, src],
   );
 
-  return notDev ? (
-    <iframe className={css.iframe} src={url} title="其他文档" />
-  ) : (
-    <div className={css.center}>
-      本页在开发模式不可用，目标指向：
-      <a href={url} rel="noreferrer" target="_blank">
-        {url}
-      </a>
-    </div>
-  );
+  return <iframe className={'iframe'} src={url} title="其他文档" />;
 }

@@ -19,7 +19,7 @@ const Stoplight = lazy(() =>
 export default function DocItemStoplight(props: Props): ReactNode {
   const url = props.content?.frontMatter?.oas3;
 
-  // 命中时本层**不包下层 DocItem**（与 theme-iframe 那层不同），整页换成 Stoplight；
+  // 命中时本层**不包下层 DocItem**（与 theme-iframe、theme-redoc 同一落点），整页换成 Stoplight；
   // `lazy` 出来的组件必须在 Suspense 里，否则渲染到它就直接抛
   return url ? (
     <Suspense fallback={null}>

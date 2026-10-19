@@ -52,14 +52,14 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 仓库里的分包**按「`src/` 要不要先编译」分两种形态**，不是按「像不像一个包」：
 
-| 目录                                  | 是什么                                                                                           | 形态                                                | 细节                                                     |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------- | -------------------------------------------------------- |
-| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                    | 构建包（`src/` → `dist/`，改完要编译）              | [README](./plugins/plugin-prev-layer-resolver/README.md) |
-| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                | 构建包（只编译入口与 loader；层与组件是源码）       | [示例页](./docs/markmap-demo.md)                         |
-| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时把该页正文区换成那个页面（开发模式只给链接） | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-iframe/README.md)                 |
-| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成 Stoplight Elements 渲染的 OpenAPI 文档     | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-stoplight/README.md)              |
-| `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成 Redoc 渲染的 API 文档                     | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-redoc/README.md)                  |
-| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                            | 免编译（没有 `src/`：入口与层都是源码，站点直接吃） | [README](./demo/README.md)                               |
+| 目录                                  | 是什么                                                                                       | 形态                                                | 细节                                                     |
+| ------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                | 构建包（`src/` → `dist/`，改完要编译）              | [README](./plugins/plugin-prev-layer-resolver/README.md) |
+| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                            | 构建包（只编译入口与 loader；层与组件是源码）       | [示例页](./docs/markmap-demo.md)                         |
+| `theme/theme-iframe/`                 | 主题包：md 的 frontmatter 写 `iframe: <目标 URL>` 时整页换成那个页面（文档正文外壳一并不要） | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-iframe/README.md)                 |
+| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成 Stoplight Elements 渲染的 OpenAPI 文档 | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-stoplight/README.md)              |
+| `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成 Redoc 渲染的 API 文档                 | 构建包（同上，`src/` 里只有入口那一份）             | [README](./theme/theme-redoc/README.md)                  |
+| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                        | 免编译（没有 `src/`：入口与层都是源码，站点直接吃） | [README](./demo/README.md)                               |
 
 五个构建包都是 `tsc` 编译包：Node 侧要跑的源码 `.mts` 在包内 `src/`，产物在包内 `dist/`，
 `dist/index.mjs` 就是包出口（`exports`）—— 所以 `pnpm build:core` 是「编译这五个包」，
@@ -116,7 +116,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 - **导图主题**（frontmatter 触发、渲染位置、明暗跟随全站主题）：
   行为见 [docs/markmap-demo.md](./docs/markmap-demo.md)，实现见 `theme/theme-markmap/`（入口与
   loader 在 `src/`，层与组件在 `theme/`、`components/`）
-- **iframe 主题**（frontmatter 触发、URL 怎么算、在层栈里放哪一格）：
+- **iframe 主题**（frontmatter 触发、URL 怎么算、在层栈里放哪一格、命中时丢掉的是哪一块）：
   行为见 [docs/iframe-demo.md](./docs/iframe-demo.md)，实现见
   [theme/theme-iframe/README.md](./theme/theme-iframe/README.md)
 - **Stoplight 主题**（`oas3:` 触发、`@stoplight/elements` 的样式怎么圈进 `.stoplight-root`、
