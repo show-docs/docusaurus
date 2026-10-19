@@ -1,8 +1,9 @@
 import './redoc-ui.css';
 
 import { RedocStandalone } from 'redoc';
-import { HashRouter } from 'react-router';
 import { StyleSheetManager } from 'styled-components';
+
+import { HashRouter } from 'react-router';
 
 import useIsBrowser from '@docusaurus/useIsBrowser';
 
@@ -19,7 +20,15 @@ type Props =
 
 // `disableTelemetry`：`redoc` 的依赖里挂着 `@redocly/redoc-opentelemetry`，默认会把文档标题
 // 之类的用量报出去。本仓的示例页全在本地（`/openapi.yaml`），也不该往第三方发东西。
-const options = { disableTelemetry: true } as const;
+//
+// `scrollYOffset`：Redoc 在渲染时调用它，把返回值写成容器上的 `--navbar-height` 与
+// `--navbar-stack-height` 两条自定义变量，左栏的高度与 sticky 停靠位、点接口时滚动过去的
+// `scroll-margin-top` 全从这两条取值。不给这个函数它就按 0 算，于是左栏按「上面没有别的东西」
+// 铺满一整屏，比这一页真正空出来的那一格高出 navbar 那一截。
+const scrollYOffset = () =>
+  document.querySelector('.navbar')?.getBoundingClientRect().height ?? 0;
+
+const options = { disableTelemetry: true, scrollYOffset } as const;
 
 // 数组写成模块级的常量：`StyleSheetManager` 按 props 认这张样式表，每次渲染换一个新数组就
 // 等于换一张表，Redoc 的规则会被重新插一遍。

@@ -9,15 +9,15 @@
 
 ## 组成
 
-| 文件                              | 编译吗              | 职责                                                                                                                                                                                                         |
-| --------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/index.mts`                   | ✅ `src/` → `dist/` | 入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算就是 `../theme`），加 `configureWebpack()`                                                                                                           |
-| `theme/DocItem/index.tsx`         | ❌ 站点编译         | 层里的组件：命中 `redoc` 时整页换成 `RedocUI`，没命中就交回下层 `DocItem`                                                                                                                                    |
-| `components/redoc-ui.tsx`         | ❌ 站点编译         | 只在浏览器端渲染 `RedocStandalone`（SSR 阶段返回 `null`），外面套一层 `HashRouter` 与一层 `StyleSheetManager`；`url` 走 `specUrl`，`data` 走内联文档                                                         |
-| `components/redoc-style-scope.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的 styled-components 编译中间件：把 Redoc 运行期注入的裸标签选择器与 `:root` 里的真属性圈进 `.redoc-root`，并把它的暗色表改挂到站点的 `data-theme` 上（见「样式」「亮暗模式」两节） |
-| `components/redoc-ui.css`         | ❌ 站点编译         | 本包自己那部分版式：用 `:has()` 让正文容器去掉内边距与最大宽度，以及收掉 Redoc 那颗自己的亮暗切换按钮（高度为什么不写在这里，见「高度」一节）                                                                |
-| `module-aliases.d.ts`             | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                      |
-| `tsconfig.build.json`             | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                       |
+| 文件                              | 编译吗              | 职责                                                                                                                                                                                                                                                  |
+| --------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                   | ✅ `src/` → `dist/` | 入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算就是 `../theme`），加 `configureWebpack()`                                                                                                                                                    |
+| `theme/DocItem/index.tsx`         | ❌ 站点编译         | 层里的组件：命中 `redoc` 时整页换成 `RedocUI`，没命中就交回下层 `DocItem`                                                                                                                                                                             |
+| `components/redoc-ui.tsx`         | ❌ 站点编译         | 只在浏览器端渲染 `RedocStandalone`（SSR 阶段返回 `null`），外面套一层 `HashRouter` 与一层 `StyleSheetManager`；`url` 走 `specUrl`，`data` 走内联文档                                                                                                  |
+| `components/redoc-style-scope.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的 styled-components 编译中间件：把 Redoc 运行期注入的裸标签选择器与 `:root` 里的真属性圈进 `.redoc-root`，并把它的暗色表改挂到站点的 `data-theme` 上（见「样式」「亮暗模式」两节）                                          |
+| `components/redoc-ui.css`         | ❌ 站点编译         | 本包自己那部分版式：用 `:has()` 让正文容器去掉内边距与最大宽度，以及收掉 Redoc 自己的三处东西（它那颗亮暗切换按钮、左栏底部的 Redocly 署名、章节标题旁那一整格操作按钮，见「收掉的三处 Redoc 自己的东西」一节）；高度为什么不写在这里，见「高度」一节 |
+| `module-aliases.d.ts`             | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                                                               |
+| `tsconfig.build.json`             | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -147,9 +147,49 @@ Redoc 左栏底部那颗它自己的切换按钮收掉了（`redoc-ui.css` 里
 先用 `emulateMedia({ colorScheme: 'dark' })` 打开这一页（要在加载前定下来，Redoc 是渲染时读
 `matchMedia` 的），钉「系统深色、站点亮色」这一格里页面仍然是亮的，同时 `<html>` 上确实带着
 Redoc 写的那个 `dark` 类 —— 类名在、配色却是站点这一头的，才证明驱动的已经不是它。
-再把站点切成暗色，钉这一页的底色真的翻过去。两句都不抄色值，比的是「换操作系统偏好时值不变、
+再把站点切成暗色，钉这一页的底色真的翻过去。这几句都不抄色值，比的是「换操作系统偏好时值不变、
 换站点模式时值变」。最后一句把站点自己那几处样式在**暗色下**也照「两个页面各算一遍 computed
 style 比相等」量一次（含 `<html>` 上的 `color-scheme`，实测与主页同值）。
+
+## 收掉的三处 Redoc 自己的东西
+
+本包的 CSS 收掉三处，全在 `components/redoc-ui.css`，全是 `display: none`（元素仍留在 DOM 里，
+所以 e2e 那几句按可见性判、不按数量判）：
+
+- **左栏底部那颗亮暗切换按钮** —— `[data-testid='color-mode-switcher']`。配色改由站点的
+  `data-theme` 驱动之后，点它只会改 `<html>` 的类名、页面不会有任何反应，还跟 navbar 上那颗重复
+  （见「亮暗模式」一节）。
+- **左栏底部那条「API docs by Redocly」署名** ——
+  `.menu-content > div > span:has(a[href^='https://redocly.com/'])`。
+- **每个章节标题右边那一整格操作按钮** —— `[data-testid='page-actions']`，里面是「Copy」加一个
+  「More actions」下拉（Open in Claude / ChatGPT 两项在里面）。
+
+认的都是**它是什么**（那条链接指向哪儿、这一格是哪个功能格），不是 styled-components 那个随机
+类名（署名那一格的 `HUGFg` 换个版本就重排）。
+
+署名只收自己那一格，不收整格：它与「收起侧栏」那颗按钮（`[data-component-name="Sidebar/SidebarActions"]`）
+在同一个 flex 格里（实测那格 284×50、`justify-content: space-between`），整格收掉会把收起侧栏一起
+带走。章节标题那一格则按需求整格收掉。代码块里那几颗「复制到剪贴板」不在这格里面，一行规则都碰不到它们。
+
+**那一整格为什么还是 CSS 而不是配置：配置项确实存在，但 `redoc@3.0.1` 不读它。**
+
+- 这一格在官方配置 schema 里有自己的位置：`@redocly/config@0.66.0`（redoc 那份 `options` 类型
+  就是从它推出来的）里有 `navigation.actions.items`，枚举含 `copy`、`view`、`chatgpt`、`claude`
+  这些，另有一条布尔 `navigation.actions.hide`；写进 `options` 连类型都过。
+- 但装进浏览器的那份实现不认：整个 bundle 里 `navigation:{actions:{items: …}}` 只出现一次，是
+  Redoc 自己内部一份写死的产品配置常量（喂「Connect to MCP」那颗按钮的），不是从传进来的
+  `options` 读的。渲染这一格的开关是标题节点上的 `showPageActions`，而每个标题节点都是写死
+  `showPageActions: true` 造出来的（概览、分组、每条接口、每种 GraphQL 类型都在内）；这一格往下
+  唯一的分岔只是「这一节有没有 spec 地址」，没有第三条路能把它关掉。
+- 两发实测都不认：`{ navigation: { actions: { hide: true } } }` 之后这一格照旧；判据是第二发
+  `{ navigation: { actions: { items: ['claude'], hide: false } } }` —— 真读了配置，主按钮就该换成
+  「Open in Claude」，实测仍是「Copy + More actions」，一项没变。
+- 另一条看着像的配置 `codeSnippet.copy.hide` 管的是**代码块**里那几颗复制（正是这一层要留着的那些），
+  而且同样接不上：它读的还是上面那份内部产品配置，实测传进去一处都没少。
+
+判据在 `test/e2e/features/redoc.feature` 第一条用例里：「Redocly 的署名不出现，同一格里的收起侧栏还在」
+与「章节标题旁那一整格操作按钮不出现」，另加「代码块里的复制按钮还在」—— 最后一句是给上一句当对照，
+证明收掉的是那一格，不是所有叫「复制」的东西。
 
 ## 高度：不给这一格定高，navbar 那一截报给 Redoc 自己
 
@@ -247,6 +287,12 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 - 同理，「外溢集合等于 `{ :root * }`」那一条是在**站点亮色**下量的。站点一进暗色，改挂过去的那
   63 条命中的就是 `<html>` 本身，里面除变量外还有一条真属性 `color-scheme`；这一格的后果由
   「站点自己的那几处样式在暗色下也不被 Redoc 改写」那一句按值量（站点自己写的也是 `dark`，同值）。
+- 收掉的那三处（亮暗切换按钮、Redocly 署名、章节标题旁那一整格操作按钮）都是 CSS 收的，
+  不是配置关的：DOM 里仍然有，靠的是 Redoc 自己那份 `data-testid` / `data-component-name`。
+  它升版换了这些标识，这三处就收不住了 —— 用的是**功能格**而不是随机类名，且 e2e 那三句会直接红，
+  不会静默失效。章节标题那一格还有一层：官方 schema 里那条 `navigation.actions` 在本装的
+  3.0.1 里根本没人读（两发实测，依据见「收掉的三处 Redoc 自己的东西」一节），所以哪天升级到了
+  真读它的版本，这条 CSS 与那条配置就重复了，按届时的实测留一条即可。
 - `scrollYOffset` 是**渲染时**量一次 navbar 的高度，不是监听出来的：窗口缩放后 navbar 换了行
   （高度变了），这一格要等 Redoc 下一次重渲染才跟上。本站的 navbar 不会换行，所以没为它加监听。
 - 站点根目录得真的有 `static/openapi.yaml` 那种本站可读的 spec；外网 spec 要另配 CORS。
@@ -261,7 +307,9 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 （`assets/js/460.*.js`，2 MB 上下；没命中 `redoc:` 的页面不下载它）、`/openapi.yaml` 取到了、
 左栏三个接口点开就在导航里、点新建订单时详情面板换成它、这一页没有 `<article>` 正文外壳、
 `.container` 的内边距是 0、左栏占满 navbar 以下那一屏、外溢经过运行期圈定只剩 `:root *` 那一条、
-Redoc 那颗自己的亮暗按钮看不见，全程没有运行期错误。
+Redoc 那颗自己的亮暗按钮与 Redocly 那条署名看不见、章节标题旁那一整格操作按钮（Copy 加
+「More actions」）整格看不见，而同一格里的「收起侧栏」与代码块里那几颗复制按钮都还在，
+全程没有运行期错误。
 另一条用例走的是**深链**：整页加载 `/redoc-demo#/orders/createorder`，托管侧对它回 200，
 上面那几步（换成 Redoc、容器不留白、详情对得上）在产物里同样成立。
 第三条走的是**亮暗模式**：操作系统按深色打开这一页，页面仍是亮色（`<html>` 上那个 Redoc 自己写的

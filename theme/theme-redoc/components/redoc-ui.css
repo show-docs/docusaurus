@@ -9,19 +9,51 @@
    这里，靠特异度压 Redoc 的裸 `button`，现在由机制代劳，判据也还在 e2e
    （`test/e2e/features/redoc.feature`）。 */
 
-.redoc-root {
-  position: relative;
-  height: calc(100vh - var(--ifm-navbar-height));
-  overflow: hidden;
-}
+/* 这一层**不**给 `.redoc-root` 定高，也不开 `overflow: hidden`。
 
-.redoc-root > div {
-  height: 100%;
-}
+   与 stoplight 那层不同的一处（那边是 `height: calc(100vh - var(--ifm-navbar-height))`）：
+   Stoplight Elements 自带内层滚动，把它塞进一格固定高度里就行；Redoc 不是这个模型 ——
+   它的左栏是 `height: calc(100dvh - var(--navbar-stack-height))` 的一条 sticky，
+   按「整页跟着文档滚」排版。这里一旦再套一格固定高度，就凭空多出一层滚动容器：
+   实测左栏 793px 落在 733px 的那一格里面，点接口时 Redoc 把**那一格**滚走了 502px
+   （不是滚文档），于是 navbar 以下一大片只剩底色。
+
+   所以这一层让 Redoc 占住文档流，navbar 那一截由 `scrollYOffset` 报给它自己
+   （见 `redoc-ui.tsx`），左栏于是正好铺满 navbar 以下那一屏。*/
 
 /* 整页交给 Redoc 时，正文容器的内边距与最大宽度都不要了（这条与 stoplight 那层同形）。 */
 
 .container:has(.redoc-root) {
   padding: 0 !important;
   max-width: unset !important;
+}
+
+/* Redoc 自己那颗亮暗切换按钮（左栏底部那一排图标里的第一个）收掉：配色现在由站点的
+   `data-theme` 驱动（见 `redoc-style-scope.ts`），它点下去只改自己那个类名，页面上不会有任何
+   反应 —— 留着就是一颗按了没反应的按钮，还跟 navbar 上那颗打架。 */
+
+.redoc-root [data-testid='color-mode-switcher'] {
+  display: none;
+}
+
+/* 左栏底部那条「API docs by Redocly」署名收掉。认的是它**是什么**（装着指向 redocly.com
+   那条链接的 `span`），不是 styled-components 那个 `HUGFg` 类名 —— 换个版本就重排。
+   只收这个 `span`，不收它所在的那一整格：同一格里还并着「收起侧栏」那颗按钮
+   （`Sidebar/SidebarActions`），整格收掉会把它一起带走。口径见包 README
+   的「收掉的三处 Redoc 自己的东西」一节。 */
+
+.redoc-root .menu-content > div > span:has(a[href^='https://redocly.com/']) {
+  display: none;
+}
+
+/* 章节标题右边那一整格操作按钮收掉（「Copy」与它旁边那个「More actions」下拉 ——
+   Open in Claude / ChatGPT 两项在里面）。代码块里那些「复制到剪贴板」不受影响：
+   它们不在这格里面，判据也就一行都不碰它们。
+   为什么不走配置：`navigation.actions` 这一格在 `@redocly/config` 的 schema 里确实有
+   （`items` 的枚举含 `copy`、`hide` 是个布尔），redoc 的 `options` 类型也收，但 `redoc@3.0.1`
+   的实现不读它 —— 实测两发都没让这一格有任何变化。口径与依据见包 README
+   的「收掉的三处 Redoc 自己的东西」一节。 */
+
+.redoc-root [data-testid='page-actions'] {
+  display: none;
 }
