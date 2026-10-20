@@ -304,12 +304,6 @@ importers:
         specifier: ^5.111.1
         version: 5.111.1(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
-  theme/frame-kit:
-    dependencies:
-      react:
-        specifier: ~18.3.1
-        version: 18.3.1
-
   theme/theme-iframe:
     dependencies:
       '@docusaurus/types':
@@ -357,9 +351,9 @@ importers:
       '@redocly/config':
         specifier: ^0.66.0
         version: 0.66.0
-      '@show-docs/theme-frame-kit':
+      '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
-        version: link:../frame-kit
+        version: link:../theme-iframe
       react:
         specifier: ~18.3.1
         version: 18.3.1
@@ -384,9 +378,9 @@ importers:
       '@scalar/api-reference':
         specifier: ^1.75.0
         version: 1.75.0(change-case@5.4.4)(nprogress@0.2.0)(supports-color@10.2.2)(tailwindcss@4.3.3)(typescript@6.0.3)(zod@4.6.5)
-      '@show-docs/theme-frame-kit':
+      '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
-        version: link:../frame-kit
+        version: link:../theme-iframe
       react:
         specifier: ~18.3.1
         version: 18.3.1
@@ -399,9 +393,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.10.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
-      '@show-docs/theme-frame-kit':
+      '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
-        version: link:../frame-kit
+        version: link:../theme-iframe
       '@stoplight/elements':
         specifier: ^9.0.24
         version: 9.0.28(@babel/core@7.29.7(supports-color@10.2.2))(@babel/template@8.0.0)(@react-spectrum/provider@3.11.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)

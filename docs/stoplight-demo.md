@@ -10,7 +10,8 @@ oas3: /openapi.yaml
 
 # API 文档示例
 
-下面这些正文在渲染后的页面上**看不到**：`theme-stoplight` 命中 `oas3` 时不包下层 `DocItem`，
+下面这些正文在渲染后的页面上**看不到**：theme-iframe 那一份 `DocItem` 按注册表命中 `oas3` 时
+把整个 `DocItem` 换成 iframe，
 整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
 - 取的是 `static/openapi.yaml`（构建产物里的 `/openapi.yaml`）：与 Redoc 那页同一份输入，

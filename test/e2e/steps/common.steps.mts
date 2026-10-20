@@ -23,9 +23,9 @@ Then('浏览器里没有运行期错误', async ({ page }) => {
 });
 
 /**
-命中整页替换那四层（`theme-iframe` 判 `iframe:`、`theme-stoplight` 判 `oas3:`、
-`theme-redoc` 判 `redoc:`、`theme-scalar` 判 `scalar:`）时，本层**不包**下层 `DocItem`，
-所以那一页连文档正文外壳都没有。四层判的是同一件事，句子就一份。
+整页替换那一族（`theme-iframe` 的 `DocItem` 按 `lib/api-frame-registry.ts` 的顺序判四把键：
+`scalar:`、`redoc:`、`oas3:`、`iframe:`）命中时**不包**下层 `DocItem`，
+所以那一页连文档正文外壳都没有。四把键判的是同一件事，句子就一份。
 */
 Then('这一页没有文档正文外壳', async ({ page }) => {
   await expect(page.locator('article'), '整页没交给外部渲染器').toHaveCount(0);
@@ -36,7 +36,7 @@ Then('这一页没有文档正文外壳', async ({ page }) => {
 
 `theme-redoc`、`theme-stoplight` 与 `theme-scalar` 各钉一条同形状的场景：站点自己的开关是
 唯一的驱动，操作系统的偏好不算数，而且换配色不该把框内那份文档重新加载。这三步量的都是
-**跨 iframe 边界**那一条消息通道（实现见 `theme/frame-kit`），两边读同一处信号 —— 它在框内
+**跨 iframe 边界**那一条消息通道（实现见 `theme/theme-iframe/lib/`），两边读同一处信号 —— 它在框内
 那份文档的 `<html>`（redoc、stoplight）或 `<body>`（scalar）上，三处读数各自的含义见
 `../helpers.mts` 里 `frameModeSignal` 那一段。
 

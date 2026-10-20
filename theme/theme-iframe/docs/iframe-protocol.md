@@ -1,30 +1,65 @@
-# theme/frame-kit
+# 跨 iframe 共享约定（`theme/theme-iframe/lib/`）
 
-共享层：把第三方 API 渲染器关进主题包自己那条插件路由时，两边要说的那几句话。
+共享层，两件事住在这一份 `lib/` 里：
 
-[`theme-redoc`](../theme-redoc/README.md)、[`theme-stoplight`](../theme-stoplight/README.md) 与
-[`theme-scalar`](../theme-scalar/README.md) 用的是同一套：站点的文档页里只放一个 `<iframe>`，
-框里是那个包自己注册的一条页面（`/redoc-view`、`/stoplight-view`、`/scalar-view`），渲染器跑在
-框里那份文档内。地址栏里 `#` 那一段（选中了哪条接口）与站点的亮暗模式都住在**外层**那份文档，
+1. **「整页交给一个框」这一族的注册表与配置期工厂** —— 判哪几把 frontmatter 键、框的地址
+   怎么拼、框内那条路由注册在哪，都由这一份给出（见下面「注册表」一节）；
+2. **两侧要说的那几句话** —— iframe 地址、三条 postMessage 的形状与两侧的消息循环。
+
+源码住在 [`theme-iframe`](../README.md) 包的 `lib/` 里，
+`exports` 用 `./lib/*` 直接把源码交给用它的包。
+
+[`theme-redoc`](../../theme-redoc/README.md)、[`theme-stoplight`](../../theme-stoplight/README.md) 与
+[`theme-scalar`](../../theme-scalar/README.md) 用的是同一套：站点的文档页里只放一个 `<iframe>`（那一个框由
+本包 `components/api-frame.tsx` 渲染），框里是那个包自己注册的一条页面（`/redoc-view`、`/stoplight-view`、
+`/scalar-view`），渲染器跑在框里那份文档内。地址栏里 `#` 那一段（选中了哪条接口）与站点的亮暗模式都住在**外层**那份文档，
 渲染器在**框内**那份文档，两边得靠 postMessage 对齐 —— 这一格三个包的代码逐字一样，所以抽到这里，
 各家的**不同**（尺寸、样式表怎么进来、亮暗落到哪个元素上、渲染器的脾性）留在各包里。
 
-它**不是** Docusaurus 插件，也不是一条主题层：没有 `theme/` 目录，不写进
+它**不是** Docusaurus 插件，也不是一条主题层：`lib/` 里没有 `theme/` 目录，不写进
 `docusaurus.config.mjs` 的 `plugins`，层栈里看不到它。被那三个包当普通依赖用
-（`"@show-docs/theme-frame-kit": "workspace:^"`）。
+（`"@show-docs/docusaurus-theme-iframe": "workspace:^"`，import 写
+`@show-docs/docusaurus-theme-iframe/lib/index.ts`）。同包的 `theme/DocItem` 与
+`components/api-frame.tsx`（frontmatter `iframe:` 那一层的外壳）**用的就是这一份注册表** ——
+四把键由那一份 `DocItem` 按注册表判；`iframe:` 那条嵌的是**外部站点**，跨源，
+注册表里是一条 `external` 条目，没有这条消息通道。
 
 ## 组成
 
-| 文件                    | 编译吗      | 职责                                                                                                                  |
-| ----------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
-| `lib/index.ts`          | ❌ 站点编译 | 出口，把下面两份再导出去一次                                                                                          |
-| `lib/frame-messages.ts` | ❌ 站点编译 | 约定与形状：iframe 地址怎么拼、三条消息怎么造怎么认、来源怎么校验、`src` 里那段 spec 怎么取（**纯函数，不引 React**） |
-| `lib/frame-sync.ts`     | ❌ 站点编译 | 两侧的消息循环：`useOuterFrameSync`（外层那份文档里）、`useInnerFrameSync` 与 `createRouteReporter`（框内那份文档里） |
+| 文件                        | 编译吗      | 职责                                                                                                                                                |
+| --------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/index.ts`              | ❌ 站点编译 | 浏览器侧出口，把下面几份再导出去一次；**不含** `api-frame-theme.mts`（那份引 `node:path`，进不了浏览器 bundle）                                     |
+| `lib/api-frame-registry.ts` | ❌ 站点编译 | 注册表：四条形同的条目（命名空间、frontmatter 键、类名、路由名……），纯数据、零 import，配置期与浏览器期引同一份                                     |
+| `lib/api-frame-messages.ts` | ❌ 站点编译 | 按命名空间造那三条消息的名字，带缓存（同一命名空间每次拿到同一个对象）                                                                              |
+| `lib/api-frame-theme.mts`   | ❌ 配置期   | 入口工厂：三条 API 层的 `src/index.mts` 调它拿 Plugin 形状（挂层目录、注册框内路由、接各自的 webpack 差异）；`.mts` 按上游 lint preset 标 Node 环境 |
+| `lib/frame-messages.ts`     | ❌ 站点编译 | 约定与形状：iframe 地址怎么拼、三条消息怎么造怎么认、`src` 里那段 spec 怎么取（**纯函数，不引 React、不引 DOM**）                                   |
+| `lib/frame-trust.ts`        | ❌ 站点编译 | 来源校验 `isTrustedMessage`：它引 DOM 类型，单独一份，免得注册表那条配置期链路上碰到 `Window`                                                       |
+| `lib/frame-sync.ts`         | ❌ 站点编译 | 两侧的消息循环：`useOuterFrameSync`（外层那份文档里）、`useInnerFrameSync` 与 `createRouteReporter`（框内那份文档里）                               |
 
-「编译吗」那一列的判据是谁编译 —— 口径的产地在仓库根 README 的「构建包的编译口径」。本包的特别之处
-是**连 `src/` 都没有**：`package.json` 的 `main` 与 `types` 直接指向 `lib/index.ts` 那份 `.ts` 源码，
-产物出口 `dist/` 不存在，仓库根的 `build:core` 里也没有它。原因是它只在浏览器里跑，不像那三个主题包的
-入口那样要进构建配置期的 Node 环境（那一份才必须先经 `tsc`）。
+「编译吗」那一列的判据是谁编译 —— 口径的产地在仓库根 README 的「构建包的编译口径」。这一格的特别之处
+是**没有编译产物**：本包的构建项目（`tsconfig.build.json`）只收 `src/`，`lib/` 不进 `tsc`，
+`exports` 的 `./lib/*` 直接把源码交给用它的包 —— 浏览器那几份只在浏览器里跑；唯一的例外
+`api-frame-theme.mts` 跑在**配置期**（Docusaurus 的 jiti 直接吃这份源码），那一条链从
+`theme-*/src/index.mts`（经 `tsc` 的产物）跨到这份源码，两侧编译器不同、文件同一份。
+
+## 注册表：四条键、一份顺序
+
+`lib/api-frame-registry.ts` 是这一族唯一的形状来源。每个条目两种 `kind`：
+
+- `internal`（scalar / redoc / stoplight）：命名空间、frontmatter 键（`scalar:` / `redoc:` /
+  `oas3:`）、框内页面的路由名（`scalar-view`……）、spec 参数的查询名（`src`）、`@theme/` 页面别名、
+  外层 `<iframe>` 的类名（`.scalar-frame`……）与 `title`。框里是本包那条插件页面，同源，
+  深链与亮暗靠消息循环对齐。
+- `external`（`iframe:`）：只有命名空间、键与类名 —— 框里是外部站点，地址算法归
+  `components/api-frame.tsx` 里那三步。
+
+**条目的排列顺序就是判定优先级**：本包 `theme/DocItem` 按这个顺序逐条判 frontmatter，第一个命中
+的赢。这一串（`scalar` → `redoc` → `oas3` → `iframe`）与收拢前四条层各占一环、`plugins` 从外到内
+排列的语义同序；差别是优先级现在钉在代码里，`docusaurus.config.mjs` 里四条层的先后不再决定它。
+用例「同一页写两把键时，注册表里排前面的赢」钉住这条语义。
+
+新增一条 API 层 = 注册表加一条 + 新包写两份（入口调一次 `createApiFrameTheme()`、框内一份 view）；
+外层一概不动。工厂拿命名空间去注册表取条目，取不到直接抛 —— 宁可构建期红，不带一条没人注册的路由。
 
 ## 那三条消息
 
@@ -115,7 +150,7 @@ iframe 那一格的 CSS（定高、正文容器让位、页脚收不收、站点
   导入都并进全站那一份 bundle，所以本层要改构建配置把那份文件当成资源发出去。
 - Scalar 也是静态样式表、也并进全站那一份，但这一层**不改构建配置**：它出厂时每条规则已经带着
   `.scalar-app` 前缀，越不出那一格（实测与代价记在
-  [`theme-scalar` 的 README](../theme-scalar/README.md) 的「样式」一节）。
+  [`theme-scalar` 的 README](../../theme-scalar/README.md) 的「样式」一节）。
 
 三包的 README 各有一节写自己那一条。
 

@@ -10,7 +10,8 @@ scalar: /openapi.yaml
 
 # Scalar 示例
 
-下面这些正文在渲染后的页面上**看不到**：`theme-scalar` 命中 `scalar` 时不包下层 `DocItem`，
+下面这些正文在渲染后的页面上**看不到**：theme-iframe 那一份 `DocItem` 按注册表命中 `scalar` 时
+把整个 `DocItem` 换成 iframe，
 整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
 - 取的是 `static/openapi.yaml`（构建产物里的 `/openapi.yaml`）：与 stoplight、redoc 那两页同一份
@@ -18,7 +19,7 @@ scalar: /openapi.yaml
 - **形状与 `theme-redoc` 一对一**：这一页放的是一个 `<iframe class="scalar-frame"
 src="/scalar-view?src=%2Fopenapi.yaml">`，`/scalar-view` 是本包自己注册的一条插件路由，构建产物里
   真的有一份 `build/scalar-view/index.html`；跨 iframe 那两格（地址栏里 `#` 那一段、站点的亮暗模式）
-  走 `theme/frame-kit` 那份共享约定，与上面两条层同一份实现。
+  走 `theme/theme-iframe/lib/` 那份共享约定，与上面两条层同一份实现。
 - **差在框内那一页里**：`@scalar/api-reference` 是 Vue 3 的组件，本层用它的非 Vue 宿主入口
   `createApiReference(元素, 配置)` 把它挂进一格 `<div>`，因此不必直接引 `vue`，也不必装 React 包装层。
 - **换文档挡不住它的样式表，那一条防线是厂商自带的**：Scalar 的样式是发布好的静态

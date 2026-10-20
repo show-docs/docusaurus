@@ -11,7 +11,7 @@ import { StoplightView } from '../../components/stoplight-view.tsx';
 //
 // 这一页不套 `@theme/Layout/Provider`：它底下那六个 provider 里本层唯一想要的是
 // `ColorModeProvider`（维护 `<html data-theme>` 并监听 `storage` 事件），而现在亮暗由外层随
-// 那条 postMessage 通道送进来（`components/stoplight-frame.tsx` 送出、
+// 那条 postMessage 通道送进来（theme-iframe 的 `components/api-frame.tsx` 送出、
 // `components/stoplight-view.tsx` 收到后写自己 `<html>` 上那条同名属性），这一层就不需要了。
 // 留下的那五个（公告栏、滚动控制、版本文档、插件类名、导航栏）与这一页无关，
 // 它们各自都要读站点配置，拉进来只是白费。

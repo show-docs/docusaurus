@@ -4,7 +4,7 @@
 // 也有亮暗开关，两处各判各的就打架 —— 实测「站点亮色 + 操作系统深色」时这一页会自己变暗。
 //
 // 这里只做一件事：把暗色表开头那一格换成本层自己那条属性。它的值由外层送进来
-// （共享层 `useOuterFrameSync` 发、`useInnerFrameSync` 收，见 `@show-docs/theme-frame-kit`），
+// （共享层 `useOuterFrameSync` 发、`useInnerFrameSync` 收，见 `@show-docs/docusaurus-theme-iframe/lib/index.ts`），
 // 于是驱动配色的只有一个来源：站点那个开关。
 //
 // 为什么这件事还得在**运行期**改：Redoc 的样式是 styled-components 在运行时插进 `<head>` 的，

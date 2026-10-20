@@ -1,0 +1,23 @@
+/* 外层通用框的基线：`.api-frame` 只收三种浏览器默认（`<iframe>` 默认是 inline、带边框）。
+   高度与正文容器让位**不在这里统一** —— 那些规则按「谁声明边界谁负责」留在各层的类名上
+   （`.redoc-frame` / `.stoplight-frame` / `.scalar-frame`，各自 README 的「尺寸」一节）。
+
+   `.iframe` 与裸 `iframe` 那两条是原 `theme-iframe/components/iframe.css` 的口径，随
+   `iframe:` 层收进这一份文件、一字未改：前者是那一层自己的边界，后者按「这一格里有
+   iframe」匹配 —— 正文里手写的 iframe 也会让承载它的容器去掉内边距，这是那条规则本来就
+   声明的全站边界，不是疏漏。 */
+
+.api-frame {
+  display: block;
+  border: 0;
+}
+
+.iframe {
+  width: 100%;
+  height: calc(100vh - var(--ifm-navbar-height));
+}
+
+.container:has(iframe) {
+  padding: 0 !important;
+  max-width: 100% !important;
+}

@@ -10,7 +10,7 @@ import { ScalarView } from '../../components/scalar-view.tsx';
 //
 // 这一页不套 `@theme/Layout/Provider`：留下的那六个 provider（公告栏、滚动控制、亮暗、
 // 版本文档、插件类名、导航栏）与这一页无关，它们各自都要读站点配置，拉进来只是白费。
-// 亮暗由外层随那条 postMessage 通道送进来（`components/scalar-frame.tsx` 送出、
+// 亮暗由外层随那条 postMessage 通道送进来（theme-iframe 的 `components/api-frame.tsx` 送出、
 // `components/scalar-view.tsx` 收到后落到 Scalar 自己那两个类名上）。
 export default function ScalarPage(): ReactNode {
   return <ScalarView />;

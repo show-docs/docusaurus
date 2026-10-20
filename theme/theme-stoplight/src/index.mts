@@ -1,26 +1,21 @@
 import { createRequire } from 'node:module';
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { LoadContext, Plugin, RouteConfig } from '@docusaurus/types';
+import { createApiFrameTheme } from '@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts';
+
+import type { LoadContext, Plugin } from '@docusaurus/types';
 
 const require = createRequire(import.meta.url);
 
 /** `configureWebpack` 第一个参数的类型：从官方那份签名推出来，本包不直接引 `webpack`。 */
 type WebpackConfig = Parameters<NonNullable<Plugin['configureWebpack']>>[0];
 
-// 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
+// 入口产物所在目录：工厂用它算 `getThemePath()`（层目录里只剩 `StoplightPage`）。
 const thisDir = dirname(fileURLToPath(import.meta.url));
 
-/**
-Elements 那一页挂在哪一条路径上。
-
-这个名字在 `components/stoplight-frame-sync.ts` 里还有一份：那一份拼 iframe 的地址，
-这一份注册路由。两边站在编译边界的两侧（`src/` 经 tsc 进 `dist/`，`components/` 是源码、
-由用本包的站点编译），共享不了，改要一起改。`baseUrl` 不在这里出现两次：
-这一格从 context 取，那一份从 `useDocusaurusContext()` 取，都是站点配置里的同一个值。
-*/
-const STOPLIGHT_VIEW_ROUTE = 'stoplight-view';
+// 本层的包名，同时是注册表与三条 postMessage 的命名空间。
+const STOPLIGHT_NAMESPACE = '@show-docs/docusaurus-theme-stoplight';
 
 /**
 ## Elements 那份静态样式表怎么不进站点那一份 css
@@ -87,14 +82,18 @@ function isolateElementsCss(config: WebpackConfig): void {
   }
 }
 
+/**
+Stoplight 这一层的入口：外层套壳（`DocItem` 判 `oas3:`、那个 `<iframe>`、两条消息循环）
+都在 `@show-docs/docusaurus-theme-iframe`（注册表里那条 `internal` 条目），本包只交出三样 ——
+这条入口、框内那条 `theme/StoplightPage` 页面、`components/` 里 Elements 自己的渲染接线。
+
+路由名、参数名、类名、消息命名空间都取自 theme-iframe 的注册表（配置期与浏览器期同一份
+源码），不再有「编译边界两侧各写一份常量」这件事。
+*/
 export default function theme(context: LoadContext): Plugin {
-  return {
-    name: '@show-docs/docusaurus-theme-stoplight',
-    // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
-    // 项目会用自己的 babel 编译它们。本包要编译的只有这一份入口（它跑在构建配置期）。
-    getThemePath() {
-      return resolve(thisDir, '../theme');
-    },
+  return createApiFrameTheme(context, {
+    namespace: STOPLIGHT_NAMESPACE,
+    selfDir: thisDir,
     configureWebpack(config, isServer, utils) {
       // 这份样式表的边界客户端与服务端都要改（上面那一节的理由）；补 Node 核心模块那几样
       // 只有浏览器 bundle 需要。
@@ -139,20 +138,5 @@ export default function theme(context: LoadContext): Plugin {
         },
       };
     },
-    contentLoaded({ actions }) {
-      // 给 Elements 用的那一个**独立页面**：它不是文档页，没有 frontmatter 可判，所以走官方
-      // 那条插件路由 API（和 `theme-search-algolia` 注册搜索页、本层兄弟 `theme-redoc`
-      // 同一形状）。命中 `oas3:` 的文档页把这个地址嵌进 iframe，Elements 的运行时（它自己的
-      // 路由、它的 localStorage 与它那份 `<link>` 的样式表）就整个关在框里那份文档内，
-      // 站点的文档页一行都碰不到 —— 所以本层**不再**需要构建期把样式圈进某个容器。
-      //
-      // `component` 写别名而不是绝对路径：`theme/` 由 `getThemePath()` 挂进 `@theme/*`，
-      // 打包器按这个别名找得到，站点那边的 swizzle 也还能覆写它。
-      actions.addRoute({
-        path: `${context.siteConfig.baseUrl.replace(/\/$/, '')}/${STOPLIGHT_VIEW_ROUTE}`,
-        component: '@theme/StoplightPage',
-        exact: true,
-      } satisfies RouteConfig);
-    },
-  };
+  });
 }

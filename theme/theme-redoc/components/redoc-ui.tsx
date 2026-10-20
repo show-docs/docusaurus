@@ -70,7 +70,7 @@ export function RedocUI(props: Props) {
   // `RedocStandalone` 自己不带 `router` 选项，它只在**没有外层路由**时补一个按路径的
   // `BrowserRouter`。地址改成 `#/…` 之后有两处对上：框内这一页换成另一条接口不会重新加载
   // 整份文档；外层那条能分享的地址（`/redoc-demo#/orders/createorder`）里 hash 不参与取文件，
-  // 产物有这一页，托管侧回 200 —— 两边怎么把那一段对齐记在 `redoc-frame-sync.ts`。
+  // 产物有这一页，托管侧回 200 —— 两边怎么把那一段对齐记在 theme-iframe 的 `docs/iframe-protocol.md`。
   // `basePath` 也不用传了：hash 里只剩 `/orders/…`，`RedocStandalone` 默认的 `/` 就对。
   //
   // `react-router` 必须与 `redoc` 内部用的是**同一个模块实例**，否则它那句

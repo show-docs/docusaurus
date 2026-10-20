@@ -22,7 +22,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@show-docs/theme-frame-kit": "workspace:^",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "@stoplight/elements": "^9.0.24",
     "buffer": "^6.0.3",
     "process": "^0.11.10",

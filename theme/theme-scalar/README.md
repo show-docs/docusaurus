@@ -5,43 +5,45 @@
 `@scalar/api-reference`（Vue 3 组件）渲染的 OpenAPI 文档跑在那一份文档里。
 
 形状与 [`theme-redoc`](../theme-redoc/README.md)、[`theme-stoplight`](../theme-stoplight/README.md)
-是一对一的（入口声明层目录、层里的 `DocItem` 判 frontmatter、命中就换成一个框、跨文档那两格走
-[`theme/frame-kit`](../frame-kit/README.md) 那份共享约定）。差的不是形状，是**渲染器怎么挂**和
+是一对一的，而且**外层那一半三家共用一份**：判 `scalar:` 的 `DocItem`、那个 `<iframe>`、地址拼装
+与跨文档那两格的循环都住在 [`theme-iframe`](../theme-iframe/README.md)（键与形状登记在它的
+[`lib/api-frame-registry.ts`](../theme-iframe/lib/api-frame-registry.ts)，口径见
+[`docs/iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)），本包只剩入口那一次工厂调用与
+**框内那一页**。差的不是形状，是**渲染器怎么挂**和
 **样式怎么落地**这两格：
 
 - Scalar 是 Vue 组件，本层用那份面向非 Vue 宿主的 `createApiReference(元素, 配置)` 把它挂进一格
   `<div>`，因此不直接引 `vue`、也不装 React 包装层；
 - 它的样式表是**发布好的静态文件**（`@scalar/api-reference/style.css`，335 KB 的 Tailwind 4 编译
   产物），不是 Redoc 那种运行期注入的表 —— 静态文件会被并进全站那一份 css，**iframe 拦不住它**。
-  这一格与 `theme-stoplight` 同类，但结论相反：那条层要在构建期给选择器加前缀，这一层不用动手，
+  这一格与 `theme-stoplight` 同类，但结论相反：那条层要在构建期把它的静态样式表**请出**全站那一份
+  （当资源发出去，由框内那份文档自己挂 `<link>`），这一层不用动手，
   因为 Scalar 出厂时每条规则已经带着 `.scalar-app` 那层前缀了（实测与理由见「样式」一节）；
 - 它的亮暗判据是 `<body>` 上**两个互斥的类名**，不是属性（redoc 与 stoplight 那两层都是属性），
   所以共享层那条 `mode` 消息在这一层交的是 `onMode` 回调而不是属性名。
 
 ## 组成
 
-| 文件                              | 编译吗              | 职责                                                                                                                                                                                                                    |
-| --------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                   | ✅ `src/` → `dist/` | 入口：`getThemePath()` 指向包根的 `theme/`，`contentLoaded()` 用 `addRoute` 注册 `/scalar-view` 那一条页面，`configureWebpack()` 只做一件事：按住 Scalar 那条动态 `import` 的构建告警（见「随这一层多出来的构建告警」） |
-| `theme/DocItem/index.tsx`         | ❌ 站点编译         | 层里的组件：命中 `scalar` 时整页换成那一个 iframe（`ScalarFrame`），没命中就交回下层 `DocItem`                                                                                                                          |
-| `theme/ScalarPage/index.tsx`      | ❌ 站点编译         | 那条插件路由落到的组件：只放 `ScalarView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                                                                                        |
-| `components/scalar-frame.tsx`     | ❌ 站点编译         | **外层**文档页里那一格：算 iframe 的 `src`，把 ref、本层那份消息约定与站点当前的亮暗交给共享层的 `useOuterFrameSync`                                                                                                    |
-| `components/scalar-frame.css`     | ❌ 站点编译         | 外层那一格的版式：框定高占满 navbar 以下那一屏、正文容器去掉内边距与最大宽度（与 redoc / stoplight 同形，站点那侧的版式不动，见「宽度」一节）                                                                           |
-| `components/scalar-frame-sync.ts` | ❌ 站点编译         | 本层专属的那四个名字（消息命名空间、框内那条路由的路径、spec 那一条查询参数名、iframe 的类名）；地址怎么拼、消息怎么造都在共享层                                                                                        |
-| `components/scalar-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Scalar，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`（这里交 `onMode`，不是属性名）                                                                 |
-| `components/scalar-ui.tsx`        | ❌ 站点编译         | 浏览器端 `createApiReference(元素, 配置)` 挂上去，卸载时 `destroy()`；两头的地址各走一条路（框内 → 外层听 `onSidebarClick`，外层 → 框内把 `hashchange` 转成 `popstate`）                                                |
-| `components/scalar-color-mode.ts` | ❌ 站点编译         | 亮暗落地的两个小函数：挂载那一刻交给 Scalar 的布尔、收到外层送的值就换 `<body>` 上那两个类名                                                                                                                            |
-| `components/scalar-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Scalar 送出来的那条署名与推广位、那颗只在本地地址冒出来的「生成 SDK」（厂商配置里没有这两格；为什么每条都要 `!important`，见「样式」一节）                                                       |
-| `module-aliases.d.ts`             | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                                 |
-| `tsconfig.build.json`             | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                  |
+| 文件                              | 编译吗              | 职责                                                                                                                                                                                                                                                                                   |
+| --------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                   | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/scalar-view` 的注册与 Plugin 形状；本包的 webpack 差异只有一件事——按住 Scalar 那条动态 `import` 的构建告警（`configureWebpack` 里的 `ignoreWarnings`，见「随这一层多出来的构建告警」） |
+| `theme/ScalarPage/index.tsx`      | ❌ 站点编译         | 那条插件路由落到的组件：只放 `ScalarView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                                                                                                                                                       |
+| `components/scalar-frame.css`     | ❌ 站点编译         | 外层那一格的版式：框定高占满 navbar 以下那一屏、正文容器去掉内边距与最大宽度（与 redoc / stoplight 同形，站点那侧的版式不动，见「宽度」一节）；类名取自注册表，进 bundle 的通道是 `scalar-view.tsx` 那一句 import                                                                      |
+| `components/scalar-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Scalar，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`（这里交 `onMode`，不是属性名）                                                                                                                                |
+| `components/scalar-ui.tsx`        | ❌ 站点编译         | 浏览器端 `createApiReference(元素, 配置)` 挂上去，卸载时 `destroy()`；两头的地址各走一条路（框内 → 外层听 `onSidebarClick`，外层 → 框内把 `hashchange` 转成 `popstate`）                                                                                                               |
+| `components/scalar-color-mode.ts` | ❌ 站点编译         | 亮暗落地的两个小函数：挂载那一刻交给 Scalar 的布尔、收到外层送的值就换 `<body>` 上那两个类名                                                                                                                                                                                           |
+| `components/scalar-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Scalar 送出来的那条署名与推广位、那颗只在本地地址冒出来的「生成 SDK」（厂商配置里没有这两格；为什么每条都要 `!important`，见「样式」一节）                                                                                                                      |
+| `module-aliases.d.ts`             | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                                                                                                |
+| `tsconfig.build.json`             | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                                 |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
 
-跨 iframe 的那一套（地址怎么拼、三条消息的形状、来源校验、两侧的监听）**不在本包**，
-在 [`@show-docs/theme-frame-kit`](../frame-kit/README.md)；本包只交出命名空间、路由名、参数名、
-那个类名，以及「值送到框内之后落到哪个元素上」这一格回调。为什么两侧各推一次消息、为什么框内 →
-外层不听 `hashchange`、为什么外层写地址用替换而不是新增，那几条理由记在共享层的 README，
+跨 iframe 的那一套（外层套壳、地址怎么拼、三条消息的形状、来源校验、两侧的监听）**不在本包**，
+在 `@show-docs/docusaurus-theme-iframe`：外层归它的 `DocItem` 与 `components/api-frame.tsx`，
+约定归 [`lib/`](../theme-iframe/lib/index.ts)（口径见 [`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)）；本包交出的只有注册表里那个命名空间，
+以及「值送到框内之后落到哪个元素上」这一格回调。为什么两侧各推一次消息、为什么框内 →
+外层不听 `hashchange`、为什么外层写地址用替换而不是新增，那几条理由记在共享层的文档，
 这里不抄第二遍。
 
 ## 怎么用
@@ -53,7 +55,8 @@ scalar: /openapi.yaml
 ---
 ```
 
-命中时本层**不包下层 `DocItem`**（与 theme-redoc、theme-stoplight、`theme-iframe` 同一落点），
+命中时整页换成那一个 iframe，**不包下层 `DocItem`**（判键与替换都发生在 theme-iframe 那一份
+`DocItem` 里，与 redoc / stoplight / `iframe:` 同一落点），
 所以那一页不会有文档正文外壳、也不会再有导图。
 
 `scalar:` 那个值是**框里那份文档去取哪个地址**，它被编码进 iframe 的 `src`
@@ -74,28 +77,30 @@ Scalar 那份组件在自己渲染时会往 `<body>` 上写类名（亮暗那两
 
 ### 两份文档各管什么
 
-|                 | 外层：站点的文档页（`/scalar-demo`）      | 框内：本包那条页面（`/scalar-view?src=…`）                                   |
-| --------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
-| 本层放的东西    | 一个 `<iframe class="scalar-frame">`      | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference` |
-| Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）  | 全在这里（实测那一份文档里 `.scalar-app` 3 格，布局根只有 1 格）             |
-| 样式表          | 全站那一份 css（**含 Scalar 那 335 KB**） | 同一份 css，外加 Docusaurus 给这一页的几格内联表                             |
-| 亮暗模式        | 站点的 `<html data-theme>`，开关在这      | 自己 `<body>` 上的 `dark-mode` / `light-mode`，值由外层送来                  |
-| 能分享的地址    | 有，`#` 那一段代表当前那条接口            | 有，但那是「直接打开框里那一页」，见「深链」                                 |
+|                 | 外层：站点的文档页（`/scalar-demo`）                                               | 框内：本包那条页面（`/scalar-view?src=…`）                                   |
+| --------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 本层放的东西    | 一个 `<iframe class="scalar-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference` |
+| Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）                                           | 全在这里（实测那一份文档里 `.scalar-app` 3 格，布局根只有 1 格）             |
+| 样式表          | 全站那一份 css（**含 Scalar 那 335 KB**）                                          | 同一份 css，外加 Docusaurus 给这一页的几格内联表                             |
+| 亮暗模式        | 站点的 `<html data-theme>`，开关在这                                               | 自己 `<body>` 上的 `dark-mode` / `light-mode`，值由外层送来                  |
+| 能分享的地址    | 有，`#` 那一段代表当前那条接口                                                     | 有，但那是「直接打开框里那一页」，见「深链」                                 |
 
-`/scalar-view` 是本包在 `contentLoaded()` 里用 `actions.addRoute()` 注册的一条插件路由，
-组件写 `@theme/ScalarPage`（走层栈解析，与本包其它 `@theme/` 覆写同一个口径），`exact: true`。
-构建产物里真的有一份 `build/scalar-view/index.html`（2177 字节），所以 `pnpm serve` 对它回 200。
+`/scalar-view` 是本包入口经 theme-iframe 那份工厂（`lib/api-frame-theme.mts` 的
+`contentLoaded`）用 `actions.addRoute()` 注册的一条插件路由，路由名与组件别名都写在
+theme-iframe 的注册表里，组件是 `@theme/ScalarPage`（走层栈解析，与本包其它 `@theme/` 覆写同一个
+口径），`exact: true`。构建产物里真的有一份 `build/scalar-view/index.html`（2177 字节），所以
+`pnpm serve` 对它回 200。
 
-路径名 `scalar-view` 在 `src/index.mts` 与 `components/scalar-frame-sync.ts` 里各写了一份常量：
-两边站在编译边界两侧（前者进 `dist/`，后者由站点编译），共享不了，**改要一起改**。
+收拢前路径名在 `src/index.mts` 与 `components/scalar-frame-sync.ts` 里各写了一份常量（两边站在
+编译边界两侧，共享不了，改要一起改）；现在注册表那一份源码两侧同引，**只剩一处**。
 
 ### 同源，但每条消息仍然校验
 
 框里那一页是站点自己的一条路由，和外层同一个源，`src` 由本包自己拼，本来不存在跨源信任问题。
 每条消息还是要过 origin 与来源窗口那两格（共享层的 `isTrustedMessage`）：防的是「别人往这一页
 postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?src=…` 是条公开地址，任何人都能手工
-拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`，本层用
-`scalarSpecUrlFromSearch` 转手调它），拿不到就整格什么都不渲染。
+拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`），
+拿不到就整格什么都不渲染。
 
 ## 样式：那份表全站都在，拦不住 —— 但也不用拦
 
@@ -107,7 +112,8 @@ postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?s
 是同一份产物的两次构建对照：去掉那一行 import，站点那一份 css 是 82,841 字节；引上它是
 441,957 字节 —— 净增 359,116 字节，主页与 redoc、markmap 那三页都带着它。这与
 `theme-stoplight` 那一层的处境一模一样：那里 Elements 的静态表也是全站
-一份，iframe 拦不住，所以那一条层在构建期给每条选择器加 `.stoplight-root` 前缀。
+一份，iframe 拦不住，所以那一条层在构建期把那份文件当资源发出去、站点那一份 css 里一条 `.sl-`
+规则都没有（见 `theme-stoplight` README 的「样式」一节）。
 
 **这一层不做那一步，因为 Scalar 出厂就自己做完了。**它那份 Tailwind 编译产物里 1330 条规则的选择器
 都带 `.scalar-app:not(#\#):not(#\#):not(#\#):not(#\#)` 前缀（`important: '.scalar-app'` 那格配置），
@@ -166,7 +172,7 @@ Scalar 自带一套亮暗：判据依次是 `localStorage` 里的 `colorMode` �
 `theme-redoc` / `theme-stoplight` 那两层交给共享层的是**属性名**（`data-redoc-mode` /
 `data-theme`），这一层给的是**回调**：只有 Scalar 用两个互斥类名，一个属性名换不动它。共享层
 `useInnerFrameSync` 的入参因此是一个二选一（`modeAttribute` XOR `onMode`），见
-[`theme/frame-kit` 的 README](../frame-kit/README.md)。
+[`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)。
 
 Scalar 自己那颗左栏底部的亮暗开关用配置收掉：`hideDarkModeToggle: true`（`scalar-ui.tsx`）。
 上面那条 `forceDarkModeState` 也能收掉它（厂商的渲染条件是 `!hideDarkModeToggle &&
@@ -258,7 +264,7 @@ Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上�
 能发给别人的是**外层**那条地址（`/scalar-demo#tag/orders/POST/orders`）。hash 段不参与取文件，
 整页加载它回 200；iframe 的 `src` 里**不**塞那一段（服务端与客户端要算出同一个字符串），
 它靠框里那句 `ready` 换进框内。为什么不是外层在 iframe 的 `load` 事件上推、两侧各推一次的来由，
-记在 [`theme/frame-kit` 的 README](../frame-kit/README.md)。
+记在 [`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)。
 
 有一条跟着 redoc 那一份搬过来的教训，在 Scalar 这一层换了形状但同样成立：**它拿到坏地址不抛异常**，
 而是在正文区打一句 `Document 'api-1' could not be loaded`（实测），页面其余部分照常。判据钉在
@@ -390,9 +396,11 @@ Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上�
 
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 
-`docusaurus.config.mjs` 的 `plugins` 里排在最后（层栈最外），站点根的 `package.json` 声明了
+`docusaurus.config.mjs` 的 `plugins` 里排在最后（这一条先后现在只影响 `@theme/` 层栈的覆写关系；
+四把键的判定顺序住在 theme-iframe 的注册表里，与它无关），站点根的 `package.json` 声明了
 `"@show-docs/docusaurus-theme-scalar": "workspace:^"`。`pnpm build`、`pnpm verify:chain` 与
-`pnpm test:e2e` 都绿（16 条用例，四条是这一层的），层栈里能看到 `theme/theme-scalar/theme`。
+`pnpm test:e2e` 都绿（16 条用例，四条是这一层的），层栈里能看到 `theme/theme-scalar/theme`
+（只剩 `ScalarPage` 那一格）。
 
 已实测到的（都在 `test/e2e/features/scalar.feature` 那四条用例里）：
 

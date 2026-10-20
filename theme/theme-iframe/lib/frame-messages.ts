@@ -88,20 +88,6 @@ export function createFrameMessages(namespace: string): FrameMessages {
 }
 
 /**
-这条消息是不是从 `expectedSource` 那个窗口、同一个源发来的。
-
-两个方向都过这一格：外层只收自己那个 iframe 的，框内只收装载它的父窗口的。别人手工拼进
-地址栏的那一条、以及页面上任何第三方脚本发的消息，都进不到这条路里。
-*/
-export function isTrustedMessage(
-  event: MessageEvent,
-  expectedSource: Window | null,
-  origin: string,
-): boolean {
-  return event.source === expectedSource && event.origin === origin;
-}
-
-/**
 拼框内那一页的地址。
 
 `specUrl` 编码进去，`hash` **不**放进去：iframe 的 `src` 因此只跟 frontmatter 走，服务端与

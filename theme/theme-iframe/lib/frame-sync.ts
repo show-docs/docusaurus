@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { RefObject } from 'react';
 
 import type { FrameColorMode, FrameMessages } from './frame-messages.ts';
-import { isTrustedMessage } from './frame-messages.ts';
+import { isTrustedMessage } from './frame-trust.ts';
 
 /**
 那两条消息循环：外层那份文档里的一个 iframe，与框内那份文档里的渲染器。

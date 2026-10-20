@@ -4,36 +4,37 @@
 自己那条页面（`/redoc-view`），[Redoc](https://github.com/Redocly/redoc) 渲染的 OpenAPI 文档跑在
 那一份文档里。
 
-形状与 [`theme-stoplight`](../theme-stoplight/README.md) 是一对一的（入口声明层目录、层里的
-`DocItem` 判 frontmatter、命中就换成一个框、跨文档那两格走
-[`theme/frame-kit`](../frame-kit/README.md) 那份共享约定），差的三处是：这一格要补的 Node 侧
+形状与 [`theme-stoplight`](../theme-stoplight/README.md)、[`theme-scalar`](../theme-scalar/README.md)
+是一对一的，而且**外层那一半三家共用一份**：判 `redoc:` 的 `DocItem`、那个 `<iframe>`、地址拼装
+与跨文档那两格的循环都住在 [`theme-iframe`](../theme-iframe/README.md)（键与形状登记在它的
+[`lib/api-frame-registry.ts`](../theme-iframe/lib/api-frame-registry.ts)，口径见
+[`docs/iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)），本包只剩入口那一次工厂调用与
+**框内那一页**。差的三处是：这一格要补的 Node 侧
 依赖不一样、它的暗色表挂在 Redoc 自己按操作系统写的类名上（所以要多一个运行期中间件）、
 以及**它的样式表是运行期注入的，所以本层什么都不用做**（都见下）。
 
 ## 组成
 
-| 文件                             | 编译吗              | 职责                                                                                                                                                         |
-| -------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：`getThemePath()` 指向包根的 `theme/`，`configureWebpack()` 补 Node 侧那一格，`contentLoaded()` 用 `addRoute` 注册 `/redoc-view` 那一条页面             |
-| `theme/DocItem/index.tsx`        | ❌ 站点编译         | 层里的组件：命中 `redoc` 时整页换成那一个 iframe（`RedocFrame`），没命中就交回下层 `DocItem`                                                                 |
-| `theme/RedocPage/index.tsx`      | ❌ 站点编译         | 那条插件路由落到的组件：只放 `RedocView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                              |
-| `components/redoc-frame.tsx`     | ❌ 站点编译         | **外层**文档页里那一格：算 iframe 的 `src`，把 ref 与本层那份消息约定交给共享层的 `useOuterFrameSync`（对齐 `#` 段与送亮暗模式都在那一份里）                 |
-| `components/redoc-frame.css`     | ❌ 站点编译         | 外层那一格的尺寸：框定高占满 navbar 以下那一屏，正文容器去掉内边距与最大宽度（见「高度」一节）                                                               |
-| `components/redoc-frame-sync.ts` | ❌ 站点编译         | 本层专属的那三个名字（消息命名空间、框内那条路由的路径、spec 那一条查询参数名）+ iframe 的类名；地址怎么拼、消息怎么造都在共享层                             |
-| `components/redoc-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Redoc，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`                                      |
-| `components/redoc-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `RedocStandalone`（只收地址那一种入参），外面套 `HashRouter` 与 `StyleSheetManager`；`LocationMirror` 把路由变化报给外层                        |
-| `components/redoc-color-mode.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的编译中间件：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到 `<html data-redoc-mode="dark">` 上（见「亮暗模式」一节）              |
-| `components/redoc-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Redoc 自己的三处东西（它那颗亮暗切换按钮、左栏底部的 Redocly 署名、章节标题旁那一整格操作按钮）。高度为什么不写在这里，见「高度」一节 |
-| `module-aliases.d.ts`            | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                      |
-| `tsconfig.build.json`            | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                       |
+| 文件                             | 编译吗              | 职责                                                                                                                                                                                                                  |
+| -------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/redoc-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它（补 `worker_threads` 空模块，见下） |
+| `theme/RedocPage/index.tsx`      | ❌ 站点编译         | 那条插件路由落到的组件：只放 `RedocView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                                                                                       |
+| `components/redoc-frame.css`     | ❌ 站点编译         | 外层那一格的尺寸：框定高占满 navbar 以下那一屏，正文容器去掉内边距与最大宽度（见「高度」一节）；类名取自注册表，进 bundle 的通道是 `redoc-view.tsx` 那一句 import                                                     |
+| `components/redoc-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Redoc，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`                                                                                               |
+| `components/redoc-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `RedocStandalone`（只收地址那一种入参），外面套 `HashRouter` 与 `StyleSheetManager`；`LocationMirror` 把路由变化报给外层                                                                                 |
+| `components/redoc-color-mode.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的编译中间件：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到 `<html data-redoc-mode="dark">` 上（见「亮暗模式」一节）                                                                       |
+| `components/redoc-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Redoc 自己的三处东西（它那颗亮暗切换按钮、左栏底部的 Redocly 署名、章节标题旁那一整格操作按钮）。高度为什么不写在这里，见「高度」一节                                                          |
+| `module-aliases.d.ts`            | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                               |
+| `tsconfig.build.json`            | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
 
-跨 iframe 的那一套（地址怎么拼、三条消息的形状、来源校验、两侧的监听）**不在本包**，
-在 [`@show-docs/theme-frame-kit`](../frame-kit/README.md)；本包只交出命名空间、路由名、参数名和
-那个类名，以及 iframe 那一格自己的尺寸。为什么两侧各推一次消息、为什么框内 → 外层不听
-`hashchange`、为什么外层写地址用替换而不是新增，那几条理由记在共享层的 README，这里不抄第二遍
+跨 iframe 的那一套（外层套壳、地址怎么拼、三条消息的形状、来源校验、两侧的监听）**不在本包**，
+在 `@show-docs/docusaurus-theme-iframe`：外层归它的 `DocItem` 与 `components/api-frame.tsx`，
+约定归 [`lib/`](../theme-iframe/lib/index.ts)（口径见 [`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)）；本包交出的只有注册表里那个命名空间、iframe 那一格自己的尺寸，
+以及「值送到框内之后落到哪条属性上」这一格。为什么两侧各推一次消息、为什么框内 → 外层不听
+`hashchange`、为什么外层写地址用替换而不是新增，那几条理由记在共享层的文档，这里不抄第二遍
 —— 只有**在 Redoc 这一层实测到的那一次**（见「深链」一节）留在这里。
 
 ## 怎么用
@@ -45,7 +46,8 @@ redoc: /openapi.yaml
 ---
 ```
 
-命中时本层**不包下层 `DocItem`**（与 theme-stoplight、`theme-iframe` 同一落点），
+命中时整页换成那一个 iframe，**不包下层 `DocItem`**（判键与替换都发生在 theme-iframe 那一份
+`DocItem` 里，与 stoplight / scalar / `iframe:` 同一落点），
 所以那一页不会有文档正文外壳、也不会再有导图。要「其它页照常、这页是 API 文档」就是这个位置。
 
 `redoc:` 那个值现在是**框里那份文档去取哪个地址**，它被编码进 iframe 的 `src`
@@ -67,29 +69,30 @@ iframe 的边界是浏览器给的，不是靠枚举规则拼出来的：框里�
 
 ### 两份文档各管什么
 
-|                | 外层：站点的文档页（`/redoc-demo`）  | 框内：本包那条页面（`/redoc-view?src=…`）          |
-| -------------- | ------------------------------------ | -------------------------------------------------- |
-| 本层放的东西   | 一个 `<iframe class="redoc-frame">`  | `RedocUI`，即 `.redoc-root` 那一格                 |
-| Redoc 的运行时 | 不加载，一行都没有                   | 全在这里                                           |
-| 样式表         | 站点的产物 CSS                       | 站点的产物 CSS + Redoc 运行期那张表                |
-| 亮暗模式       | 站点的 `<html data-theme>`，开关在这 | 自己 `<html>` 上的 `data-redoc-mode`，值由外层送来 |
-| 能分享的地址   | 有，`#` 那一段代表当前那条接口       | 有，但那是「直接打开框里那一页」，见「深链」       |
+|                | 外层：站点的文档页（`/redoc-demo`）                                               | 框内：本包那条页面（`/redoc-view?src=…`）          |
+| -------------- | --------------------------------------------------------------------------------- | -------------------------------------------------- |
+| 本层放的东西   | 一个 `<iframe class="redoc-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `RedocUI`，即 `.redoc-root` 那一格                 |
+| Redoc 的运行时 | 不加载，一行都没有                                                                | 全在这里                                           |
+| 样式表         | 站点的产物 CSS                                                                    | 站点的产物 CSS + Redoc 运行期那张表                |
+| 亮暗模式       | 站点的 `<html data-theme>`，开关在这                                              | 自己 `<html>` 上的 `data-redoc-mode`，值由外层送来 |
+| 能分享的地址   | 有，`#` 那一段代表当前那条接口                                                    | 有，但那是「直接打开框里那一页」，见「深链」       |
 
-`/redoc-view` 是本包在 `contentLoaded()` 里用 `actions.addRoute()` 注册的一条插件路由，
-组件写 `@theme/RedocPage`（走层栈解析，与本包其它 `@theme/` 覆写同一个口径），`exact: true`。
+`/redoc-view` 是本包入口经 theme-iframe 那份工厂（`lib/api-frame-theme.mts` 的 `contentLoaded`）
+用 `actions.addRoute()` 注册的一条插件路由，路由名与组件别名都写在 theme-iframe 的注册表里，
+组件是 `@theme/RedocPage`（走层栈解析，与本包其它 `@theme/` 覆写同一个口径），`exact: true`。
 构建产物里真的有一份 `build/redoc-view/index.html`，所以 `pnpm serve` 对它回 200。
 
-路径名 `redoc-view` 在 `src/index.mts` 与 `components/redoc-frame-sync.ts` 里各写了一份常量：
-两边站在编译边界两侧（前者进 `dist/`，后者由站点编译），共享不了，**改要一起改**。
+收拢前路径名在 `src/index.mts` 与 `components/redoc-frame-sync.ts` 里各写了一份常量（两边站在
+编译边界两侧，共享不了，改要一起改）；现在注册表那一份源码两侧同引，**只剩一处**。
 
 ### 同源，但每条消息仍然校验
 
 框里那一页是站点自己的一条路由，和外层同一个源，`src` 由本包自己拼，本来不存在跨源信任问题。
 每条消息还是要过 origin 与来源窗口那两格（共享层的 `isTrustedMessage`）：防的是「别人往这一页
 postMessage」时不被当成自家消息，而不是防自己。`/redoc-view?src=…` 是条公开地址，任何人都能
-手工拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`，
-本层用 `redocSpecUrlFromSearch` 转手调它），拿不到就整格什么都不渲染。这两格与亮暗、地址那两条
-监听一道住在 [`theme/frame-kit`](../frame-kit/README.md)，三条层共用同一份。
+手工拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`），
+拿不到就整格什么都不渲染。这两格与亮暗、地址那两条
+监听一道住在 [`theme/theme-iframe/lib/`](../theme-iframe/docs/iframe-protocol.md)，三条层共用同一份。
 
 ## 浏览器 bundle 要补的那一格 Node 侧依赖
 
@@ -185,8 +188,8 @@ Redoc 自带一套亮暗，判据是它自己的：读 `matchMedia('(prefers-col
 navbar 那颗按钮点的是**外层**文档的 `<html data-theme>`，而配色在**框内**那份文档里，所以这一格
 要跨文档送一个值。**送与收都住在共享层**：外层 `useOuterFrameSync` 读调用方给它的 `useColorMode()`
 结果推 `mode`，框内 `useInnerFrameSync` 收到后按调用方给的属性名写到自己 `<html>` 上
-（`@show-docs/theme-frame-kit`，见它的 README；本层交出的是 `data-redoc-mode` 与那份以包名做
-前缀的消息约定 `redocFrameMessages`）。为什么这条属性不直接叫 `data-theme` ——
+（源码在 `@show-docs/docusaurus-theme-iframe` 的 [`lib/`](../theme-iframe/lib/index.ts)，口径见 [`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)；本层交出的是属性名
+`data-redoc-mode`，三条消息的名字由共享层按命名空间（本包的包名）现造）。为什么这条属性不直接叫 `data-theme` ——
 `theme-stoplight` 那边就叫这个，因为 Elements 的暗色表本来就挂在这条属性上，搬过去就地生效；
 Redoc 的暗色表挂在它自己按操作系统写的 `:root.dark` 上，本层要改的是它的生效条件（上面那一节），
 开一条自己的属性才不会和那份加载时写死的 `data-theme` 混在一起。落地是这样的：
@@ -326,10 +329,10 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 那一段得送进另一份文档去。
 
 **四个方向各走哪条路、为什么这么走，记在
-[`theme/frame-kit` 的 README](../frame-kit/README.md) 的「四个方向各走一条路」一节**，
-两条形同这一层（`theme-stoplight` 那条也是这一套）。本层交出去的只有名字：命名空间
-`@show-docs/docusaurus-theme-redoc`、路由 `redoc-view`、参数 `src`，拼地址走 `redocViewSrc()`
-（它转手调共享层的 `frameViewSrc()`，`src` 里只编码 spec，不编码 hash）。
+[`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md) 的「四个方向各走一条路」一节**，
+两条形同这一层（`theme-stoplight`、`theme-scalar` 两条也是这一套）。本层的名字（命名空间
+`@show-docs/docusaurus-theme-redoc`、路由 `redoc-view`、参数 `src`）登记在 theme-iframe 的
+注册表里，拼地址走它的 `ApiFrame`（内部调共享层的 `frameViewSrc()`，`src` 里只编码 spec，不编码 hash）。
 
 这里留下只属于 Redoc 这一层的两条实测：
 
@@ -387,7 +390,7 @@ hash，也不该有人拿它当分享链接 —— 这一条另有用例钉「�
   那批变量与站点自己用到的 `var(…)` 实测零重名。
 - **亮暗模式要跨两份文档**：靠的是共享层那条 `mode` 消息（外层读 `useColorMode()` 交给
   `useOuterFrameSync` 送进来，见「亮暗模式」一节与
-  [`theme/frame-kit` 的 README](../frame-kit/README.md)），不是框架的存储同步。代价是这一格只有一个
+  [`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)），不是框架的存储同步。代价是这一格只有一个
   来源：**框里那份文档自己不再判断模式**。直接打开 `/redoc-view?src=…`（没有外层给它送）时，那条属性始终是空的，也就一直是亮色；
   这一条与「那条地址不该发给别人」是同一件事（见上面「两份文档各管什么」）。本站的默认模式是
   亮色，所以「那一句送达之前先亮一下」在站点这一侧看不出来；把 `themeConfig.colorMode` 的
@@ -411,9 +414,11 @@ hash，也不该有人拿它当分享链接 —— 这一条另有用例钉「�
 
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 
-`docusaurus.config.mjs` 的 `plugins` 里排在最后（层栈最外），站点根的 `package.json` 声明了
-`"@show-docs/docusaurus-theme-redoc": "workspace:^"`。`pnpm build`、`pnpm verify:chain` 与
-`pnpm test:e2e` 都绿，层栈里能看到 `theme/theme-redoc/theme`。
+`docusaurus.config.mjs` 的 `plugins` 里在 scalar 之前、stoplight 之后（这一条先后现在只影响
+`@theme/` 层栈的覆写关系；四把键的判定顺序住在 theme-iframe 的注册表里，与它无关），站点根的
+`package.json` 声明了 `"@show-docs/docusaurus-theme-redoc": "workspace:^"`。`pnpm build`、
+`pnpm verify:chain` 与 `pnpm test:e2e` 都绿，层栈里能看到 `theme/theme-redoc/theme`（只剩
+`RedocPage` 那一格）。
 
 已实测到的（都在 `test/e2e/features/redoc.feature` 那四条用例里）：
 

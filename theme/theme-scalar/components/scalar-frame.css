@@ -1,5 +1,6 @@
-/* 外层文档页里那一个框的版式（类名由 `scalar-frame-sync.ts` 那一份常量给出）。
-   这一份 CSS 与框内那份（`scalar-ui.css`）分别站在 iframe 的两侧，各管各的文档。
+/* 外层文档页里那一个框的版式（类名 `scalar-frame` 由 theme-iframe 的注册表给出，外层套壳
+   也归那一个包；这一份 CSS 与框内那份（`scalar-ui.css`）分别站在 iframe 的两侧，各管各的
+   文档，进 bundle 的通道是 `scalar-view.tsx` 那一句 import）。
 
    高度取 `100vh - var(--ifm-navbar-height)`，与 theme-iframe / theme-redoc / theme-stoplight
    三层同一条式子：滚动条长在**框内那份文档**上，那份文档没有 navbar，整屏都是它的，

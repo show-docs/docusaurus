@@ -11,7 +11,7 @@ import { RedocView } from '../../components/redoc-view.tsx';
 // 这一页不套 `@theme/Layout/Provider`。改造过程中它一度是必需的，为的是它底下那六个 provider
 // 里的 `ColorModeProvider`：那个 provider 维护 `<html data-theme>` 并监听 `storage` 事件，
 // 外层点一下亮暗开关，框内这一份靠同源 localStorage 跟着翻。现在亮暗由外层随那条
-// postMessage 通道送进来（`components/redoc-frame.tsx` 送出、`components/redoc-view.tsx`
+// postMessage 通道送进来（theme-iframe 的 `components/api-frame.tsx` 送出、`components/redoc-view.tsx`
 // 收到后写自己 `<html>` 上的属性），这一层就不需要了。留下的那五个（公告栏、滚动控制、
 // 版本文档、插件类名、导航栏）与这一页无关，它们各自都要读站点配置，拉进来只是白费。
 export default function RedocPage(): ReactNode {

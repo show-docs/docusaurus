@@ -315,8 +315,8 @@ Redoc 自带一套亮暗模式，判据是**操作系统**的偏好（`matchMedi
 
 本层在运行期把 `:root.dark` 改挂到 `:root[data-redoc-mode="dark"]`（`redoc-color-mode.ts`），
 于是站点那个开关成为唯一的驱动。改造之后多出一格：那个开关写在**外层**文档的 `<html>` 上，
-而配色在**框内**那份文档里 —— 这一格由共享那条 postMessage 通道接（`theme/frame-kit`：
-外层 `redoc-frame.tsx` 送、框内 `redoc-view.tsx` 收，收下来往自己 `<html>` 上写那条属性）。
+而配色在**框内**那份文档里 —— 这一格由共享那条 postMessage 通道接（`theme/theme-iframe/lib/`：
+外层（theme-iframe 的 `api-frame.tsx`）送、框内 `redoc-view.tsx` 收，收下来往自己 `<html>` 上写那条属性）。
 框内那份文档不挂站点的 `ColorModeProvider`，站点那条 `data-theme` 在这里只是加载时内联脚本
 写死的一份、没人维护，本层不读它。
 

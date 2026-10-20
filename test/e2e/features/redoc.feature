@@ -43,7 +43,7 @@ Feature: theme-redoc
   # （`<html data-theme>`），两处各切各的就打架 —— 实测「站点亮色 + 操作系统深色」时这一页会
   # 自己变暗。本层把暗色表改挂在框内那份文档自己的 `<html data-redoc-mode>` 上（见包 README 的
   # 「亮暗模式」一节）；那个值写在**外层**文档上，要靠本层那条 postMessage 通道送进框内 ——
-  # 框里那份文档不挂站点的 color mode provider，见 `components/redoc-frame.tsx`。
+  # 框里那份文档不挂站点的 color mode provider，见 theme-iframe 的 `components/api-frame.tsx`。
   Scenario: 亮暗模式跟站点走，不跟操作系统走
     Given 我按操作系统的深色偏好打开 redoc 示例页
     Then 站点的亮暗模式不受操作系统影响

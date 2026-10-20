@@ -91,7 +91,7 @@ export function StoplightUI(props: Props) {
   // `useInRouterContext()` 决定要不要自建一个路由 —— 我们给它一个，它就不自建，
   // 于是「框里换一条接口」只是这一份文档里的一次 hash 变化，整份文档不重新加载，
   // 而且外层那条能分享的地址（`/stoplight-demo#/operations/createOrder`）里
-  // hash 不参与取文件，托管侧回 200。两边怎么对齐记在 `stoplight-frame-sync.ts`。
+  // hash 不参与取文件，托管侧回 200。两边怎么对齐记在 theme-iframe 的 `docs/iframe-protocol.md`。
   //
   // `react-router-dom` 必须与 `@stoplight/elements-core` 内部用的是**同一个模块实例**，否则
   // 那句 `useInRouterContext()` 读不到这里的 context，它还是会自己再造一个路由；那时

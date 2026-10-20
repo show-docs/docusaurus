@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@scalar/api-reference": "^1.75.0",
-    "@show-docs/theme-frame-kit": "workspace:^"
+    "@show-docs/docusaurus-theme-iframe": "workspace:^"
   },
   "peerDependencies": {
     "@docusaurus/theme-common": "^3.10.2",
