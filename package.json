@@ -73,5 +73,17 @@
     "node": "^24.0.0",
     "pnpm": "^12.10.1"
   },
+  "browserslist": {
+    "development": [
+      "last 3 chrome version",
+      "last 3 firefox version",
+      "last 3 safari version"
+    ],
+    "production": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
   "prettier": "@nice-move/all-in-react/prettier"
 }
