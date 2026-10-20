@@ -63,16 +63,17 @@ URL 的算法（`getURL`）分三步，只有浏览器端才会全走完：
 
 ## 放在层栈的哪一处
 
-本包覆盖的是 `DocItem`，与 `theme-markmap`、`theme-stoplight`、`theme-redoc` 同一个键，
-`plugins` 里的先后因此会改变结果：越靠外的一层先判自己那个键。
+本包覆盖的是 `DocItem`，与 `theme-markmap`、`theme-stoplight`、`theme-redoc`、`theme-scalar`
+同一个键，`plugins` 里的先后因此会改变结果：越靠外的一层先判自己那个键。
 
 - 与 `theme-markmap` **并存**：那一层把导图插在 `DocItem` 前面，本层换的是它插进去包着的
   那一格 `DocItem`，所以同一页两个键都命中时两样都在（导图在上、iframe 在下；按机制说的，
   站点没有这样一页，未实测）。
-- 与 `theme-stoplight`、`theme-redoc` **互斥**：那两层排在本站配置里本层之外，命中
-  `oas3:` / `redoc:` 时不包下层 `DocItem`，本层轮不到 —— 同一页同时写两个键时只有更外那层出现。
+- 与 `theme-stoplight`、`theme-redoc`、`theme-scalar` **互斥**：那三层排在本站配置里本层之外，
+  命中 `oas3:` / `redoc:` / `scalar:` 时不包下层 `DocItem`，本层轮不到 ——
+  同一页同时写两个键时只有更外那层出现。
 
-> **落点为什么是 `DocItem`**：这一层命中时**不包**下层 `DocItem`，与上面两层同形。
+> **落点为什么是 `DocItem`**：这一层命中时**不包**下层 `DocItem`，与上面三层同形。
 > 早期版本落在 `DocItem/Content`，为的是保住文档外壳；那时踩过一个坑——官方 `DocItem` 渲染的是
 > `<DocItemLayout><MDXComponent /></DocItemLayout>`，`MDXComponent` 就是它的 `props.content`，
 > **`props.children` 它一个字都不读**，把 iframe 当 children 塞给 `DocItem` 会静默丢掉

@@ -111,24 +111,41 @@ export function useOuterFrameSync(options: {
 /**
 挂在**框内**那份文档里：起来第一件事向外层要那两格，之后接住外层送来的两条。
 
-- `mode`：写到这一份文档自己 `<html>` 的那条属性上（属性名由调用方给）。这一份文档不套
-  Docusaurus 的 `ColorModeProvider`，站点那条 `data-theme` 在这里只是加载时内联脚本写死的
+- `mode`：落到这一份文档自己身上，落法由各层给（见 {@link InnerFrameSyncOptions} 那两条）。
+  这一份文档不套 Docusaurus 的 `ColorModeProvider`，站点那条 `data-theme` 在这里只是加载时内联脚本写死的
   一份、没人维护，所以本层不读它，两边不会打架。第一次送达之前这一格是空的，也就是亮色：
   本站的默认模式是亮色，而送达不靠谁先起来（两边各推一次，见上面那段）。站点把默认模式
   改成暗色时，这一格会先亮一下再翻过去。
-- `route`：改 `window.location.hash`。这一步会触发 `hashchange`，渲染器自己的路由把它当成
-  一次浏览器导航收下，于是换到那条接口而整份文档不重新加载。整页加载一条深链时那一段
-  也是这么进来的：框里起来先向外层要一次。
+- `route`：改 `window.location.hash`。这一步会触发 `hashchange`；渲染器认不认这一格是各家的事
+  （Redoc 与 Elements 的路由按它走，Scalar 只听 `popstate`，转换写在那一层的 `scalar-ui.tsx`），
+  于是换到那条接口而整份文档不重新加载。整页加载一条深链时那一段也是这么进来的：
+  框里起来先向外层要一次。
 
 反方向（框内 → 外层）**不在这里**：那要听渲染器自己报，理由是每个渲染器换接口走的是
 `history.pushState`，它**不触发** `hashchange`，监听那个事件收不到 —— 见
 {@link createRouteReporter}。
 */
-export function useInnerFrameSync(options: {
-  messages: FrameMessages;
-  modeAttribute: string;
-}): void {
-  const { messages, modeAttribute } = options;
+export type InnerFrameSyncOptions = { messages: FrameMessages } & (
+  | {
+      /**
+      把收到的亮暗写成这一份文档 `<html>` 上的**一条属性**（属性名由调用方给）。
+      Redoc 与 Elements 那一类按属性判亮暗的渲染器用这一格。
+      */
+      modeAttribute: string;
+      onMode?: undefined;
+    }
+  | {
+      /**
+      这一格的落法由调用方自己决定：渲染器不按属性判亮暗时用它那一格。
+      Scalar 换的是 `<body>` 上互斥的**两个类名**（`dark-mode` / `light-mode`），就用这一条。
+      */
+      modeAttribute?: undefined;
+      onMode: (mode: FrameColorMode) => void;
+    }
+);
+
+export function useInnerFrameSync(options: InnerFrameSyncOptions): void {
+  const { messages, modeAttribute, onMode } = options;
 
   useEffect(() => {
     const { origin } = window.location;
@@ -138,7 +155,16 @@ export function useInnerFrameSync(options: {
         return;
       }
       if (messages.isMode(event.data)) {
-        document.documentElement.setAttribute(modeAttribute, event.data.mode);
+        if (onMode) {
+          onMode(event.data.mode);
+          return;
+        }
+        // 走到这一格就说明上面那条没给，类型上 `modeAttribute` 必在 —— 但解构出来的两个成员
+        // 不会跟着 `options` 一起收窄，所以要这一句转述（不是运行期的兜底）。
+        document.documentElement.setAttribute(
+          modeAttribute as string,
+          event.data.mode,
+        );
         return;
       }
       if (
@@ -156,15 +182,15 @@ export function useInnerFrameSync(options: {
     return () => {
       window.removeEventListener('message', onMessage);
     };
-  }, [messages, modeAttribute]);
+  }, [messages, modeAttribute, onMode]);
 }
 
 /**
 造一个「把这一份文档地址里那一段报给外层」的函数（框内 → 外层那一条）。
 
-为什么由调用方在渲染器换接口的时候报，而不是这里监听 `hashchange`：两个渲染器（Redoc 的
-路由、Elements 的路由）换地址走的都是 `history.pushState`，那个方法**不触发** `hashchange`
-（那个事件只由改 `location.hash`、点锚点链接、前进/后退这几条路触发）。实测都是这条：
+为什么由调用方在渲染器换接口的时候报，而不是这里监听 `hashchange`：三个渲染器（Redoc 的路由、
+Elements 的路由、Scalar 自己那一条）换地址走的都是 `history.pushState`，那个方法**不触发**
+`hashchange`（那个事件只由改 `location.hash`、点锚点链接、前进/后退这几条路触发）。实测都是这条：
 框里点一条接口，`location.hash` 变了、渲染器认到了，`hashchange` 一次都没进来。
 
 返回的函数只读 `window`，调用方可以在模块级造一份稳定的，不必每次渲染新建。

@@ -216,7 +216,8 @@ Elements 这一版没有给用户看的亮暗切换按钮（`theme-redoc` 那边
 
 同一条规则里还收掉了页脚（`.main-wrapper:has(.stoplight-frame) + .footer`）：框已经占满 navbar
 以下那一屏，页脚留在下面只会被推出可视区，显式收掉与「整页交给 Elements」的观感一致。
-`theme-redoc` 那一层没有这一条（它留着，实测落在可视区之外），两条层的这处差别是本层自己的取舍。
+`theme-redoc` 与 `theme-scalar` 那两层没有这一条（页脚留着，redoc 那层实测落在可视区之外），
+三条 API 层里只有本层收掉它，这一处差别是本层自己的取舍。
 
 **框内**（`stoplight-ui.css`）：`.stoplight-root` **也**定高，取 `100vh`。这一点与
 `theme-redoc` 正好相反，原因是两个渲染器的滚动模型不一样：Elements 自带内层滚动（左栏与右侧正文

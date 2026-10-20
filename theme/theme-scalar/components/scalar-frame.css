@@ -1,0 +1,40 @@
+/* 外层文档页里那一个框的版式（类名由 `scalar-frame-sync.ts` 那一份常量给出）。
+   这一份 CSS 与框内那份（`scalar-ui.css`）分别站在 iframe 的两侧，各管各的文档。
+
+   高度取 `100vh - var(--ifm-navbar-height)`，与 theme-iframe / theme-redoc / theme-stoplight
+   三层同一条式子：滚动条长在**框内那份文档**上，那份文档没有 navbar，整屏都是它的，
+   外层这一格给多高它就占多高，两层滚动容器各滚各的文档，互不打扰。 */
+
+.scalar-frame {
+  display: block;
+  border: 0;
+  width: 100%;
+  height: calc(100vh - var(--ifm-navbar-height));
+}
+
+/* 整页交给这个框时，正文容器的内边距与最大宽度都不要了（这条与 redoc、stoplight 两层同形，
+   只是选择器换成认本包那个类名 —— 站点上任何 iframe 都会命中 `.container:has(iframe)`
+   那一格，那是 theme-iframe 那层自己声明的边界，本层不复用它。 */
+
+.container:has(.scalar-frame) {
+  padding: 0 !important;
+  max-width: unset !important;
+}
+
+/* Scalar 的左栏要不要显示，是它自己那张表里的一条媒体查询（实测门槛 1024 CSS px，落在框内那份
+   文档的视口宽度上）。宽度不够，整套 API 导航就收成一颗「Open Menu」抽屉 —— redoc 与 stoplight
+   在 980 这一档还有自己的左栏，Scalar 没有。所以本层比那两层多让一步：把站点这一侧的文档侧栏
+   （Docusaurus 自己那根 `--doc-sidebar-width`，侧栏的宽与正文的 `max-width: calc(100% - 它)`
+   都从它取值）在这种页面上收到 0，让框拿到 navbar 以下的整幅。
+   实测 1280 视口：不改这条，框 980 宽、Scalar 是抽屉形态；改了，框 1280 宽、左栏 288 加正文。
+   代价是这一页里没有站点的页面列表，去别处走 navbar。 */
+
+body:has(.scalar-frame) {
+  --doc-sidebar-width: 0px;
+}
+
+/* 宽度归零后 `.theme-doc-sidebar-container` 那条 1px 右边框会在正文左边剩一条竖线。 */
+
+body:has(.scalar-frame) .theme-doc-sidebar-container {
+  border-right: 0;
+}

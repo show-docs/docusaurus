@@ -23,24 +23,25 @@ Then('浏览器里没有运行期错误', async ({ page }) => {
 });
 
 /**
-命中整页替换那三层（`theme-iframe` 判 `iframe:`、`theme-stoplight` 判 `oas3:`、
-`theme-redoc` 判 `redoc:`）时，本层**不包**下层 `DocItem`，所以那一页连文档正文外壳都没有。
-三层判的是同一件事，句子就一份。
+命中整页替换那四层（`theme-iframe` 判 `iframe:`、`theme-stoplight` 判 `oas3:`、
+`theme-redoc` 判 `redoc:`、`theme-scalar` 判 `scalar:`）时，本层**不包**下层 `DocItem`，
+所以那一页连文档正文外壳都没有。四层判的是同一件事，句子就一份。
 */
 Then('这一页没有文档正文外壳', async ({ page }) => {
   await expect(page.locator('article'), '整页没交给外部渲染器').toHaveCount(0);
 });
 
 /**
-## 「亮暗跟站点走」那三步，两层共用
+## 「亮暗跟站点走」那三步，三层共用
 
-`theme-redoc` 与 `theme-stoplight` 各钉一条同形状的场景：站点自己的开关是唯一的驱动，
-操作系统的偏好不算数，而且换配色不该把框内那份文档重新加载。这三步量的都是**跨 iframe 边界**
-那一条消息通道（实现见 `theme/frame-kit`），两边读同一处信号 —— 它在框内那份文档的 `<html>` 上，
-两处读数各自的含义见 `../helpers.mts` 里 `frameModeSignal` 那一段。
+`theme-redoc`、`theme-stoplight` 与 `theme-scalar` 各钉一条同形状的场景：站点自己的开关是
+唯一的驱动，操作系统的偏好不算数，而且换配色不该把框内那份文档重新加载。这三步量的都是
+**跨 iframe 边界**那一条消息通道（实现见 `theme/frame-kit`），两边读同一处信号 —— 它在框内
+那份文档的 `<html>`（redoc、stoplight）或 `<body>`（scalar）上，三处读数各自的含义见
+`../helpers.mts` 里 `frameModeSignal` 那一段。
 
 各层**自己**怎么落这个值（redoc 换挂 `data-redoc-mode`、stoplight 用 Elements 自己的
-`data-theme`）另有各层自己的句子，这里不掺和。
+`data-theme`、scalar 换 `<body>` 上那两个类名）另有各层自己的句子，这里不掺和。
 */
 When('我把站点切成暗色', async ({ page }) => {
   // navbar 上只有这一颗 `.clean-btn`（移动端那颗在这个视口宽度下不渲染）。
@@ -86,7 +87,7 @@ Then('框里的配色跟着站点翻过去，那份文档没有重新加载', as
 Then('站点的亮暗模式不受操作系统影响', async ({ page }) => {
   // 本站 `themeConfig.colorMode` 没开 `respectPrefersColorScheme`，所以系统深色时站点仍是亮色。
   // 框里那一格收到的是什么值，各层自己的句子负责（redoc 看 `data-redoc-mode`、
-  // stoplight 看 Elements 自己那个 `data-theme`）。
+  // stoplight 看 Elements 自己那个 `data-theme`、scalar 看 `<body>` 上那两个类名）。
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
@@ -97,8 +98,8 @@ Then('这一页没有站点的 navbar', async ({ page }) => {
 });
 
 /**
-整页交给这个框时容器不留白：两层各自的 `*-frame.css` 都写了 `.container:has(…-frame)`。
-认的是这两个层自己声明的类名（`themeFrame`），不是裸 `iframe` —— 后者是 theme-iframe 那层
+整页交给这个框时容器不留白：三层各自的 `*-frame.css` 都写了 `.container:has(…-frame)`。
+认的是这三个层自己声明的类名（`themeFrame`），不是裸 `iframe` —— 后者是 theme-iframe 那层
 自己声明的边界，本仓这三层不复用彼此的选择器。
 */
 Then('正文容器在这一页让位', async ({ page }) => {
@@ -111,7 +112,7 @@ Then('正文容器在这一页让位', async ({ page }) => {
 
 /**
 外层这一格：iframe 的上沿贴着 navbar 的下沿、下沿贴着视口的下沿，两边各留 1px 容差。
-两份 `*-frame.css` 里的 `height: calc(100vh - var(--ifm-navbar-height))` 就是这个数。
+三份 `*-frame.css` 里的 `height: calc(100vh - var(--ifm-navbar-height))` 就是这个数。
 */
 Then('框占满 navbar 以下那一屏', async ({ page }) => {
   const box = await themeFrame(page).evaluate((el) => {

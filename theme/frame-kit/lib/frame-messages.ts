@@ -40,8 +40,8 @@ export type FrameMessages = {
 按命名空间造一份消息约定。
 
 命名空间取用它的主题包的包名（例如 `@show-docs/docusaurus-theme-redoc`），三条 `type`
-就是 `<命名空间>/route`、`/ready`、`/mode`。两条层各用各的命名空间，因此**不会**互相
-认到对方的消息 —— 同一站点上同时挂着 Redoc 与 Elements 两份文档时，这一格是必需的。
+就是 `<命名空间>/route`、`/ready`、`/mode`。三条层各用各的命名空间，因此**不会**互相
+认到对方的消息 —— 同一站点上同时挂着 Redoc、Elements 与 Scalar 三份文档时，这一格是必需的。
 */
 export function createFrameMessages(namespace: string): FrameMessages {
   const routeType = `${namespace}/route`;

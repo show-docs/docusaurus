@@ -1,0 +1,27 @@
+/* Scalar 渲染区的落位。**这一份 CSS 生效在框内那一页**（`/scalar-view`）：站点的文档页里
+   根本没有 `.scalar-root` 这一格，下面每条规则的落点都是框内那份文档。口径见包 README 的
+   「样式」一节。 */
+
+/* 收掉 Scalar 自己送出来的署名与推广位。全是 `display: none`（带 `!important`，理由记在下面那条
+   规则里）：元素仍留在 DOM 里，e2e 那几句按可见性判、不按数量判（与 `theme-redoc` 那三处同口径）。
+   为什么不走配置：`@scalar/types` 那份
+   `api-reference-configuration` 的 schema 里 `hide*` 一共七条（`hideDarkModeToggle`、
+   `hideDownloadButton`、`hideSearch`、`hideModels`、`hideModelNames`、`hideClientButton`、
+   `hideTestRequestButton`），没有一条管署名与推广位 —— 亮暗开关那一颗就用配置收掉了，见
+   `scalar-ui.tsx`。功能性的东西一个都不收：下载、试调用、SDK 生成都留着。 */
+
+/* 左栏底部那一整格：里面就是「Powered by Scalar」那条外链和 Scalar 那张推广位。
+   认的是它**是什么**（装着指向 scalar.com 那条 powered-by 链接的 `aside` 直接子格），
+   不是 Tailwind 那串 `flex flex-col gap-3 px-3 pb-3` —— 换个版本类名就重排。
+
+   `!important` 不是习惯性手滑，是被它的构建配置逼的：Scalar 那份 `style.css` 的 Tailwind 编译
+   开了 `important: '.scalar-app'`，每条工具类都写成
+   `.scalar-app:not(#\#):not(#\#):not(#\#):not(#\#) .flex{display:flex}` —— 四个 `:not(#\#)` 各带
+   一个 ID 的量级，实测一条普通选择器的 `display: none` 打不过它（同一条规则注进页面也不生效，
+   加上 `!important` 才生效）。 */
+
+.scalar-root
+  aside
+  > div:has(a[href^='https://scalar.com/?utm_source=powered-by']) {
+  display: none !important;
+}

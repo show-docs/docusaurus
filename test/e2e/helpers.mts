@@ -56,7 +56,7 @@ interface SiteStyles {
 
 /**
 同一批属性在**外层这一份文档**上算一遍，给「主题层没改到站点的壳」那类判据当前提。
-两个用得上它的层（`theme-redoc`、`theme-stoplight`）各在自己的 steps 里比值，这里不抄站点
+三个用得上它的层（`theme-redoc`、`theme-stoplight`、`theme-scalar`）各在自己的 steps 里比值，这里不抄站点
 该有的值，哪天有人在站点这一侧重新引一份第三方样式，它会红。
 
 先把鼠标挪开再量：点完 navbar 那颗按钮之后指针正好停在它上面，不挪开就量到「悬停的那一颗」，
@@ -128,41 +128,53 @@ export async function siteStyles(page: Page): Promise<SiteStyles> {
 }
 
 /**
-## 框内那一份文档：两层共用的量法
+## 框内那一份文档：三层共用的量法
 
-`theme-redoc` 与 `theme-stoplight` 各在命中页放一个 iframe，渲染器整个跑在框内那份文档里。
-一条判据都得先指名站在哪一份文档上量：外层用 `page.locator(...)`，框内用 `themeFrameDoc(page)`。
-`contentFrame()` 交回的是 `FrameLocator` —— 只给 `locator()`，不给 `evaluate()`，所以要跑脚本
-就从它下面取 `html` 那一颗，回调里再拿 `el.ownerDocument`。同源，两边都能直接读 DOM 与 CSSOM。
+`theme-redoc`、`theme-stoplight` 与 `theme-scalar` 各在命中页放一个 iframe，渲染器整个跑在框内
+那份文档里。一条判据都得先指名站在哪一份文档上量：外层用 `page.locator(...)`，框内用
+`themeFrameDoc(page)`。`contentFrame()` 交回的是 `FrameLocator` —— 只给 `locator()`，不给
+`evaluate()`，所以要跑脚本就从它下面取 `html` 那一颗，回调里再拿 `el.ownerDocument`。同源，
+两边都能直接读 DOM 与 CSSOM。
 
 `theme-iframe` 那一层放的也是 iframe，但那是别人站点的地址，没有本仓这套消息通道，所以这里
-按这两个层各自声明的类名认，不复用裸 `iframe`。
+按这三个层各自声明的类名认，不复用裸 `iframe`。
 */
 export const themeFrame = (page: Page): Locator =>
-  page.locator('iframe.redoc-frame, iframe.stoplight-frame');
+  page.locator(
+    'iframe.redoc-frame, iframe.stoplight-frame, iframe.scalar-frame',
+  );
 
 export const themeFrameDoc = (page: Page): FrameLocator =>
   themeFrame(page).contentFrame();
 
 /**
-「站点这一头的配色落到框里了没有」那一句的读法：把框内那份文档 `<html>` 上的两处读数拼成一串。
+「站点这一头的配色落到框里了没有」那一句的读法：把框内那份文档上的两处读数拼成一串。
 
 - `background-color`：`theme-redoc` 那一层看的是它 —— Redoc 那条 `:root { background-color: var(--bg-color) }`
   原样落在框内那份文档的 `<html>` 上，它那份暗色表换掉的正是 `--bg-color`。
 - `--canvas-l`：`theme-stoplight` 那一层看的是它 —— Elements（`@stoplight/mosaic`）调色板里的变量，
   站点那份 css 里没有这个名字，它随 `[data-theme=dark]` 那一格从 `100%` 翻到 `8%`（实测）。
   这一层的 `<html>` 底色是站点自己那条规则给的，证不了 Elements 的表跟没跟。
+- `--scalar-background-1`：`theme-scalar` 那一层看的也是它 —— Scalar 那套 Tailwind 调色板里的
+  变量，随 `<body>` 上互斥的两个类名（`dark-mode` / `light-mode`）从 `#fff` 翻到 `#0f0f0f`。
+*这一层的类名与变量都长在 `<body>` 上**（redoc、stoplight 那两层在 `<html>` 上），所以求值对象
+  先按这两个类名在不在、再分支：在就在 `<body>` 上算，不在就在 `<html>` 上算 ——
+  `--scalar-background-1` 在 scalar 帧的 `<html>` 上算出来是空串，判据就永远不翻。
 
-两个名字各读各的：redoc 那一层拿到的 `--canvas-l` 是空串，stoplight 那一层两处都跟着翻。
-都不抄具体色值 —— 判据只问「换了没有、跟另一个页面比是不是一样」。
+三个名字各读各的：redoc 那一层拿到的 `--canvas-l` 与 `--scalar-background-1` 都是空串，
+stoplight 那一层两处都跟着翻。都不抄具体色值 —— 判据只问「换了没有、跟另一个页面比是不是一样」。
 */
-export const frameModeSignal = (page: Page): Promise<string> =>
-  themeFrameDoc(page)
-    .locator('html')
+export const frameModeSignal = async (page: Page): Promise<string> => {
+  const scalarMode = await themeFrameDoc(page)
+    .locator('body.dark-mode, body.light-mode')
+    .count();
+  return themeFrameDoc(page)
+    .locator(scalarMode > 0 ? 'body' : 'html')
     .evaluate((el) => {
       const computed = getComputedStyle(el);
-      return `${computed.backgroundColor}|${computed.getPropertyValue('--canvas-l').trim()}`;
+      return `${computed.backgroundColor}|${computed.getPropertyValue('--canvas-l').trim()}|${computed.getPropertyValue('--scalar-background-1').trim()}`;
     });
+};
 
 /** 框内那份文档的起始时刻：每加载一份新文档就是一个新的数。 */
 export const frameTimeOrigin = (page: Page): Promise<number> =>

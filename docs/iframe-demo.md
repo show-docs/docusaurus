@@ -11,7 +11,7 @@ iframe: /404
 # iframe 示例
 
 本文件的 frontmatter 写了 `iframe: /404`，`theme/theme-iframe` 那一层命中后把**整个 `DocItem`**
-换成 iframe —— 与 `theme-stoplight`、`theme-redoc` 那两层同一个落点、同一类取舍。
+换成 iframe —— 与 `theme-stoplight`、`theme-redoc`、`theme-scalar` 那三层同一个落点、同一类取舍。
 
 下面这些正文在渲染后的页面上**看不到**：这一页整页交给 iframe，这一段是给读仓库源文件的人看的。
 

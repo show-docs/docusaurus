@@ -89,7 +89,7 @@ iframe 的边界是浏览器给的，不是靠枚举规则拼出来的：框里�
 postMessage」时不被当成自家消息，而不是防自己。`/redoc-view?src=…` 是条公开地址，任何人都能
 手工拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`，
 本层用 `redocSpecUrlFromSearch` 转手调它），拿不到就整格什么都不渲染。这两格与亮暗、地址那两条
-监听一道住在 [`theme/frame-kit`](../frame-kit/README.md)，两条层共用同一份。
+监听一道住在 [`theme/frame-kit`](../frame-kit/README.md)，三条层共用同一份。
 
 ## 浏览器 bundle 要补的那一格 Node 侧依赖
 

@@ -5,7 +5,8 @@ const port = 3021;
 
 /**
 浏览器侧的 e2e（只本地跑，不进 `pnpm verify`）：起真实静态服务器，逐主题看
-「命中 frontmatter 之后那一页到底长什么样」。这三层的命中效果在构建产物里是空的
+「命中 frontmatter 之后那一页到底长什么样」。这几层（iframe、stoplight、redoc、scalar）的命中效果
+在构建产物里是空的
 （`lazy` + 只在浏览器渲染），所以静态回读的 `verify:chain` 覆盖不到它。
 
 用例写成 Gherkin（`test/e2e/features/*.feature`），步骤实现写在 `test/e2e/steps/`；
@@ -21,7 +22,7 @@ export default defineConfig({
     // 步骤里有句子却没实现 → 生成阶段就红，而不是跑到一半才发现漏了。
     missingSteps: 'fail-on-gen',
   }),
-  // 五个 feature、九条场景共用一个 serve 进程与同一份产物；并发只会让浏览器启动来争要 CPU 的
+  // 六个 feature、十六条场景共用一个 serve 进程与同一份产物；并发只会让浏览器启动来争要 CPU 的
   // 构建，本仓单测已经栽过这个坑（见 vitest.config.mts 的 testTimeout 注释）。
   workers: 1,
   timeout: 60_000,
