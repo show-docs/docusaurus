@@ -20,20 +20,20 @@
 
 ## 组成
 
-| 文件                              | 编译吗              | 职责                                                                                                                                                                     |
-| --------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/index.mts`                   | ✅ `src/` → `dist/` | 入口：`getThemePath()` 指向包根的 `theme/`，`contentLoaded()` 用 `addRoute` 注册 `/scalar-view` 那一条页面。没有 `configureWebpack` 那一格（见「Node 侧依赖」）          |
-| `theme/DocItem/index.tsx`         | ❌ 站点编译         | 层里的组件：命中 `scalar` 时整页换成那一个 iframe（`ScalarFrame`），没命中就交回下层 `DocItem`                                                                           |
-| `theme/ScalarPage/index.tsx`      | ❌ 站点编译         | 那条插件路由落到的组件：只放 `ScalarView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                                         |
-| `components/scalar-frame.tsx`     | ❌ 站点编译         | **外层**文档页里那一格：算 iframe 的 `src`，把 ref、本层那份消息约定与站点当前的亮暗交给共享层的 `useOuterFrameSync`                                                     |
-| `components/scalar-frame.css`     | ❌ 站点编译         | 外层那一格的版式：框定高占满 navbar 以下那一屏、正文容器去掉内边距与最大宽度、**站点的文档侧栏在这种页面上让位**（后一条是这一层多出来的，见「宽度」一节）               |
-| `components/scalar-frame-sync.ts` | ❌ 站点编译         | 本层专属的那四个名字（消息命名空间、框内那条路由的路径、spec 那一条查询参数名、iframe 的类名）；地址怎么拼、消息怎么造都在共享层                                         |
-| `components/scalar-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Scalar，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`（这里交 `onMode`，不是属性名）                  |
-| `components/scalar-ui.tsx`        | ❌ 站点编译         | 浏览器端 `createApiReference(元素, 配置)` 挂上去，卸载时 `destroy()`；两头的地址各走一条路（框内 → 外层听 `onSidebarClick`，外层 → 框内把 `hashchange` 转成 `popstate`） |
-| `components/scalar-color-mode.ts` | ❌ 站点编译         | 亮暗落地的两个小函数：挂载那一刻交给 Scalar 的布尔、收到外层送的值就换 `<body>` 上那两个类名                                                                             |
-| `components/scalar-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Scalar 送出来的那条署名与推广位（为什么这一条要写 `!important`，见「样式」一节）                                                                  |
-| `module-aliases.d.ts`             | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                  |
-| `tsconfig.build.json`             | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                   |
+| 文件                              | 编译吗              | 职责                                                                                                                                                                                                                    |
+| --------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                   | ✅ `src/` → `dist/` | 入口：`getThemePath()` 指向包根的 `theme/`，`contentLoaded()` 用 `addRoute` 注册 `/scalar-view` 那一条页面，`configureWebpack()` 只做一件事：按住 Scalar 那条动态 `import` 的构建告警（见「随这一层多出来的构建告警」） |
+| `theme/DocItem/index.tsx`         | ❌ 站点编译         | 层里的组件：命中 `scalar` 时整页换成那一个 iframe（`ScalarFrame`），没命中就交回下层 `DocItem`                                                                                                                          |
+| `theme/ScalarPage/index.tsx`      | ❌ 站点编译         | 那条插件路由落到的组件：只放 `ScalarView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                                                                                        |
+| `components/scalar-frame.tsx`     | ❌ 站点编译         | **外层**文档页里那一格：算 iframe 的 `src`，把 ref、本层那份消息约定与站点当前的亮暗交给共享层的 `useOuterFrameSync`                                                                                                    |
+| `components/scalar-frame.css`     | ❌ 站点编译         | 外层那一格的版式：框定高占满 navbar 以下那一屏、正文容器去掉内边距与最大宽度、**站点的文档侧栏在这种页面上让位**（后一条是这一层多出来的，见「宽度」一节）                                                              |
+| `components/scalar-frame-sync.ts` | ❌ 站点编译         | 本层专属的那四个名字（消息命名空间、框内那条路由的路径、spec 那一条查询参数名、iframe 的类名）；地址怎么拼、消息怎么造都在共享层                                                                                        |
+| `components/scalar-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Scalar，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`（这里交 `onMode`，不是属性名）                                                                 |
+| `components/scalar-ui.tsx`        | ❌ 站点编译         | 浏览器端 `createApiReference(元素, 配置)` 挂上去，卸载时 `destroy()`；两头的地址各走一条路（框内 → 外层听 `onSidebarClick`，外层 → 框内把 `hashchange` 转成 `popstate`）                                                |
+| `components/scalar-color-mode.ts` | ❌ 站点编译         | 亮暗落地的两个小函数：挂载那一刻交给 Scalar 的布尔、收到外层送的值就换 `<body>` 上那两个类名                                                                                                                            |
+| `components/scalar-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Scalar 送出来的那条署名与推广位（为什么这一条要写 `!important`，见「样式」一节）                                                                                                                 |
+| `module-aliases.d.ts`             | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                                 |
+| `tsconfig.build.json`             | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                  |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -74,13 +74,13 @@ Scalar 那份组件在自己渲染时会往 `<body>` 上写类名（亮暗那两
 
 ### 两份文档各管什么
 
-|                 | 外层：站点的文档页（`/scalar-demo`）                          | 框内：本包那条页面（`/scalar-view?src=…`）                  |
-| --------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
-| 本层放的东西    | 一个 `<iframe class="scalar-frame">`                          | `ScalarUI`，即 `.scalar-root` 那一格                        |
-| Scalar 的运行时 | 不加载，一行都没有（`.scalar-root` 0 个、`.scalar-app` 0 个） | 全在这里（实测那一份文档里 `.scalar-app` 7 格）             |
-| 样式表          | 全站那一份 css（**含 Scalar 那 335 KB**）                     | 同一份 css，外加 Docusaurus 给这一页的几格内联表            |
-| 亮暗模式        | 站点的 `<html data-theme>`，开关在这                          | 自己 `<body>` 上的 `dark-mode` / `light-mode`，值由外层送来 |
-| 能分享的地址    | 有，`#` 那一段代表当前那条接口                                | 有，但那是「直接打开框里那一页」，见「深链」                |
+|                 | 外层：站点的文档页（`/scalar-demo`）      | 框内：本包那条页面（`/scalar-view?src=…`）                                   |
+| --------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
+| 本层放的东西    | 一个 `<iframe class="scalar-frame">`      | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference` |
+| Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）  | 全在这里（实测那一份文档里 `.scalar-app` 7 格，布局根只有 1 格）             |
+| 样式表          | 全站那一份 css（**含 Scalar 那 335 KB**） | 同一份 css，外加 Docusaurus 给这一页的几格内联表                             |
+| 亮暗模式        | 站点的 `<html data-theme>`，开关在这      | 自己 `<body>` 上的 `dark-mode` / `light-mode`，值由外层送来                  |
+| 能分享的地址    | 有，`#` 那一段代表当前那条接口            | 有，但那是「直接打开框里那一页」，见「深链」                                 |
 
 `/scalar-view` 是本包在 `contentLoaded()` 里用 `actions.addRoute()` 注册的一条插件路由，
 组件写 `@theme/ScalarPage`（走层栈解析，与本包其它 `@theme/` 覆写同一个口径），`exact: true`。
@@ -125,12 +125,14 @@ postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?s
 框内那一路由走（Docusaurus 的 CSS 是一份全站产物，本层没有这个开关），或者按 `theme-stoplight`
 那一条层那样在构建期动手 —— 两条都比这一格的现状贵，所以先记下代价，不动手。
 
-因为规则带着 `:not(#\#)` 那四段 ID 级权重，**本层想覆盖它就得写 `!important`**。实测：给
-`.scalar-root aside > div:has(…)` 那条普通规则不生效（同一格上 Scalar 那条 utility 的权重是
-(1,4,0) 那一档），加上 `!important` 才收得掉 —— `scalar-ui.css` 里那一条就是这么写的。
+因为规则带着 `:not(#\#)` 那四段 ID 级权重，**本层想覆盖它就得写 `!important`**。实测：不带
+`!important` 的同一条规则注进页面也不生效（`scalar-ui.css` 里那条注释记了量法），加上才收得掉。
+前缀用 `.scalar-app.scalar-api-reference` 这两格类名而不是裸的 `.scalar-app`：框内那份文档里
+`.scalar-app` 有 7 格（Scalar 给弹窗与提示各造一格），带 `scalar-api-reference` 的那一颗才是布局
+根（实测 1 格，`aside`、左栏链接与正文都在它下面）。
 
 判据两句，都在 `test/e2e/features/scalar.feature` 第一条用例里：「外层文档里没有 Scalar 的运行时
-痕迹」（`.scalar-root` 0 个、`.scalar-app` 0 个、Scalar 渲染出来的文字也不在外层）与「站点自己的
+痕迹」（`.scalar-app` 0 个、Scalar 渲染出来的文字也不在外层）与「站点自己的
 那几处样式不被 Scalar 改写」（同一批元素在 scalar 页与主页各算一遍 computed style 比相等，不抄
 站点该有的值）。后一句按值比，防的是**站点这一侧**哪天直接引了一份 Scalar 的表。
 
@@ -185,7 +187,7 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
 代价记清楚：**这种页面上站点的页面列表没了**，去别处只能走 navbar。
 
 高度那一条与三层同形（`height: calc(100vh - var(--ifm-navbar-height))`），滚动条长在框内那份文档
-上，本层不给 `.scalar-root` 定高。判据两句：外层「框占满 navbar 以下那一屏」，框内
+上，本层不给 Scalar 那一格定高。判据两句：外层「框占满 navbar 以下那一屏」，框内
 「框里左栏贴满那一份文档的一屏」（实测 `<aside>` 的 `top: 0`、`bottom = innerHeight`）。
 
 ## 路由与深链：`#tag/orders/POST/orders` 那一段
@@ -253,16 +255,21 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
 对照实验（去掉就红、加回来就绿，都清了 webpack 持久缓存）记在 `pnpm-workspace.yaml` 那份注释与
 仓库根 README。
 
-### 随这一层多出来的两条构建告警
+### 随这一层多出来的构建告警
 
 都不影响产物（`pnpm build` 仍 `[SUCCESS]`，`pnpm serve` 与 e2e 全绿），但要记下来，免得哪天被当成
 本层的 bug 去查：
 
 - `Critical dependency: the request of a dependency is an expression` —— 出处是
   `@scalar/api-reference/dist/standalone/lib/load-plugins-from-urls.js`，客户端与服务端两遍各报一次。
-  那是它「浏览器里按 URL 动态加载插件」那一支用的动态 `require`；本层不走 standalone 那个入口，
-  这一支被打进产物也没人调。**与 `theme-redoc` 那条「没选 `init()`」的理由是同一类**（那边因此
-  换用了 React 入口），本层换不掉：这一格就在被引模块的依赖树里，不在另一扇门上。
+  那是它「浏览器里按 URL 动态加载插件」那一支用的动态 `import`（源码里写的是 `import(url)`，specifier
+  是运行时才有的表达式）；本层不走 standalone 那个入口，这一支被打进产物也没人调。它只给自己带了
+  一句 `/* @vite-ignore */` 降噪，**webpack 不认那个注释**，所以在 Docusaurus（webpack）下必报。
+  与 `theme-redoc` 那条「没选 `init()`」的理由是同一类（那边因此换用了 React 入口），本层换不掉：
+  这一格就在被引模块的依赖树里，不在另一扇门上。
+  **处理**：`src/index.mts` 的 `configureWebpack()` 用 webpack 的 `ignoreWarnings` 按模块名按住这一条
+  （判据是 `@scalar/api-reference` 里这个具体文件，不是全局消息匹配，别处真出了同名告警照旧报）。
+  按住的前提是原样留给浏览器执行就是正确行为 —— 这一支只服务 `pluginUrls` 配置，本层没有配它。
 - `Css Minimizer plugin … postcss-calc: Lexical error on line 1: Unrecognized text`，报错的那一处是
   `(50 - l) * infinity` —— 出自 Scalar 那份 `style.css`（这个模式在 `@stoplight/elements` 那边搜不到），
   是 Tailwind 4 那种「自定义属性参与 calc」的写法，postcss-calc 算不动就原样留着。
@@ -297,10 +304,10 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
 已实测到的（都在 `test/e2e/features/scalar.feature` 那四条用例里）：
 
 - 外层：`build/scalar-demo/index.html` 里是 `<iframe class="scalar-frame"
-src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外壳、`.scalar-root` 与
-  `.scalar-app` 各 0 个、没有 Scalar 渲染出来的文字，`.container` 的内边距是 0，框的上沿贴着 navbar
+src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外壳、`.scalar-app` 0 个、
+  没有 Scalar 渲染出来的文字，`.container` 的内边距是 0，框的上沿贴着 navbar
   下沿、下沿贴着视口，框宽 1280（站点侧栏已让位）。
-- 框内：`.scalar-root` 在、左栏三个接口 `#tag/orders/GET|POST/orders…` 都在（**默认就是展开的**，
+- 框内：Scalar 的布局根（`.scalar-app.scalar-api-reference`）在、左栏三个接口 `#tag/orders/GET|POST/orders…` 都在（**默认就是展开的**，
   不像 redoc / stoplight 要先点分组）、点新建订单时详情换成它**并且外层地址栏那一段跟着换**（这一句
   同时钉住框内 → 外层那条消息）；左栏 `<aside>` 上沿贴 0、下沿贴满那份文档的底；它那颗亮暗开关
   不在（0 颗 `aria-label*="Set "`），署名那一格 `display: none` 而左栏整格还在；18 颗代码块复制
@@ -312,7 +319,7 @@ src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外
   从 `#fff` 翻过去**而且那份文档没重新加载**（`performance.timeOrigin` 没换数）；再拿同一批站点
   属性在暗色下把这一页与主页各量一遍，值相同。
 - 框内那条地址独立打开：带 `src` 就渲染（也没有站点的 navbar），`src` 去掉就什么都不摆
-  （`.scalar-root` 0 个，那句 `could not be loaded` 也不出现）。
+  （`.scalar-app` 0 个，那句 `could not be loaded` 也不出现）。
 - 产物体积：Scalar（连 Vue）落在懒加载 chunk 里（实测 `assets/js/2386.*.js`，3.8 MB 上下），
   主页那份 html 不引它；样式表那 359 KB 是全站一份，见「样式」。
 

@@ -7,10 +7,6 @@ import { useEffect, useRef } from 'react';
 
 import { isDarkColorModeAtLoad } from './scalar-color-mode.ts';
 
-// 包着 Scalar 的那层壳。`scalar-ui.css` 收掉的那几处与 e2e 那几条判据都认这个类名；
-// 它**不**参与样式圈定（那件事由 iframe 的文档边界负责，见包 README 的「样式」一节）。
-const SCALAR_ROOT_CLASS = 'scalar-root';
-
 type Props = {
   /** 要渲染的那份 OpenAPI 文档的地址。 */
   url: string;
@@ -71,5 +67,7 @@ export function ScalarUI(props: Props) {
     };
   }, [onRouteChange, url]);
 
-  return <div className={SCALAR_ROOT_CLASS} ref={hostRef} />;
+  // 这一格只是 `createApiReference` 要的挂载宿主，不带类名：`scalar-ui.css` 里那条与 e2e
+  // 那几句认的都是 Scalar 自己挂在它下面的 `.scalar-app.scalar-api-reference`。
+  return <div ref={hostRef} />;
 }

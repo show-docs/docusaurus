@@ -12,8 +12,8 @@ const { Given, When, Then } = createBdd();
 命中页（`/scalar-demo`）里只有一个 iframe，Scalar 整个跑在框内那份文档（本包那条插件路由
 `/scalar-view`）上。所以每条判据都得指名站在哪一份文档里量：
 
-- 外层：`page.locator(...)` —— 这一份里**不该**有 Scalar 的 DOM（`.scalar-root`、`.scalar-app`
-  都是框内那一份的形状，边界由浏览器给，本层不再做样式圈定，口径见包 README 的「样式」一节）；
+- 外层：`page.locator(...)` —— 这一份里**不该**有 Scalar 的 DOM（`.scalar-app` 是框内那一份
+  的形状，边界由浏览器给，本层不再做样式圈定，口径见包 README 的「样式」一节）；
 - 框内：`frameDoc(page)` —— 它是那一份文档的**框**（`Locator#contentFrame()` 交回 `FrameLocator`，
   只给 `locator()` 不给你 `evaluate()`），后面的选择器都从它往下找；要跑脚本就先取它下面的
   `html` 那一颗，回调里再拿 `el.ownerDocument`。
@@ -35,7 +35,16 @@ const frameElement = (page: Page): Locator =>
 const frameDoc = (page: Page): FrameLocator =>
   frameElement(page).contentFrame();
 
-const root = (page: Page): Locator => frameDoc(page).locator('.scalar-root');
+/**
+框里那份文档的 Scalar 根格。
+
+认的是厂商自己那两格类名（实测：`aside`、左栏的接口链接、代码块都在它下面）。裸的 `.scalar-app`
+不够 —— 框内那份文档里它有 7 格（直接打开 `/scalar-view` 是 9 格，Scalar 给弹窗与提示各造一格），
+只带 `scalar-api-reference` 的那一颗才是布局根（实测 1 格）。本层包着它的那格 `<div>` 是挂载
+宿主，不带类名。
+*/
+const root = (page: Page): Locator =>
+  frameDoc(page).locator('.scalar-app.scalar-api-reference');
 
 const menu = (page: Page): Locator => root(page).locator('aside');
 
@@ -94,7 +103,7 @@ Then('这一页放的是一个 iframe，指向 scalar 那条独立页面', async
 Then('Scalar 在框里接管了这一屏，读的是本站那份 yaml', async ({ page }) => {
   await expect(
     root(page),
-    '框里没有 `.scalar-root`：`scalar:` 那一步没命中，或框内那份文档没渲染',
+    '框里没有 Scalar 的根格：`scalar:` 那一步没命中，或框内那份文档没渲染',
   ).toBeVisible();
   await expect(
     root(page).locator('h1'),
@@ -226,8 +235,8 @@ Then(
 );
 
 /**
-这一条量的是「隔离」这件事本身：外层那份文档里**没有任何** Scalar 的痕迹 —— 包着它的那两格
-（`.scalar-root`、它自己那份 `.scalar-app`）都不存在，正文文字更不在外层文档里。
+这一条量的是「隔离」这件事本身：外层那份文档里**没有任何** Scalar 的痕迹 —— 它自己那几格
+（`.scalar-app`）都不存在，正文文字更不在外层文档里。
 
 框内那一份文档里它的样式往哪儿打，本层不再钉：Scalar 那份表是发布好的静态产物，随框内那份
 文档加载，「不打到站点上」由浏览器给的文档边界负责（口径见包 README 的「样式」一节）。
@@ -236,13 +245,11 @@ Then('外层文档里没有 Scalar 的运行时痕迹', async ({ page }) => {
   const state = await page.locator('html').evaluate((el) => {
     const doc = el.ownerDocument;
     return {
-      rootCount: doc.querySelectorAll('.scalar-root').length,
       appCount: doc.querySelectorAll('.scalar-app').length,
       hasSpecText: (doc.body.textContent ?? '').includes('主题覆盖演示 API'),
     };
   });
 
-  expect(state.rootCount, '外层文档里出现了 `.scalar-root` 那一格').toBe(0);
   expect(state.appCount, '外层文档里出现了 `.scalar-app` 那一格').toBe(0);
   expect(state.hasSpecText, '外层文档里有 Scalar 渲染出来的文字').toBe(false);
 });
@@ -349,8 +356,9 @@ Given('我直接打开 scalar 框内那条地址', async ({ page }) => {
 });
 
 Then('这一页直接渲染 Scalar', async ({ page }) => {
-  await expect(page.locator('.scalar-root')).toBeVisible();
-  await expect(page.locator('.scalar-root')).toContainText('主题覆盖演示 API');
+  const app = page.locator('.scalar-app.scalar-api-reference');
+  await expect(app).toBeVisible();
+  await expect(app).toContainText('主题覆盖演示 API');
 });
 
 When('我把 scalar 框内那条地址里的 spec 去掉', async ({ page }) => {
@@ -364,7 +372,7 @@ When('我把 scalar 框内那条地址里的 spec 去掉', async ({ page }) => {
 —— 看着像渲染器坏了。这一页是条公开地址，任何人都能直接打开它，所以这一格要按「什么都不摆」钉死。
 */
 Then('Scalar 那一格不出现，那句「取不到」也不出现', async ({ page }) => {
-  await expect(page.locator('.scalar-root')).toHaveCount(0);
+  await expect(page.locator('.scalar-app')).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText(loadErrorText);
 });
 
