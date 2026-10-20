@@ -1,7 +1,7 @@
 /**
 本次渲染该按什么顺序判这四把键 —— 注册表给数据，站点给裁决权，**只有一条规则**：
 
-- 参与判定的层 = **装了的层**（`plugins` 里有其包名的那一项）；
+- 参与判定的层 = **装了的层**（`plugins` 里有其包名、或其包目录内入口路径的那一项）；
 - 顺序默认 = 注册表的清单顺序，站点可在本层插件选项
   `['@show-docs/docusaurus-theme-iframe', { themeConfig: { apiFrame: { order: [...] } } }]`
   里用命名空间数组覆盖（数组顺序就是判定优先级，也是参与判定的**子集**）。
@@ -40,7 +40,7 @@ type ApiFramePluginOptions = {
 
 /**
 从 `siteConfig.plugins` 的一项里取「名字 + 选项」。浏览器侧拿到的是**原始配置形状**，四种写法：
-- 字符串（裸包名或路径 —— 路径按包目录认，见 `isThisLayer`）；
+- 字符串（裸包名或路径 —— 名字与层的对应关系见 `slotIsNamespace`）；
 - `[包名, 选项]`；
 - `[路径, 选项]`；
 - `{name}` 对象（归一化形状，兼容 `siteVersion` 那类元数据）。
@@ -68,18 +68,20 @@ function readPluginSlot(plugin: unknown): {
 }
 
 /**
-名字格认本层的两种写法：包名，或**本包目录内任何入口**的绝对路径
-（`dist/index.mjs`、`src/index.mts` 都算 —— 按包目录认，不钉具体产物文件名；
-钉文件名会把「产物改名」变成静默失效）。
+一个槽位的名格是不是这条层：裸包名相等，或**该包目录内任何入口**的绝对路径
+（`docusaurus-theme-x` 与去前缀的 `theme-x` 两种目录段都认 —— 按包目录认，不钉具体
+入口文件名；钉文件名会把「产物改名」变成静默失效）。装机判定与覆盖槽位识别共用这一条，
+两边不存在「一层认路径、另一层只认包名」的不对称。
 */
-function isThisLayer(name: string): boolean {
-  if (name === IFRAME_NAMESPACE) {
+function slotIsNamespace(name: string, namespace: string): boolean {
+  if (name === namespace) {
     return true;
   }
   const pathForm = name.replaceAll('\\', '/');
+  const unscoped = namespace.split('/').pop() ?? namespace;
+  const shortForm = unscoped.replace(/^docusaurus-/, '');
   return (
-    pathForm.includes(`/theme-iframe/`) ||
-    pathForm.includes(`/docusaurus-theme-iframe/`)
+    pathForm.includes(`/${unscoped}/`) || pathForm.includes(`/${shortForm}/`)
   );
 }
 
@@ -97,7 +99,10 @@ function findOverrideOrder(
     if (order === undefined) {
       continue;
     }
-    if (slot.name !== undefined && isThisLayer(slot.name)) {
+    if (
+      slot.name !== undefined &&
+      slotIsNamespace(slot.name, IFRAME_NAMESPACE)
+    ) {
       return order;
     }
     orphanOrder = order;
@@ -113,17 +118,21 @@ function findOverrideOrder(
 /** 判定清单 + 需要提示给站点作者的落空原因。 */
 export type FrameDistribution = {
   entries: readonly ApiFrameEntry[];
-  /** 每条都是「配置写了但没生效」的说明；`DocItem` 只在开发模式打出来。 */
+  /** 每条都是「配置写了但没生效」的说明；页面级那几条带页面地址（去重按文本判等，不带地址会吞掉后面同毛病的页）。`DocItem` 只在开发模式打出来。 */
   warnings: readonly string[];
 };
 
 export function resolveFrameDistribution(
   plugins: readonly unknown[],
   frontMatter: Record<string, unknown> | undefined,
+  pagePath?: string,
 ): FrameDistribution {
   const slots = plugins.map((plugin) => readPluginSlot(plugin));
   const isInstalled = (namespace: string): boolean =>
-    slots.some((slot) => slot.name === namespace);
+    slots.some(
+      (slot) =>
+        slot.name !== undefined && slotIsNamespace(slot.name, namespace),
+    );
 
   const warnings: string[] = [];
   const override = findOverrideOrder(slots, warnings);
@@ -156,6 +165,7 @@ export function resolveFrameDistribution(
   }
 
   // 键写了、层却没参与判定 —— 交回普通文档页之前，把原因留在这里（开发模式可见）。
+  // 消息**带页面地址**：`DocItem` 的去重按文本判等，不带地址的话十个页面上的同一个手误只报第一个。
   for (const entry of apiFrameEntriesOrdered()) {
     if (entries.includes(entry)) {
       continue;
@@ -163,9 +173,9 @@ export function resolveFrameDistribution(
     const value = frontMatter?.[entry.frontmatterKey];
     if (typeof value === 'string' && value !== '') {
       warnings.push(
-        `这一页写了 \`${entry.frontmatterKey}:\`，但 \`${entry.namespace}\` 没参与判定（${
+        `${pagePath ?? '这一页'} 写了 \`${entry.frontmatterKey}:\`，但 \`${entry.namespace}\` 没参与判定（${
           isInstalled(entry.namespace) ? '被站点的覆盖清单排除' : '那个插件没装'
-        }），这一页交回普通文档页。`,
+        }），交回普通文档页。`,
       );
     }
   }

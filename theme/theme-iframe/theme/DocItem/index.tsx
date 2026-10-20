@@ -2,6 +2,7 @@ import DocItem from '@theme-prev/DocItem';
 
 import type { ComponentType, ReactNode } from 'react';
 
+import { useLocation } from '@docusaurus/router';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 
 import { ApiFrame } from '../../components/api-frame.tsx';
@@ -14,6 +15,19 @@ type MDXContent = ComponentType<Record<string, unknown>> & {
 };
 
 type Props = { content?: MDXContent };
+
+/** 开发模式的 warnings 每种只打一次：配置级那几条（覆盖拼错、挂错槽位）每翻一页都会重算出来，逐页刷屏没有增量信息。 */
+const shownWarnings = new Set<string>();
+
+function warnOnce(warnings: readonly string[]): void {
+  for (const warning of warnings) {
+    if (shownWarnings.has(warning)) {
+      continue;
+    }
+    shownWarnings.add(warning);
+    console.warn(`[theme-iframe] ${warning}`);
+  }
+}
 
 /**
 本层是「整页交给一个框」这一族的**唯一外层套壳**：按 resolveFrameDistribution() 给出的清单判
@@ -36,16 +50,16 @@ frontmatter（**只判装了的层**，默认顺序 = 注册表清单 `scalar` �
 export default function DocItemFrame(props: Props): ReactNode {
   const frontMatter = props.content?.frontMatter;
   const { siteConfig } = useDocusaurusContext();
+  const { pathname } = useLocation();
 
   const { entries, warnings } = resolveFrameDistribution(
     siteConfig.plugins,
     frontMatter,
+    pathname,
   );
 
   if (process.env.NODE_ENV === 'development') {
-    for (const warning of warnings) {
-      console.warn(`[theme-iframe] ${warning}`);
-    }
+    warnOnce(warnings);
   }
 
   for (const entry of entries) {

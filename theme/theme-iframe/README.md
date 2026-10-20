@@ -94,9 +94,9 @@ iframe: https://example.com/handbook/
 ## 放在层栈的哪一处
 
 判四把键的是本层那**一份** `DocItem`，清单由 `lib/api-frame-entries.ts` 的
-`resolveFrameDistribution()` 定，规则只有一条：**参与判定的 = 装了的层**（`plugins` 里有其包名的
-那一项），默认先后 = `lib/api-frame-registry.ts` 里条目的排列顺序（`scalar` → `redoc` → `oas3`
-→ `iframe`）。站点没注册 `@show-docs/docusaurus-theme-scalar` 时，`scalar:` 那一格落空交回
+`resolveFrameDistribution()` 定，规则只有一条：**参与判定的 = 装了的层**（`plugins` 里有其包名、
+或其包目录内入口路径的那一项），默认先后 = `lib/api-frame-registry.ts` 里条目的排列顺序
+（`scalar` → `redoc` → `oas3` → `iframe`）。站点没注册 `@show-docs/docusaurus-theme-scalar` 时，`scalar:` 那一格落空交回
 普通文档页，而不是渲染一个指向不存在路由的框 —— 落空从「坏框」变成「页面看着正常但键没生效」，
 所以每一次落空的原因都收进 `warnings`，开发模式由 `DocItem` 打到控制台。这一串默认顺序就是
 收拢前四条层各占一环、`plugins` 从外到内排列时的同一语义 —— 同一页同时写两把键时，排在前面的赢。

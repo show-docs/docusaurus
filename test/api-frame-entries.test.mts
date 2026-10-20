@@ -16,7 +16,9 @@ const registryOrder = [SCALAR, REDOC, STOPLIGHT, IFRAME];
 const distributionOf = (
   plugins: unknown[],
   frontMatter?: Record<string, unknown>,
-): FrameDistribution => resolveFrameDistribution(plugins, frontMatter);
+  pagePath?: string,
+): FrameDistribution =>
+  resolveFrameDistribution(plugins, frontMatter, pagePath);
 
 const namespacesOf = (
   plugins: unknown[],
@@ -36,17 +38,28 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
     expect(namespacesOf([])).toEqual([]);
   });
 
-  it('名字格认裸包名、[包名, 选项]、[路径, 选项] 与 {name} 对象四种写法', () => {
+  it('名字格认裸包名、[包名, 选项]、[路径, 选项] 与 {name} 对象四种写法；路径按包目录段认层', () => {
     const loaded = [
       { name: SCALAR },
       [REDOC],
-      [
-        String.raw`D:\code2\test-ci\theme\theme-stoplight\src\index.mts`,
-        STOPLIGHT,
-      ],
+      [String.raw`D:\code2\test-ci\theme\theme-stoplight\src\index.mts`, {}],
     ];
-    // 第三条的路径不是 stoplight 的包名，名字取到的是路径 → 不算 stoplight 装机
-    expect(namespacesOf(loaded)).toEqual([SCALAR, REDOC]);
+    // 三条都算装机：包名相等，或路径落在该包的目录段内（与覆盖槽位认法同一条规则，
+    // 不再出现「本层认路径、API 层只认包名」的不对称）
+    expect(namespacesOf(loaded)).toEqual([SCALAR, REDOC, STOPLIGHT]);
+    // 目录段不属于任何一条层的照旧不算装机
+    expect(namespacesOf(['/somewhere/else/dist/index.mjs'])).toEqual([]);
+    // 相邻目录不误认：`docusaurus-theme-iframe` 那一段不是 `theme-iframe`
+    expect(
+      namespacesOf([
+        String.raw`D:\work\node_modules\@show-docs\docusaurus-theme-iframe\dist\index.mjs`,
+      ]),
+    ).toEqual([IFRAME]);
+    expect(
+      namespacesOf([
+        String.raw`D:\work\packages\docusaurus-theme-iframe2\dist\index.mjs`,
+      ]),
+    ).toEqual([]);
   });
 
   it('覆盖清单换顺序、只判列出的，且同样查装机', () => {
@@ -103,7 +116,8 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
   });
 
   it('键写了、层没参与判定时交回普通文档页，并说明原因', () => {
-    // 没装：只装 scalar + iframe，页面却写了 redoc —— redoc 不参与判定，另两层照判
+    // 没装：只装 scalar + iframe，页面却写了 redoc —— redoc 不参与判定，另两层照判。
+    // 页面级的消息带页面地址：DocItem 的去重按文本判等，不带地址会吞掉后面同毛病的页。
     const missPlugins = [SCALAR, IFRAME];
     const missFrontMatter = { redoc: '/openapi.yaml' };
     expect(namespacesOf(missPlugins, missFrontMatter)).toEqual([
@@ -111,8 +125,21 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
       IFRAME,
     ]);
     expect(
-      distributionOf(missPlugins, missFrontMatter).warnings.join('\n'),
+      distributionOf(missPlugins, missFrontMatter, '/docs/a').warnings.join(
+        '\n',
+      ),
+    ).toContain('/docs/a 写了 `redoc:`');
+    expect(
+      distributionOf(missPlugins, missFrontMatter, '/docs/a').warnings.join(
+        '\n',
+      ),
     ).toContain('那个插件没装');
+    // 同一毛病换个页面，消息文本不同 —— 去重不会把第二页吞掉
+    expect(
+      distributionOf(missPlugins, missFrontMatter, '/docs/b').warnings,
+    ).not.toEqual(
+      distributionOf(missPlugins, missFrontMatter, '/docs/a').warnings,
+    );
     // 装了但被覆盖清单排除
     const excluded = distributionOf(
       [
