@@ -166,4 +166,54 @@ console.log(`
 - theme-a 的下一层是 preset 的 theme-classic，它不渲染 data-*-wrapper 标记，故链尾不可见；
 - @theme-original/X 保持官方语义（全局赢家），本机制没有改动它（test/layers.test.mts 钉住）。
 `);
+
+// ---- 3. 「整页交给一个框」一族的判定清单还拿得到名字 ----
+// theme/theme-iframe/lib/api-frame-entries.ts 读的是浏览器侧 `siteConfig.plugins` 里
+// **包名的原样字符串**（装机过滤与站点覆盖都靠它）。这依赖 Docusaurus 的一个实现细节：
+// 生成 `.docusaurus/docusaurus.config.mjs` 时 `plugins` 保留**原始配置形状**，而不是归一化成
+// 只剩元数据。哪天真被归一化掉，那一层的判定会静默退化成「什么都没装」（页面看起来正常、
+// 键不生效），所以在这里钉住：四条层的包名必须还出现在浏览器配置的 plugins 数组里。
+const FRAME_LAYERS = [
+  '@show-docs/docusaurus-theme-scalar',
+  '@show-docs/docusaurus-theme-redoc',
+  '@show-docs/docusaurus-theme-stoplight',
+  '@show-docs/docusaurus-theme-iframe',
+];
+const browserConfigFile = path.join(root, '.docusaurus/docusaurus.config.mjs');
+console.log('\n浏览器侧 plugins 数组（api-frame-entries.ts 的立足点）：');
+if (fs.existsSync(browserConfigFile)) {
+  const rawConfig = fs.readFileSync(browserConfigFile, 'utf8');
+  // 顶层数组以「换行 + 两格缩进的 ]」收尾；数组里嵌的 [包名, 选项] 元组缩进更深，不会被提前截断
+  const pluginsSection = /"plugins": \[[\s\S]*?\n {2}\]/.exec(rawConfig)?.[0];
+  if (pluginsSection === undefined) {
+    console.log(
+      '   ❌ 在浏览器配置里认不出 `"plugins": [...]` 这一段 —— 序列化形状变了，',
+    );
+    console.log(
+      '      这一族的装机过滤与覆盖大概率同时失效，去看 api-frame-entries.ts 的 readPluginSlot。',
+    );
+    isOk = false;
+  } else {
+    const missing = FRAME_LAYERS.filter(
+      (namespace) => !pluginsSection.includes(`"${namespace}"`),
+    );
+    for (const namespace of FRAME_LAYERS) {
+      console.log(
+        `   ${missing.includes(namespace) ? '❌' : '✅'} ${namespace}`,
+      );
+    }
+    if (missing.length > 0) {
+      console.log(
+        '   → 包名在浏览器侧的 plugins 里找不到了；`resolveFrameDistribution()` 会把这些层判成「没装」，键静默落空。',
+      );
+      isOk = false;
+    }
+  }
+} else {
+  console.log(
+    '   ❌ 没找到 .docusaurus/docusaurus.config.mjs（pnpm build 应当生成它）',
+  );
+  isOk = false;
+}
+
 process.exit(isOk ? 0 : 1);

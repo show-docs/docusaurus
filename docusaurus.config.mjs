@@ -27,8 +27,11 @@ const config = {
     // 思维导图主题层：md 里 `markmap: true` 即在原文上方加导图
     '@show-docs/docusaurus-theme-markmap',
     // iframe 主题层：md 里 `iframe: <URL>` 即把正文区换成那个外部页面。它同时是「整页交给一个
-    // 框」这一族的**唯一外层套壳**：本层那份 `DocItem` 按 `lib/api-frame-registry.ts` 的顺序判
-    // 四把键（scalar / redoc / oas3 / iframe），命中就换成通用框。
+    // 框」这一族的**唯一外层套壳**：本层那份 `DocItem` 判四把键（scalar / redoc / oas3 / iframe），
+    // 命中就换成通用框。默认顺序与启用范围在 `lib/api-frame-registry.ts`（未安装的层不参与判定）；
+    // 站点可在这一项自己的插件选项里覆盖：[名称, { themeConfig: { apiFrame: { order: [命名空间…] } } }]，
+    // 顺序即优先级、列出的即启用范围（覆盖同样只判装了的层；口径与实测在 theme-iframe 的 docs/iframe-protocol.md）。
+    // 本站不配这一格 = 走注册表默认（scalar 优先），判据在 e2e 的 frame-precedence 用例。
     '@show-docs/docusaurus-theme-iframe',
     // Stoplight 主题层：md 里 `oas3: <URL>` 即整页交给 OpenAPI 渲染器；
     // 判键与外层套壳已收拢到 theme-iframe 那一份 `DocItem`（四把键按 `lib/api-frame-registry.ts`

@@ -2,6 +2,7 @@
   "//": "全项目类型测试：测试 .mts + 核心包 + 站点 swizzle（src/theme 的 tsx），只做类型检查",
   "//allowJs": "测试会 import `scripts/*.mjs`（体积脚本），它们是纯 JS。开 allowJs 让 TS 从 JS 推断类型；checkJs 关掉 —— 那些脚本自己不做类型检查，别把范围扩大到这里。",
   "//exclude": "产物在包内 `dist/`，`index.d.mts` 会以 `*.mts` 的形状被上面的 glob 收进来。",
+  "//theme-lib": "`test/api-frame-entries.test.mts` 引 theme-iframe 免编译的 `lib/` 源码（站点编译的那份，没有自己的产物项目），composite 项目要把被引的文件列进 include。",
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": true,
@@ -15,6 +16,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "plugins/**/*.mts",
+    "theme/theme-iframe/lib/**/*.ts",
     "scripts/**/*.mjs"
   ],
   "exclude": [

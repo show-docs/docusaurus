@@ -52,15 +52,15 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 仓库里的分包**按「`src/` 要不要先编译」分两种形态**，不是按「像不像一个包」：
 
-| 目录                                  | 是什么                                                                                                                                                                                                                                         | 形态                                                      | 细节                                                     |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
-| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                                                                                                                                                                  | 构建包（`src/` → `dist/`，改完要编译）                    | [README](./plugins/plugin-prev-layer-resolver/README.md) |
-| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                                                                                                                                                              | 构建包（只编译入口与 loader；层与组件是源码）             | [示例页](./docs/markmap-demo.md)                         |
-| `theme/theme-iframe/`                 | 主题包，也是「整页交给一个框」这一族唯一的**外层套壳**：它的 `DocItem` 按 `lib/api-frame-registry.ts` 的顺序判 `scalar:` / `redoc:` / `oas3:` / `iframe:` 四把键，命中就换成通用框；`lib/` 里另住着三条 API 层共用的跨 iframe 约定与配置期工厂 | 构建包（同上，`src/` 里只有入口那一份；`lib/` 免编译）    | [README](./theme/theme-iframe/README.md)                 |
-| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/stoplight-view` 页面，Elements 在那份文档里渲染 API 文档                                                                | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-stoplight/README.md)              |
-| `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/redoc-view` 页面，Redoc 在那份文档里渲染 API 文档                                                                      | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-redoc/README.md)                  |
-| `theme/theme-scalar/`                 | 主题包：md 的 frontmatter 写 `scalar: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/scalar-view` 页面，Scalar 在那份文档里渲染 API 文档                                                                   | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-scalar/README.md)                 |
-| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                                                                                                                                                                          | 免编译（没有 `src/`：入口与层都是源码，站点直接吃）       | [README](./demo/README.md)                               |
+| 目录                                  | 是什么                                                                                                                                                                                                                                                                                               | 形态                                                      | 细节                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
+| `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                                                                                                                                                                                                                        | 构建包（`src/` → `dist/`，改完要编译）                    | [README](./plugins/plugin-prev-layer-resolver/README.md) |
+| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                                                                                                                                                                                                                    | 构建包（只编译入口与 loader；层与组件是源码）             | [示例页](./docs/markmap-demo.md)                         |
+| `theme/theme-iframe/`                 | 主题包，也是「整页交给一个框」这一族唯一的**外层套壳**：它的 `DocItem` 判 `scalar:` / `redoc:` / `oas3:` / `iframe:` 四把键（默认顺序在 `lib/api-frame-registry.ts`，装机过滤与站点覆盖在 `lib/api-frame-entries.ts`），命中就换成通用框；`lib/` 里另住着三条 API 层共用的跨 iframe 约定与配置期工厂 | 构建包（同上，`src/` 里只有入口那一份；`lib/` 免编译）    | [README](./theme/theme-iframe/README.md)                 |
+| `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/stoplight-view` 页面，Elements 在那份文档里渲染 API 文档                                                                                                                      | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-stoplight/README.md)              |
+| `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/redoc-view` 页面，Redoc 在那份文档里渲染 API 文档                                                                                                                            | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-redoc/README.md)                  |
+| `theme/theme-scalar/`                 | 主题包：md 的 frontmatter 写 `scalar: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/scalar-view` 页面，Scalar 在那份文档里渲染 API 文档                                                                                                                         | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-scalar/README.md)                 |
+| `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                                                                                                                                                                                                                                | 免编译（没有 `src/`：入口与层都是源码，站点直接吃）       | [README](./demo/README.md)                               |
 
 六个构建包都是 `tsc` 编译包：Node 侧要跑的源码 `.mts` 在包内 `src/`，产物在包内 `dist/`，
 `dist/index.mjs` 就是包出口（`exports`）—— 所以 `pnpm build:core` 是「编译这六个包」，
@@ -69,7 +69,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 主题包的**主题层与组件不进这份编译**：`theme/*/theme/**` 与 `theme/*/components/**` 是未编译的
 `.tsx` / `.jsx`，随包发布，由用它们的站点的 babel 编译 —— 判据只有一条：**谁编译，就不编译第二遍**。
 `demo/theme-*/` 是这个形态的完整版，连入口 `index.mts` 都由 Docusaurus 的 jiti 直接加载。
-`theme/theme-iframe/lib/` 里那一份（注册表、跨 iframe 共享约定、配置期工厂）是同一判据推到头的
+`theme/theme-iframe/lib/` 里那一份（注册表、判定清单的分发、跨 iframe 共享约定、配置期工厂）是同一判据推到头的
 另一格：它没有编译产物 —— 浏览器那几份由用它的包直接引源码；注册表是纯数据，配置期与浏览器期
 引的是**同一份**；唯一跑在 Node 配置期的 `api-frame-theme.mts` 由 Docusaurus 的 jiti 直接吃这份
 源码（`.mts` 后缀按上游 lint preset 标 Node 环境，与 `src/index.mts` 同一口径）。`exports` 用
@@ -78,14 +78,17 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 > **`theme/theme-iframe/`、`theme/theme-stoplight/`、`theme/theme-redoc/` 与
 > `theme/theme-scalar/` 已接进站点**
 > （`plugins` 里的顺序 = `@theme/` 层栈的覆写顺序，四者都在 `theme-markmap` 往外那一侧；但
-> 「整页交给一个框」四把键的**判定顺序**不住在这里，住在 theme-iframe 的注册表里 —— 三条 API 层
+> 「整页交给一个框」四把键的**判定顺序**不住在这里，住在 theme-iframe 的注册表默认与站点覆盖里 —— 三条 API 层
 > 已经没有自己的 `DocItem` 了），接入位置、触发键与
 > 各自验证到哪一步以 [iframe 的 README](./theme/theme-iframe/README.md)、
 > [stoplight 的 README](./theme/theme-stoplight/README.md)、
 > [redoc 的 README](./theme/theme-redoc/README.md)、
 > [scalar 的 README](./theme/theme-scalar/README.md) 为准，这里不抄第二份。
-> `theme/theme-iframe/lib/` 那一份不在 `plugins` 的重名层里：它不是 Docusaurus 插件，也不是一条
-> 主题层，被上面那三条 API 层当普通依赖用（`"@show-docs/docusaurus-theme-iframe": "workspace:^"`）。
+> `theme/theme-iframe/lib/` 那一份不在 `plugins` 的重名层里：`lib/` 不是插件也不是主题层，
+> 被上面那三条 API 层当普通依赖用（写在各自的 `peerDependencies`——那份版本契约：跨 iframe
+> 协议变了，中心升版，消费方在安装期就被范围拦下，而不是等构建期工厂抛错）。插件身份只属于
+> `theme-iframe` 包本身，它在 `plugins` 里那一项的选项还能覆盖四把键的判定先后
+> （口径在 [iframe-protocol.md](./theme/theme-iframe/docs/iframe-protocol.md) 的「注册表与分发」一节）。
 
 ### 构建包的编译口径
 

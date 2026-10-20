@@ -1,12 +1,6 @@
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { createApiFrameTheme } from '@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
-
-// 入口产物所在目录：工厂用它算 `getThemePath()`（层目录里只剩 `RedocPage`）。
-const thisDir = dirname(fileURLToPath(import.meta.url));
 
 // 本层的包名，同时是注册表与三条 postMessage 的命名空间。
 const REDOC_NAMESPACE = '@show-docs/docusaurus-theme-redoc';
@@ -22,7 +16,8 @@ Redoc 这一层的入口：外层套壳（`DocItem` 判 `redoc:`、那个 `<ifra
 export default function theme(context: LoadContext): Plugin {
   return createApiFrameTheme(context, {
     namespace: REDOC_NAMESPACE,
-    selfDir: thisDir,
+    // 入口产物（dist/）的位置：工厂按它算层目录，并在当场校验那格存在。
+    selfEntryUrl: import.meta.url,
     configureWebpack(_config, isServer) {
       // `redoc` 发的是打好的 ESM 包（`bundles/redoc.js`），外面那一层 webpack 仍然要按
       // 静态分析去解析它里面的每一条 `require`。它有一支 Node 分支长这样：

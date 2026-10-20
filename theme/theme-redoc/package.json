@@ -23,7 +23,6 @@
   },
   "dependencies": {
     "@redocly/config": "^0.66.0",
-    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "react-router": "^7.18.4",
     "redoc": "^3.0.1",
     "styled-components": "^6.6.0"
@@ -31,6 +30,7 @@
   "peerDependencies": {
     "@docusaurus/theme-common": "^3.10.2",
     "@docusaurus/types": "^3.10.2",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "react": "~18.3.1"
   },
   "peerDependenciesMeta": {

@@ -27,35 +27,60 @@ import type { ApiFrameEntry } from '../lib/api-frame-registry.ts';
 import { frameViewSrc, type FrameColorMode } from '../lib/frame-messages.ts';
 import { useOuterFrameSync } from '../lib/frame-sync.ts';
 
-type Props = { entry: ApiFrameEntry; value: string };
+type Props = {
+  entry: ApiFrameEntry;
+  value: string;
+  /** 页面自己的 `frontMatter.title`；有它就用它当框的无障碍标题，注册表那条 `title` 只是兜底。 */
+  frontMatterTitle?: unknown;
+};
 
-/** `iframe:` 那层原来的地址算法（只有浏览器端才会走完三步）。 */
+/**
+`iframe:` 那层原来的地址算法，只解**该解的那一段**：`?path=` 由 `URLSearchParams` 自动解码，
+`src` 从 frontmatter 来、本来就是明文。旧写法收尾对整串 URL `decodeURIComponent` 一遍，
+会把地址里合法的 `%` 序列二次解码（`a=%25` 变成 `a=%`，`/a%2Fb` 变成 `/a/b`），已去掉。
+*/
 function externalURL({ src, search }: { src: string; search: string }): string {
-  const path = new URLSearchParams(search).get('path') || '';
+  const path = new URLSearchParams(search).get('path') ?? '';
 
   const io = src.startsWith('/')
     ? new URL(src, window.location.origin).href
     : src;
 
-  const url = path ? new URL(path, io).href : io;
-
-  return decodeURIComponent(url);
+  return path ? new URL(path, io).href : io;
 }
 
-export function ApiFrame({ entry, value }: Props): ReactNode {
+export function ApiFrame({ entry, value, frontMatterTitle }: Props): ReactNode {
   return entry.kind === 'external' ? (
-    <ExternalFrame frameClass={entry.frameClass} src={value} />
+    <ExternalFrame
+      frameClass={entry.frameClass}
+      src={value}
+      title={
+        typeof frontMatterTitle === 'string' && frontMatterTitle !== ''
+          ? frontMatterTitle
+          : entry.title
+      }
+    />
   ) : (
-    <InternalFrame entry={entry} specUrl={value} />
+    <InternalFrame
+      entry={entry}
+      specUrl={value}
+      title={
+        typeof frontMatterTitle === 'string' && frontMatterTitle !== ''
+          ? frontMatterTitle
+          : entry.title
+      }
+    />
   );
 }
 
 function InternalFrame({
   entry,
   specUrl,
+  title,
 }: {
   entry: Extract<ApiFrameEntry, { kind: 'internal' }>;
   specUrl: string;
+  title: string;
 }): ReactNode {
   const { siteConfig } = useDocusaurusContext();
   const { colorMode } = useColorMode();
@@ -79,7 +104,7 @@ function InternalFrame({
       ref={frameRef}
       className={entry.frameClass}
       src={src}
-      title={entry.title}
+      title={title}
     />
   );
 }
@@ -87,9 +112,11 @@ function InternalFrame({
 function ExternalFrame({
   frameClass,
   src,
+  title,
 }: {
   frameClass: string;
   src: string;
+  title: string;
 }): ReactNode {
   const { search } = useLocation();
   const isBrowser = useIsBrowser();
@@ -100,5 +127,5 @@ function ExternalFrame({
     [isBrowser, search, src],
   );
 
-  return <iframe className={frameClass} src={url} title="其他文档" />;
+  return <iframe className={frameClass} src={url} title={title} />;
 }

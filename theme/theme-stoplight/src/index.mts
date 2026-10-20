@@ -1,6 +1,4 @@
 import { createRequire } from 'node:module';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { createApiFrameTheme } from '@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts';
 
@@ -10,9 +8,6 @@ const require = createRequire(import.meta.url);
 
 /** `configureWebpack` 第一个参数的类型：从官方那份签名推出来，本包不直接引 `webpack`。 */
 type WebpackConfig = Parameters<NonNullable<Plugin['configureWebpack']>>[0];
-
-// 入口产物所在目录：工厂用它算 `getThemePath()`（层目录里只剩 `StoplightPage`）。
-const thisDir = dirname(fileURLToPath(import.meta.url));
 
 // 本层的包名，同时是注册表与三条 postMessage 的命名空间。
 const STOPLIGHT_NAMESPACE = '@show-docs/docusaurus-theme-stoplight';
@@ -93,7 +88,8 @@ Stoplight 这一层的入口：外层套壳（`DocItem` 判 `oas3:`、那个 `<i
 export default function theme(context: LoadContext): Plugin {
   return createApiFrameTheme(context, {
     namespace: STOPLIGHT_NAMESPACE,
-    selfDir: thisDir,
+    // 入口产物（dist/）的位置：工厂按它算层目录，并在当场校验那格存在。
+    selfEntryUrl: import.meta.url,
     configureWebpack(config, isServer, utils) {
       // 这份样式表的边界客户端与服务端都要改（上面那一节的理由）；补 Node 核心模块那几样
       // 只有浏览器 bundle 需要。

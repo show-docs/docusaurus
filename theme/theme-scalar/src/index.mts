@@ -1,12 +1,6 @@
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { createApiFrameTheme } from '@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
-
-// 入口产物所在目录：工厂用它算 `getThemePath()`（层目录里只剩 `ScalarPage`）。
-const thisDir = dirname(fileURLToPath(import.meta.url));
 
 /** 本层的包名，同时是注册表与三条 postMessage 的命名空间。 */
 const SCALAR_NAMESPACE = '@show-docs/docusaurus-theme-scalar';
@@ -30,7 +24,8 @@ Scalar 这一层的入口：外层套壳（`DocItem` 判 `scalar:`、那个 `<if
 export default function theme(context: LoadContext): Plugin {
   return createApiFrameTheme(context, {
     namespace: SCALAR_NAMESPACE,
-    selfDir: thisDir,
+    // 入口产物（dist/）的位置：工厂按它算层目录，并在当场校验那格存在。
+    selfEntryUrl: import.meta.url,
     configureWebpack() {
       // 照 `theme-redoc` / `theme-stoplight` 的口径**只返回自己新增的那一格**：官方拼接走
       // webpack-merge，改完整个 config 再返回去会把数组 concat 翻倍。

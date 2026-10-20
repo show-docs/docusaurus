@@ -7,9 +7,10 @@
 各写一份常量。带 `FrameMessages` 的那份缓存归 `api-frame-messages.ts` —— 这一份必须能过
 node-bundle（没有 DOM）的类型检查。
 
-判定的先后 = 这份清单的顺序，语义与原层栈一致（越靠外的层先判自己的键：scalar 最外、
-stoplight 次之、redoc 再次、`iframe:` 排在三条 API 层之后）。一页同写两个键时，
-排在前面的条目赢。
+判定的先后 = 这份清单的顺序（这是**默认值**：站点可在 `plugins` 里 theme-iframe 那一项的选项
+`{ themeConfig: { apiFrame: { order } } }` 里覆盖，未安装的层不参与判定 —— 那一步在
+`api-frame-entries.ts`），语义与原层栈一致（越靠外的层先判自己的键：scalar 最外、stoplight
+次之、redoc 再次、`iframe:` 排在三条 API 层之后）。一页同写两个键时，排在前面的条目赢。
 */
 
 /** 条目共有的形状；两种 `kind` 差的格见下面两个类型。 */
@@ -20,6 +21,11 @@ type ApiFrameEntryBase = {
   frontmatterKey: string;
   /** 外层 `<iframe>` 的类名：各层自己的版式规则挂在它上面。 */
   frameClass: string;
+  /**
+  外层 `<iframe>` 的 `title` **兜底值**：页面写了 `frontMatter.title` 时优先用页面自己的
+  （`ApiFrame` 那一步），这一格是缺它时的可读名字。
+  */
+  title: string;
 };
 
 /** 框里是本包自己那条插件页面（同源），深链与亮暗靠 `frame-sync.ts` 那两条消息循环对齐。 */
@@ -31,8 +37,6 @@ export type ApiFrameEntryInternal = ApiFrameEntryBase & {
   pageComponent: string;
   /** 框内地址里带 spec 地址的那一条查询参数名。 */
   specParam: string;
-  /** 外层 `<iframe>` 的 `title`。 */
-  title: string;
 };
 
 /** 框里是**外部站点**（跨源）：没有那条通道，地址算法归用它的层自己管。 */
@@ -84,6 +88,7 @@ const apiFrameEntries: readonly ApiFrameEntry[] = [
     namespace: '@show-docs/docusaurus-theme-iframe',
     frontmatterKey: 'iframe',
     frameClass: 'iframe',
+    title: '其他文档',
   },
 ];
 

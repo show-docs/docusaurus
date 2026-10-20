@@ -12,7 +12,9 @@
 类型引 `@docusaurus/types` 用 `import type`，浏览器那一份（`api-frame-registry.ts`）不会经过这里。
 */
 
-import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -25,10 +27,11 @@ export type ApiFrameThemeOptions = {
   /** 包名，同时是注册表的键；表里没有这一族就直接失败。 */
   namespace: string;
   /**
-  入口**产物**所在目录（`dist/`）：`getThemePath()` 要按它算 `../theme`，
-  各包传自己那份 `dirname(fileURLToPath(import.meta.url))`。
+  入口产物所在目录（`dist/`）：`getThemePath()` 要按它算 `../theme`。
+  各包传自己那份 `import.meta.url`，`file:` 到路径的这一跳由工厂代做 ——
+  「产物在 dist/」这个假设收敛到一处，校验（下面 `existsSync`）也才有唯一的落点。
   */
-  selfDir: string;
+  selfEntryUrl: string;
   /** 本包独有的 webpack 差异；没有就不传（Scalar 就是没有）。 */
   configureWebpack?: Plugin['configureWebpack'];
 };
@@ -37,7 +40,7 @@ export function createApiFrameTheme(
   context: LoadContext,
   options: ApiFrameThemeOptions,
 ): Plugin {
-  const { namespace, selfDir, configureWebpack } = options;
+  const { namespace, selfEntryUrl, configureWebpack } = options;
 
   const entry = apiFrameByNamespace(namespace);
   if (entry === undefined || entry.kind !== 'internal') {
@@ -48,11 +51,22 @@ export function createApiFrameTheme(
   }
   const view = entry satisfies ApiFrameEntryInternal;
 
+  // 层目录按「产物在 dist/、theme/ 站在包根」这一格算出来。它要是静默不存在，
+  // 症状隔着一层：@theme/XxxPage 解析不到、报错点在建站点那一步。当场验一次，
+  // 报**实际解析到的路径**——构建输出目录一改，这里立刻以抛错点名，而不是留个悬空别名。
+  const themePath = resolve(dirname(fileURLToPath(selfEntryUrl)), '../theme');
+  if (!existsSync(themePath)) {
+    throw new Error(
+      `${namespace} 的主题层目录不存在：${themePath}` +
+        '（由入口产物所在目录算出；若构建输出目录不再是 dist/，上一句 resolve 就是要改的地方）。',
+    );
+  }
+
   return {
     name: namespace,
     // 主题层与 `components/` 是源码，站在包根上，不经 tsc：用本包的站点编译它们。
     getThemePath() {
-      return resolve(selfDir, '../theme');
+      return themePath;
     },
     ...(configureWebpack !== undefined && { configureWebpack }),
     contentLoaded({ actions }) {

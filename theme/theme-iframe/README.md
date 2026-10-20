@@ -34,22 +34,23 @@
 
 ## 组成
 
-| 文件                        | 编译吗              | 职责                                                                                                                                                                  |
-| --------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`             | ✅ `src/` → `dist/` | 本层入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算，就是 `../theme`）；`iframe:` 那条键没有框内页面要注册                                                   |
-| `theme/DocItem/index.tsx`   | ❌ 站点编译         | **这一族唯一的外层套壳**：按注册表顺序判四把键，命中就换成 `ApiFrame`，不命中整个交回下层                                                                             |
-| `components/api-frame.tsx`  | ❌ 站点编译         | 通用框：`internal` 条目拼 `/…-view` 地址并挂消息循环，`external` 条目走原来的三步地址算法                                                                             |
-| `components/api-frame.css`  | ❌ 站点编译         | 框的基线样式（`.api-frame` 与让位的 `.container`）；各层自己的定高与收页脚仍在自己那份 `*-frame.css` 里                                                               |
-| `lib/index.ts`              | ❌ 站点编译         | 浏览器侧共享约定的出口（供三条 API 层引）；**不含**配置期那份工厂，免得 `node:path` 进浏览器 bundle                                                                   |
-| `lib/api-frame-registry.ts` | ❌ 站点编译         | 注册表：四条形同的条目（命名空间、frontmatter 键、类名、路由名……），纯数据不引 React，配置期与浏览器期引同一份                                                        |
-| `lib/api-frame-messages.ts` | ❌ 站点编译         | 按命名空间造那三条 postMessage 的名字，带缓存（同一命名空间每次拿到同一个对象，effect 依赖不换引用）                                                                  |
-| `lib/api-frame-theme.mts`   | ❌ 不进 `tsc`       | **配置期**入口工厂：三条 API 层的 `src/index.mts` 调它拿 Plugin 形状（挂层目录、注册框内那条路由、接各自的 webpack 差异）；`.mts` 后缀按上游 lint preset 标 Node 环境 |
-| `lib/frame-messages.ts`     | ❌ 站点编译         | 约定与形状：iframe 地址、三条 postMessage（纯函数，不引 React、不引 DOM）                                                                                             |
-| `lib/frame-trust.ts`        | ❌ 站点编译         | 来源校验 `isTrustedMessage`：引 DOM 类型，单独一份，免得注册表那条配置期链路上碰到 `Window`                                                                           |
-| `lib/frame-sync.ts`         | ❌ 站点编译         | 两侧的消息循环：`useOuterFrameSync` / `useInnerFrameSync` / `createRouteReporter`                                                                                     |
-| `docs/iframe-protocol.md`   | ——                  | 那份共享约定的口径与踩过的坑（含注册表一节）（原 `theme/frame-kit/README.md`）                                                                                        |
-| `module-aliases.d.ts`       | 类型                | 引官方 `@docusaurus/module-type-aliases`，给构建期才存在的那些 import 补类型                                                                                          |
-| `tsconfig.build.json`       | ——                  | 构建项目：只有 `src/`，所以本包的产物出口是 `dist/index.mjs`；`lib/` 与 `components/`、`theme/` 都不进 `tsc`                                                          |
+| 文件                        | 编译吗              | 职责                                                                                                                                                                                                                                                                   |
+| --------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`             | ✅ `src/` → `dist/` | 本层入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算，就是 `../theme`）；`iframe:` 那条键没有框内页面要注册                                                                                                                                                    |
+| `theme/DocItem/index.tsx`   | ❌ 站点编译         | **这一族唯一的外层套壳**：按注册表顺序判四把键，命中就换成 `ApiFrame`，不命中整个交回下层                                                                                                                                                                              |
+| `components/api-frame.tsx`  | ❌ 站点编译         | 通用框：`internal` 条目拼 `/…-view` 地址并挂消息循环，`external` 条目走两步地址算法（补 origin、`?path=` 再解一层）；`title` 优先用页面的 `frontMatter.title`，注册表那条只兜底                                                                                        |
+| `components/api-frame.css`  | ❌ 站点编译         | 框的基线样式（`.api-frame` 与让位的 `.container`）；各层自己的定高与收页脚仍在自己那份 `*-frame.css` 里                                                                                                                                                                |
+| `lib/index.ts`              | ❌ 站点编译         | 浏览器侧共享约定的出口（供三条 API 层引）；**不含**配置期那份工厂，免得 `node:path` 进浏览器 bundle                                                                                                                                                                    |
+| `lib/api-frame-registry.ts` | ❌ 站点编译         | 注册表：四条形同的条目（命名空间、frontmatter 键、类名、路由名……），纯数据不引 React，配置期与浏览器期引同一份                                                                                                                                                         |
+| `lib/api-frame-entries.ts`  | ❌ 站点编译         | 判定清单的分发：装了的层参与判定（覆盖也不放宽这一条），注册表顺序为默认，站点可在本层插件选项 `themeConfig.apiFrame.order` 里覆盖顺序与子集；落空原因进 `warnings`，开发模式由 `DocItem` 打出；纯函数，单测（`test/api-frame-entries.test.mts`）与 `DocItem` 引同一份 |
+| `lib/api-frame-messages.ts` | ❌ 站点编译         | 按命名空间造那三条 postMessage 的名字，带缓存（同一命名空间每次拿到同一个对象，effect 依赖不换引用）                                                                                                                                                                   |
+| `lib/api-frame-theme.mts`   | ❌ 不进 `tsc`       | **配置期**入口工厂：三条 API 层的 `src/index.mts` 调它拿 Plugin 形状（挂层目录、注册框内那条路由、接各自的 webpack 差异）；`.mts` 后缀按上游 lint preset 标 Node 环境                                                                                                  |
+| `lib/frame-messages.ts`     | ❌ 站点编译         | 约定与形状：iframe 地址、三条 postMessage（纯函数，不引 React、不引 DOM）                                                                                                                                                                                              |
+| `lib/frame-trust.ts`        | ❌ 站点编译         | 来源校验 `isTrustedMessage`：引 DOM 类型，单独一份，免得注册表那条配置期链路上碰到 `Window`                                                                                                                                                                            |
+| `lib/frame-sync.ts`         | ❌ 站点编译         | 两侧的消息循环：`useOuterFrameSync` / `useInnerFrameSync` / `createRouteReporter`                                                                                                                                                                                      |
+| `docs/iframe-protocol.md`   | ——                  | 那份共享约定的口径与踩过的坑（含注册表一节）（原 `theme/frame-kit/README.md`）                                                                                                                                                                                         |
+| `module-aliases.d.ts`       | 类型                | 引官方 `@docusaurus/module-type-aliases`，给构建期才存在的那些 import 补类型                                                                                                                                                                                           |
+| `tsconfig.build.json`       | ——                  | 构建项目：只有 `src/`，所以本包的产物出口是 `dist/index.mjs`；`lib/` 与 `components/`、`theme/` 都不进 `tsc`                                                                                                                                                           |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/` 里的
 `.tsx`，本包就不编译第二遍；`lib/api-frame-theme.mts` 是唯一的例外形态：它既不由站点编译，
@@ -71,11 +72,15 @@ iframe: https://example.com/handbook/
 和三条 API 层那个「整页交给渲染器」是同一类取舍。没写任何一把键的文档页照常走下层实现，
 本层等于透明。
 
-`iframe:` 的地址算法（`api-frame.tsx` 里 `externalURL`）分三步，只有浏览器端才会全走完：
+`iframe:` 的地址算法（`api-frame.tsx` 里 `externalURL`）分两步，只有浏览器端才会全走完：
 
 1. `src` 以 `/` 开头 → 按当前站点的 origin 补成绝对地址；否则原样用。
-2. 地址栏带 `?path=<相对路径>` → 以第 1 步的结果为基准再解一层（用来切外部站点的子页）。
-3. 整体 `decodeURIComponent` 一次。
+2. 地址栏带 `?path=<相对路径>` → 以第 1 步的结果为基准再解一层（用来切外部站点的子页；
+   参数值由 `URLSearchParams` 自动解码）。
+
+曾经还有第三步「整体 `decodeURIComponent` 一次」——它会把地址里**本来合法**的 `%` 序列二次解码
+（`?a=%25` 变 `?a=%`、`/a%2Fb` 变 `/a/b`），已删；要解的 `path` 参数自动解，frontmatter 里的
+`src` 是明文，不该再动。
 
 服务端渲染阶段拿不到 `window`，所以那时 `url` 就是 frontmatter 里那个原值。
 
@@ -88,10 +93,20 @@ iframe: https://example.com/handbook/
 
 ## 放在层栈的哪一处
 
-判四把键的是本层那**一份** `DocItem`，先后 = `lib/api-frame-registry.ts` 里条目的排列顺序
-（`scalar` → `redoc` → `oas3` → `iframe`）。这一串顺序就是收拢前四条层各占一环、`plugins`
-从外到内排列时的同一语义 —— 同一页同时写两把键时，排在前面的赢。改优先级改注册表，
-不改 `docusaurus.config.mjs` 的 `plugins` 顺序。
+判四把键的是本层那**一份** `DocItem`，清单由 `lib/api-frame-entries.ts` 的
+`resolveFrameDistribution()` 定，规则只有一条：**参与判定的 = 装了的层**（`plugins` 里有其包名的
+那一项），默认先后 = `lib/api-frame-registry.ts` 里条目的排列顺序（`scalar` → `redoc` → `oas3`
+→ `iframe`）。站点没注册 `@show-docs/docusaurus-theme-scalar` 时，`scalar:` 那一格落空交回
+普通文档页，而不是渲染一个指向不存在路由的框 —— 落空从「坏框」变成「页面看着正常但键没生效」，
+所以每一次落空的原因都收进 `warnings`，开发模式由 `DocItem` 打到控制台。这一串默认顺序就是
+收拢前四条层各占一环、`plugins` 从外到内排列时的同一语义 —— 同一页同时写两把键时，排在前面的赢。
+站点可以在本层插件选项里用命名空间数组覆盖先后与启用范围（`plugins` 里写成
+`['@show-docs/docusaurus-theme-iframe', { themeConfig: { apiFrame: { order } } }]`），覆盖**同样
+查装机**。覆盖为什么挂在**插件选项**而不是站点 `themeConfig`、`plugins` 原始形状的四种写法各怎么认、
+各怎么实测，还有「浏览器侧 `plugins` 保留原始形状」这一版本绑定的立足点由谁钉（verify:chain 第 3
+节），口径住在 [`iframe-protocol.md` 的「注册表与分发」一节](./docs/iframe-protocol.md)，
+这里不抄第二份；分支语义由 `test/api-frame-entries.test.mts` 在单测里钉死。本站不设覆盖，
+走注册表默认，判据在 e2e 的 frame-precedence 用例。
 
 - 与 `theme-markmap` **并存**：那一层把导图插在 `DocItem` 前面，本层换的是它插进去包着的
   那一格 `DocItem`，所以同一页两个键都命中时两样都在（导图在上、iframe 在下；按机制说的，
@@ -107,8 +122,13 @@ iframe: https://example.com/handbook/
 
 ## 新增一条 API 层要动哪里
 
-1. `lib/api-frame-registry.ts` 加一条（命名空间、键名、路由名、参数名、类名、`@theme/` 别名）。
+1. `lib/api-frame-registry.ts` 加一条（命名空间、键名、路由名、参数名、类名、`@theme/` 别名、
+   `title` 兜底值）。想让某个站点换判定先后或只放行其中几把，不用改这里 —— 插件选项里那条
+   `order`（上一节）。新层的包还要把本层写进它自己的 `peerDependencies`（版本契约的口径见
+   [`iframe-protocol.md`](./docs/iframe-protocol.md) 末了那条配方）。
 2. 新包只写两份：`src/index.mts` 调 `createApiFrameTheme()` 一次，框内那一份 view 组件。
+   包的 `package.json` 把本层声明成 **peerDependencies**（`"@show-docs/docusaurus-theme-iframe": "workspace:^"`，
+   语义上是那份版本契约：协议变了，中心升版，消费方在**安装期**就被范围拦下，而不是等构建期工厂抛错）。
 3. 外层（DocItem、框、消息循环、地址）一概不用动 —— 这就是收拢的意义。
 
 ## 编译口径

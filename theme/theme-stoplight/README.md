@@ -331,9 +331,10 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 
 `docusaurus.config.mjs` 的 `plugins` 里排在 iframe 之后、redoc 之前（这一条先后现在只影响
-`@theme/` 层栈的覆写关系；四把键的判定顺序住在 theme-iframe 的注册表里，与它无关），站点根的
-`package.json` 声明了 `"@show-docs/docusaurus-theme-stoplight": "workspace:^"`，
-本包声明了 `"@show-docs/docusaurus-theme-iframe": "workspace:^"`。`pnpm build`、`pnpm verify:chain` 与
+`@theme/` 层栈的覆写关系；四把键的判定顺序在 theme-iframe 的注册表默认与站点覆盖里定，与它无关），
+站点根的 `package.json` 声明了 `"@show-docs/docusaurus-theme-stoplight": "workspace:^"`，
+本包把它声明在 `peerDependencies`（`"@show-docs/docusaurus-theme-iframe": "workspace:^"`，
+那份版本契约）。`pnpm build`、`pnpm verify:chain` 与
 `pnpm test:e2e` 都绿，层栈里能看到 `theme/theme-stoplight/theme`（只剩 `StoplightPage` 那一格）。
 
 已实测到的（都在 `test/e2e/features/stoplight.feature` 那四条用例里）：

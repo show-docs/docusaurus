@@ -415,7 +415,8 @@ hash，也不该有人拿它当分享链接 —— 这一条另有用例钉「�
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 
 `docusaurus.config.mjs` 的 `plugins` 里在 scalar 之前、stoplight 之后（这一条先后现在只影响
-`@theme/` 层栈的覆写关系；四把键的判定顺序住在 theme-iframe 的注册表里，与它无关），站点根的
+`@theme/` 层栈的覆写关系；四把键的判定顺序在 theme-iframe 的注册表默认与站点覆盖里定，与它无关），
+站点根的
 `package.json` 声明了 `"@show-docs/docusaurus-theme-redoc": "workspace:^"`。`pnpm build`、
 `pnpm verify:chain` 与 `pnpm test:e2e` 都绿，层栈里能看到 `theme/theme-redoc/theme`（只剩
 `RedocPage` 那一格）。

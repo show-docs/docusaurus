@@ -397,7 +397,7 @@ Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上�
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 
 `docusaurus.config.mjs` 的 `plugins` 里排在最后（这一条先后现在只影响 `@theme/` 层栈的覆写关系；
-四把键的判定顺序住在 theme-iframe 的注册表里，与它无关），站点根的 `package.json` 声明了
+四把键的判定顺序在 theme-iframe 的注册表默认与站点覆盖里定，与它无关），站点根的 `package.json` 声明了
 `"@show-docs/docusaurus-theme-scalar": "workspace:^"`。`pnpm build`、`pnpm verify:chain` 与
 `pnpm test:e2e` 都绿（16 条用例，四条是这一层的），层栈里能看到 `theme/theme-scalar/theme`
 （只剩 `ScalarPage` 那一格）。
