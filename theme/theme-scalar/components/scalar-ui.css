@@ -10,9 +10,12 @@
    `api-reference-configuration` 的 schema 里 `hide*` 一共七条（`hideDarkModeToggle`、
    `hideDownloadButton`、`hideSearch`、`hideModels`、`hideModelNames`、`hideClientButton`、
    `hideTestRequestButton`），没有一条管署名与推广位 —— 亮暗开关那一颗就用配置收掉了，见
-   `scalar-ui.tsx`。功能性的东西一个都不收：下载、试调用、SDK 生成都留着。 */
+   `scalar-ui.tsx`。这一条 CSS 只收品牌位那一格，面向读文档的人的功能（下载、代码示例、SDK 生成）
+   不动；「试调用」那颗按钮与左栏底部那两颗 MCP 入口是另外两条**配置**收的，不归这里。 */
 
-/* 左栏底部那一整格：里面就是「Powered by Scalar」那条外链和 Scalar 那张推广位。
+/* 左栏底部那一整格：里面是「Powered by Scalar」那条外链、Scalar 那张推广位，还有 CTA 那一行
+   （`mcp.disabled` 之后换出来的那颗 `a.open-api-client-button` 就住在这一行里，实测它与署名
+   `display: none` 同格，所以整行也看不见）。
    认的是它**是什么**（装着指向 scalar.com 那条 powered-by 链接的 `aside` 直接子格），
    不是 Tailwind 那串 `flex flex-col gap-3 px-3 pb-3` —— 换个版本类名就重排。
 

@@ -180,6 +180,20 @@ Then('Scalar 框里摆的是地址里那条接口', async ({ page }) => {
 });
 
 /**
+那条接口的 operationId 也摆在正文里（`showOperationId: true`，厂商默认是 `false`）。
+
+认的是**整段文案正好等于** `createOrder` 的那一颗：实测它是接口标题旁 `div.flex.flex-wrap.gap-1`
+里的一颗 `div`（那份 `static/openapi.yaml` 三条都有 id：`listOrders` / `createOrder` / `getOrder`）。
+代码示例里也出现这几个字，但都在更长的句子里，`exact` 那一格把它们排除掉了。
+*/
+Then('那条接口的 operationId 也摆在正文里', async ({ page }) => {
+  await expect(
+    root(page).getByText('createOrder', { exact: true }).first(),
+    '正文里没有那条 operationId 徽标（`showOperationId` 没生效）',
+  ).toBeVisible();
+});
+
+/**
 与 redoc / stoplight 同一条取舍的另一头：代码块里那些复制按钮**不该**被一起收掉，所以这里钉
 它们还在（实测点开接口之后框里 17 颗含「Copy」的按钮）。Scalar 不给那几颗 `data-testid`，
 认的是按钮自己的文案。
@@ -228,6 +242,57 @@ Then('Scalar 那颗「问 AI」的按钮不出现', async ({ page }) => {
       .filter({ hasText: /ask ai/i }),
     '框里出现了 Scalar 那颗「Ask AI」的按钮（`agent.disabled` 不是 true）',
   ).toHaveCount(0);
+});
+
+/**
+每条接口右上角那颗「Test Request」不出现。
+
+收它的理由不是「本地和线上长得不一样」，是**它真的会把请求发出去**：那一格读的是这份文档自己的
+`servers`，任何人点一下就从站点的页面上朝那个地址发一条请求。这一层摆的是给别人看的接口文档，
+凭据与 CORS 都不在本层的承诺里，所以按配置收掉；正文里填参数、看代码示例那一格不受影响。
+
+按文案认。厂商那一格 `hideTestRequestButton` 的默认值是 `false`（`@scalar/types@0.24.0`，类型注释
+写的是 `Whether to show the "Test Request" button`），渲染出来那颗按钮的文案取自本地化表里的
+`content.testRequest: "Test Request"`（`features/localization/locales/en.js`），没有 `data-testid`。
+从整份框内文档往下数：那颗按钮长在每条接口的标题行里，判据不押它嵌在布局根的哪一层。
+*/
+Then('Scalar 那颗「试调用」的按钮不出现', async ({ page }) => {
+  await expect(
+    frameDoc(page)
+      .locator('button')
+      .filter({ hasText: /test request/i }),
+    '框里出现了 Scalar 那颗「Test Request」的按钮（`hideTestRequestButton` 不是 true）',
+  ).toHaveCount(0);
+});
+
+/**
+左栏底部那颗「Generate MCP」/「Connect MCP」的安装入口不出现，摆出来的是 API client 那一颗。
+
+厂商那一格的判据是「配置里 `mcp.disabled` 优先 —— 给了它就直接退回 API client 那颗；不给时按
+「本机地址摆 explore、线上摆 client」走」（`ApiReference.vue.script.js` 的 `sidebarCta`），于是
+不设这一格时本地与线上又是两个形状。这两颗按钮的文案也各自取自本地化表：`mcp.generate:
+"Generate MCP"`、`mcp.connect: "Connect MCP"`、`openApiClientButton.openAPIClient:
+"Open API Client"`（`features/localization/locales/en.js`），都没有 `data-testid`，只能按文案认。
+
+两句一起写，都在 **DOM 那一层**判：先钉 MCP 那两颗一颗都没有（按钮与链接都算），再钉换出来的
+那颗确实是 API client 入口（实测它是左栏底部一颗 `<a class="open-api-client-button">`，`href` 指向
+`client.scalar.com`，文案正是 `Open API Client`）。这里不能按可见性判：左栏底部这一整格本来就归
+下面那条「powered by Scalar」收掉了（`scalar-ui.css` 那条 `display: none` 落的是这一格，署名那行
+和 CTA 那一行同住），所以可见性判据只会量到我们自己那条 CSS。只钉前一句也不行 —— 整格没了的时候
+计数同样是 0。这一句钉的是配置换出来的是哪一颗，与它可见不可见无关。
+*/
+Then('左栏底部那一颗换成了 API client，不是 MCP 安装入口', async ({ page }) => {
+  await expect(
+    frameDoc(page)
+      .locator('button, a')
+      .filter({ hasText: /\bmcp\b/i }),
+    '框里出现了 Scalar 那颗 MCP 安装入口（`mcp.disabled` 不是 true）',
+  ).toHaveCount(0);
+
+  await expect(
+    frameDoc(page).locator('a.open-api-client-button'),
+    '左栏底部那一颗不是 API client 入口（`mcp.disabled` 换出来的是别的东西）',
+  ).toHaveCount(1);
 });
 
 /**

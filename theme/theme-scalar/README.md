@@ -148,6 +148,17 @@ Scalar 自带一套亮暗：判据依次是 `localStorage` 里的 `colorMode` �
 - **挂载那一刻**交给它一个明确的布尔（`isDarkColorModeAtLoad()`，读本份文档 `<html>` 上那条由
   Docusaurus 内联脚本按同源 localStorage 写的 `data-theme`）—— 不给 `undefined`，否则它退到
   操作系统那一格；
+- **同一格再钉一遍**：`forceDarkModeState` 取的是同一个读数（`'dark'` / `'light'`）。只给
+  `darkMode` 是不够的 —— 厂商那条优先级链实测是 `overrideColorMode` → `localStorage` 里的
+  `colorMode` → `initialColorMode`（`@scalar/use-hooks` 的 `useColorMode`，
+  `ApiReference.vue.script.js` 把 `forceDarkModeState` 原样递成 `overrideColorMode`），
+  而 `overrideColorMode` 排第一。框内这一页与站点**同源**，那个 `colorMode` key 谁都读得到：
+  老版本留下的、或同域别处写的，都会把 `darkMode` 盖掉。钉上之后本地、线上、任何一台机器起来
+  都是同一个形状，站点仍然是唯一的驱动。
+  留下一条窄缝，记清楚：厂商那个 watcher 也听操作系统的 `prefers-color-scheme`，页面开着的时候
+  换系统主题，它会把**挂载时钉住的那一格**重新落一遍类名，盖掉外层后来送进来的那次；下一次站点
+  开关动一下就正回来。不钉这一格时同样会重落，落的却是操作系统那一格 —— 两种都是「不跟站点走」，
+  钉过的至少是站点自己当时的值。
 - **之后**由外层送：那个值写在**外层**文档上，跨不过 iframe，所以要靠共享层那条 `mode` 消息，
   框内收到就调 `applyScalarColorMode()` 换 `<body>` 上那两个类名。
 
@@ -157,7 +168,9 @@ Scalar 自带一套亮暗：判据依次是 `localStorage` 里的 `colorMode` �
 [`theme/frame-kit` 的 README](../frame-kit/README.md)。
 
 Scalar 自己那颗左栏底部的亮暗开关用配置收掉：`hideDarkModeToggle: true`（`scalar-ui.tsx`）。
-这一层**不需要**像 redoc 那样写 CSS —— 配置里就有这一格。它露出来时长什么样是实测过的：临时把
+上面那条 `forceDarkModeState` 也能收掉它（厂商的渲染条件是 `!hideDarkModeToggle &&
+!forceDarkModeState`），两条都写是因为 `hideDarkModeToggle` 那条才是本层想说的意思。这一层
+**不需要**像 redoc 那样写 CSS —— 配置里就有这一格。它露出来时长什么样是实测过的：临时把
 那一格设成 `false` 重建，框内文档里多出一个 `aria-label="Set dark mode"` 的元素（没有
 `data-testid`），所以 e2e 那句「Scalar 自己那颗亮暗开关不出现」认的是这个标识，不是空选择器。
 收掉的理由与另两层同一取舍：配色改由站点驱动之后，点它只改框内那份文档的类名、站点没有任何反应，
@@ -223,8 +236,8 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
 
 ## 收掉的几处 Scalar 自己的东西
 
-四处，取舍与 `theme-redoc` 那三处同一口径（收的是厂商自己塞的品牌位、跟站点重复的开关，和那几件
-只在本地冒出来的东西；面向读文档的人的功能一个都不收）：
+六处。口径是：**厂商自己塞的品牌位、跟站点重复的开关、那几件只在本地冒出来的东西收掉；给写文档
+和部署这一页的人用的功能收掉，给读文档的人用的不收**。
 
 - **那颗亮暗开关**：配置收的（`hideDarkModeToggle: true`），不渲染，DOM 里没有，所以 e2e 那句
   按数量判。理由见「亮暗模式」。
@@ -233,6 +246,20 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
   它也是**只在本地冒出来**的东西（实测收之前：`/scalar-demo` 框里那份文档有 1 颗文案为「Ask AI」
   的按钮，直接打开 `/scalar-view` 也是 1 颗；收之后两处都 0 颗）。它要 `agent.key` 才是在公网上
   能用起来的那一格（厂商判据里那第三路），本层没有那个 key，也不打算把对话交给它。
+- **那颗「Test Request」**：配置收的（`hideTestRequestButton: true`，厂商默认 `false`）。收它不是
+  因为品牌位，是因为**它真的会把请求发出去**：那一格读的是这份文档自己的 `servers`，任何人点一下
+  就从站点的页面上朝那个地址发一条请求，而这一层摆的是一份给别人看的接口文档，凭据与 CORS 都不在
+  本层的承诺里。厂商那一路的判据还说明它连累了别的格子：正文里的鉴权选择器与它同源（`Content.vue`
+  的 `showAuthSelector` 那句注释写的是 "tied to `hideTestRequestButton`"），所以这一格收掉的是
+  「从这一页发请求」整条路。**不收的是看的能力**：填参数、代码示例、下载那份文档照旧。
+  e2e 那句按文案认（那颗按钮的文案取自本地化表里的 `content.testRequest: "Test Request"`，
+  没有 `data-testid`）。
+- **左栏底部那两颗「Generate MCP」/「Connect MCP」**：配置收的（`mcp: { disabled: true }`）。
+  厂商那一格（`sidebarCta`）按 `mcp.disabled` 优先 —— 钉成 disabled 就直接退回 API client 那颗
+  入口；不设时按「本机地址摆 explore、线上摆 client」走，本地与线上又是两个形状。这一层不卖
+  「装进编辑器」那两条链接。**这一格与下面那条署名同住**：左栏底部那一整格（CTA 那一行加署名那一行）
+  本来就被 `scalar-ui.css` 收成 `display: none`，所以 e2e 那句在 **DOM 那一层**判（0 颗带 MCP 字样
+  的按钮或链接、1 颗 `a.open-api-client-button`），按可见性判只会量到我们自己那条 CSS。
 - **正文顶上那条开发者工具栏**：配置收的（`showDeveloperTools: 'never'`）。Scalar 那一格的默认值
   是 `localhost`，判据是 `isLocalUrl(window.location.href)` —— 站点跑在 `pnpm start` 与 e2e 的本地
   服务上正好命中，于是**同一份产物在本地和线上长得不一样**。本层没有 `workspace`，那条栏真的摆出来
@@ -249,6 +276,15 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
   选择器认的是**它是什么**（装着指向 `https://scalar.com/?utm_source=powered-by` 那条链接的
   `aside` 直接子格），不是 Tailwind 那串 `flex flex-col gap-3 px-3 pb-3` —— 换个版本类名就重排。
   收的是那一整格，但**左栏整格不收**：`e2e` 里配了一句「左栏那一格还在」。
+
+**给读文档的人多摆的一处**：每条接口标题旁那颗 operationId 徽标（`showOperationId: true`，厂商默认
+`false`）。抄 curl、生成客户端的人认的就是这一串，这份 `static/openapi.yaml` 三条都有
+（`listOrders` / `createOrder` / `getOrder`）。实测它是标题旁 `div.flex.flex-wrap.gap-1` 里的一颗
+`div`，e2e 那句按「整段文案正好等于 `createOrder`」认，把代码示例里那几个同样出现的字排除掉。
+
+还有一格是**表态，不改行为**：`telemetry: false`。厂商默认 `true`，但实测这份安装的 1.75.0 里
+`dist/plugins/posthog/index.js` 没有任何地方 import（不载插件就什么都不发），所以这一格现在等于
+没写；留下来是按本层的口径表一句，也是给厂商哪天默认载上时的一道防线。
 
 `display: none` 那一句仍在 DOM 里，所以 e2e 按可见性判、不按数量判，并且先钉「这一格在 DOM 里
 认得出来」再钉「看不见」，免得选择器哪天匹配不上就静默通过。
@@ -325,12 +361,15 @@ src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外
   不像 redoc / stoplight 要先点分组）、点新建订单时详情换成它**并且外层地址栏那一段跟着换**（这一句
   同时钉住框内 → 外层那条消息）；左栏 `<aside>` 上沿贴 0、下沿贴满那份文档的底；它那颗亮暗开关
   不在（0 颗 `aria-label*="Set "`）、那条开发者工具栏也不在（0 颗 `.api-reference-toolbar`）、
-  那颗「Ask AI」也不在（0 颗文案为「Ask AI」的按钮），
+  那颗「Ask AI」也不在（0 颗文案为「Ask AI」的按钮）、那颗「Test Request」也不在（0 颗文案含
+  Test Request 的按钮），左栏底部那一颗是 `a.open-api-client-button`（1 颗）而不是 MCP 那两颗
+  （0 颗带 MCP 字样的按钮或链接）、接口标题旁那颗 `createOrder` 徽标在，
   署名那一格 `display: none` 而左栏整格还在；17 颗代码块复制
   按钮都还在；全程没有运行期错误。
 - 深链：整页加载 `/scalar-demo#tag/orders/POST/orders`，托管侧回 200，框里把那条接口摆出来
   （直达那一份清单钉到 `新建订单` 为止，原因见「局限」里按需挂载那一条）。
-- 亮暗：操作系统按深色打开这一页，站点仍是亮色、框内 `<body>` 上也是 `light-mode`；操作系统换回
+- 亮暗：操作系统按深色打开这一页，站点仍是亮色、框内 `<body>` 上也是 `light-mode`（这一格现在由
+  `forceDarkModeState` 钉住，同源 `localStorage` 里那条 `colorMode` 也压不动它）；操作系统换回
   亮色再重载，框内配色**不动**（那一格的读数还是同一个）；站点切成暗色，`--scalar-background-1`
   从 `#fff` 翻过去**而且那份文档没重新加载**（`performance.timeOrigin` 没换数）；再拿同一批站点
   属性在暗色下把这一页与主页各量一遍，值相同。
@@ -340,5 +379,8 @@ src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外
   主页那份 html 不引它；样式表那 359 KB 是全站一份，见「样式」。
 
 没实测到的：AsyncAPI / GraphQL 那两种入口没试；Scalar 的 `hideModels` 那一类配置项没有逐条验，
-本层只用了 `agent`、`darkMode`、`hideDarkModeToggle`、`onSidebarClick`、`showDeveloperTools`、
-`url` 这六格。
+本层只用了 `agent`、`darkMode`、`forceDarkModeState`、`hideDarkModeToggle`、
+`hideTestRequestButton`、`mcp`、`onSidebarClick`、`showDeveloperTools`、`showOperationId`、
+`telemetry`、`url` 这十一格。其中每一条都对着 `@scalar/types@0.24.0` 那份
+`api-reference-configuration` 的 schema 与装好的 `@scalar/api-reference@1.75.0` 里读它的那一处核过，
+不是照着别的版本的文档抄的。
