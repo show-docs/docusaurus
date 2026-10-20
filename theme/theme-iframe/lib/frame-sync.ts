@@ -8,24 +8,22 @@ import type { FrameColorMode, FrameMessages } from './frame-messages.ts';
 
 两边各装各的监听器，谁先谁后不固定，所以对齐是**两侧各推一次**的：框里起来时问一句
 （{@link useInnerFrameSync} 里那句 ready），外层装好监听器也主动推一次
-（{@link useOuterFrameSync}）。只守其中一条就丢得掉 —— 实测丢过一次：`page.reload()`
-之后框里那句 ready 先发出、外层的监听器还没装上，于是深链与模式都没送进去。
+（{@link useOuterFrameSync}）。只守其中一条就丢得掉 —— 实测丢过一次：`page.reload()` 之后
+框里那句 ready 先发出、外层的监听器还没装上，于是深链与模式都没送进去。
 
-这里不含 iframe 那一格本身，也不含它的尺寸：调用方自己渲染 `<iframe ref={…}>`，
-把同一个 ref 交给 {@link useOuterFrameSync}。
+这里不含 iframe 那一格本身，也不含它的尺寸：调用方自己渲染 `<iframe ref={…}>`，把同一个 ref
+交给 {@link useOuterFrameSync}。
 */
 
 /** 外层那个 iframe 的 ref，与调用方渲染时挂的是同一个。 */
 export type FrameRef = RefObject<HTMLIFrameElement | null>;
 
 /**
-这条消息是不是从 `expectedSource` 那个窗口、同一个源发来的。
+这条消息是不是从 `expectedSource` 那个窗口、同一个源发来的。两个方向都过这一格：外层只收自己
+那个 iframe 的，框内只收装载它的父窗口的 —— 别人手工拼进地址栏的那一条、页面上第三方脚本发的
+消息都进不来。
 
-两个方向都过这一格：外层只收自己那个 iframe 的，框内只收装载它的父窗口的。别人手工拼进
-地址栏的那一条、以及页面上任何第三方脚本发的消息，都进不到这条路里。
-
-引 DOM 类型的只有这两条 hook 这一份文件：注册表那条链（`api-frame-registry.ts` → 各包入口
-在配置期引的那几格）不碰 `Window`，配置期与浏览器期因此能共用同一份源码。
+引 DOM 类型的只有这一份文件：注册表那条链不碰 `Window`，配置期与浏览器期因此能共用同一份源码。
 */
 export function isTrustedMessage(
   event: MessageEvent,
@@ -67,11 +65,11 @@ export function useOuterFrameSync(options: {
       target.postMessage(messages.mode(colorMode), origin);
     };
 
-    // 框里那一份是不是已经站在同一个源上，是的话把它交出去。还没开始加载时它是
-    // `about:blank`，那里的 origin 是字符串 `null`，这一格送过去只会被浏览器按目标源丢掉、
-    // 白刷一条控制台报错。读它的 `location` 只在同源时不抛，抛了就当还没起来。
-    // 同源的判定只做一次并交出那个窗口，而不是每格各判一次再 `?.` —— 「判过同源之后
-    // contentWindow 又变空」在同步代码里不发生，留着那条可选链就是永远量不到的分支。
+    // 框里那份是不是已经站在同一个源上，是的话把它交出去。还没开始加载时它是 `about:blank`，
+    // 那里的 origin 是字符串 `null`，送过去只会被浏览器按目标源丢掉、白刷一条控制台报错；读
+    // `location` 只在同源时不抛，抛了就当还没起来。同源的判定只做一次并交出那个窗口，而不是
+    // 每格各判一次再 `?.` —— 「判过同源之后 contentWindow 又变空」在同步代码里不发生，
+    // 那条可选链就是永远量不到的分支。
     const isFrameLoaded = (): Window | undefined => {
       try {
         return frame.contentWindow?.location.origin === origin
@@ -135,33 +133,23 @@ export function useOuterFrameSync(options: {
 挂在**框内**那份文档里：起来第一件事向外层要那两格，之后接住外层送来的两条。
 
 - `mode`：落到这一份文档自己身上，落法由各层给（见 {@link InnerFrameSyncOptions} 那两条）。
-  这一份文档不套 Docusaurus 的 `ColorModeProvider`，站点那条 `data-theme` 在这里只是加载时内联脚本写死的
-  一份、没人维护，所以本层不读它，两边不会打架。第一次送达之前这一格是空的，也就是亮色：
-  本站的默认模式是亮色，而送达不靠谁先起来（两边各推一次，见上面那段）。站点把默认模式
-  改成暗色时，这一格会先亮一下再翻过去。
-- `route`：改 `window.location.hash`。这一步会触发 `hashchange`；渲染器认不认这一格是各家的事
-  （Redoc 与 Elements 的路由按它走，Scalar 只听 `popstate`，转换写在那一层的 `scalar-ui.tsx`），
-  于是换到那条接口而整份文档不重新加载。整页加载一条深链时那一段也是这么进来的：
-  框里起来先向外层要一次。
+  这一份文档不套 `ColorModeProvider`，站点那条 `data-theme` 在这里只是内联脚本写死的一份、
+  没人维护，所以本层不读它。第一次送达之前是空的、也就是亮色（本站默认亮色，送达不靠谁先起来
+  —— 两边各推一次）；站点把默认改成暗色时，这一格会先亮一下再翻过去。
+- `route`：改 `window.location.hash`，这一步触发 `hashchange`，于是换到那条接口而整份文档不
+  重新加载。渲染器认不认这一格是各家的事（Redoc 与 Elements 的路由按它走，Scalar 只听
+  `popstate`，转换写在那一层的 `scalar-ui.tsx`）。整页加载一条深链时那一段也是这么进来的。
 
-反方向（框内 → 外层）**不在这里**：那要听渲染器自己报，理由是每个渲染器换接口走的是
-`history.pushState`，它**不触发** `hashchange`，监听那个事件收不到 —— 见
-{@link createRouteReporter}。
+反方向（框内 → 外层）**不在这里**，理由见 {@link createRouteReporter}。
 */
 export type InnerFrameSyncOptions = { messages: FrameMessages } & (
   | {
-      /**
-      把收到的亮暗写成这一份文档 `<html>` 上的**一条属性**（属性名由调用方给）。
-      Redoc 与 Elements 那一类按属性判亮暗的渲染器用这一格。
-      */
+      /** 写成这一份文档 `<html>` 上一条属性（属性名由调用方给）：按属性判亮暗的那两家。 */
       modeAttribute: string;
       onMode?: undefined;
     }
   | {
-      /**
-      这一格的落法由调用方自己决定：渲染器不按属性判亮暗时用它那一格。
-      Scalar 换的是 `<body>` 上互斥的**两个类名**（`dark-mode` / `light-mode`），就用这一条。
-      */
+      /** 落法整个交给调用方：Scalar 换的是 `<body>` 上互斥的两个类名，属性名换不动它。 */
       modeAttribute?: undefined;
       onMode: (mode: FrameColorMode) => void;
     }
@@ -215,6 +203,10 @@ export function useInnerFrameSync(options: InnerFrameSyncOptions): void {
 Elements 的路由、Scalar 自己那一条）换地址走的都是 `history.pushState`，那个方法**不触发**
 `hashchange`（那个事件只由改 `location.hash`、点锚点链接、前进/后退这几条路触发）。实测都是这条：
 框里点一条接口，`location.hash` 变了、渲染器认到了，`hashchange` 一次都没进来。
+
+**挂载那一次调用方别报**：那一次报的是初始位置 `#/`，而外层可能正带着一条深链
+（`/redoc-demo#/orders/createorder`），初始那一句会先把外层地址栏里那一段擦成 `#/`，紧接着外层
+补送深链时读到的已经是被擦过的值，深链就丢了。两家 `LocationMirror` 里那格 `first` 钉的就是这一条。
 
 返回的函数只读 `window`，调用方可以在模块级造一份稳定的，不必每次渲染新建。
 */

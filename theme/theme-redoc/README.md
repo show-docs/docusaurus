@@ -332,26 +332,16 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 `@show-docs/docusaurus-theme-redoc`、路由 `redoc-view`、参数 `src`）登记在 theme-iframe 的
 注册表里，拼地址走它的 `ApiFrame`（内部调共享层的 `frameViewSrc()`，`src` 里只编码 spec，不编码 hash）。
 
-这里留下只属于 Redoc 这一层的两条实测：
+这里只留属于 Redoc 这一层的实测（那一次「`page.reload()` 之后框里一条消息都没收到」栽的是共享的
+握手，记在 [`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md) 的「对齐是两侧各推一次的」一节）：
 
-- **那一次丢消息是在这一页上撞见的**：e2e 里 `page.reload()` 之后（跑着 trace、外层那份页面的
-  脚本被拖慢时），框里那份文档连一条消息都没收到 —— 亮暗模式那一段是死的，按同一条握手，
-  那一段深链也送不进去，而控制台一个字都不报。当时外层只守 iframe 的 `load` 事件，那是同一个坑的
-  另一个方向（那个事件也能先于监听器发生）。改成两侧各推一次之后不丢；那一句「框里那份文档已经
-  站在同一个源上」的判据（共享层 `frame-sync.ts` 里的 `isFrameLoaded`，靠试读
-  `contentWindow.location.origin`）也是从这里长出去的 —— 还没开始加载时它是 `about:blank`，
-  那条消息会被浏览器按目标源不匹配丢掉，白刷一条控制台报错。
 - **直达一条深链时 Redoc 的正文比「先打开再点下去」短**：它从地址指的那一格往下铺，标题清单少两条
   （只有 `列出订单`、`新建订单` 这两个 `h2`，API 标题与分组那两条不在）。那是 Redoc 自己的路由行为，
   不是本层丢了内容，所以 e2e 两条用例各钉各的清单，没有共用一句判据。
 
 框内 → 外层那一条由 `redoc-ui.tsx` 里那个 `LocationMirror` 站在 `HashRouter` 里面用
-`useLocation()` 报出去（`createRouteReporter()` 造的函数），**刚挂载那一次不报** —— 那一次报的是
-初始位置 `#/`，会先把外层地址栏里那条深链擦掉。
-
-一条要说清的差别：整页直达一条深链时，Redoc **从地址指的那一格往下铺**，正文里的标题清单比
-「先打开页面再点下去」少两条（只有 `列出订单`、`新建订单` 这两个 `h2`，API 标题与分组那两条不在）。
-那是 Redoc 自己的路由行为，不是本层丢了内容，所以 e2e 两条用例各钉各的清单，没有共用一句判据。
+`useLocation()` 报出去（`createRouteReporter()` 造的函数）；「刚挂载那一次不报」的理由见
+[`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md) 那一条。
 
 `/redoc-view?src=%2Fopenapi.yaml` 本身也是条能直接打开的地址（产物里有那份 html）。它不带外层那段
 hash，也不该有人拿它当分享链接 —— 这一条另有用例钉「带着 `src` 就能渲染」「缺了 `src` 就什么都

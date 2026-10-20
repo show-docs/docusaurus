@@ -1,28 +1,22 @@
 /**
-本次渲染该按什么顺序判这四把键 —— 注册表给数据，站点给裁决权，**只有一条规则**：
+本次渲染该按什么顺序判这几把键 —— 注册表给数据，站点给裁决权，**只有一条规则**：
 
 - 参与判定的层 = **装了的层**（`plugins` 里有其包名、或其包目录内入口路径的那一项）；
 - 顺序默认 = 注册表的清单顺序，站点可在本层插件选项
   `['@show-docs/docusaurus-theme-iframe', { themeConfig: { apiFrame: { order: [...] } } }]`
-  里用命名空间数组覆盖（数组顺序就是判定优先级，也是参与判定的**子集**）。
+  里用命名空间数组覆盖顺序与子集。**覆盖不放宽装机过滤**：列了没装的层照样不判，否则
+  「指向不存在路由的框」这个失败模式会在覆盖下被重新引入。
 
-覆盖只改顺序与子集，**不放宽装机过滤**：列了没装的层照样不参与 ——
-否则「指向不存在路由的框」这个失败模式会在覆盖下被重新引入。
+为什么读的是**原始 `plugins`** 而不是 `themeConfig`、那四种配置写法各怎么认，见
+`docs/iframe-protocol.md` 的「注册表与分发」一节。这一格吃的是 Docusaurus 的**实现细节**
+（浏览器配置序列化保留原始形状）而非公开承诺，`demo/scripts/verify-chain.mts` 第 3 节钉着它。
 
-为什么读的是**原始 `plugins` 数组**而不是 `themeConfig`：实测（`pnpm build` 后的
-`.docusaurus/docusaurus.config.mjs`）浏览器侧那份 `themeConfig` 只来自官方 merge，而 merge
-只收 `themes` 注册表；本站把本层注册在 `plugins` 里，插件选项不进那格。原始 `plugins` 是
-选项唯一到得了浏览器侧的位置，形状按配置写法有四种（见 `readPluginSlot`）。
-这一格依赖的是 Docusaurus 的**实现细节**（浏览器配置序列化保留原始形状），不是公开承诺 ——
-`demo/scripts/verify-chain.mts` 里有一道门禁钉住它，升级后行为变了会判红。
+落空的键（写了、层没装或被覆盖排除）进 `warnings`：装机过滤把旧的「照样命中、渲染一个坏框」
+换成「页面看着正常但键没生效」，所以手误不能静默 —— `DocItem` 在开发模式把那份清单交给
+`warnFrameDistribution()` 打到控制台，构建产物不打。
 
-落空的键（写了、层没装或被覆盖排除）会**进 `warnings`**：收拢前的旧行为是照样命中再渲染一个
-坏框，肉眼可见；装机过滤把它变成「页面看起来正常但键没生效」，所以这一格要由 `DocItem` 在
-开发模式打到控制台，不能让手误静默。
-
-注册表仍是层的**数据**来源（route、类名、参数名都在那），这里只回答顺序与启用。
-判定那一条是纯函数、不引 React；打日志单独一格（`warnFrameDistribution`），两边同在这一份里，
-单测与 `DocItem` 引同一份。
+这里只回答顺序与启用；route、类名、参数名那些数据在 `api-frame-registry.ts`。
+判定与打日志都不引 React，单测与 `DocItem` 引这同一份。
 */
 
 import {
@@ -79,9 +73,9 @@ function slotIsNamespace(name: string, namespace: string): boolean {
     return true;
   }
   const pathForm = name.replaceAll('\\', '/');
-  // 去掉 `@scope/` 前缀：没有斜杠时 lastIndexOf 给 -1，slice(0) 就是原样 —— 写成一条
-  // 无分支的算式，而不是 `split('/').pop() ?? namespace`（那个 `??` 的兜底按类型才存在，
-  // 运行时永远走不到，是量不到的分支）。
+  // 去掉 `@scope/` 前缀：没有斜杠时 lastIndexOf 给 -1，slice(0) 就是原样 —— 写成一条无分支的
+  // 算式，因为 `split('/').pop() ?? namespace` 那个 `??` 的兜底只有类型层面存在，运行时永远
+  // 走不到，是量不到的分支。
   const unscoped = namespace.slice(namespace.lastIndexOf('/') + 1);
   const shortForm = unscoped.replace(/^docusaurus-/, '');
   return (
@@ -168,8 +162,7 @@ export function resolveFrameDistribution(
     }
   }
 
-  // 键写了、层却没参与判定 —— 交回普通文档页之前，把原因留在这里（开发模式可见）。
-  // 消息**带页面地址**：`DocItem` 的去重按文本判等，不带地址的话十个页面上的同一个手误只报第一个。
+  // 键写了、层却没参与判定 —— 交回普通文档页之前，把原因留进 warnings（为什么要带页面地址见上面）。
   for (const entry of apiFrameEntriesOrdered()) {
     if (entries.includes(entry)) {
       continue;
@@ -187,14 +180,10 @@ export function resolveFrameDistribution(
   return { entries, warnings };
 }
 
-/**
-把落空原因打到控制台（开发模式由 `DocItem` 调这一格；构建产物里不打，那种页面对读者没有可修的东西）。
-
-**每种文本只打一次**：配置级那几条（覆盖拼错、挂错槽位）每翻一页都会重算出来，逐页刷屏没有增量信息；
-页面级那几条本来就带页面地址，所以每个有毛病的页各打一次（见上面为什么要把地址写进消息）。
-*/
+/** 每种文本只打一次：配置级那几条（覆盖拼错、挂错槽位）每翻一页都会重算出来，逐页刷屏没有增量信息。 */
 const shownWarnings = new Set<string>();
 
+/** 把落空原因打到控制台：`DocItem` 只在开发模式调这一格，构建产物里不打。 */
 export function warnFrameDistribution(warnings: readonly string[]): void {
   for (const warning of warnings) {
     if (shownWarnings.has(warning)) {

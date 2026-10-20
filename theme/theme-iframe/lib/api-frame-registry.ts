@@ -1,16 +1,13 @@
 /**
 「整页交给一个框」这一族层的注册表：一条层 = 一个条目，四条都在这一份里（`scalar` / `redoc`
-/ `stoplight` / `iframe`）。
+/ `stoplight` / `iframe`）。这里是层的**数据**来源（route、参数名、类名、命名空间），
+纯数据 + 纯函数、不引 React 不引浏览器：配置期（各包入口经工厂）与浏览器期（`DocItem`、框内
+那页）引同一份源码，那些名字不再像以前那样在编译边界两侧各写一份常量。带 `FrameMessages`
+的那份缓存归 `api-frame-messages.ts` —— 这一份必须能过 node-bundle（没有 DOM）的类型检查。
 
-这里是**纯数据 + 纯函数，不引 React、不引浏览器**：配置期（各包入口经工厂）与浏览器期
-（`DocItem`、框内 view）两边引同一份源码，路由名、参数名这些不再像以前那样在编译边界两侧
-各写一份常量。带 `FrameMessages` 的那份缓存归 `api-frame-messages.ts` —— 这一份必须能过
-node-bundle（没有 DOM）的类型检查。
-
-判定的先后 = 这份清单的顺序（这是**默认值**：站点可在 `plugins` 里 theme-iframe 那一项的选项
-`{ themeConfig: { apiFrame: { order } } }` 里覆盖，未安装的层不参与判定 —— 那一步在
-`api-frame-entries.ts`），语义与原层栈一致（越靠外的层先判自己的键：scalar 最外、stoplight
-次之、redoc 再次、`iframe:` 排在三条 API 层之后）。一页同写两个键时，排在前面的条目赢。
+判定的先后 = 这份清单的顺序（**默认值**，站点可覆盖、没装的层不判 —— 那一步在
+`api-frame-entries.ts`），语义与原层栈一致：越靠外的层先判自己的键。一页同写两把键时，
+排在前面那条赢。
 */
 
 /** 条目共有的形状；两种 `kind` 差的格见下面两个类型。 */
@@ -20,9 +17,8 @@ type ApiFrameEntryBase = {
   /** md frontmatter 里那条键，值就是框要渲染的地址。 */
   frontmatterKey: string;
   /**
-  外层 `<iframe>` 的**第二个**类名（第一个是共用的 `.api-frame`，尺寸与容器让位都在它上面）。
-  这一格只用来认「这一格是哪一层赢的」，各层自己的版式规则挂在它上面 —— 目前只有 stoplight
-  那条收页脚的。
+  外层 `<iframe>` 的**第二个**类名（第一个是共用的 `.api-frame`，尺寸与容器让位都在那一条上）。
+  这一格现在只用来认「这一格是哪一层赢的」，挂只属于一层的规则（如 stoplight 收页脚）。
   */
   frameClass: string;
   /**
@@ -50,13 +46,7 @@ export type ApiFrameEntryExternal = ApiFrameEntryBase & {
 
 export type ApiFrameEntry = ApiFrameEntryInternal | ApiFrameEntryExternal;
 
-/**
-这一族的清单（顺序 = 判定优先级，见文件头）。
-
-新增一条 API 层：这里加一条（route、参数名、类名），用它的包只写入口工厂那一次调用，加上框内
-那一页调一次 `createApiFrameView()`（渲染接线那个组件与亮暗的落法作为参数交给它），外层不再有
-自己的代码。
-*/
+/** 这一族的清单（顺序 = 判定优先级，见文件头）。新增一条层的做法见 `docs/iframe-protocol.md`。 */
 const apiFrameEntries: readonly ApiFrameEntry[] = [
   {
     kind: 'internal',

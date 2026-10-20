@@ -18,18 +18,18 @@ const STOPLIGHT_NAMESPACE = '@show-docs/docusaurus-theme-stoplight';
 站点只有一份全站 css：Docusaurus 把每一个 css 导入都并进同一个 `styles` chunk
 （`splitChunks.styles` 那条 `type: 'css/mini-extract'` 加 `enforce: true`，为的就是不让多份 css
 的加载顺序变成不确定的）。所以 `import '@stoplight/elements/styles.min.css'` 一定落进全站那一份，
-每个页面都带上它 —— iframe 拦得住 DOM、脚本、localStorage 和路由，拦不住这种静态样式：
-框内那份文档 `<link>` 的也是同一个文件，它的地址在构建期就写进了 html。
+每个页面都带上它 —— iframe 拦得住 DOM、脚本、localStorage 和路由，拦不住这种构建期就写进 html 的
+静态样式：框内那份文档 `<link>` 的也是同一个文件。
 
 本层的做法是**别让这份文件进打包**：webpack 的 `asset/resource` 把它当一个资源原样发出去，
 产物里是一个独立的 css 文件，`import` 拿到的就是它的地址（一个字符串），由框内那份文档自己挂
-一条 `<link>`（见 `components/stoplight-ui.tsx`）。站点那一份 css 里一条 `.sl-` 规则都没有，
-Elements 的样式只在框内那份文档里生效，边界是浏览器给的文档边界，不需要构建期圈定。
+一条 `<link>`（见 `components/stoplight-ui.tsx`）。Elements 的样式因此只在框内那份文档里生效，
+边界是浏览器给的文档边界，不需要构建期圈定。实测的条数与两句判据记在包 README 的「样式」一节。
 
 两条规则同时命中同一份文件会把 loaders 和资源类型叠在一起，所以除了加规则，还得把这份文件从
 **带 loader 的规则**里摘出去。判据不是抄官方那条 `.css` 规则的正则（版本一变就对不上），而是拿
 一个假的 Elements 路径去试每一条带 `use` 的规则 —— 官方哪天改了规则的形状，这一条会失配，
-表现是产物里少了那个独立 css 文件、样式漏回全站那一份，e2e 会红（口径见包 README 的「样式」一节）。
+表现是产物里少了那个独立 css 文件、样式漏回全站那一份，e2e 会红。
 
 `?url` 那种行内查询是 Vite / Rspack 的写法，webpack 5 没有这一条（实测：请求连规则匹配都没走到，
 先在包的 `exports` 那一步就报 `./styles.min.css?url is not exported`）；这里靠规则匹配，不靠查询串。
@@ -95,23 +95,13 @@ export default function theme(context: LoadContext): Plugin {
       // 只有浏览器 bundle 需要。
       isolateElementsCss(config);
 
-      // `@stoplight/elements` 的依赖树里还在 `require` Node 的 `url` / `buffer`，而
-      // webpack 5 起不再自动补核心模块。服务端那份构建本来就有真的 Node 模块，
-      // 只有浏览器 bundle 需要补 —— 而且补的是包里的 polyfill，不是空模块：
-      // 这两个都走在「按 URL 取 schema」那条路上，置 false 会在运行时抛。
+      // 补的是包里真 polyfill 不是空模块：`url` / `buffer` 都走在「按 URL 取 schema」那条路上，
+      // 置 false 会在运行时抛；裸的全局 `process` 那一种形状（`resolve.fallback` 只管按模块 id
+      // 筛的 require，裸标识符要由 `ProvidePlugin` 补）与三种形状的完整理由，记在包 README 的
+      // 「浏览器 bundle 要补的那几格 Node 侧依赖」一节。
       //
-      // 这一格现在服务的是**框内那份文档**：Elements 整个搬进 `/stoplight-view` 那份文档里跑，
-      // 站点自己的文档页只嵌一个 iframe，不再加载它。补的还是同一批东西。
-      //
-      // `process` 补的是**另一种形状**：`@stoplight/json-schema-ref-parser` 里写的不是
-      // `require('process')`，而是裸的全局 `process.browser` / `process.cwd()` /
-      // `process.nextTick`。`resolve.fallback` 只管前者（按模块 id 筛），裸标识符要由
-      // `ProvidePlugin` 在模块作用域里补一个 `require`，否则浏览器里求值就
-      // `ReferenceError: process is not defined`。
-      //
-      // 和 `plugin-prev-layer-resolver` 一样**只返回自己新增的那一格**：官方
-      // `applyConfigureWebpack` 用 webpack-merge 拼接，改完整个 config 再返回去，
-      // 数组会被 concat 一遍（`rules` 翻倍 → 每个 css 文件被 css-loader 处理两次）。
+      // 和 `plugin-prev-layer-resolver` 一样**只返回自己新增的那一格**：官方 `applyConfigureWebpack`
+      // 用 webpack-merge 拼接，数组会被 concat（`rules` 翻倍 → 每个 css 文件被 css-loader 处理两次）。
       // 上面那一格改的是传进来的 config 本身，不走返回值的数组。
       if (isServer) {
         return {};

@@ -3,30 +3,25 @@
 // （调色板变量、那些 `tag-*` 与 `card-*` 的配色、滚动条滑块）全挂在 `:root.dark` 开头。站点自己
 // 也有亮暗开关，两处各判各的就打架 —— 实测「站点亮色 + 操作系统深色」时这一页会自己变暗。
 //
-// 这里只做一件事：把暗色表开头那一格换成本层自己那条属性。它的值由外层送进来
-// （共享层 `useOuterFrameSync` 发、`useInnerFrameSync` 收，见 `@show-docs/docusaurus-theme-iframe/lib/index.ts`），
-// 于是驱动配色的只有一个来源：站点那个开关。
+// 这里只做一件事：把暗色表开头那一格换成本层自己那条属性。它的值由外层送进来（共享层
+// `useOuterFrameSync` 发、`useInnerFrameSync` 收，见
+// `@show-docs/docusaurus-theme-iframe/lib/index.ts`），于是驱动配色的只有一个来源：站点那个开关。
 //
 // 为什么这件事还得在**运行期**改：Redoc 的样式是 styled-components 在运行时插进 `<head>` 的，
-// 构建期那一遍（PostCSS）拿不到那份文件，`configurePostCss()` 圈不到它；
-// `StyleSheetManager` 的 `stylisPlugins` 正是 styled-components 编译每条规则时经过的中间件链。
+// 构建期那一遍（PostCSS）拿不到那份文件；`StyleSheetManager` 的 `stylisPlugins` 正是
+// styled-components 编译每条规则时经过的中间件链。
 //
-// 本层曾经在这条链上多做两件事 —— 给裸标签选择器（`button`）加 `:where(.redoc-root)` 前缀、
-// 把 `:root` 里那三条真属性（底色、字色、字体）挪进 `.redoc-root`，为的是不让 Redoc 的样式漏到
-// 站点的壳上。现在 Redoc 整个跑在本包那条插件路由（`/redoc-view`）自己的文档里，站点那一页只放
-// 一个 iframe，「不漏出去」这件事由浏览器给的文档边界负责，圈定没有对象可圈了，于是删掉。
-// 口径与依据见包 README 的「样式」一节。
+// 本层曾经在这条链上多做两件事（给裸标签选择器加 `:where(.redoc-root)` 前缀、把 `:root` 里
+// 那三条真属性挪进 `.redoc-root`），为的是不让 Redoc 的样式漏到站点的壳上。现在 Redoc 整个跑在
+// 本包那条插件路由（`/redoc-view`）自己的文档里，「不漏出去」由浏览器给的文档边界负责，
+// 圈定没有对象可圈了，于是删掉。口径见包 README 的「样式」一节。
 
 /**
 框内那份文档的 `<html>` 上，代表当前亮暗模式的那条属性。
 
-写它的是本包 `theme/RedocPage` 那一份框内页面（由 theme-iframe 的工厂造出，值从外层那条消息里
-来），读它的是下面这条选择器 —— 两边都在本包，
-但一个在 DOM 一个在 CSSOM，所以这里给个名字，别拼两串字面量。
-
-为什么不借站点自己那条 `data-theme`：那要把 Docusaurus 的 `ColorModeProvider` 拉进框内这份
-文档（它挂在 `@theme/Layout/Provider` 那六个 provider 里，这一页一个都用不上），而本层要的
-只是一个「现在是亮还是暗」的值。
+写它的是本包 `theme/RedocPage` 那一份框内页面（值从外层那条消息里来），读它的是下面那条选择器 ——
+两边都在本包，但一个在 DOM 一个在 CSSOM，所以给个名字，别拼两串字面量。为什么不借站点自己那条
+`data-theme`，见 theme-iframe 的 `docs/iframe-protocol.md` 的「为什么不用框架的那条存储同步」一节。
 */
 export const COLOR_MODE_ATTRIBUTE = 'data-redoc-mode';
 

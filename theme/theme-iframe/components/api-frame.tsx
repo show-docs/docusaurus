@@ -1,19 +1,16 @@
 /**
-外层文档页里那一个通用框：三条 API 层与 `iframe:` 那一层共用这一份渲染，
-形状由注册表里那一条决定（`lib/api-frame-registry.ts`）。
+外层文档页里那一个通用框：三条 API 层与 `iframe:` 那一层共用这一份渲染，形状由注册表里那一条
+决定（`lib/api-frame-registry.ts`）。
 
-- `internal`：`src` 由 `frameViewSrc()` 拼（spec 地址编码进去、`hash` 不放进去，SSR 与
-  客户端算出同一个字符串），深链那一段与亮暗模式靠 `useOuterFrameSync` 送 —— 两侧的推法、
-  踩过的坑与理由都在 `lib/frame-sync.ts` 那份注释与 `docs/iframe-protocol.md`。
-- `external`：框里是**外部站点**，跨源，没有那条通道；地址算法那三步在
-  `lib/frame-messages.ts` 的 `externalFrameURL()`（与框内取 spec 那条同形状，所以也在覆盖率红线里）。
+- `internal`：`src` 由 `frameViewSrc()` 拼（spec 编码进去、`hash` 不进去，服务端与客户端算出
+  同一个字符串），深链那一段与亮暗靠 `useOuterFrameSync` 送（那条循环与踩过的坑在
+  `lib/frame-sync.ts` 与 `docs/iframe-protocol.md`）。
+- `external`：框里是**外部站点**，跨源，没有那条通道；地址那三步在 `lib/frame-messages.ts` 的
+  `externalFrameURL()`，与框内取 spec 那条同形状，所以也在覆盖率红线里。
 
-框元素恒挂两条类名：共用的 `.api-frame`（版式那一处，四条层同一条式子）与注册表里本层那条
-`frameClass`（只用来认「这一格是哪一层赢的」，各层的真差异留在自己那份 CSS 里 —— 目前只剩
-stoplight 那条收页脚）。
-
-这一格只剩 `<iframe>` 与一个 hook，没有渲染器依赖，所以 `DocItem` 直接静态 import 它，
-不再走 lazy/Suspense。
+`<iframe>` 恒挂两个类名：共用的 `.api-frame`（尺寸与容器让位，四条层同一条式子）与注册表那条
+`frameClass`（认「哪一层赢了」，只属于一层的规则挂它）。这一格只剩一个 `<iframe>` 与一个 hook，
+没有渲染器依赖，所以 `DocItem` 静态 import 它，不走 lazy/Suspense。
 */
 
 import './api-frame.css';

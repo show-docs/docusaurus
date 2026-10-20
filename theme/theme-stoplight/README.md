@@ -284,9 +284,8 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 四个方向各自的路、两侧各推一次的理由、`replaceState` 与 `popstate` 那两格，都记在
 [`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)，本层不抄第二遍。这里只留四条本层专属的：
 
-- **`LocationMirror` 刚挂载那一次不报**：那一次报的是初始位置 `#/`，而外层可能正带着一条深链 ——
-  初始那一句会先把外层地址栏里那一段擦成 `#/`，紧接着外层补送深链时读到的已经是被擦过的值，
-  深链就丢了。
+- **`LocationMirror` 刚挂载那一次不报**：那条「初始位置会把外层深链擦掉」的约定住在共享层，
+  见 [`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md) 的「四个方向各走一条路」一节。
 - **`src` 只由 frontmatter 决定**：深链那一段与亮暗模式都不塞进地址，否则整页加载一条深链时
   SSR 那份 html 与客户端第一次渲染就在这一格上对不上。
 - **`/stoplight-view?src=%2Fopenapi.yaml` 本身也是条能直接打开的地址**（产物里有那份 html）。

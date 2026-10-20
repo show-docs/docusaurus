@@ -72,17 +72,15 @@ iframe: https://example.com/handbook/
 和三条 API 层那个「整页交给渲染器」是同一类取舍。没写任何一把键的文档页照常走下层实现，
 本层等于透明。
 
-`iframe:` 的地址算法（`api-frame.tsx` 里 `externalURL`）分两步，只有浏览器端才会全走完：
+`iframe:` 的地址算法（`lib/frame-messages.ts` 的 `externalFrameURL()`）分两步，只有浏览器端才会
+全走完：
 
 1. `src` 以 `/` 开头 → 按当前站点的 origin 补成绝对地址；否则原样用。
 2. 地址栏带 `?path=<相对路径>` → 以第 1 步的结果为基准再解一层（用来切外部站点的子页；
    参数值由 `URLSearchParams` 自动解码）。
 
-曾经还有第三步「整体 `decodeURIComponent` 一次」——它会把地址里**本来合法**的 `%` 序列二次解码
-（`?a=%25` 变 `?a=%`、`/a%2Fb` 变 `/a/b`），已删；要解的 `path` 参数自动解，frontmatter 里的
-`src` 是明文，不该再动。
-
-服务端渲染阶段拿不到 `window`，所以那时 `url` 就是 frontmatter 里那个原值。
+只对**应解的那一段**动手：曾经还有第三步「整串 `decodeURIComponent` 一次」，会把地址里本来合法的
+`%` 序列二次解码，已删。服务端渲染阶段拿不到 `window`，那时 `url` 就是 frontmatter 里那个原值。
 
 > 开发模式（`pnpm start`）与构建产物现在是同一个行为：直接嵌 iframe。以前这一层在开发模式给
 > 的是链接（本地改动会不断重载被嵌的页面，太吵），那条分支已经删掉；要看真的 iframe 不再需要
@@ -96,18 +94,20 @@ iframe: https://example.com/handbook/
 判四把键的是本层那**一份** `DocItem`，清单由 `lib/api-frame-entries.ts` 的
 `resolveFrameDistribution()` 定，规则只有一条：**参与判定的 = 装了的层**（`plugins` 里有其包名、
 或其包目录内入口路径的那一项），默认先后 = `lib/api-frame-registry.ts` 里条目的排列顺序
-（`scalar` → `redoc` → `oas3` → `iframe`）。站点没注册 `@show-docs/docusaurus-theme-scalar` 时，`scalar:` 那一格落空交回
-普通文档页，而不是渲染一个指向不存在路由的框 —— 落空从「坏框」变成「页面看着正常但键没生效」，
-所以每一次落空的原因都收进 `warnings`，开发模式由 `DocItem` 交给同一份里的
-`warnFrameDistribution()` 打到控制台（每种文本只打一次，规则见那份注释）。这一串默认顺序就是
-收拢前四条层各占一环、`plugins` 从外到内排列时的同一语义 —— 同一页同时写两把键时，排在前面的赢。
-站点可以在本层插件选项里用命名空间数组覆盖先后与启用范围（`plugins` 里写成
-`['@show-docs/docusaurus-theme-iframe', { themeConfig: { apiFrame: { order } } }]`），覆盖**同样
-查装机**。覆盖为什么挂在**插件选项**而不是站点 `themeConfig`、`plugins` 原始形状的四种写法各怎么认、
-各怎么实测，还有「浏览器侧 `plugins` 保留原始形状」这一版本绑定的立足点由谁钉（verify:chain 第 3
-节），口径住在 [`iframe-protocol.md` 的「注册表与分发」一节](./docs/iframe-protocol.md)，
-这里不抄第二份；分支语义由 `test/api-frame-entries.test.mts` 在单测里钉死。本站不设覆盖，
-走注册表默认，判据在 e2e 的 frame-precedence 用例。
+（`scalar` → `redoc` → `oas3` → `iframe`）。站点可以在本层插件选项里用命名空间数组覆盖先后与
+启用范围（`plugins` 里写成 `['@show-docs/docusaurus-theme-iframe', { themeConfig: { apiFrame: { order } } }]`），
+覆盖**同样查装机**。同一页同时写两把键时排在前面的赢 —— 这一串默认顺序就是收拢前四条层各占一环、
+`plugins` 从外到内排列时的同一语义。
+
+没装的层不再像以前那样照样命中、渲染出一个指向不存在路由的框，而是那一格落空交回普通文档页。
+落空从「坏框」变成「页面看着正常但键没生效」，所以每一次落空的原因都收进 `warnings`，开发模式由
+`DocItem` 交给同一份里的 `warnFrameDistribution()` 打到控制台（每种文本只打一次）。
+
+为什么覆盖挂在**插件选项**而不是站点 `themeConfig`、`plugins` 原始形状的四种写法各怎么认、
+「浏览器侧 `plugins` 保留原始形状」这一版本绑定的立足点由谁钉（verify:chain 第 3 节），口径住在
+[`iframe-protocol.md` 的「注册表与分发」一节](./docs/iframe-protocol.md)，这里不抄第二份；
+分支语义由 `test/api-frame-entries.test.mts` 在单测里钉死。本站不设覆盖，走注册表默认，
+判据在 e2e 的 frame-precedence 用例。
 
 - 与 `theme-markmap` **并存**：那一层把导图插在 `DocItem` 前面，本层换的是它插进去包着的
   那一格 `DocItem`，所以同一页两个键都命中时两样都在（导图在上、iframe 在下；按机制说的，

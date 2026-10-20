@@ -1,13 +1,12 @@
 /**
 外层文档页与框内那一页之间的约定：iframe 的地址怎么拼、那三条 postMessage 长什么样。
 
-两边都是站点编译的本仓代码，跑在**同一个源**里（框内那一页是站点自己的一条插件路由），
-所以这套约定不需要跨源信任。每条消息仍然要过 `origin` 与来源窗口的校验（见
-{@link isTrustedMessage}）：为的是「别人往这一页 postMessage」时不会被当成自家的消息，
-而不是为了防自己。
+两边都是站点编译的本仓代码，跑在**同一个源**里（框内那一页是站点自己的一条插件路由），所以这套
+约定不需要跨源信任；每条消息仍要过 {@link isTrustedMessage} 那道校验 —— 为的是别人往这一页
+postMessage 时不会被当成自家的，而不是为了防自己。
 
-这里只有**约定与形状**，没有 React、也没有 DOM：跨文档那两条循环在 `frame-sync.ts`，
-框元素那一格与它的共用版式在 `components/api-frame.tsx` 与 `components/api-frame.css`。
+这一份只有**约定与形状**，没有 React、也没有 DOM；两条消息循环在 `frame-sync.ts`，框那一格与
+它的共用版式在 `components/api-frame.tsx` 与 `components/api-frame.css`。
 */
 
 /** 亮暗那一格的取值。形状与站点的开关相同，但**不引**它的类型：那条属性由外层送进来。 */
@@ -41,7 +40,7 @@ export type FrameMessages = {
 
 命名空间取用它的主题包的包名（例如 `@show-docs/docusaurus-theme-redoc`），三条 `type`
 就是 `<命名空间>/route`、`/ready`、`/mode`。三条层各用各的命名空间，因此**不会**互相
-认到对方的消息 —— 同一站点上同时挂着 Redoc、Elements 与 Scalar 三份文档时，这一格是必需的。
+认到对方的消息 —— 同一站点同时挂三份文档时，这一格是必需的。
 */
 export function createFrameMessages(namespace: string): FrameMessages {
   const routeType = `${namespace}/route`;
@@ -141,8 +140,8 @@ export function specUrlFromSearch(
 `/a%2Fb` 变成 `/a/b`）。
 
 `origin` 由调用方给（浏览器里就是 `window.location.origin`），与 {@link specUrlFromSearch}
-同形状：这一份文件里没有 DOM，配置期那条链路也引得到它。服务端渲染阶段拿不到窗口，
-那时调用方直接用 frontmatter 里的原值，不等这一步。
+同形状：这一份没有 DOM，配置期那条链路也引得到它。服务端渲染阶段拿不到窗口，调用方直接用
+frontmatter 里的原值，不等这一步。
 */
 export function externalFrameURL(options: {
   src: string;

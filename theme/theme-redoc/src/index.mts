@@ -28,9 +28,8 @@ export default function theme(context: LoadContext): Plugin {
       // 服务端有真的 Node 模块，不用管；浏览器这一格给 `false`（空模块），比补 polyfill 诚实：
       // 那支 Worker 是给「离线把文档再算一遍」用的，本仓这条路径不碰它。
       //
-      // 和 `plugin-prev-layer-resolver` 一样**只返回自己新增的那一格**：官方
-      // `applyConfigureWebpack` 用 webpack-merge 拼接，改完整个 config 再返回去，
-      // 数组会被 concat 一遍（`rules` 翻倍 → 每个 css 文件被 css-loader 处理两次）。
+      // 照 `plugin-prev-layer-resolver` 的口径**只返回自己新增的那一格**（返回整个 config 会被
+      // webpack-merge 把数组 concat 翻倍，理由记在它的 README）。
       return isServer
         ? {}
         : { resolve: { fallback: { worker_threads: false } } };
