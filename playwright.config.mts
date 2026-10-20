@@ -31,7 +31,22 @@ export default defineConfig({
     baseURL: `http://localhost:${port}`,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // 视口宽从 `Desktop Chrome` 自带的 1280 加到 1440，只为 scalar 那一层：它的框与站点的
+        // 文档侧栏并排（侧栏 300 宽），Scalar 自己那套 API 左栏要**框**宽 ≥1024 才展开（厂商表里
+        // 的一条媒体查询，实测门槛 1024 CSS px），1280 视口下框只有 980，整套导航收成一颗「打开
+        // 菜单」抽屉，那几句按左栏判的用例就全在量一个合上的抽屉。1440 视口下框 1140（实测），
+        // Scalar 的左栏 288 与站点侧栏 300 同时在。redoc / stoplight 的左栏在 980 那一档本来就
+        // 展开，加宽不动它们。高度照旧 720：几层按高度算的判据（框高 660 = 720 - navbar 60）与
+        // scalar 那条「按需挂载」的实测都记在 720 这一档。
+        viewport: { width: 1440, height: 720 },
+      },
+    },
+  ],
   webServer: {
     // `--dir` 指产物、`--no-open` 不给本机弹浏览器窗口。
     command: `pnpm exec docusaurus serve --dir build --port ${port} --no-open`,

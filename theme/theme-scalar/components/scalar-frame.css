@@ -20,21 +20,3 @@
   padding: 0 !important;
   max-width: unset !important;
 }
-
-/* Scalar 的左栏要不要显示，是它自己那张表里的一条媒体查询（实测门槛 1024 CSS px，落在框内那份
-   文档的视口宽度上）。宽度不够，整套 API 导航就收成一颗「Open Menu」抽屉 —— redoc 与 stoplight
-   在 980 这一档还有自己的左栏，Scalar 没有。所以本层比那两层多让一步：把站点这一侧的文档侧栏
-   （Docusaurus 自己那根 `--doc-sidebar-width`，侧栏的宽与正文的 `max-width: calc(100% - 它)`
-   都从它取值）在这种页面上收到 0，让框拿到 navbar 以下的整幅。
-   实测 1280 视口：不改这条，框 980 宽、Scalar 是抽屉形态；改了，框 1280 宽、左栏 288 加正文。
-   代价是这一页里没有站点的页面列表，去别处走 navbar。 */
-
-body:has(.scalar-frame) {
-  --doc-sidebar-width: 0px;
-}
-
-/* 宽度归零后 `.theme-doc-sidebar-container` 那条 1px 右边框会在正文左边剩一条竖线。 */
-
-body:has(.scalar-frame) .theme-doc-sidebar-container {
-  border-right: 0;
-}
