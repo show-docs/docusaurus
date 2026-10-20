@@ -52,6 +52,10 @@ export function ScalarUI(props: Props) {
         // 只要 `#` 那一段：外层地址栏里别的什么都不该被框里改掉（见共享层 `useOuterFrameSync`）。
         onRouteChange(new URL(href, window.location.href).hash);
       },
+      // Scalar 默认值是 `localhost`： hostname 是本机时正文顶上多出一条开发者工具栏（改配置、
+      // 分享、部署、生成 SDK 那几颗）。这一层跑在 `pnpm start` 与 e2e 的本地服务上，正好命中
+      // 那个判断 —— 同一份产物在本地与线上会长得不一样，所以按 `never` 钉死。
+      showDeveloperTools: 'never',
       url,
     });
 

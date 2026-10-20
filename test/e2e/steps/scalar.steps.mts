@@ -39,7 +39,7 @@ const frameDoc = (page: Page): FrameLocator =>
 框里那份文档的 Scalar 根格。
 
 认的是厂商自己那两格类名（实测：`aside`、左栏的接口链接、代码块都在它下面）。裸的 `.scalar-app`
-不够 —— 框内那份文档里它有 7 格（直接打开 `/scalar-view` 是 9 格，Scalar 给弹窗与提示各造一格），
+不够 —— 框内那份文档里它有 3 格（直接打开 `/scalar-view` 是 5 格，Scalar 给弹窗与提示各造一格），
 只带 `scalar-api-reference` 的那一颗才是布局根（实测 1 格）。本层包着它的那格 `<div>` 是挂载
 宿主，不带类名。
 */
@@ -181,7 +181,7 @@ Then('Scalar 框里摆的是地址里那条接口', async ({ page }) => {
 
 /**
 与 redoc / stoplight 同一条取舍的另一头：代码块里那些复制按钮**不该**被一起收掉，所以这里钉
-它们还在（实测点开接口之后框里 18 颗含「Copy」的按钮）。Scalar 不给那几颗 `data-testid`，
+它们还在（实测点开接口之后框里 17 颗含「Copy」的按钮）。Scalar 不给那几颗 `data-testid`，
 认的是按钮自己的文案。
 */
 Then('框里代码块的复制按钮还在', async ({ page }) => {
@@ -189,7 +189,7 @@ Then('框里代码块的复制按钮还在', async ({ page }) => {
 
   expect(
     await copyButtons.count(),
-    '代码块里那几颗复制按钮不见了（按文案认，实测 18 颗）',
+    '代码块里那几颗复制按钮不见了（按文案认，实测 17 颗）',
   ).toBeGreaterThan(0);
   await expect(copyButtons.first()).toBeVisible();
 });
@@ -206,6 +206,26 @@ Then('Scalar 自己那颗亮暗开关不出现', async ({ page }) => {
   await expect(
     root(page).locator('[aria-label*="Set "]'),
     '框里出现了 Scalar 自己那颗亮暗开关',
+  ).toHaveCount(0);
+});
+
+/**
+正文顶上那条开发者工具栏（改配置、分享、部署、生成 SDK 那几颗）不出现。
+
+为什么要在这层按死它：Scalar 那一格默认值是 `localhost`（`@scalar/types@0.24.0` 的
+`showDeveloperTools`：`z.enum(['always','localhost','never']).default('localhost')`），判据是
+`isLocalUrl(window.location.href)` —— 站点跑在 `pnpm start` 与 e2e 的本地服务上**正好命中**，
+于是同一份产物在本地和线上长得不一样。实测这一格从默认换成 `never`：框内那份文档里
+`.scalar-app` 从 7 颗掉到 3 颗（直接打开 `/scalar-view` 从 9 颗到 5 颗），那条
+`header.api-reference-toolbar` 连同它带出来的几格一起没了。
+
+按数量判（与上面那颗开关同一个理由：它本来就不渲染，`display: none` 用不上），且从**整份框内
+文档**往下找而不是从布局根往下 —— 那条栏长在正文那一侧，判据不该押它在不在布局根里面。
+*/
+Then('Scalar 那条开发者工具栏不出现', async ({ page }) => {
+  await expect(
+    frameDoc(page).locator('.api-reference-toolbar'),
+    '框里出现了 Scalar 那条开发者工具栏（`showDeveloperTools` 不是 `never`）',
   ).toHaveCount(0);
 });
 

@@ -18,6 +18,7 @@ Feature: theme-scalar
     And 框占满 navbar 以下那一屏
     And 框里左栏贴满那一份文档的一屏
     And Scalar 自己那颗亮暗开关不出现
+    And Scalar 那条开发者工具栏不出现
     And 「powered by Scalar」那条署名不出现，左栏那一格还在
     And 外层文档里没有 Scalar 的运行时痕迹
     And 站点自己的那几处样式不被 Scalar 改写

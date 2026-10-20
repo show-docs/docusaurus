@@ -77,7 +77,7 @@ Scalar 那份组件在自己渲染时会往 `<body>` 上写类名（亮暗那两
 |                 | 外层：站点的文档页（`/scalar-demo`）      | 框内：本包那条页面（`/scalar-view?src=…`）                                   |
 | --------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
 | 本层放的东西    | 一个 `<iframe class="scalar-frame">`      | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference` |
-| Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）  | 全在这里（实测那一份文档里 `.scalar-app` 7 格，布局根只有 1 格）             |
+| Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）  | 全在这里（实测那一份文档里 `.scalar-app` 3 格，布局根只有 1 格）             |
 | 样式表          | 全站那一份 css（**含 Scalar 那 335 KB**） | 同一份 css，外加 Docusaurus 给这一页的几格内联表                             |
 | 亮暗模式        | 站点的 `<html data-theme>`，开关在这      | 自己 `<body>` 上的 `dark-mode` / `light-mode`，值由外层送来                  |
 | 能分享的地址    | 有，`#` 那一段代表当前那条接口            | 有，但那是「直接打开框里那一页」，见「深链」                                 |
@@ -113,7 +113,7 @@ postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?s
 都带 `.scalar-app:not(#\#):not(#\#):not(#\#):not(#\#)` 前缀（`important: '.scalar-app'` 那格配置），
 剩下 1116 条不带前缀的，认的全是它自己的类名（`[data-v-…]` 那种 Vue 作用域类、`.scalar-code-block …`、
 `.dark-mode` / `.light-mode`）或只是注册自定义属性（`--tw-*`、`--scalar-*`）。`.scalar-app` 那一格
-在框内那份文档里（实测 7 格），外层 0 格 —— 于是那些规则在站点页面上没有可命中的元素。
+在框内那份文档里（实测 3 格），外层 0 格 —— 于是那些规则在站点页面上没有可命中的元素。
 
 这一句不是推理，是**对照量出来的**：把那一行 import 注掉重新构建，与注回来之后，在 `/`、
 `/redoc-demo`、`/markmap-demo` 三份页面上取同一批 31 个站点选择器 × 16 条 computed 属性比 ——
@@ -128,8 +128,8 @@ postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?s
 因为规则带着 `:not(#\#)` 那四段 ID 级权重，**本层想覆盖它就得写 `!important`**。实测：不带
 `!important` 的同一条规则注进页面也不生效（`scalar-ui.css` 里那条注释记了量法），加上才收得掉。
 前缀用 `.scalar-app.scalar-api-reference` 这两格类名而不是裸的 `.scalar-app`：框内那份文档里
-`.scalar-app` 有 7 格（Scalar 给弹窗与提示各造一格），带 `scalar-api-reference` 的那一颗才是布局
-根（实测 1 格，`aside`、左栏链接与正文都在它下面）。
+`.scalar-app` 有 3 格，只带 `scalar-api-reference` 的那一颗是布局根（实测 1 格，`aside`、左栏链接
+与正文都在它下面），另外两格是厂商给自己那几格弹层与提示造的（实测其中一格带 `scalar-tooltip`）。
 
 判据两句，都在 `test/e2e/features/scalar.feature` 第一条用例里：「外层文档里没有 Scalar 的运行时
 痕迹」（`.scalar-app` 0 个、Scalar 渲染出来的文字也不在外层）与「站点自己的
@@ -223,10 +223,18 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
 
 ## 收掉的几处 Scalar 自己的东西
 
-两处，取舍与 `theme-redoc` 那三处同一口径（只收厂商自己塞的品牌与重复开关，功能性的一个都不收）：
+三处，取舍与 `theme-redoc` 那三处同一口径（收的是厂商自己塞的品牌位、跟站点重复的开关，和那条
+只在本地冒出来的开发者工具栏；面向读文档的人的功能一个都不收）：
 
 - **那颗亮暗开关**：配置收的（`hideDarkModeToggle: true`），不渲染，DOM 里没有，所以 e2e 那句
   按数量判。理由见「亮暗模式」。
+- **正文顶上那条开发者工具栏**：配置收的（`showDeveloperTools: 'never'`）。Scalar 那一格的默认值
+  是 `localhost`，判据是 `isLocalUrl(window.location.href)` —— 站点跑在 `pnpm start` 与 e2e 的本地
+  服务上正好命中，于是**同一份产物在本地和线上长得不一样**。这一格只服务「改配置」那件事，
+  读文档的人用不上；按 `never` 钉死之后本地与线上是同一个形状。实测代价：框里含「Copy」的按钮少
+  一颗（那条栏上有一处拷贝入口），框内那份文档里 `.scalar-app` 从 7 颗变成 3 颗（直接打开
+  `/scalar-view` 从 9 颗到 5 颗）。SDK 生成那条路**没被收掉**：那颗按钮厂商自己在每条接口的代码
+  示例选择器里也渲染（`ClientSelector` / `Operation` 那两个布局），工具栏上那份只是又摆一次。
 - **左栏底部那条「powered by Scalar」署名与 Scalar 那张推广位**：`scalar-ui.css` 里一条
   `display: none !important` 收掉整格。走 CSS 而不是配置是因为配置里**没有这一格**：查过
   `@scalar/types@0.24.0` 那份 `api-reference-configuration` 的 schema，`hide*` 一共七条
@@ -239,7 +247,7 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
 `display: none` 那一句仍在 DOM 里，所以 e2e 按可见性判、不按数量判，并且先钉「这一格在 DOM 里
 认得出来」再钉「看不见」，免得选择器哪天匹配不上就静默通过。
 
-**代码块里那些复制按钮一个都不收**（实测点开一条接口之后框里有 18 颗含「Copy」的按钮）：那是
+**代码块里那些复制按钮一个都不收**（实测点开一条接口之后框里有 17 颗含「Copy」的按钮）：那是
 「把这段示例拷走用」，不是品牌位。Scalar 不给那几颗 `data-testid`，e2e 那句按按钮自己的文案认。
 
 ## Node 侧依赖：这一层不需要补
@@ -310,7 +318,8 @@ src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外
 - 框内：Scalar 的布局根（`.scalar-app.scalar-api-reference`）在、左栏三个接口 `#tag/orders/GET|POST/orders…` 都在（**默认就是展开的**，
   不像 redoc / stoplight 要先点分组）、点新建订单时详情换成它**并且外层地址栏那一段跟着换**（这一句
   同时钉住框内 → 外层那条消息）；左栏 `<aside>` 上沿贴 0、下沿贴满那份文档的底；它那颗亮暗开关
-  不在（0 颗 `aria-label*="Set "`），署名那一格 `display: none` 而左栏整格还在；18 颗代码块复制
+  不在（0 颗 `aria-label*="Set "`）、那条开发者工具栏也不在（0 颗 `.api-reference-toolbar`），
+  署名那一格 `display: none` 而左栏整格还在；17 颗代码块复制
   按钮都还在；全程没有运行期错误。
 - 深链：整页加载 `/scalar-demo#tag/orders/POST/orders`，托管侧回 200，框里把那条接口摆出来
   （直达那一份清单钉到 `新建订单` 为止，原因见「局限」里按需挂载那一条）。
@@ -324,4 +333,5 @@ src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外
   主页那份 html 不引它；样式表那 359 KB 是全站一份，见「样式」。
 
 没实测到的：AsyncAPI / GraphQL 那两种入口没试；Scalar 的 `hideModels` 那一类配置项没有逐条验，
-本层只用了 `darkMode`、`hideDarkModeToggle`、`onSidebarClick`、`url` 这四格。
+本层只用了 `darkMode`、`hideDarkModeToggle`、`onSidebarClick`、`showDeveloperTools`、`url`
+这五格。

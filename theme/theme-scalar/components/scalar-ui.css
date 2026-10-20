@@ -1,6 +1,6 @@
 /* Scalar 渲染区的落位。**这一份 CSS 生效在框内那一页**（`/scalar-view`）：站点的文档页里
    根本没有 Scalar 的 DOM，下面每条规则的落点都是框内那份文档。前缀认的是厂商自己造的那一格
-   （裸的 `.scalar-app` 框内那份文档里有 7 格，弹窗与提示各占一格；带 `scalar-api-reference` 的
+   （裸的 `.scalar-app` 框内那份文档里有 3 格，弹层与提示各占一格；带 `scalar-api-reference` 的
    那一颗才是布局根，实测 1 格）—— 挂载宿主那一格 `<div>` 不带类名。口径见包 README 的
    「样式」一节。 */
 
