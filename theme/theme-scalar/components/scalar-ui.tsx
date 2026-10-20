@@ -74,7 +74,8 @@ export function ScalarUI(props: Props) {
       // 每条接口右上角那颗「Test Request」：它真的把请求发出去，读的是文档里那条 server 地址。
       // 这是一份**文档**站点，凭据与 CORS 都不在这一层的承诺里，所以收掉（厂商那一路判据：这颗
       // 按钮与正文里那个鉴权选择器同源，`Content.vue` 的注释写的是 "tied to
-      // `hideTestRequestButton`"）。看的那一路不收：实测代码示例选择器、SDK 生成与下载都还在。
+      // `hideTestRequestButton`"）。看的那一路不收：实测代码示例选择器与下载都还在（那颗「生成 SDK」
+      // 是另一件事，厂商没有配置、只在本地地址渲染，归 `scalar-ui.css` 那条 CSS 收）。
       hideTestRequestButton: true,
       // `localization.locale`：界面文案走厂商自带的简体中文那一份。合法取值是它内置的九份
       // （`dist/features/localization/locales/`：ar / de / en / es / fr / pt / ru / zh-cn / zh-tw），

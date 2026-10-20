@@ -357,6 +357,42 @@ Then(
 );
 
 /**
+那颗「生成 SDK」（简体那份是「生成 SDK」，英文 "Generate SDK"）不出现。
+
+为什么要在这层收：厂商那一格没有配置（`@scalar/types@0.24.0` 那份 schema 里 `sdk` 相关的一条
+都没有），判据是「本机地址」—— `use-generate-sdk.js` 的 `isLocalUrl(window.location.href)`。
+站点跑在 `pnpm start` 与 e2e 的本地服务上**正好命中**，实测本地 3 颗、线上 0 颗，与已经按死的
+开发者工具栏、Ask AI、MCP 入口是同一族「本地比线上多出东西」。这一颗点下去还会把这份文档
+上传到 scalar.com。
+
+两句一起写，理由与上面那条 MCP 的一样：只看「看不见」不够 —— 厂商哪天换了类名，那条 CSS
+就打成空的，计数同样是 0，所以先钉 DOM 里那两种形状确实还在（`generate-sdk-button` 是接口卡
+代码示例页脚那一颗，`selected-client-action` 是客户端选择器右上角那一颗），再各取一颗判可见性
+（`display: none` 收的，元素仍在 DOM 里）。最后那句按文案数一遍**可见**的按钮，两种语言都收，
+钉的是「读者眼前没有这一颗」。
+*/
+Then('Scalar 那颗「生成 SDK」的按钮不出现', async ({ page }) => {
+  for (const selector of ['.generate-sdk-button', '.selected-client-action']) {
+    const buttons = frameDoc(page).locator(selector);
+    expect(
+      await buttons.count(),
+      `框内找不到 ${selector}：那颗按钮的形状变了，${selector} 那条 CSS 规则现在是打成空的`,
+    ).toBeGreaterThan(0);
+    await expect(
+      buttons.first(),
+      `框里那颗 ${selector} 还看得见（scalar-ui.css 那条 display: none 没落上）`,
+    ).toBeHidden();
+  }
+
+  await expect(
+    frameDoc(page)
+      .locator('button:visible')
+      .filter({ hasText: /generate sdk|生成 sdk/i }),
+    '框里看得见一颗「生成 SDK」的按钮',
+  ).toHaveCount(0);
+});
+
+/**
 这一条量的是「隔离」这件事本身：外层那份文档里**没有任何** Scalar 的痕迹 —— 它自己那几格
 （`.scalar-app`）都不存在，正文文字更不在外层文档里。
 

@@ -24,6 +24,7 @@ Feature: theme-scalar
     And 左栏底部那一颗换成了 API client，不是 MCP 安装入口
     And Scalar 那条开发者工具栏不出现
     And 「powered by Scalar」那条署名不出现，左栏那一格还在
+    And Scalar 那颗「生成 SDK」的按钮不出现
     And 外层文档里没有 Scalar 的运行时痕迹
     And 站点自己的那几处样式不被 Scalar 改写
     And 浏览器里没有运行期错误
