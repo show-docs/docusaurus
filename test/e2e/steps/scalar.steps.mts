@@ -210,7 +210,29 @@ Then('Scalar 自己那颗亮暗开关不出现', async ({ page }) => {
 });
 
 /**
-正文顶上那条开发者工具栏（改配置、分享、部署、生成 SDK 那几颗）不出现。
+Scalar 那颗「Ask AI」的按钮不出现。
+
+同一类问题的另一头：厂商那一路判据按顺序是「配置里 `agent.disabled` → 本机地址就开 → 配了
+`agent.key` 才开」（`ApiReference.vue.script.js`），本层没有 key，于是这颗按钮**只在本地服务上**
+露出来 —— 与下面那条开发者工具栏一样，是「同一份产物在本地和线上长得不一样」的那一格。
+
+这句按文案认（厂商那颗按钮没有 `data-testid`，也没带稳定的类名）。收之前实测：`/scalar-demo`
+框里那份文档 1 颗「Ask AI」，直接打开 `/scalar-view` 也 1 颗；按 `agent.disabled` 钉死之后两处
+都 0 颗。从**整份框内文档**往下数，不从布局根往下 —— 那颗按钮在左栏搜索那一行里，判据不押它
+在不在布局根里面。
+*/
+Then('Scalar 那颗「问 AI」的按钮不出现', async ({ page }) => {
+  await expect(
+    frameDoc(page)
+      .locator('button')
+      .filter({ hasText: /ask ai/i }),
+    '框里出现了 Scalar 那颗「Ask AI」的按钮（`agent.disabled` 不是 true）',
+  ).toHaveCount(0);
+});
+
+/**
+正文顶上那条开发者工具栏（本层真的摆出来的是标题与「改配置」那颗；分享、部署、生成 SDK 要
+有 `workspace` 才渲染）不出现。
 
 为什么要在这层按死它：Scalar 那一格默认值是 `localhost`（`@scalar/types@0.24.0` 的
 `showDeveloperTools`：`z.enum(['always','localhost','never']).default('localhost')`），判据是

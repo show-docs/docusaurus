@@ -223,15 +223,21 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
 
 ## 收掉的几处 Scalar 自己的东西
 
-三处，取舍与 `theme-redoc` 那三处同一口径（收的是厂商自己塞的品牌位、跟站点重复的开关，和那条
-只在本地冒出来的开发者工具栏；面向读文档的人的功能一个都不收）：
+四处，取舍与 `theme-redoc` 那三处同一口径（收的是厂商自己塞的品牌位、跟站点重复的开关，和那几件
+只在本地冒出来的东西；面向读文档的人的功能一个都不收）：
 
 - **那颗亮暗开关**：配置收的（`hideDarkModeToggle: true`），不渲染，DOM 里没有，所以 e2e 那句
   按数量判。理由见「亮暗模式」。
+- **那颗「Ask AI」按钮**：配置收的（`agent: { disabled: true }`）。厂商那一格的判据按顺序是
+  配置里 `agent.disabled` 优先 → 本机地址就开 → 配了 `agent.key` 才开，而这一层没有 key，于是
+  它也是**只在本地冒出来**的东西（实测收之前：`/scalar-demo` 框里那份文档有 1 颗文案为「Ask AI」
+  的按钮，直接打开 `/scalar-view` 也是 1 颗；收之后两处都 0 颗）。它要 `agent.key` 才是在公网上
+  能用起来的那一格（厂商判据里那第三路），本层没有那个 key，也不打算把对话交给它。
 - **正文顶上那条开发者工具栏**：配置收的（`showDeveloperTools: 'never'`）。Scalar 那一格的默认值
   是 `localhost`，判据是 `isLocalUrl(window.location.href)` —— 站点跑在 `pnpm start` 与 e2e 的本地
-  服务上正好命中，于是**同一份产物在本地和线上长得不一样**。这一格只服务「改配置」那件事，
-  读文档的人用不上；按 `never` 钉死之后本地与线上是同一个形状。实测代价：框里含「Copy」的按钮少
+  服务上正好命中，于是**同一份产物在本地和线上长得不一样**。本层没有 `workspace`，那条栏真的摆出来
+  的是标题与「改配置」那颗（分享、部署、生成 SDK 那三颗要有 workspace 才渲染），读文档的人用不上；
+  按 `never` 钉死之后本地与线上是同一个形状。实测代价：框里含「Copy」的按钮少
   一颗（那条栏上有一处拷贝入口），框内那份文档里 `.scalar-app` 从 7 颗变成 3 颗（直接打开
   `/scalar-view` 从 9 颗到 5 颗）。SDK 生成那条路**没被收掉**：那颗按钮厂商自己在每条接口的代码
   示例选择器里也渲染（`ClientSelector` / `Operation` 那两个布局），工具栏上那份只是又摆一次。
@@ -318,7 +324,8 @@ src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外
 - 框内：Scalar 的布局根（`.scalar-app.scalar-api-reference`）在、左栏三个接口 `#tag/orders/GET|POST/orders…` 都在（**默认就是展开的**，
   不像 redoc / stoplight 要先点分组）、点新建订单时详情换成它**并且外层地址栏那一段跟着换**（这一句
   同时钉住框内 → 外层那条消息）；左栏 `<aside>` 上沿贴 0、下沿贴满那份文档的底；它那颗亮暗开关
-  不在（0 颗 `aria-label*="Set "`）、那条开发者工具栏也不在（0 颗 `.api-reference-toolbar`），
+  不在（0 颗 `aria-label*="Set "`）、那条开发者工具栏也不在（0 颗 `.api-reference-toolbar`）、
+  那颗「Ask AI」也不在（0 颗文案为「Ask AI」的按钮），
   署名那一格 `display: none` 而左栏整格还在；17 颗代码块复制
   按钮都还在；全程没有运行期错误。
 - 深链：整页加载 `/scalar-demo#tag/orders/POST/orders`，托管侧回 200，框里把那条接口摆出来
@@ -333,5 +340,5 @@ src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外
   主页那份 html 不引它；样式表那 359 KB 是全站一份，见「样式」。
 
 没实测到的：AsyncAPI / GraphQL 那两种入口没试；Scalar 的 `hideModels` 那一类配置项没有逐条验，
-本层只用了 `darkMode`、`hideDarkModeToggle`、`onSidebarClick`、`showDeveloperTools`、`url`
-这五格。
+本层只用了 `agent`、`darkMode`、`hideDarkModeToggle`、`onSidebarClick`、`showDeveloperTools`、
+`url` 这六格。
