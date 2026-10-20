@@ -114,6 +114,10 @@ Then('Scalar 在框里接管了这一屏，读的是本站那份 yaml', async ({
 /**
 Scalar 取不到那份文档时**不抛异常**，只在正文区打一句「Document 'api-1' could not be loaded」
 （实测坏 `src` 就是这一句）。这一条钉这一页读到的是本站那份 yaml，不是那句报信。
+
+界面换成简体之后这一句也还是英文：那句不在这份 locale 表里（`zh-cn.js` 253 条 key 与 `en.js`
+一一对应，里面没有任何一条对得上这句话），它是厂商硬编码的（实测在这份安装的
+`dist/browser/standalone.js` 里数到 1 处）。
 */
 Then('Scalar 没有报那份文档取不到', async ({ page }) => {
   await expect(
@@ -195,11 +199,18 @@ Then('那条接口的 operationId 也摆在正文里', async ({ page }) => {
 
 /**
 与 redoc / stoplight 同一条取舍的另一头：代码块里那些复制按钮**不该**被一起收掉，所以这里钉
-它们还在（实测点开接口之后框里 17 颗含「Copy」的按钮）。Scalar 不给那几颗 `data-testid`，
-认的是按钮自己的文案。
+它们还在（实测点开接口之后框里 17 颗）。Scalar 不给那几颗 `data-testid`，认的是按钮自己的文案。
+
+界面文案按配置里的 `localization.locale` 走（本层设成 `zh-cn`），所以这一句两种文案都收：
+简体那份把「Copy link」翻成「复制链接」、「Copy as Markdown」翻成「复制为 Markdown」，而代码块
+那一行的文案不翻（实测框里那几颗按钮的文本是 `cURLCopycURLCopy` 这样的样子）。两种各数一次是
+6 颗（只认 `Copy`）加 11 颗（只认「复制」），并起来才是那 17 颗 —— 所以只认英文会静默少 11 颗、
+只认中文会静默少 6 颗，两句都得留着。
 */
 Then('框里代码块的复制按钮还在', async ({ page }) => {
-  const copyButtons = root(page).locator('button').filter({ hasText: /copy/i });
+  const copyButtons = root(page)
+    .locator('button')
+    .filter({ hasText: /copy|复制/i });
 
   expect(
     await copyButtons.count(),
@@ -210,11 +221,12 @@ Then('框里代码块的复制按钮还在', async ({ page }) => {
 
 /**
 Scalar 左栏底部那颗它自己的亮暗开关，实测露出来时是一份 `aria-label="Set dark mode"` 的元素
-（没有 `data-testid`；把 `hideDarkModeToggle` 设成 `false` 重新构建后量到的就是这一串）。
-本层用配置收掉它 —— 配色由站点的开关驱动（`scalar-color-mode.ts`），留着它就是一颗跟 navbar
-那颗重复、还会把选择写进 `localStorage` 的按钮，按了只会改框内那份文档的类名、站点没有任何反应。
-收法是不渲染（不是 `display: none`），所以这一句按数量判；先钉「这个标识在本层确实认得出来」
-再钉「框里一个都没有」的写法没法两全，这里靠上面那条注释里那次实测当前提。
+（没有 `data-testid`；把 `hideDarkModeToggle` 设成 `false` 重新构建后量到的就是这一串 —— 那一次
+界面还是英文）。本层用配置收掉它 —— 配色由站点的开关驱动（`scalar-color-mode.ts`），留着它就是
+一颗跟 navbar 那颗重复、还会把选择写进 `localStorage` 的按钮，按了只会改框内那份文档的类名、
+站点没有任何反应。收法是不渲染（不是 `display: none`），所以这一句按数量判；先钉「这个标识在
+本层确实认得出来」再钉「框里一个都没有」的写法没法两全，这里靠上面那条注释里那次实测当前提。
+换成 `zh-cn` 之后这一句不受影响：那一颗本来就不进 DOM，判的是数量，不是文案。
 */
 Then('Scalar 自己那颗亮暗开关不出现', async ({ page }) => {
   await expect(
@@ -233,13 +245,14 @@ Scalar 那颗「Ask AI」的按钮不出现。
 这句按文案认（厂商那颗按钮没有 `data-testid`，也没带稳定的类名）。收之前实测：`/scalar-demo`
 框里那份文档 1 颗「Ask AI」，直接打开 `/scalar-view` 也 1 颗；按 `agent.disabled` 钉死之后两处
 都 0 颗。从**整份框内文档**往下数，不从布局根往下 —— 那颗按钮在左栏搜索那一行里，判据不押它
-在不在布局根里面。
+在不在布局根里面。界面换成 `zh-cn` 之后它的文案是「询问 AI」（厂商 locale 表里的 `agent.askAi`），
+所以这一句两种都收：只认英文的话，那颗按钮哪天回来了也用中文出现，这一句照样 0 颗、什么也说不了。
 */
 Then('Scalar 那颗「问 AI」的按钮不出现', async ({ page }) => {
   await expect(
     frameDoc(page)
       .locator('button')
-      .filter({ hasText: /ask ai/i }),
+      .filter({ hasText: /ask ai|询问 ai/i }),
     '框里出现了 Scalar 那颗「Ask AI」的按钮（`agent.disabled` 不是 true）',
   ).toHaveCount(0);
 });
@@ -249,37 +262,39 @@ Then('Scalar 那颗「问 AI」的按钮不出现', async ({ page }) => {
 
 收它的理由不是「本地和线上长得不一样」，是**它真的会把请求发出去**：那一格读的是这份文档自己的
 `servers`，任何人点一下就从站点的页面上朝那个地址发一条请求。这一层摆的是给别人看的接口文档，
-凭据与 CORS 都不在本层的承诺里，所以按配置收掉；正文里填参数、看代码示例那一格不受影响。
+凭据与 CORS 都不在本层的承诺里，所以按配置收掉；代码示例与那份文档的下载不受影响（见上面那句
+「框里代码块的复制按钮还在」与包 README 的「收掉的几处」）。
 
 按文案认。厂商那一格 `hideTestRequestButton` 的默认值是 `false`（`@scalar/types@0.24.0`，类型注释
-写的是 `Whether to show the "Test Request" button`），渲染出来那颗按钮的文案取自本地化表里的
-`content.testRequest: "Test Request"`（`features/localization/locales/en.js`），没有 `data-testid`。
-从整份框内文档往下数：那颗按钮长在每条接口的标题行里，判据不押它嵌在布局根的哪一层。
+写的是 `Whether to show the "Test Request" button`），那颗按钮没有 `data-testid`，文案取自本地化表
+里的 `operation.testRequest`（`features/localization/locales/`：英文 "Test Request"、简体「测试请求」），
+所以两种都收。从整份框内文档往下数：那颗按钮长在每条接口的标题行里，判据不押它嵌在布局根的哪一层。
 */
 Then('Scalar 那颗「试调用」的按钮不出现', async ({ page }) => {
   await expect(
     frameDoc(page)
       .locator('button')
-      .filter({ hasText: /test request/i }),
+      .filter({ hasText: /test request|测试请求/i }),
     '框里出现了 Scalar 那颗「Test Request」的按钮（`hideTestRequestButton` 不是 true）',
   ).toHaveCount(0);
 });
 
 /**
-左栏底部那颗「Generate MCP」/「Connect MCP」的安装入口不出现，摆出来的是 API client 那一颗。
+左栏底部那颗「Generate MCP」/「Connect MCP」（简体那份是「生成 MCP」/「连接 MCP」）的安装入口
+不出现，摆出来的是 API client 那一颗。
 
 厂商那一格的判据是「配置里 `mcp.disabled` 优先 —— 给了它就直接退回 API client 那颗；不给时按
 「本机地址摆 explore、线上摆 client」走」（`ApiReference.vue.script.js` 的 `sidebarCta`），于是
-不设这一格时本地与线上又是两个形状。这两颗按钮的文案也各自取自本地化表：`mcp.generate:
-"Generate MCP"`、`mcp.connect: "Connect MCP"`、`openApiClientButton.openAPIClient:
-"Open API Client"`（`features/localization/locales/en.js`），都没有 `data-testid`，只能按文案认。
+不设这一格时本地与线上又是两个形状。那两颗的文案取自本地化表（`mcp.generate` / `mcp.connect`），
+没有 `data-testid`；两种语言里那一段「MCP」都是拉丁字母，所以 `/\bmcp\b/i` 一条就够。
 
 两句一起写，都在 **DOM 那一层**判：先钉 MCP 那两颗一颗都没有（按钮与链接都算），再钉换出来的
-那颗确实是 API client 入口（实测它是左栏底部一颗 `<a class="open-api-client-button">`，`href` 指向
-`client.scalar.com`，文案正是 `Open API Client`）。这里不能按可见性判：左栏底部这一整格本来就归
-下面那条「powered by Scalar」收掉了（`scalar-ui.css` 那条 `display: none` 落的是这一格，署名那行
-和 CTA 那一行同住），所以可见性判据只会量到我们自己那条 CSS。只钉前一句也不行 —— 整格没了的时候
-计数同样是 0。这一句钉的是配置换出来的是哪一颗，与它可见不可见无关。
+那颗确实是 API client 入口 —— 判据认的是厂商给它挂的类名 `open-api-client-button`（实测它是左栏
+底部一颗 `<a>`，`href` 指向 `client.scalar.com`），不押文案，因为那颗的文案跟着 locale 走
+（实测英文 `Open API Client`、简体「打开 API 客户端」）。这里也不能按可见性判：左栏底部这一整格
+本来就归下面那条「powered by Scalar」收掉了（`scalar-ui.css` 那条 `display: none` 落的是这一格，
+署名那行和 CTA 那一行同住），可见性判据只会量到我们自己那条 CSS。只钉前一句也不行 —— 整格没了
+的时候计数同样是 0。这一句钉的是配置换出来的是哪一颗，与它可见不可见无关。
 */
 Then('左栏底部那一颗换成了 API client，不是 MCP 安装入口', async ({ page }) => {
   await expect(

@@ -76,6 +76,17 @@ export function ScalarUI(props: Props) {
       // 按钮与正文里那个鉴权选择器同源，`Content.vue` 的注释写的是 "tied to
       // `hideTestRequestButton`"）。看的那一路不收：实测代码示例选择器、SDK 生成与下载都还在。
       hideTestRequestButton: true,
+      // `localization.locale`：界面文案走厂商自带的简体中文那一份。合法取值是它内置的九份
+      // （`dist/features/localization/locales/`：ar / de / en / es / fr / pt / ru / zh-cn / zh-tw），
+      // 认的是这种小写带连字符的 id，不是 BCP 47（写 `zh-CN` 认不出来，`resolveLocalization` 只按
+      // 这张表取，取不到就退回默认 `en`）。`zh-cn` 与 `zh-tw` 两格都齐（实测两份各 253 条 key，
+      // 与 `en` 一模一样多，不会露半句英文），这一层选简体是因为站点与示例文档都是简体。
+      // 界面跟着换：搜索、代码示例那一行的复制、下载、客户端库那几颗都成了中文；e2e 那几句按
+      // 文案认的判据因此两条都收（见 `test/e2e/steps/scalar.steps.mts`）。
+      // 不动的那一格：Scalar 报「文档取不到」那句是厂商硬编码的英文（`could not be loaded`，
+      // 在这份安装的 `dist/browser/standalone.js` 里数到 1 处，locale 表里根本没有对应条目），
+      // 换语言也还是英文，e2e 那句继续按它认。
+      localization: { locale: 'zh-cn' },
       // 左栏底部那两颗「Generate MCP」/「Connect MCP」（文案取自它自己的本地化表）。厂商那一格
       // （`sidebarCta`）按 `mcp.disabled` 优先 —— 钉成 disabled 就直接退回 API client 那颗入口；
       // 不给时按「本机地址摆 explore、线上摆 client」走，于是本地与线上又是两个形状。

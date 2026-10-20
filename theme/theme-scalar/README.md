@@ -182,6 +182,32 @@ Scalar 自己那颗左栏底部的亮暗开关用配置收掉：`hideDarkModeTog
 没有重新加载**（判的是它自己的 `performance.timeOrigin`，见 `common.steps.mts`），最后拿同一批
 站点属性在暗色下把这一页与主页各量一遍比相等。
 
+## 界面文案：走厂商自带的简体那一份
+
+Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上方那排、下载那两颗、接口标题旁那颗
+「测试请求」…）不写在组件里，取自它自己那份本地化表。本层按配置交一格：
+`localization: { locale: 'zh-cn' }`（`scalar-ui.tsx`）。
+
+三件实测过的事：
+
+- **合法取值是那九份内置的**（`@scalar/api-reference/dist/features/localization/locales/`：
+  `ar` / `de` / `en` / `es` / `fr` / `pt` / `ru` / `zh-cn` / `zh-tw`），认的是这种小写带连字符的 id，
+  不是 BCP 47 —— `locale` 在 schema 里只是一条 `z.string().optional()`，写错不会报错，
+  `resolveLocalization` 取不到就退回默认的那份 `en`（厂商 `use-localization.js` 里
+  `defaultLocale: "en"`）。所以这一格要么写对，要么静默没换。
+- **简体那份是全的**：`zh-cn.js` 与 `en.js` 各 253 条 key、一条不缺（逐条比过），不会中英夹一半。
+  选 `zh-cn` 而不是 `zh-tw` 是因为站点与示例文档都是简体。
+- **有一处换不动**：Scalar 报「文档取不到」那句（`Document 'api-1' could not be loaded`）不在这份
+  表里，是厂商硬编码的英文（实测在这份安装的 `dist/browser/standalone.js` 里数到 1 处，locale 表
+  里也没有对应条目），换语言也还是英文。e2e 那句「Scalar 没有报那份文档取不到」继续按它认。
+
+换语言会牵到 e2e：那几句按文案认的判据因此两种都收（`Copy` 与「复制」、`Ask AI` 与「询问 AI」、
+`Test Request` 与「测试请求」）。数量上也量过一次：只认英文是 6 颗、只认中文是 11 颗，并起来才是
+那句钉的 17 颗代码块复制按钮 —— 少收一种就会静默变成「少了几颗」。
+
+还有一格是**已知不一致，本层不动**：框内那份文档 `<html lang>` 仍是 `en`（由 Docusaurus 的 i18n
+配置决定，站点整体就是 `en`），而 Scalar 的界面是简体。要让两者对齐得动站点的 i18n，不归这一层。
+
 ## 宽度：这一层多让一步，把站点的文档侧栏收掉
 
 三条 API 层里只有 Scalar 需要动站点这一侧的版式，因为它的左栏有一个**视口宽度门槛**：实测 1024
@@ -289,8 +315,9 @@ CSS px，量的是**框内那份文档**的视口宽度。不够，整套 API �
 `display: none` 那一句仍在 DOM 里，所以 e2e 按可见性判、不按数量判，并且先钉「这一格在 DOM 里
 认得出来」再钉「看不见」，免得选择器哪天匹配不上就静默通过。
 
-**代码块里那些复制按钮一个都不收**（实测点开一条接口之后框里有 17 颗含「Copy」的按钮）：那是
-「把这段示例拷走用」，不是品牌位。Scalar 不给那几颗 `data-testid`，e2e 那句按按钮自己的文案认。
+**代码块里那些复制按钮一个都不收**（实测点开一条接口之后框里有 17 颗，其中 6 颗的文案带 `Copy`、
+11 颗带「复制」）：那是「把这段示例拷走用」，不是品牌位。Scalar 不给那几颗 `data-testid`，e2e 那句
+按按钮自己的文案认，两种语言都收（见「界面文案」）。
 
 ## Node 侧依赖：这一层不需要补
 
@@ -365,7 +392,8 @@ src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外
   Test Request 的按钮），左栏底部那一颗是 `a.open-api-client-button`（1 颗）而不是 MCP 那两颗
   （0 颗带 MCP 字样的按钮或链接）、接口标题旁那颗 `createOrder` 徽标在，
   署名那一格 `display: none` 而左栏整格还在；17 颗代码块复制
-  按钮都还在；全程没有运行期错误。
+  按钮都还在（按 `Copy` 与「复制」两种文案一起认，见「界面文案」）；界面是简体的（实测左栏那排是
+  「简介」「打开搜索」「下载 OpenAPI 文档」）；全程没有运行期错误。
 - 深链：整页加载 `/scalar-demo#tag/orders/POST/orders`，托管侧回 200，框里把那条接口摆出来
   （直达那一份清单钉到 `新建订单` 为止，原因见「局限」里按需挂载那一条）。
 - 亮暗：操作系统按深色打开这一页，站点仍是亮色、框内 `<body>` 上也是 `light-mode`（这一格现在由
@@ -380,7 +408,7 @@ src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外
 
 没实测到的：AsyncAPI / GraphQL 那两种入口没试；Scalar 的 `hideModels` 那一类配置项没有逐条验，
 本层只用了 `agent`、`darkMode`、`forceDarkModeState`、`hideDarkModeToggle`、
-`hideTestRequestButton`、`mcp`、`onSidebarClick`、`showDeveloperTools`、`showOperationId`、
-`telemetry`、`url` 这十一格。其中每一条都对着 `@scalar/types@0.24.0` 那份
+`hideTestRequestButton`、`localization`、`mcp`、`onSidebarClick`、`showDeveloperTools`、
+`showOperationId`、`telemetry`、`url` 这十二格。其中每一条都对着 `@scalar/types@0.24.0` 那份
 `api-reference-configuration` 的 schema 与装好的 `@scalar/api-reference@1.75.0` 里读它的那一处核过，
 不是照着别的版本的文档抄的。
