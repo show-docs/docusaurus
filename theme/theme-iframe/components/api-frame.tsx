@@ -5,8 +5,12 @@
 - `internal`：`src` 由 `frameViewSrc()` 拼（spec 地址编码进去、`hash` 不放进去，SSR 与
   客户端算出同一个字符串），深链那一段与亮暗模式靠 `useOuterFrameSync` 送 —— 两侧的推法、
   踩过的坑与理由都在 `lib/frame-sync.ts` 那份注释与 `docs/iframe-protocol.md`。
-- `external`：框里是**外部站点**，跨源，没有那条通道；地址算法三步（`/` 打头补 origin、
-  `?path=` 再解一层、整体 decode 一次）是 `iframe:` 那层原来的口径，整段搬到这里。
+- `external`：框里是**外部站点**，跨源，没有那条通道；地址算法那三步在
+  `lib/frame-messages.ts` 的 `externalFrameURL()`（与框内取 spec 那条同形状，所以也在覆盖率红线里）。
+
+框元素恒挂两条类名：共用的 `.api-frame`（版式那一处，四条层同一条式子）与注册表里本层那条
+`frameClass`（只用来认「这一格是哪一层赢的」，各层的真差异留在自己那份 CSS 里 —— 目前只剩
+stoplight 那条收页脚）。
 
 这一格只剩 `<iframe>` 与一个 hook，没有渲染器依赖，所以 `DocItem` 直接静态 import 它，
 不再走 lazy/Suspense。
@@ -24,7 +28,11 @@ import useIsBrowser from '@docusaurus/useIsBrowser';
 
 import { apiFrameMessages } from '../lib/api-frame-messages.ts';
 import type { ApiFrameEntry } from '../lib/api-frame-registry.ts';
-import { frameViewSrc, type FrameColorMode } from '../lib/frame-messages.ts';
+import {
+  externalFrameURL,
+  frameViewSrc,
+  type FrameColorMode,
+} from '../lib/frame-messages.ts';
 import { useOuterFrameSync } from '../lib/frame-sync.ts';
 
 type Props = {
@@ -34,51 +42,33 @@ type Props = {
   frontMatterTitle?: unknown;
 };
 
-/**
-`iframe:` 那层原来的地址算法，只解**该解的那一段**：`?path=` 由 `URLSearchParams` 自动解码，
-`src` 从 frontmatter 来、本来就是明文。旧写法收尾对整串 URL `decodeURIComponent` 一遍，
-会把地址里合法的 `%` 序列二次解码（`a=%25` 变成 `a=%`，`/a%2Fb` 变成 `/a/b`），已去掉。
-*/
-function externalURL({ src, search }: { src: string; search: string }): string {
-  const path = new URLSearchParams(search).get('path') ?? '';
-
-  const io = src.startsWith('/')
-    ? new URL(src, window.location.origin).href
-    : src;
-
-  return path ? new URL(path, io).href : io;
-}
-
 export function ApiFrame({ entry, value, frontMatterTitle }: Props): ReactNode {
+  const frameClass = `api-frame ${entry.frameClass}`;
+  const title =
+    typeof frontMatterTitle === 'string' && frontMatterTitle !== ''
+      ? frontMatterTitle
+      : entry.title;
+
   return entry.kind === 'external' ? (
-    <ExternalFrame
-      frameClass={entry.frameClass}
-      src={value}
-      title={
-        typeof frontMatterTitle === 'string' && frontMatterTitle !== ''
-          ? frontMatterTitle
-          : entry.title
-      }
-    />
+    <ExternalFrame frameClass={frameClass} src={value} title={title} />
   ) : (
     <InternalFrame
       entry={entry}
+      frameClass={frameClass}
       specUrl={value}
-      title={
-        typeof frontMatterTitle === 'string' && frontMatterTitle !== ''
-          ? frontMatterTitle
-          : entry.title
-      }
+      title={title}
     />
   );
 }
 
 function InternalFrame({
   entry,
+  frameClass,
   specUrl,
   title,
 }: {
   entry: Extract<ApiFrameEntry, { kind: 'internal' }>;
+  frameClass: string;
   specUrl: string;
   title: string;
 }): ReactNode {
@@ -100,12 +90,7 @@ function InternalFrame({
   });
 
   return (
-    <iframe
-      ref={frameRef}
-      className={entry.frameClass}
-      src={src}
-      title={title}
-    />
+    <iframe ref={frameRef} className={frameClass} src={src} title={title} />
   );
 }
 
@@ -123,7 +108,10 @@ function ExternalFrame({
 
   // 服务端渲染阶段拿不到 `window`，那时 url 就是 frontmatter 里那个原值。
   const url = useMemo(
-    () => (isBrowser ? externalURL({ src, search }) : src),
+    () =>
+      isBrowser
+        ? externalFrameURL({ src, search, origin: window.location.origin })
+        : src,
     [isBrowser, search, src],
   );
 

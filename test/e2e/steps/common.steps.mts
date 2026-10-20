@@ -32,6 +32,23 @@ Then('这一页没有文档正文外壳', async ({ page }) => {
 });
 
 /**
+「框的无障碍标题用的是页面自己的标题」：整页交给框以后，`<iframe>` 的 `title` 是这一页在
+辅助技术里唯一的名字 —— 页面写了 `frontMatter.title` 时用它，注册表那条兜底值（`API 文档`）
+只在缺它时出现。三层形状一样，句子写一份，标题当参数传（各页不同）。
+
+正则步骤：playwright-bdd 的 Cucumber 表达式里中文引号串不好当参数解析，捕获组最稳。
+*/
+Then(
+  /^框的无障碍标题用的是页面自己的标题 "([^"]+)"$/,
+  async ({ page }, title) => {
+    await expect(
+      themeFrame(page).first(),
+      `title 应取页面自己的「${title}」，而不是注册表兜底`,
+    ).toHaveAttribute('title', title);
+  },
+);
+
+/**
 ## 「亮暗跟站点走」那三步，三层共用
 
 `theme-redoc`、`theme-stoplight` 与 `theme-scalar` 各钉一条同形状的场景：站点自己的开关是
@@ -98,9 +115,10 @@ Then('这一页没有站点的 navbar', async ({ page }) => {
 });
 
 /**
-整页交给这个框时容器不留白：三层各自的 `*-frame.css` 都写了 `.container:has(…-frame)`。
-认的是这三个层自己声明的类名（`themeFrame`），不是裸 `iframe` —— 后者是 theme-iframe 那层
-自己声明的边界，本仓这三层不复用彼此的选择器。
+整页交给这个框时容器不留白：那条 `.container:has(iframe)` 在 theme-iframe 那份共用的
+`components/api-frame.css` 里，四条层都吃它。这里是**主题那三个框**（`themeFrame`）所在的
+`.container` —— 判据故意不认裸 `iframe`：夹具正文里手写的 `<iframe>` 也会命中全局那一条，
+那一句会假绿。
 */
 Then('正文容器在这一页让位', async ({ page }) => {
   const container = page
@@ -112,7 +130,8 @@ Then('正文容器在这一页让位', async ({ page }) => {
 
 /**
 外层这一格：iframe 的上沿贴着 navbar 的下沿、下沿贴着视口的下沿，两边各留 1px 容差。
-三份 `*-frame.css` 里的 `height: calc(100vh - var(--ifm-navbar-height))` 就是这个数。
+theme-iframe 那份共用版式（`components/api-frame.css` 的 `.api-frame`）里那条
+`height: calc(100vh - var(--ifm-navbar-height))` 就是这个数。
 */
 Then('框占满 navbar 以下那一屏', async ({ page }) => {
   const box = await themeFrame(page).evaluate((el) => {

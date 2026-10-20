@@ -18,9 +18,8 @@
 | 文件                             | 编译吗              | 职责                                                                                                                                                                                                                  |
 | -------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/redoc-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它（补 `worker_threads` 空模块，见下） |
-| `theme/RedocPage/index.tsx`      | ❌ 站点编译         | 那条插件路由落到的组件：只放 `RedocView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                                                                                       |
-| `components/redoc-frame.css`     | ❌ 站点编译         | 外层那一格的尺寸：框定高占满 navbar 以下那一屏，正文容器去掉内边距与最大宽度（见「高度」一节）；类名取自注册表，进 bundle 的通道是 `redoc-view.tsx` 那一句 import                                                     |
-| `components/redoc-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Redoc，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`                                                                                               |
+| `theme/RedocPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`RedocUI`、亮暗的属性名                                                                                                       |
+| —— 外层那一格                    | ——                  | **本包没有外层 CSS**：框的尺寸与正文容器让位由 theme-iframe 那份共用的 `components/api-frame.css` 管（见「高度」一节）；`redoc-frame` 只剩类名，用来认「这一格是哪一层赢的」                                          |
 | `components/redoc-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `RedocStandalone`（只收地址那一种入参），外面套 `HashRouter` 与 `StyleSheetManager`；`LocationMirror` 把路由变化报给外层                                                                                 |
 | `components/redoc-color-mode.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的编译中间件：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到 `<html data-redoc-mode="dark">` 上（见「亮暗模式」一节）                                                                       |
 | `components/redoc-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Redoc 自己的三处东西（它那颗亮暗切换按钮、左栏底部的 Redocly 署名、章节标题旁那一整格操作按钮）。高度为什么不写在这里，见「高度」一节                                                          |
@@ -69,13 +68,13 @@ iframe 的边界是浏览器给的，不是靠枚举规则拼出来的：框里�
 
 ### 两份文档各管什么
 
-|                | 外层：站点的文档页（`/redoc-demo`）                                               | 框内：本包那条页面（`/redoc-view?src=…`）          |
-| -------------- | --------------------------------------------------------------------------------- | -------------------------------------------------- |
-| 本层放的东西   | 一个 `<iframe class="redoc-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `RedocUI`，即 `.redoc-root` 那一格                 |
-| Redoc 的运行时 | 不加载，一行都没有                                                                | 全在这里                                           |
-| 样式表         | 站点的产物 CSS                                                                    | 站点的产物 CSS + Redoc 运行期那张表                |
-| 亮暗模式       | 站点的 `<html data-theme>`，开关在这                                              | 自己 `<html>` 上的 `data-redoc-mode`，值由外层送来 |
-| 能分享的地址   | 有，`#` 那一段代表当前那条接口                                                    | 有，但那是「直接打开框里那一页」，见「深链」       |
+|                | 外层：站点的文档页（`/redoc-demo`）                                                         | 框内：本包那条页面（`/redoc-view?src=…`）          |
+| -------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| 本层放的东西   | 一个 `<iframe class="api-frame redoc-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `RedocUI`，即 `.redoc-root` 那一格                 |
+| Redoc 的运行时 | 不加载，一行都没有                                                                          | 全在这里                                           |
+| 样式表         | 站点的产物 CSS                                                                              | 站点的产物 CSS + Redoc 运行期那张表                |
+| 亮暗模式       | 站点的 `<html data-theme>`，开关在这                                                        | 自己 `<html>` 上的 `data-redoc-mode`，值由外层送来 |
+| 能分享的地址   | 有，`#` 那一段代表当前那条接口                                                              | 有，但那是「直接打开框里那一页」，见「深链」       |
 
 `/redoc-view` 是本包入口经 theme-iframe 那份工厂（`lib/api-frame-theme.mts` 的 `contentLoaded`）
 用 `actions.addRoute()` 注册的一条插件路由，路由名与组件别名都写在 theme-iframe 的注册表里，
@@ -129,7 +128,8 @@ SSG 跑在 Node 里，那模块本来就有。
 
 - 外层那份文档（站点的 `/redoc-demo`）里根本没有这张表 —— 实测 styled 表 0 张、`.redoc-root`
   0 个、Redoc 渲染出来的文字也不在这份文档里。Redoc 的运行时压根不在这页上加载。
-- 框内那份文档整份就是给 Redoc 的：`theme/RedocPage/index.tsx` 里只有 `RedocView` 那一格，
+- 框内那份文档整份就是给 Redoc 的：`theme/RedocPage/index.tsx` 就是 theme-iframe 那份框内工厂
+  造出的一页，
   没有 navbar、没有 footer、没有正文容器。Redoc 那些裸 `button` 与 `:root` 上的真属性打到的
   都是它自己那一屏，「不外溢」在这份文档里不是一个需要防的事。
 
@@ -268,14 +268,12 @@ Redoc 写的那个 `dark` 类 —— 类名在、配色却是站点这一头的�
 
 两侧各有一条规则，方向相反，因为两份文档的排版模型不同。
 
-**外层**（`redoc-frame.css`）：`.redoc-frame` 定高 `calc(100vh - var(--ifm-navbar-height))`，
-并让正文容器去掉内边距与最大宽度（`.container:has(.redoc-frame)`）。iframe 是一个「尺寸由外面
-决定」的元素，它不会按框里那份文档的内容自己长高；不给这一格定高，框就只有一点高、里面那份
-文档的滚动条也没地方长。这条式子与 theme-iframe 那层同形。
-
-选择器认的是本包那个类名，不是裸 `iframe` —— 后者是 [`theme-iframe`](../theme-iframe/README.md)
-那层自己声明的边界（`.container:has(iframe)`，全局样式），这一页确实也被它命中（效果同方向，
-不冲突），但本层不复用别人的选择器：那边哪天改口径，这一格要用例红，而不是静默跟着变。
+**外层**：本包**没有**外层那份 CSS —— 框的尺寸与正文容器让位四条层共用一条规则，住在
+[`theme-iframe` 的 `components/api-frame.css`](../theme-iframe/README.md)（`.api-frame` 定高
+`calc(100vh - var(--ifm-navbar-height))` + `.container:has(iframe)` 去内边距与最大宽度）。
+`.redoc-frame` 这个类名照旧挂在 `<iframe>` 上，用途只剩一个：e2e 用它认「这一格是 redoc 那把键赢的」。
+为什么这里**要**给框定高，而框内那一份不给 Redoc 定高，见下面「框内」那段与
+[`iframe-protocol.md` 的「尺寸与样式表」一节](../theme-iframe/docs/iframe-protocol.md)。
 
 **框内**（`redoc-ui.css`）：**不**给 `.redoc-root` 定高，也不开 `overflow: hidden`。Redoc 按
 「整份文档跟着滚动」排版 —— 它的左栏是一条 sticky，高度写的是
@@ -423,7 +421,7 @@ hash，也不该有人拿它当分享链接 —— 这一条另有用例钉「�
 
 已实测到的（都在 `test/e2e/features/redoc.feature` 那四条用例里）：
 
-- 外层：`build/redoc-demo/index.html` 里是 `<iframe class="redoc-frame" src="/redoc-view?src=%2Fopenapi.yaml">`；
+- 外层：`build/redoc-demo/index.html` 里是 `<iframe class="api-frame redoc-frame" src="/redoc-view?src=%2Fopenapi.yaml">`；
   这一页没有 `<article>` 正文外壳、styled 表 0 张、`.redoc-root` 0 个，`.container` 的内边距是 0，
   框的上沿贴着 navbar 下沿、下沿贴着视口（navbar 60px），站点的 docs 侧栏仍在（框左偏移 300px）。
 - 框内：`.redoc-root` 那一格在、左栏三个接口点开就在导航里、点新建订单时详情换成它**并且外层地址栏

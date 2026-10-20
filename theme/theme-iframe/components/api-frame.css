@@ -1,18 +1,21 @@
-/* 外层通用框的基线：`.api-frame` 只收三种浏览器默认（`<iframe>` 默认是 inline、带边框）。
-   高度与正文容器让位**不在这里统一** —— 那些规则按「谁声明边界谁负责」留在各层的类名上
-   （`.redoc-frame` / `.stoplight-frame` / `.scalar-frame`，各自 README 的「尺寸」一节）。
+/* 「整页交给一个框」这一族四条层**共用**的那一格版式：类名由 `components/api-frame.tsx`
+   同时挂在 `<iframe>` 上（注册表那条 `frameClass` 是各层专属的第二个类名，页脚那种只属于
+   一层的规则挂在那一个上）。
 
-   `.iframe` 与裸 `iframe` 那两条是原 `theme-iframe/components/iframe.css` 的口径，随
-   `iframe:` 层收进这一份文件、一字未改：前者是那一层自己的边界，后者按「这一格里有
-   iframe」匹配 —— 正文里手写的 iframe 也会让承载它的容器去掉内边距，这是那条规则本来就
-   声明的全站边界，不是疏漏。 */
+   定高取 `100vh - var(--ifm-navbar-height)`：滚动条长在**框内那份文档**上，那份文档没有
+   navbar，整屏都是它的，外层这一格给多高它就占多高，两层滚动容器各滚各的文档，互不打扰。
+   `display: block` 与 `border: 0` 收的是浏览器对 `<iframe>` 的两个默认（inline、带边框）。
+
+   正文容器那一格由下面那条裸 `iframe` 规则负责（去内边距、放开最大宽度）—— 各层不再重复写
+   `.container:has(.X-frame)`。`max-width: 100%` 与 `unset` 在这里等价：那一格是
+   `.container` 自己，父链上没有别的宽度约束，两个值都落到「铺满」，所以只留一条。
+
+   这条按「这一格里有 iframe」匹配 —— 正文里手写的 iframe 也会让承载它的容器去掉内边距，
+   这是它本来就声明的全站边界，不是疏漏。 */
 
 .api-frame {
   display: block;
   border: 0;
-}
-
-.iframe {
   width: 100%;
   height: calc(100vh - var(--ifm-navbar-height));
 }

@@ -27,9 +27,8 @@
 | 文件                              | 编译吗              | 职责                                                                                                                                                                                                                                                                                   |
 | --------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.mts`                   | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/scalar-view` 的注册与 Plugin 形状；本包的 webpack 差异只有一件事——按住 Scalar 那条动态 `import` 的构建告警（`configureWebpack` 里的 `ignoreWarnings`，见「随这一层多出来的构建告警」） |
-| `theme/ScalarPage/index.tsx`      | ❌ 站点编译         | 那条插件路由落到的组件：只放 `ScalarView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                                                                                                                                                       |
-| `components/scalar-frame.css`     | ❌ 站点编译         | 外层那一格的版式：框定高占满 navbar 以下那一屏、正文容器去掉内边距与最大宽度（与 redoc / stoplight 同形，站点那侧的版式不动，见「宽度」一节）；类名取自注册表，进 bundle 的通道是 `scalar-view.tsx` 那一句 import                                                                      |
-| `components/scalar-view.tsx`      | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Scalar，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`（这里交 `onMode`，不是属性名）                                                                                                                                |
+| `theme/ScalarPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`ScalarUI`、亮暗的落法（这里交 `onMode`，不是属性名）                                                                                                                                          |
+| —— 外层那一格                     | ——                  | **本包没有外层 CSS**：框定高占满 navbar 以下那一屏、正文容器去掉内边距与最大宽度，四条层共用 theme-iframe 那份 `components/api-frame.css`（站点那侧的版式不动，见「宽度」一节）；`scalar-frame` 只剩类名，用来认「这一格是哪一层赢的」                                                 |
 | `components/scalar-ui.tsx`        | ❌ 站点编译         | 浏览器端 `createApiReference(元素, 配置)` 挂上去，卸载时 `destroy()`；两头的地址各走一条路（框内 → 外层听 `onSidebarClick`，外层 → 框内把 `hashchange` 转成 `popstate`）                                                                                                               |
 | `components/scalar-color-mode.ts` | ❌ 站点编译         | 亮暗落地的两个小函数：挂载那一刻交给 Scalar 的布尔、收到外层送的值就换 `<body>` 上那两个类名                                                                                                                                                                                           |
 | `components/scalar-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Scalar 送出来的那条署名与推广位、那颗只在本地地址冒出来的「生成 SDK」（厂商配置里没有这两格；为什么每条都要 `!important`，见「样式」一节）                                                                                                                      |
@@ -77,13 +76,13 @@ Scalar 那份组件在自己渲染时会往 `<body>` 上写类名（亮暗那两
 
 ### 两份文档各管什么
 
-|                 | 外层：站点的文档页（`/scalar-demo`）                                               | 框内：本包那条页面（`/scalar-view?src=…`）                                   |
-| --------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| 本层放的东西    | 一个 `<iframe class="scalar-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference` |
-| Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）                                           | 全在这里（实测那一份文档里 `.scalar-app` 3 格，布局根只有 1 格）             |
-| 样式表          | 全站那一份 css（**含 Scalar 那 335 KB**）                                          | 同一份 css，外加 Docusaurus 给这一页的几格内联表                             |
-| 亮暗模式        | 站点的 `<html data-theme>`，开关在这                                               | 自己 `<body>` 上的 `dark-mode` / `light-mode`，值由外层送来                  |
-| 能分享的地址    | 有，`#` 那一段代表当前那条接口                                                     | 有，但那是「直接打开框里那一页」，见「深链」                                 |
+|                 | 外层：站点的文档页（`/scalar-demo`）                                                         | 框内：本包那条页面（`/scalar-view?src=…`）                                   |
+| --------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 本层放的东西    | 一个 `<iframe class="api-frame scalar-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference` |
+| Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）                                                     | 全在这里（实测那一份文档里 `.scalar-app` 3 格，布局根只有 1 格）             |
+| 样式表          | 全站那一份 css（**含 Scalar 那 335 KB**）                                                    | 同一份 css，外加 Docusaurus 给这一页的几格内联表                             |
+| 亮暗模式        | 站点的 `<html data-theme>`，开关在这                                                         | 自己 `<body>` 上的 `dark-mode` / `light-mode`，值由外层送来                  |
+| 能分享的地址    | 有，`#` 那一段代表当前那条接口                                                               | 有，但那是「直接打开框里那一页」，见「深链」                                 |
 
 `/scalar-view` 是本包入口经 theme-iframe 那份工厂（`lib/api-frame-theme.mts` 的
 `contentLoaded`）用 `actions.addRoute()` 注册的一条插件路由，路由名与组件别名都写在
@@ -224,8 +223,8 @@ Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上�
 站点默认的版式给正文那一格留的是 `calc(100% - var(--doc-sidebar-width))`，文档侧栏 300px，
 所以 1440 视口下框 1140、1280 视口下框 980 —— 后者正好差那一档。本层**不**为此去改站点那侧的
 版式（先前写过两条 `body:has(.scalar-frame)` 把 `--doc-sidebar-width` 收成 0，让框吃满整幅，
-代价是那种页面上站点的页面列表没了；已经去掉，`scalar-frame.css` 现在与 redoc / stoplight 同形，
-只有框定高那一条与正文容器去内边距那一条）。于是这一格里剩下的事实是：
+代价是那种页面上站点的页面列表没了；已经去掉。外层那一格本包**没有**自己的 CSS ——
+框定高与正文容器让位四条层共用 theme-iframe 那份 `components/api-frame.css`）。于是这一格里剩下的事实是：
 
 - **窗口够宽，左栏就展开**：实测 1440×720 视口下框 1140、Scalar 的 `<aside>` 288 宽、六条接口
   链接都可见，站点的文档侧栏 300 宽照旧在。e2e 的视口因此从 `Desktop Chrome` 自带的 1280 加到
@@ -404,7 +403,7 @@ Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上�
 
 已实测到的（都在 `test/e2e/features/scalar.feature` 那四条用例里）：
 
-- 外层：`build/scalar-demo/index.html` 里是 `<iframe class="scalar-frame"
+- 外层：`build/scalar-demo/index.html` 里是 `<iframe class="api-frame scalar-frame"
 src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外壳、`.scalar-app` 0 个、
   没有 Scalar 渲染出来的文字，`.container` 的内边距是 0，框的上沿贴着 navbar
   下沿、下沿贴着视口，框宽 1140（1440 视口减掉站点那 300 的文档侧栏，它在这一页照常摆着）。

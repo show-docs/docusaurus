@@ -24,7 +24,7 @@ import { useEffect, useRef } from 'react';
 import { HashRouter, useLocation } from 'react-router-dom';
 
 // 交给 `@stoplight/elements` 的那个地址，加上「选中了哪条接口」报给框外那一份文档（用它的就是
-// `stoplight-view.tsx`）。形状与 `theme-redoc` 的 `RedocUI` 一致。
+// theme-iframe 那份框内工厂）。形状与 `theme-redoc` 的 `RedocUI` 一致。
 type Props = {
   url: string;
   onRouteChange: (hash: string) => void;
@@ -36,7 +36,7 @@ type Props = {
 这一格不需要本层去改写谁的样式：`@stoplight/elements/styles.min.css` 里那套暗色规则本来就是
 `[data-theme=dark]` 打头的（调色板那些 `--text-h` / `--bg` 之类的自定义属性就写在这条属性所在的
 元素上，再靠继承落到 `.sl-elements` 那一整棵子树）。把它写在**这一份文档自己的 `<html>`** 上，
-Elements 的配色就跟着站点走 —— 值由外层随消息送进来，落点在 `stoplight-view.tsx`。
+Elements 的配色就跟着站点走 —— 值由外层随消息送进来，落点在 theme-iframe 那份框内工厂里。
 `theme-redoc` 那边要额外写一个 styled-components 的中间件，是因为 Redoc 的暗色表挂在它自己按
 操作系统偏好写的 `:root.dark` 类名上；这一层没有那件事。
 */
@@ -83,7 +83,7 @@ function LocationMirror(props: Pick<Props, 'onRouteChange'>): null {
 const shared = { hideExport: true, router: 'hash' } as const;
 
 export function StoplightUI(props: Props) {
-  // 服务端那一遍不在这里挡：唯一会渲染到这一格的是 `stoplight-view.tsx`，它自己在浏览器之外就
+  // 服务端那一遍不在这里挡：渲染到这一格的只有 theme-iframe 那份框内工厂，它在浏览器之外就
   // 返回 `null` 了（它还要读地址栏，那份数据服务端根本没有）。
   //
   // 外面这一层 `HashRouter` 是本层的路由口径，与 `theme-redoc` 的 `RedocUI` 同一取舍：

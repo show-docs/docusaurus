@@ -6,8 +6,8 @@
 {@link isTrustedMessage}）：为的是「别人往这一页 postMessage」时不会被当成自家的消息，
 而不是为了防自己。
 
-这里只有**约定与形状**，没有 React、也没有 CSS：iframe 那一格的尺寸各家不同（Redoc 与
-Elements 的滚动模型就不一样），留在用它的主题包里。
+这里只有**约定与形状**，没有 React、也没有 DOM：跨文档那两条循环在 `frame-sync.ts`，
+框元素那一格与它的共用版式在 `components/api-frame.tsx` 与 `components/api-frame.css`。
 */
 
 /** 亮暗那一格的取值。形状与站点的开关相同，但**不引**它的类型：那条属性由外层送进来。 */
@@ -130,4 +130,30 @@ export function specUrlFromSearch(
     // `base` 本身不是合法 URL 时才走到这里（拼错的相对地址在 `new URL` 那一格抛）
     return undefined;
   }
+}
+
+/**
+`iframe:` 那一层嵌**外部站点**时，frontmatter 那个值要落成的最终地址：`/` 打头补上 origin、
+`?path=` 再解一层，两格都没有就原样。
+
+`?path=` 由 `URLSearchParams` 自动解码，`src` 从 frontmatter 来、本来就是明文，所以收尾
+**不再**对整串做二次解码 —— 旧写法那样会把地址里合法的 `%` 序列解坏（`a=%25` 变成 `a=%`、
+`/a%2Fb` 变成 `/a/b`）。
+
+`origin` 由调用方给（浏览器里就是 `window.location.origin`），与 {@link specUrlFromSearch}
+同形状：这一份文件里没有 DOM，配置期那条链路也引得到它。服务端渲染阶段拿不到窗口，
+那时调用方直接用 frontmatter 里的原值，不等这一步。
+*/
+export function externalFrameURL(options: {
+  src: string;
+  search: string;
+  origin: string;
+}): string {
+  const path = new URLSearchParams(options.search).get('path') ?? '';
+
+  const resolved = options.src.startsWith('/')
+    ? new URL(options.src, options.origin).href
+    : options.src;
+
+  return path === '' ? resolved : new URL(path, resolved).href;
 }

@@ -19,9 +19,8 @@
 | 文件                             | 编译吗              | 职责                                                                                                                                                                                                                                                                    |
 | -------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/stoplight-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它，干两件事（把 Elements 那份 css 拆成独立产物 + 补浏览器 bundle 缺的 Node 侧依赖） |
-| `theme/StoplightPage/index.tsx`  | ❌ 站点编译         | 那条插件路由落到的组件：只放 `StoplightView`，不套站点的任何外壳与 provider（亮暗由外层送进来，见「亮暗模式」一节）                                                                                                                                                     |
-| `components/stoplight-frame.css` | ❌ 站点编译         | 外层那一格的尺寸：定高占满 navbar 以下那一屏，正文容器去掉内边距与最大宽度，页脚一并收掉（见「高度」一节）；类名取自注册表，进 bundle 的通道是 `stoplight-view.tsx` 那一句 import                                                                                       |
-| `components/stoplight-view.tsx`  | ❌ 站点编译         | **框内**那一页的正文：从地址里取 spec、渲染 Elements，服务端那一遍在这一格挡住；跨文档那两格接共享层的 `useInnerFrameSync`                                                                                                                                              |
+| `theme/StoplightPage/index.tsx`  | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`StoplightUI`、亮暗的属性名；这一句 import 也是 `stoplight-frame.css` 进全站 bundle 的唯一通道                                                                                  |
+| `components/stoplight-frame.css` | ❌ 站点编译         | **只属于本层的那一条**：页脚收掉（见「高度」一节）。框定高与正文容器让位不在这份里，四条层共用 theme-iframe 那份 `components/api-frame.css`；类名 `stoplight-frame` 取自注册表                                                                                          |
 | `components/stoplight-ui.tsx`    | ❌ 站点编译         | 浏览器端渲染 `API`（只收地址那一种入参），外面套 `HashRouter`；`LocationMirror` 把路由变化报给外层；那条 `<link>` 挂 Elements 的样式表                                                                                                                                  |
 | `components/stoplight-ui.css`    | ❌ 站点编译         | 生效在框内那一页：给 `.stoplight-root` 定高、把站点主题加在 Elements 子树上的几处默认样式还原、收掉署名与那颗发送按钮、滚动条配色沿用站点                                                                                                                               |
 | `module-aliases.d.ts`            | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                                                                                 |
@@ -66,17 +65,18 @@ oas3: /openapi.yaml
 `@stoplight/mosaic` 往 localStorage 写的那份存档、它按整份文档用的 `document.querySelector`。
 
 换成 iframe 之后，DOM、路由、localStorage 那三样由浏览器给的文档边界负责：框里那份文档整份就是
-给 Elements 的（`theme/StoplightPage/index.tsx` 里只有 `StoplightView`，没有 navbar、没有 footer、
+给 Elements 的（`theme/StoplightPage/index.tsx` 就是 theme-iframe 那份框内工厂造出的一页，
+没有 navbar、没有 footer、
 没有正文容器），站点的文档页一行都碰不到。**唯独样式表不是**——见下一节，那一格要靠构建期处理，
 圈定那条路本来也到不了它（它不在文档页里了）。
 
-|                   | 外层：站点的文档页（`/stoplight-demo`）                                               | 框内：本包那条页面（`/stoplight-view?src=…`）         |
-| ----------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| 本层放的东西      | 一个 `<iframe class="stoplight-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `StoplightUI`，即 `.stoplight-root` 那一格            |
-| Elements 的运行时 | 不加载，一行都没有                                                                    | 全在这里                                              |
-| 样式表            | 站点的产物 CSS（不含 Elements 那份）                                                  | 站点的产物 CSS + **一条 `<link>` 指向 Elements 那份** |
-| 亮暗模式          | 站点的 `<html data-theme>`，开关在这                                                  | 自己 `<html>` 上的 `data-theme`，值由外层送来         |
-| 能分享的地址      | 有，`#` 那一段代表当前那条接口                                                        | 有，但那是「直接打开框里那一页」，见「深链」          |
+|                   | 外层：站点的文档页（`/stoplight-demo`）                                                         | 框内：本包那条页面（`/stoplight-view?src=…`）         |
+| ----------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 本层放的东西      | 一个 `<iframe class="api-frame stoplight-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `StoplightUI`，即 `.stoplight-root` 那一格            |
+| Elements 的运行时 | 不加载，一行都没有                                                                              | 全在这里                                              |
+| 样式表            | 站点的产物 CSS（不含 Elements 那份）                                                            | 站点的产物 CSS + **一条 `<link>` 指向 Elements 那份** |
+| 亮暗模式          | 站点的 `<html data-theme>`，开关在这                                                            | 自己 `<html>` 上的 `data-theme`，值由外层送来         |
+| 能分享的地址      | 有，`#` 那一段代表当前那条接口                                                                  | 有，但那是「直接打开框里那一页」，见「深链」          |
 
 `/stoplight-view` 是本包入口经 theme-iframe 那份工厂（`lib/api-frame-theme.mts` 的
 `contentLoaded`）用 `actions.addRoute()` 注册的一条插件路由，路由名与组件别名都写在 theme-iframe
@@ -208,16 +208,14 @@ Elements 这一版没有给用户看的亮暗切换按钮（`theme-redoc` 那边
 
 ## 高度：两侧都要定高，这一点与 theme-redoc 相反
 
-**外层**（`stoplight-frame.css`）：`.stoplight-frame` 定高
-`calc(100vh - var(--ifm-navbar-height))`，并让正文容器去掉内边距与最大宽度
-（`.container:has(.stoplight-frame)`）。iframe 是一个「尺寸由外面决定」的元素，不给它定高，
-框就只有一点高、里面那份文档的滚动条也没地方长。这条式子与 theme-iframe、theme-redoc 同形。
+**外层**：框的尺寸与正文容器让位四条层共用一条规则，住在
+[`theme-iframe` 的 `components/api-frame.css`](../theme-iframe/README.md)（`.api-frame` 定高
+`calc(100vh - var(--ifm-navbar-height))` + `.container:has(iframe)` 去内边距与最大宽度），本包
+**不**重复写那两条。iframe 是一个「尺寸由外面决定」的元素，不给它定高，框就只有一点高、里面那份
+文档的滚动条也没地方长。
 
-选择器认的是本包那个类名，不是裸 `iframe` —— 后者是 [`theme-iframe`](../theme-iframe/README.md)
-那层自己声明的边界（`.container:has(iframe)`），这一页确实也被它命中（效果同方向，不冲突），
-但本层不复用别人的选择器：那边哪天改口径，这一格要用例红，而不是静默跟着变。
-
-同一条规则里还收掉了页脚（`.main-wrapper:has(.stoplight-frame) + .footer`）：框已经占满 navbar
+本包自己那条是页脚（`stoplight-frame.css` 挂在注册表给的 `.stoplight-frame` 上，`ApiFrame` 把它
+与共用的 `.api-frame` 一起挂在 `<iframe>` 上）：框已经占满 navbar
 以下那一屏，页脚留在下面只会被推出可视区，显式收掉与「整页交给 Elements」的观感一致。
 `theme-redoc` 与 `theme-scalar` 那两层没有这一条（页脚留着，redoc 那层实测落在可视区之外），
 三条 API 层里只有本层收掉它，这一处差别是本层自己的取舍。
@@ -340,7 +338,7 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 已实测到的（都在 `test/e2e/features/stoplight.feature` 那四条用例里）：
 
 - 外层：`build/stoplight-demo/index.html` 里是
-  `<iframe class="stoplight-frame" src="/stoplight-view?src=%2Fopenapi.yaml">`；这一页没有
+  `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi.yaml">`；这一页没有
   `<article>` 正文外壳、没有 `.stoplight-root`、没有 Elements 那张表的 `<link>`、控制台干净。
 - 框内：左栏三条接口在，点「新建订单」后详情面板换过去，**外层地址栏那一段跟着换**
   （`#/operations/createOrder`）；那张表 2344 条规则在这里生效，`.stoplight-root` 定高占满整屏，
@@ -354,7 +352,7 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 顺带记三处不报错的形状：
 
 - **服务端那一遍两份文档都不渲染东西**：外层那份 html 里只有 iframe 标签本身，框内那份是空的
-  （`stoplight-view.tsx` 在非浏览器那一遍返回 `null`，它要读的地址服务端根本没有），那条指向
+  （theme-iframe 那份框内工厂在非浏览器那一遍返回 `null`，它要读的地址服务端根本没有），那条指向
   Elements 样式表的 `<link>` 也是客户端起来之后才挂上的。
 - **`pnpm build` 时控制台会冒一句**
   `[zustand persist middleware] … 'mosaic-theme' … does not contain a 'removeItem' method`：那是

@@ -37,7 +37,8 @@ export function applyScalarColorMode(mode: FrameColorMode): void {
 读的是**本份文档**自己 `<html data-theme>` 上那条：框内这一页同样是站点编译出来的一份文档，
 Docusaurus 的内联脚本在 hydration 之前就按同源的那份 `localStorage` 把它写好了，所以这里
 不是去读外层那份文档的 DOM（跨文档读属性会把两份文档绑死），而是同一份配置在这一页上的落点。
-它只在挂载那一刻用一次，之后没人维护 —— 运行时那一格由外层送进来（`scalar-view.tsx`）。
+它只在挂载那一刻用一次，之后没人维护 —— 运行时那一格由外层送进来
+（落点见 theme-iframe 的 `lib/api-frame-view.tsx`）。
 */
 export function isDarkColorModeAtLoad(): boolean {
   return document.documentElement.dataset.theme === 'dark';

@@ -438,8 +438,9 @@ Scalar 自带一套亮暗模式：判据是 `<body>` 上互斥的两个类名（
 `#fff` 翻到 `#0f0f0f`（实测）。站点自己另有一个开关（`<html data-theme>`），两处各切各的就会
 打架。本层用配置 `hideDarkModeToggle` 收掉它自己那颗按钮，配色改由站点这一头驱动：那个值写在
 **外层**文档的 `<html>` 上，而类名要落在**框内**那份文档的 `<body>` 上 —— 这一格由共享那条
-postMessage 通道接（`theme/theme-iframe/lib/`：外层 `api-frame.tsx` 送、框内 `scalar-view.tsx` 收，
-收下来经 `applyScalarColorMode` 换那两个类名）。框内那份文档不挂站点的 `ColorModeProvider`，
+postMessage 通道接（`theme/theme-iframe/lib/`：外层 `api-frame.tsx` 送、框内那份工厂
+`api-frame-view.tsx` 收，收下来经 `applyScalarColorMode` 换那两个类名）。框内那份文档不挂站点的
+`ColorModeProvider`，
 站点那条 `data-theme` 在这里只是加载时内联脚本写死的一份、没人维护，本层不读它。
 
 「切成暗色」「做个记号」「配色跟着翻、文档没重新加载」这三步三层共用，句子与实现在

@@ -10,7 +10,7 @@ import { isDarkColorModeAtLoad } from './scalar-color-mode.ts';
 type Props = {
   /** 要渲染的那份 OpenAPI 文档的地址。 */
   url: string;
-  /** 选中了哪条接口，报给框外那一份文档（用它的就是 `scalar-view.tsx`）。 */
+  /** 选中了哪条接口，报给框外那一份文档（用它的就是 theme-iframe 那份框内工厂）。 */
   onRouteChange: (hash: string) => void;
 };
 
@@ -48,7 +48,7 @@ export function ScalarUI(props: Props) {
       // `showDeveloperTools` 是同一件事的另一头。
       agent: { disabled: true },
       // `darkMode`：挂载那一刻交给它一个明确的布尔，不给 `undefined`（那条就退到操作系统偏好）。
-      // 运行时那一格由外层送，见 `scalar-color-mode.ts` 与 `scalar-view.tsx`。
+      // 运行时那一格由外层送，见 `scalar-color-mode.ts` 与 theme-iframe 那份框内工厂。
       darkMode: isDarkColorModeAtLoad(),
       // `forceDarkModeState`：把上面那一格从「初始值」升成「就这一格，别的不看」。
       // 厂商那条优先级链是 `overrideColorMode` → `localStorage` 里的 `colorMode` → `initialColorMode`

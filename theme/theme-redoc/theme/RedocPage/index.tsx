@@ -1,19 +1,23 @@
-import type { ReactNode } from 'react';
+import { createApiFrameView } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 
-import { RedocView } from '../../components/redoc-view.tsx';
+import { COLOR_MODE_ATTRIBUTE } from '../../components/redoc-color-mode.ts';
+import { RedocUI } from '../../components/redoc-ui.tsx';
 
-// 本包那条插件路由（`src/index.mts` 里 `addRoute` 注册的 `@theme/RedocPage`）落到的组件。
-//
-// 它不是文档页：frontmatter、面包屑、正文、目录、翻页都没有，整份文档就是给 iframe 装的那一格
-// —— Redoc 的运行时代码、它往 `<head>` 插的那张样式表、它的 localStorage 与它自己的路由，
-// 全关在这份文档里，站点的文档页一行都碰不到。口径见包 README 的「渲染放在独立页面」一节。
-//
-// 这一页不套 `@theme/Layout/Provider`。改造过程中它一度是必需的，为的是它底下那六个 provider
-// 里的 `ColorModeProvider`：那个 provider 维护 `<html data-theme>` 并监听 `storage` 事件，
-// 外层点一下亮暗开关，框内这一份靠同源 localStorage 跟着翻。现在亮暗由外层随那条
-// postMessage 通道送进来（theme-iframe 的 `components/api-frame.tsx` 送出、`components/redoc-view.tsx`
-// 收到后写自己 `<html>` 上的属性），这一层就不需要了。留下的那五个（公告栏、滚动控制、
-// 版本文档、插件类名、导航栏）与这一页无关，它们各自都要读站点配置，拉进来只是白费。
-export default function RedocPage(): ReactNode {
-  return <RedocView />;
-}
+/**
+Redoc 这一层的框内页面（这一页整体的形状、以及它为什么不套 `Layout/Provider`，
+都记在 theme-iframe 那份工厂的头上）。这里只交 Redoc 自己的两格差异：
+
+- **亮暗落法**：写成这一份文档 `<html>` 上的 `data-redoc-mode` 属性，Redoc 那套暗色表挂在
+  这条属性上（`redoc-color-mode.ts`）。
+- **路由**：这一份文档里只有 Redoc 一个消费者，`#` 段归它用（`redoc-ui.tsx` 外面那层
+  `HashRouter`）。框里点一条接口走的是 `history.pushState`，它**不触发** `hashchange`，
+  所以「报回外层」这一句只能由 `RedocUI` 自己来说 —— 见 `redoc-ui.tsx` 里 `LocationMirror`
+  那段注释。
+*/
+const RedocPage = createApiFrameView({
+  modeAttribute: COLOR_MODE_ATTRIBUTE,
+  namespace: '@show-docs/docusaurus-theme-redoc',
+  view: RedocUI,
+});
+
+export default RedocPage;

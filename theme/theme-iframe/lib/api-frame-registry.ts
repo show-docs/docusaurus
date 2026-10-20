@@ -19,7 +19,11 @@ type ApiFrameEntryBase = {
   namespace: string;
   /** md frontmatter 里那条键，值就是框要渲染的地址。 */
   frontmatterKey: string;
-  /** 外层 `<iframe>` 的类名：各层自己的版式规则挂在它上面。 */
+  /**
+  外层 `<iframe>` 的**第二个**类名（第一个是共用的 `.api-frame`，尺寸与容器让位都在它上面）。
+  这一格只用来认「这一格是哪一层赢的」，各层自己的版式规则挂在它上面 —— 目前只有 stoplight
+  那条收页脚的。
+  */
   frameClass: string;
   /**
   外层 `<iframe>` 的 `title` **兜底值**：页面写了 `frontMatter.title` 时优先用页面自己的
@@ -49,8 +53,9 @@ export type ApiFrameEntry = ApiFrameEntryInternal | ApiFrameEntryExternal;
 /**
 这一族的清单（顺序 = 判定优先级，见文件头）。
 
-新增一条 API 层：这里加一条（route、参数名、类名），用它的包只写入口工厂那一次调用与框内
-那一份渲染接线，外层不再有自己的代码。
+新增一条 API 层：这里加一条（route、参数名、类名），用它的包只写入口工厂那一次调用，加上框内
+那一页调一次 `createApiFrameView()`（渲染接线那个组件与亮暗的落法作为参数交给它），外层不再有
+自己的代码。
 */
 const apiFrameEntries: readonly ApiFrameEntry[] = [
   {

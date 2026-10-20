@@ -16,7 +16,7 @@ scalar: /openapi.yaml
 
 - 取的是 `static/openapi.yaml`（构建产物里的 `/openapi.yaml`）：与 stoplight、redoc 那两页同一份
   输入，为的是三个渲染器能横向比对。
-- **形状与 `theme-redoc` 一对一**：这一页放的是一个 `<iframe class="scalar-frame"
+- **形状与 `theme-redoc` 一对一**：这一页放的是一个 `<iframe class="api-frame scalar-frame"
 src="/scalar-view?src=%2Fopenapi.yaml">`，`/scalar-view` 是本包自己注册的一条插件路由，构建产物里
   真的有一份 `build/scalar-view/index.html`；跨 iframe 那两格（地址栏里 `#` 那一段、站点的亮暗模式）
   走 `theme/theme-iframe/lib/` 那份共享约定，与上面两条层同一份实现。

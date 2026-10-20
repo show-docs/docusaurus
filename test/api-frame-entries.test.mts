@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   resolveFrameDistribution,
+  warnFrameDistribution,
   type FrameDistribution,
 } from '../theme/theme-iframe/lib/api-frame-entries.ts';
 
@@ -115,6 +116,38 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
     ).toEqual([]);
   });
 
+  it('名字格读不出名字的畸形项一律当「不是层」，不抛', () => {
+    const loaded = [
+      [42, { themeConfig: { apiFrame: { order: [REDOC] } } }],
+      null,
+      42,
+      {},
+      { name: undefined },
+      SCALAR,
+      IFRAME,
+    ];
+    expect(namespacesOf(loaded)).toEqual([SCALAR, IFRAME]);
+    // 覆盖挂在这种读不出名字的槽位上：认不出本层，用默认顺序并留下一条说明（不静默）
+    const dist = distributionOf(loaded, undefined);
+    expect(dist.entries.map((entry) => entry.namespace)).toEqual([
+      SCALAR,
+      IFRAME,
+    ]);
+    expect(dist.warnings.join('\n')).toContain('覆盖未生效');
+  });
+
+  it('覆盖清单里重复的层只判一次', () => {
+    expect(
+      namespacesOf([
+        [
+          IFRAME,
+          { themeConfig: { apiFrame: { order: [REDOC, REDOC, SCALAR] } } },
+        ],
+        ...registryOrder,
+      ]),
+    ).toEqual([REDOC, SCALAR]);
+  });
+
   it('键写了、层没参与判定时交回普通文档页，并说明原因', () => {
     // 没装：只装 scalar + iframe，页面却写了 redoc —— redoc 不参与判定，另两层照判。
     // 页面级的消息带页面地址：DocItem 的去重按文本判等，不带地址会吞掉后面同毛病的页。
@@ -154,6 +187,17 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
     expect(
       distributionOf(registryOrder, { redoc: '/openapi.yaml' }).warnings,
     ).toEqual([]);
+    // 键写了但值是空的：不算「写了这一族」，安静地交回普通文档页
+    expect(distributionOf([SCALAR, IFRAME], { redoc: '' }).warnings).toEqual(
+      [],
+    );
+    expect(distributionOf([SCALAR, IFRAME], { redoc: 1 }).warnings).toEqual([]);
+    // 拿不到页面地址时（非路由调用）用不带地址的说法，而不是拼出 `undefined`
+    expect(
+      distributionOf([SCALAR, IFRAME], {
+        redoc: '/openapi.yaml',
+      }).warnings.join('\n'),
+    ).toContain('这一页 写了 `redoc:`');
   });
 
   it('覆盖挂在一个认不出是本层的槽位上时不静默：用默认顺序并留下一条说明', () => {
@@ -169,5 +213,47 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
     );
     expect(dist.entries.map((entry) => entry.namespace)).toEqual(registryOrder);
     expect(dist.warnings.join('\n')).toContain('覆盖未生效');
+  });
+});
+
+describe('warnFrameDistribution：开发模式把落空原因打到控制台', () => {
+  // 去重那张表是**模块级**的（一份站点进程里只打一次），所以每条消息都带本次独有的编号，
+  // 用例之间不会互相吃掉。vitest 每个测试文件一个 worker，跨文件也不会串。
+  let seq = 0;
+  const unique = (label: string): string => `warning-${seq++}-${label}`;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('每条各打一次，前缀是本包的包名', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const first = unique('a');
+    const second = unique('b');
+
+    warnFrameDistribution([first, second]);
+
+    expect(warn.mock.calls).toEqual([
+      [`[theme-iframe] ${first}`],
+      [`[theme-iframe] ${second}`],
+    ]);
+  });
+
+  it('同一条文本反复进来只打第一次（配置级的说明每翻一页都会重算出来）', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const repeated = unique('same');
+
+    warnFrameDistribution([repeated]);
+    warnFrameDistribution([repeated, repeated]);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('空清单什么都不打', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    warnFrameDistribution([]);
+
+    expect(warn).not.toHaveBeenCalled();
   });
 });

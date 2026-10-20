@@ -17,7 +17,7 @@ redoc: /openapi.yaml
 - 取的是 `static/openapi.yaml`（构建产物里的 `/openapi.yaml`）：与 stoplight 那页同一份输入，
   为的是两个渲染器能横向比对，也保证离线就能看完整渲染。
 - **Redoc 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
-  `<iframe class="redoc-frame" src="/redoc-view?src=%2Fopenapi.yaml">`，`/redoc-view` 是本包
+  `<iframe class="api-frame redoc-frame" src="/redoc-view?src=%2Fopenapi.yaml">`，`/redoc-view` 是本包
   自己注册的一条插件路由，构建产物里真的有一份 `build/redoc-view/index.html`。换过去的原因：
   Redoc 的样式由 styled-components 在运行时插进 `<head>`，构建期那份静态样式表不存在、前缀改写
   圈不住它，而它还会往 `<html>` 上写两千多条 CSS 变量、自己用 localStorage 和自己的路由 —— 这些

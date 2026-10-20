@@ -337,8 +337,9 @@ Then('站点自己的那几处样式不被 Elements 改写', async ({ page }) =>
 Elements 那套配色（`@stoplight/mosaic`）自带亮暗模式：判据是它自己存在 localStorage 里那份存档
 （`mosaic-theme`，默认 `light`），再往 `<html>` 上写 `data-theme` —— 和站点那条属性**同名**。
 它的暗色表就挂在 `[data-theme=dark]` 上，所以这一层不需要像 `theme-redoc` 那样改写谁的选择器：
-把站点这一头的模式随消息送进框内、写在同一条属性上就够了（`stoplight-view.tsx` 的
-`COLOR_MODE_ATTRIBUTE`，实现在共享层 `theme/theme-iframe/lib/`）。
+把站点这一头的模式随消息送进框内、写在同一条属性上就够了（本包 `theme/StoplightPage` 交给
+框内工厂 `theme/theme-iframe/lib/api-frame-view.tsx` 的那条 `modeAttribute`，
+`COLOR_MODE_ATTRIBUTE` 就定义在 `stoplight-ui.tsx`）。
 
 多出来的一格是**同名**：框内那份文档自己也有一份 `data-theme`（Docusaurus 的内联脚本按
 localStorage 写的、没人维护），Elements 那份存档也想写它。实测两头都不构成冲突 ——

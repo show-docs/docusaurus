@@ -15,7 +15,7 @@ const REDOC_ROOT_CLASS = 'redoc-root';
 type Props = {
   /** 要渲染的那份 OpenAPI 文档的地址。 */
   url: string;
-  /** 选中了哪条接口，报给框外那一份文档（用它的就是 `redoc-view.tsx`）。 */
+  /** 选中了哪条接口，报给框外那一份文档（用它的就是 theme-iframe 那份框内工厂）。 */
   onRouteChange: (hash: string) => void;
 };
 
@@ -53,8 +53,9 @@ function LocationMirror(props: Pick<Props, 'onRouteChange'>): null {
 // `options` 里**没有** `scrollYOffset`：Redoc 在渲染时调用那个函数，把返回值写成容器上的
 // `--navbar-height` 与 `--navbar-stack-height`，左栏高度、sticky 停靠位、点接口时滚过去的
 // `scroll-margin-top` 全从这两条取值；不给它就直接按 0 算（`redoc` 里那一格是
-// `Math.max(fn?.() ?? 0, 0)`）。本组件只跑在 iframe 里那份文档上（见 `redoc-view.tsx`），
-// 那份文档没有 navbar，量出来本来也是 0，于是连量都省了。高度链的口径在包 README 的
+// `Math.max(fn?.() ?? 0, 0)`）。本组件只跑在 iframe 里那份文档上（见 theme-iframe 的
+// `lib/api-frame-view.tsx`），那份文档没有 navbar，量出来本来也是 0，于是连量都省了。
+// 高度链的口径在包 README 的
 // 「高度」一节。
 const options = { disableTelemetry: true } as const;
 
@@ -63,7 +64,7 @@ const options = { disableTelemetry: true } as const;
 const stylisPlugins = [followSiteColorMode];
 
 export function RedocUI(props: Props) {
-  // 服务端那一遍不在这里挡：唯一会渲染到这一格的是 `redoc-view.tsx`，它自己在浏览器之外就
+  // 服务端那一遍不在这里挡：渲染到这一格的只有 theme-iframe 那份框内工厂，它在浏览器之外就
   // 返回 `null` 了（它还要读地址栏，那份数据服务端根本没有）。
   //
   // 外面这一层 `HashRouter` 是本层的路由口径，理由见包 README 的「深链」一节：
@@ -80,7 +81,8 @@ export function RedocUI(props: Props) {
   // 只有和 `redoc` 用**同一份** styled-components 才接得上（`package.json` 里那份
   // `styled-components` 与 `redoc` 自己声明的是同一条版本线）。这条链上现在只剩一件事 ——
   // 把 Redoc 的暗色表改挂到本层自己那条 `<html data-redoc-mode>` 上（值由外层送来，
-  // 见 `redoc-view.tsx`），写在 `redoc-color-mode.ts`，口径记在包 README 的「样式」与
+  // 落点见 theme-iframe 的 `lib/api-frame-view.tsx`），写在 `redoc-color-mode.ts`，口径记在
+  // 包 README 的「样式」与
   // 「亮暗模式」两节。
   return (
     <div className={REDOC_ROOT_CLASS}>

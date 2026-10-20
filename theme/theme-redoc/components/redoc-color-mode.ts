@@ -20,7 +20,8 @@
 /**
 框内那份文档的 `<html>` 上，代表当前亮暗模式的那条属性。
 
-写它的是 `redoc-view.tsx`（值从外层那条消息里来），读它的是下面这条选择器 —— 两边都在本包，
+写它的是本包 `theme/RedocPage` 那一份框内页面（由 theme-iframe 的工厂造出，值从外层那条消息里
+来），读它的是下面这条选择器 —— 两边都在本包，
 但一个在 DOM 一个在 CSSOM，所以这里给个名字，别拼两串字面量。
 
 为什么不借站点自己那条 `data-theme`：那要把 Docusaurus 的 `ColorModeProvider` 拉进框内这份

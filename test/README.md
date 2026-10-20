@@ -1,21 +1,33 @@
 # test
 
 单元测试（vitest，`.mts`），跑的是**源码**而不是 `tsc` 产物（避免「测的是编译结果」）；
-`pnpm test` 已内置 `pnpm build:core`。
+`pnpm test` 已内置 `pnpm build:core`。环境默认 node，只有两份在文件头标
+`@vitest-environment jsdom` 切成浏览器环境：`frame-sync.test.mts` 与 `api-frame-view.test.mts`
+（那两条 hook 与那份框内页面工厂要 `window` 与 `document`）。
+浏览器那两份引得到 `@docusaurus/useIsBrowser` —— 磁盘上没有这个包（它是 webpack 构建期的别名），
+所以 `vitest.config.mts` 的 `resolve.alias` 把它换成 `test/stubs/use-is-browser.ts`，
+换的理由与那份替身能拨动什么写在替身头上。
 
 **全部按契约面组织**：新用例并入既有契约面文件，不另开 `review*.test.mts` 之类的轮次档。
 
-| 文件                        | 钉住的契约面                                                                     |
-| --------------------------- | -------------------------------------------------------------------------------- |
-| `chain-invariants.test.mts` | 链式不变量：落点恒在导入者下方、永不指向自己                                     |
-| `discover.test.mts`         | 层栈自动发现（真实 `loadContext`）+ 主题插件模块加载次数                         |
-| `layers.test.mts`           | 层栈推导与官方 `loadThemeAliases` 同序 · 上游 core 未被补丁 · 官方别名全落层栈内 |
-| `resolve.test.mts`          | 纯解析逻辑：组件定位 / 导入者归属 / specifier 匹配                               |
-| `resolver.test.mts`         | 逐层解析端到端（真实 resolver）                                                  |
-| `plugin.test.mts`           | 插件入口与选项校验 + 站点按包名加载/分包三件套                                   |
-| `hardening.test.mts`        | 输入校验 / 失败形态 / 告警                                                       |
-| `enhanced-resolve.test.mts` | 与 `enhanced-resolve` 的集成                                                     |
-| `helpers.mts`               | 夹具：临时站点骨架、假的 `@docusaurus/core`                                      |
+| 文件                          | 钉住的契约面                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chain-invariants.test.mts`   | 链式不变量：落点恒在导入者下方、永不指向自己                                                                                                                                                                                                                                                                                                |
+| `discover.test.mts`           | 层栈自动发现（真实 `loadContext`）+ 主题插件模块加载次数                                                                                                                                                                                                                                                                                    |
+| `layers.test.mts`             | 层栈推导与官方 `loadThemeAliases` 同序 · 上游 core 未被补丁 · 官方别名全落层栈内                                                                                                                                                                                                                                                            |
+| `resolve.test.mts`            | 纯解析逻辑：组件定位 / 导入者归属 / specifier 匹配                                                                                                                                                                                                                                                                                          |
+| `resolver.test.mts`           | 逐层解析端到端（真实 resolver）                                                                                                                                                                                                                                                                                                             |
+| `plugin.test.mts`             | 插件入口与选项校验 + 站点按包名加载/分包三件套                                                                                                                                                                                                                                                                                              |
+| `hardening.test.mts`          | 输入校验 / 失败形态 / 告警                                                                                                                                                                                                                                                                                                                  |
+| `enhanced-resolve.test.mts`   | 与 `enhanced-resolve` 的集成                                                                                                                                                                                                                                                                                                                |
+| `api-frame-entries.test.mts`  | 「整页交给一个框」判定清单的分发：装机过滤（覆盖同样查装机）、注册表默认顺序、站点覆盖（含清单里重复的层）、畸形 `plugins` 项、每一条落空说明；加 `warnFrameDistribution()` 那三句（每条各打一次、同一条只打第一次、空清单不打）                                                                                                            |
+| `api-frame-registry.test.mts` | 注册表的形状不变量：四条键与顺序、命名空间/类名/路由唯一、internal 的格齐备                                                                                                                                                                                                                                                                 |
+| `api-frame-theme.test.mts`    | 配置期工厂：注册表未登记/external 直接抛、层目录算出来不存在就抛且报实际路径、`addRoute` 的路径拼接                                                                                                                                                                                                                                         |
+| `frame-messages.test.mts`     | 跨 iframe 约定的纯函数：三条消息的接受规则与命名空间互不认、注册表那份约定的缓存、框内地址拼与拆（`javascript:` 拒收）、`iframe:` 那一层 `externalFrameURL()` 的三步（`/` 补 origin、`?path=` 再解一层、只对 `?path=` 解码）                                                                                                                |
+| `frame-sync.test.mts`         | 两侧的消息循环与来源校验（jsdom，模拟只到「递交交给浏览器」那一步）：装好监听器先推一次、框未站到同源就不推、报 ready 再推一次、切亮暗再推一次、接住框里报的那一段只走 `replaceState`、外人/别源的消息接不进来、前进/后退送新那一段、框被摘掉只安静不动、卸载摘掉监听器、亮暗两格落法（属性 vs 交给调用方）、`createRouteReporter` 报给外层 |
+| `api-frame-view.test.mts`     | 框内那份页面工厂 `createApiFrameView()`（jsdom）：注册表里没有/不是 internal 就抛、非浏览器与地址缺 spec 或非 http(s) 时什么都不渲染、命中时把地址与「报回外层」交给渲染接线、ready 那一句、亮暗两条落法（属性 vs 交给调用方）                                                                                                              |
+| `helpers.mts`                 | 夹具：临时站点骨架、假的 `@docusaurus/core`                                                                                                                                                                                                                                                                                                 |
+| `stubs/use-is-browser.ts`     | 替身：`@docusaurus/useIsBrowser`（webpack 构建期才存在的那条 import），给 jsdom 那两份拨动「在不在浏览器里」                                                                                                                                                                                                                                |
 
 ## 端到端（Playwright + BDD）
 
@@ -72,3 +84,13 @@ trace 才红，记在 [`theme/theme-iframe/docs/iframe-protocol.md`](../theme/th
 ## 覆盖率
 
 CI 把全量覆盖率红线钉在 **100%**，增量同样 100 —— 新增代码必须自带用例。
+
+量哪几份写在 `vitest.config.mts` 的 `coverage.include`：核心解析器的 `src/` 与
+`theme/theme-iframe/lib/`（后者含那两条 hook 与那份框内页面工厂，`frame-sync.test.mts` 与
+`api-frame-view.test.mts` 用 jsdom 把分支量全）。
+红线只在带覆盖率的这一步拦：`pnpm test:coverage`（`pnpm verify` 与 CI 的 verify 作业含它），
+本地只跑 `pnpm test` 是量不到的。
+
+`pnpm test:e2e` **不**计入这份覆盖率（它跑的是构建产物，没有插桩，跨 iframe 那份文档也要另收），
+它钉的是真浏览器那条通路：跨文档异步投递、渲染器认不认地址里那一段、样式表与文档边界。
+所以「hook 的分支已经 100%」与「三条层的用例照跑」不是重复劳动，量的不是同一件事。

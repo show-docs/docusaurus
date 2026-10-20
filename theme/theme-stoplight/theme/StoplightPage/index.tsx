@@ -1,20 +1,29 @@
-import type { ReactNode } from 'react';
+import { createApiFrameView } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 
-import { StoplightView } from '../../components/stoplight-view.tsx';
+// 外层版式（`.stoplight-frame` 定高、容器让位、页脚收掉）归本包声明，规则留在
+// `stoplight-frame.css`；外层套壳收拢到 theme-iframe 之后，这一句 import 就是它进全站
+// bundle 的唯一通道。
+import '../../components/stoplight-frame.css';
 
-// 本包那条插件路由（`src/index.mts` 里 `addRoute` 注册的 `@theme/StoplightPage`）落到的组件。
-//
-// 它不是文档页：frontmatter、面包屑、正文、目录、翻页都没有，整份文档就是给 iframe 装的那一格
-// —— Elements 的运行时代码、它那份全局样式表、它的 localStorage 与它自己的路由，全关在这份
-// 文档里，站点的文档页一行都碰不到。口径与兄弟层 `theme/RedocPage` 一致，
-// 见包 README 的「渲染放在独立页面，文档页只嵌它」一节。
-//
-// 这一页不套 `@theme/Layout/Provider`：它底下那六个 provider 里本层唯一想要的是
-// `ColorModeProvider`（维护 `<html data-theme>` 并监听 `storage` 事件），而现在亮暗由外层随
-// 那条 postMessage 通道送进来（theme-iframe 的 `components/api-frame.tsx` 送出、
-// `components/stoplight-view.tsx` 收到后写自己 `<html>` 上那条同名属性），这一层就不需要了。
-// 留下的那五个（公告栏、滚动控制、版本文档、插件类名、导航栏）与这一页无关，
-// 它们各自都要读站点配置，拉进来只是白费。
-export default function StoplightPage(): ReactNode {
-  return <StoplightView />;
-}
+import {
+  COLOR_MODE_ATTRIBUTE,
+  StoplightUI,
+} from '../../components/stoplight-ui.tsx';
+
+/**
+Elements 这一层的框内页面（这一页整体的形状、以及它为什么不套 `Layout/Provider`，
+都记在 theme-iframe 那份工厂的头上）。这里只交 Elements 自己的两格差异：
+
+- **亮暗落法**：写成这一份文档 `<html>` 上的 `data-theme` 属性 —— Elements 那份暗色表本来就
+  挂在 `[data-theme=…]` 上，所以这一格不需要任何运行期的改写（`stoplight-ui.tsx` 外面那层说明）。
+- **路由**：这一份文档里只有 Elements 一个消费者，`#` 段归它用（`stoplight-ui.tsx` 外面那层
+  `HashRouter`）。框里点一条接口走的是 `history.pushState`，它**不触发** `hashchange`，
+  所以「报回外层」这一句只能由 `StoplightUI` 自己来说 —— 与 `theme-redoc` 实测到的同一格。
+*/
+const StoplightPage = createApiFrameView({
+  modeAttribute: COLOR_MODE_ATTRIBUTE,
+  namespace: '@show-docs/docusaurus-theme-stoplight',
+  view: StoplightUI,
+});
+
+export default StoplightPage;

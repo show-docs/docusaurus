@@ -19,7 +19,8 @@
    所以那一层定高是对的）。
 
    框内那份文档没有 navbar，Redoc 又没拿到 `scrollYOffset` 那个函数，于是那两条变量都是 0，
-   左栏正好铺满整屏；外层文档页里那一格的尺寸在 `redoc-frame.css`，两边各管各的文档。 */
+   左栏正好铺满整屏；外层文档页里那一格的尺寸在 theme-iframe 那份共用的
+   `components/api-frame.css`，两边各管各的文档。 */
 
 /* 收掉的三处 Redoc 自己的东西。全是 `display: none`：元素仍留在 DOM 里，所以 e2e 那几句
    按可见性判、不按数量判。为什么不走配置、为什么署名只收自己那一格，见包 README 的

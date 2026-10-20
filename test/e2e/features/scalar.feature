@@ -15,6 +15,7 @@ Feature: theme-scalar
     And 那条接口的 operationId 也摆在正文里
     And 框里代码块的复制按钮还在
     And 这一页没有文档正文外壳
+    And 框的无障碍标题用的是页面自己的标题 "Scalar 示例"
     And 正文容器在这一页让位
     And 框占满 navbar 以下那一屏
     And 框里左栏贴满那一份文档的一屏

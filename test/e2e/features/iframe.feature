@@ -6,6 +6,7 @@ Feature: theme-iframe
   Scenario: 命中页整页交给 iframe
     Given 我打开 iframe 示例页
     Then 页面上有一个 iframe
+    And 框的无障碍标题用的是页面自己的标题
     And 它指向本站 404 那一页
     And 被嵌的那一页在框里真的渲染出来
     And iframe 占满 navbar 以下那一屏

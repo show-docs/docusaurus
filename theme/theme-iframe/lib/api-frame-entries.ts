@@ -21,7 +21,8 @@
 开发模式打到控制台，不能让手误静默。
 
 注册表仍是层的**数据**来源（route、类名、参数名都在那），这里只回答顺序与启用。
-纯函数、不引 React，单测与 `DocItem` 引同一份。
+判定那一条是纯函数、不引 React；打日志单独一格（`warnFrameDistribution`），两边同在这一份里，
+单测与 `DocItem` 引同一份。
 */
 
 import {
@@ -78,7 +79,10 @@ function slotIsNamespace(name: string, namespace: string): boolean {
     return true;
   }
   const pathForm = name.replaceAll('\\', '/');
-  const unscoped = namespace.split('/').pop() ?? namespace;
+  // 去掉 `@scope/` 前缀：没有斜杠时 lastIndexOf 给 -1，slice(0) 就是原样 —— 写成一条
+  // 无分支的算式，而不是 `split('/').pop() ?? namespace`（那个 `??` 的兜底按类型才存在，
+  // 运行时永远走不到，是量不到的分支）。
+  const unscoped = namespace.slice(namespace.lastIndexOf('/') + 1);
   const shortForm = unscoped.replace(/^docusaurus-/, '');
   return (
     pathForm.includes(`/${unscoped}/`) || pathForm.includes(`/${shortForm}/`)
@@ -118,7 +122,7 @@ function findOverrideOrder(
 /** 判定清单 + 需要提示给站点作者的落空原因。 */
 export type FrameDistribution = {
   entries: readonly ApiFrameEntry[];
-  /** 每条都是「配置写了但没生效」的说明；页面级那几条带页面地址（去重按文本判等，不带地址会吞掉后面同毛病的页）。`DocItem` 只在开发模式打出来。 */
+  /** 每条都是「配置写了但没生效」的说明；页面级那几条带页面地址（去重按文本判等，不带地址会吞掉后面同毛病的页）。由 `DocItem` 在开发模式交给 `warnFrameDistribution`。 */
   warnings: readonly string[];
 };
 
@@ -181,4 +185,22 @@ export function resolveFrameDistribution(
   }
 
   return { entries, warnings };
+}
+
+/**
+把落空原因打到控制台（开发模式由 `DocItem` 调这一格；构建产物里不打，那种页面对读者没有可修的东西）。
+
+**每种文本只打一次**：配置级那几条（覆盖拼错、挂错槽位）每翻一页都会重算出来，逐页刷屏没有增量信息；
+页面级那几条本来就带页面地址，所以每个有毛病的页各打一次（见上面为什么要把地址写进消息）。
+*/
+const shownWarnings = new Set<string>();
+
+export function warnFrameDistribution(warnings: readonly string[]): void {
+  for (const warning of warnings) {
+    if (shownWarnings.has(warning)) {
+      continue;
+    }
+    shownWarnings.add(warning);
+    console.warn(`[theme-iframe] ${warning}`);
+  }
 }

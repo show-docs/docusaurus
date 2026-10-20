@@ -17,7 +17,7 @@ oas3: /openapi.yaml
 - 取的是 `static/openapi.yaml`（构建产物里的 `/openapi.yaml`）：与 Redoc 那页同一份输入，
   为的是两个渲染器能横向比对，也保证离线就能看完整渲染。
 - **Elements 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
-  `<iframe class="stoplight-frame" src="/stoplight-view?src=%2Fopenapi.yaml">`，`/stoplight-view`
+  `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi.yaml">`，`/stoplight-view`
   是本包自己注册的一条插件路由，构建产物里真的有一份 `build/stoplight-view/index.html`。框里那份
   文档装的是 Elements 的运行时代码、它自己的路由、它写的 localStorage，站点的文档页都碰不到。
 - **这一层比 Redoc 那层多做一步：那份样式表不进站点的 css**。Redoc 的样式是运行时插进它自己那份

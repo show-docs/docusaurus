@@ -29,6 +29,15 @@ Then('页面上有一个 iframe', async ({ page }) => {
   await expect(frame(page), 'iframe 没出现').toBeVisible();
 });
 
+// 整页交给外部框以后，`<iframe>` 的 `title` 是这一页在辅助技术里唯一的名字。
+// 页面写了 `frontMatter.title` 时用的就是它（注册表那条「其他文档」只兜底）。
+Then('框的无障碍标题用的是页面自己的标题', async ({ page }) => {
+  await expect(
+    frame(page).first(),
+    'iframe 的 title 应取页面 frontMatter.title',
+  ).toHaveAttribute('title', 'iframe 示例');
+});
+
 // `docs/iframe-demo.md` 的 frontmatter 现在写的是 `iframe: /404`：值以 `/` 开头，
 // 按当前站点 origin 补成绝对地址，所以嵌进来的是本站自己那页 —— 离线也能看。
 Then('它指向本站 404 那一页', async ({ page }) => {
@@ -51,7 +60,8 @@ Then('被嵌的那一页在框里真的渲染出来', async ({ page }) => {
 });
 
 /**
-`iframe.css` 那两行定的口径：`height: calc(100vh - var(--ifm-navbar-height))`，
+theme-iframe 那份共用版式（`components/api-frame.css`）定的口径：
+`.api-frame` 的 `height: calc(100vh - var(--ifm-navbar-height))`，
 所以那一格的上沿贴着 navbar 的下沿、下沿贴着视口的下沿，各留 1px 容差。
 
 下沿那一句钉的是 `height` 这条公式没退回 iframe 默认的 150px：这一层不给容器定高，
@@ -81,7 +91,7 @@ Then('iframe 占满 navbar 以下那一屏', async ({ page }) => {
   ).toBeLessThanOrEqual(1);
 });
 
-// 整幅让位那一条：`iframe.css` 里的 `.container:has(iframe)`。
+// 整幅让位那一条：`components/api-frame.css` 里的 `.container:has(iframe)`。
 Then('承载它的容器不留内边距', async ({ page }) => {
   const container = page.locator('.container:has(iframe)');
   await expect(container, 'iframe 没落在 `.container` 里').toHaveCount(1);

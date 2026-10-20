@@ -6,7 +6,10 @@ import { useLocation } from '@docusaurus/router';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 
 import { ApiFrame } from '../../components/api-frame.tsx';
-import { resolveFrameDistribution } from '../../lib/api-frame-entries.ts';
+import {
+  resolveFrameDistribution,
+  warnFrameDistribution,
+} from '../../lib/api-frame-entries.ts';
 
 // 命中与否只看 frontmatter 里那几条已注册的键（值就是框要渲染的地址），
 // 键的形状由注册表给出，本层不再逐包声明。
@@ -16,19 +19,6 @@ type MDXContent = ComponentType<Record<string, unknown>> & {
 
 type Props = { content?: MDXContent };
 
-/** 开发模式的 warnings 每种只打一次：配置级那几条（覆盖拼错、挂错槽位）每翻一页都会重算出来，逐页刷屏没有增量信息。 */
-const shownWarnings = new Set<string>();
-
-function warnOnce(warnings: readonly string[]): void {
-  for (const warning of warnings) {
-    if (shownWarnings.has(warning)) {
-      continue;
-    }
-    shownWarnings.add(warning);
-    console.warn(`[theme-iframe] ${warning}`);
-  }
-}
-
 /**
 本层是「整页交给一个框」这一族的**唯一外层套壳**：按 resolveFrameDistribution() 给出的清单判
 frontmatter（**只判装了的层**，默认顺序 = 注册表清单 `scalar` → `redoc` → `oas3` → `iframe`；
@@ -37,8 +27,9 @@ frontmatter（**只判装了的层**，默认顺序 = 注册表清单 `scalar` �
 命中就把**整个 `DocItem`** 换成通用框 —— 与收拢前四条层同一落点、同一取舍。
 
 键写了、层却没参与判定时页面会**静默交回普通文档页**（这是装机过滤换来的形状），所以分发层
-把原因收集成 warnings，开发模式在 `DocItem` 里打到控制台 —— 构建产物不打，那种页面对读者
-没有可修的东西。规则与理由住在 `lib/api-frame-entries.ts`，这里不抄第二份。
+把原因收集成 warnings，开发模式在这里交给 `warnFrameDistribution()` 打到控制台 —— 构建产物
+不打，那种页面对读者没有可修的东西。规则、去重与理由都住在 `lib/api-frame-entries.ts`，
+这里不抄第二份。
 
 代价是官方 `DocItem` 里的东西一并不要：`DocProvider`、`DocItem/Metadata`（页面标题与
 描述因此退回站点名）、`DocItem/Layout`（面包屑、正文外壳、翻页、右侧目录）。剩下的是
@@ -59,7 +50,7 @@ export default function DocItemFrame(props: Props): ReactNode {
   );
 
   if (process.env.NODE_ENV === 'development') {
-    warnOnce(warnings);
+    warnFrameDistribution(warnings);
   }
 
   for (const entry of entries) {

@@ -14,7 +14,8 @@
 本包 `components/api-frame.tsx` 渲染），框里是那个包自己注册的一条页面（`/redoc-view`、`/stoplight-view`、
 `/scalar-view`），渲染器跑在框里那份文档内。地址栏里 `#` 那一段（选中了哪条接口）与站点的亮暗模式都住在**外层**那份文档，
 渲染器在**框内**那份文档，两边得靠 postMessage 对齐 —— 这一格三个包的代码逐字一样，所以抽到这里，
-各家的**不同**（尺寸、样式表怎么进来、亮暗落到哪个元素上、渲染器的脾性）留在各包里。
+各家的**不同**（框内那一格的尺寸、样式表怎么进来、亮暗落到哪个元素上、渲染器的脾性）留在各包里；
+外层那一格的尺寸四条层一样，所以它在这一份里（见「尺寸与样式表」一节）。
 
 这一份 `lib/` **不是**一条主题层目录：里面没有 `theme/`，层栈里看不见它。它有两种被用的方式：
 三个 API 包把它当普通依赖 import（`"@show-docs/docusaurus-theme-iframe": "workspace:^"`，写在
@@ -27,16 +28,16 @@
 
 ## 组成
 
-| 文件                        | 编译吗      | 职责                                                                                                                                                                                                                                             |
-| --------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `lib/index.ts`              | ❌ 站点编译 | 浏览器侧出口，把下面几份再导出去一次；**不含** `api-frame-theme.mts`（那份引 `node:path`，进不了浏览器 bundle）                                                                                                                                  |
-| `lib/api-frame-registry.ts` | ❌ 站点编译 | 注册表：四条形同的条目（命名空间、frontmatter 键、类名、路由名……），纯数据、零 import，配置期与浏览器期引同一份                                                                                                                                  |
-| `lib/api-frame-entries.ts`  | ❌ 站点编译 | 判定清单的分发 `resolveFrameDistribution(plugins, frontMatter)`：装了的层参与判定，注册表顺序为默认，插件选项 `themeConfig.apiFrame.order` 可覆盖顺序与子集；落空原因进 `warnings`，开发模式由 `DocItem` 打出；纯函数，单测与 `DocItem` 引同一份 |
-| `lib/api-frame-messages.ts` | ❌ 站点编译 | 按命名空间造那三条消息的名字，带缓存（同一命名空间每次拿到同一个对象）                                                                                                                                                                           |
-| `lib/api-frame-theme.mts`   | ❌ 配置期   | 入口工厂：三条 API 层的 `src/index.mts` 调它拿 Plugin 形状（挂层目录、注册框内路由、接各自的 webpack 差异）；`.mts` 按上游 lint preset 标 Node 环境                                                                                              |
-| `lib/frame-messages.ts`     | ❌ 站点编译 | 约定与形状：iframe 地址怎么拼、三条消息怎么造怎么认、`src` 里那段 spec 怎么取（**纯函数，不引 React、不引 DOM**）                                                                                                                                |
-| `lib/frame-trust.ts`        | ❌ 站点编译 | 来源校验 `isTrustedMessage`：它引 DOM 类型，单独一份，免得注册表那条配置期链路上碰到 `Window`                                                                                                                                                    |
-| `lib/frame-sync.ts`         | ❌ 站点编译 | 两侧的消息循环：`useOuterFrameSync`（外层那份文档里）、`useInnerFrameSync` 与 `createRouteReporter`（框内那份文档里）                                                                                                                            |
+| 文件                        | 编译吗      | 职责                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/index.ts`              | ❌ 站点编译 | 浏览器侧出口，把下面几份再导出去一次；**不含** `api-frame-theme.mts`（那份引 `node:path`，进不了浏览器 bundle）                                                                                                                                                                                                                                               |
+| `lib/api-frame-registry.ts` | ❌ 站点编译 | 注册表：四条形同的条目（命名空间、frontmatter 键、类名、路由名……），纯数据、零 import，配置期与浏览器期引同一份                                                                                                                                                                                                                                               |
+| `lib/api-frame-entries.ts`  | ❌ 站点编译 | 判定清单的分发 `resolveFrameDistribution(plugins, frontMatter, pagePath)`：装了的层参与判定，注册表顺序为默认，插件选项 `themeConfig.apiFrame.order` 可覆盖顺序与子集；落空原因进 `warnings`（页面级那几条带页面地址），同在这份里的 `warnFrameDistribution()` 把它们去重后打到控制台（开发模式由 `DocItem` 调）；两边都不引 React，单测与 `DocItem` 引同一份 |
+| `lib/api-frame-messages.ts` | ❌ 站点编译 | 按命名空间造那三条消息的名字，带缓存（同一命名空间每次拿到同一个对象）                                                                                                                                                                                                                                                                                        |
+| `lib/api-frame-view.tsx`    | ❌ 站点编译 | 框内那份**页面工厂** `createApiFrameView()`：三条 API 层的 `theme/XxxPage` 各调它一次，交「包名 + 渲染接线那个组件 + 亮暗的落法（`modeAttribute` 或 `onMode`）」。注册表守卫、从地址取 spec、`useInnerFrameSync`、`ready` 那一句、报回外层全在这一份里；单测 `test/api-frame-view.test.mts`                                                                   |
+| `lib/api-frame-theme.mts`   | ❌ 配置期   | 入口工厂：三条 API 层的 `src/index.mts` 调它拿 Plugin 形状（挂层目录、注册框内路由、接各自的 webpack 差异）；`.mts` 按上游 lint preset 标 Node 环境                                                                                                                                                                                                           |
+| `lib/frame-messages.ts`     | ❌ 站点编译 | 约定与形状：iframe 地址怎么拼（框内那条 `frameViewSrc` / `specUrlFromSearch`、`iframe:` 那条 `externalFrameURL`）、三条消息怎么造怎么认（**纯函数，不引 React、不引 DOM**）                                                                                                                                                                                   |
+| `lib/frame-sync.ts`         | ❌ 站点编译 | 两侧的消息循环：`useOuterFrameSync`（外层那份文档里）、`useInnerFrameSync` 与 `createRouteReporter`（框内那份文档里），加两边都过的来源校验 `isTrustedMessage`（引 DOM 类型的只有这一份，注册表那条配置期链路碰不到 `Window`）                                                                                                                                |
 
 「编译吗」那一列的判据是谁编译 —— 口径的产地在仓库根 README 的「构建包的编译口径」。这一格的特别之处
 是**没有编译产物**：本包的构建项目（`tsconfig.build.json`）只收 `src/`，`lib/` 不进 `tsc`，
@@ -50,11 +51,12 @@
 
 - `internal`（scalar / redoc / stoplight）：命名空间、frontmatter 键（`scalar:` / `redoc:` /
   `oas3:`）、框内页面的路由名（`scalar-view`……）、spec 参数的查询名（`src`）、`@theme/` 页面别名、
-  外层 `<iframe>` 的类名（`.scalar-frame`……）与 `title`（**兜底值**：页面写了 `frontMatter.title`
+  外层 `<iframe>` 的**第二个**类名（`.scalar-frame`……；第一个是四条层共用的 `.api-frame`，
+  尺寸与容器让位都在它上面，见「尺寸与样式表」一节）与 `title`（**兜底值**：页面写了 `frontMatter.title`
   时优先用页面自己的，`ApiFrame` 那一步）。框里是本包那条插件页面，同源，
   深链与亮暗靠消息循环对齐。
-- `external`（`iframe:`）：只有命名空间、键、类名与 `title` —— 框里是外部站点，地址算法归
-  `components/api-frame.tsx` 里那两步（`/` 打头补 origin、`?path=` 再解一层；曾经还有
+- `external`（`iframe:`）：只有命名空间、键、类名与 `title` —— 框里是外部站点，地址算法在
+  `lib/frame-messages.ts` 的 `externalFrameURL()`（`/` 打头补 origin、`?path=` 再解一层；曾经还有
   「整串 `decodeURIComponent`」的第三步，会把地址里合法的 `%` 序列二次解码，删了）。
 
 **条目的排列顺序是判定优先级的默认值**，但决定权在站点，分发在 `lib/api-frame-entries.ts`
@@ -71,9 +73,9 @@
 - 落空从「坏框」（肉眼可见）变成「页面看起来正常但键没生效」（看不见），所以分发把每一次落空
   的原因收进 `warnings`（键写了但层没装 / 被覆盖清单排除 / 覆盖里写了注册表认不出的命名空间 /
   覆盖挂在认不出是本层的槽位上；**页面级那几条带页面地址** —— 去重按文本判等，不带地址的话
-  十个页面上的同一个手误只报第一个），`DocItem` 在**开发模式**用 `console.warn` 打出来，每条一次
-  dev server 会话只打一遍（配置级那几条否则每翻一页都重放）；构建产物不打，
-  那种页面对读者没有可修的东西。
+  十个页面上的同一个手误只报第一个），`DocItem` 在**开发模式**把它们交给 `warnFrameDistribution()`
+  用 `console.warn` 打出来，每条一次 dev server 会话只打一遍（配置级那几条否则每翻一页都重放）；
+  构建产物不打，那种页面对读者没有可修的东西。
 
 为什么覆盖挂在**插件选项**而不是站点 `themeConfig`：实测浏览器侧那份 `themeConfig`
 （`pnpm build` 后 `.docusaurus/docusaurus.config.mjs` 的顶层那格）只来自官方 merge，而 merge
@@ -85,18 +87,21 @@
 `dist/index.mjs`、`src/index.mts` 都可以）—— 不存在「本层认路径、三条 API 层只认包名」的
 不对称，路径声明的层照样算装机。本站全部按包名声明。
 
-这一格有两道门禁钉着：分支语义（默认、覆盖、过滤、每一条 `warnings`）由
-`test/api-frame-entries.test.mts` 在单测里钉（纯函数，不需要浏览器）；而「浏览器侧 `plugins`
+这一格有三道门禁钉着：分支语义（默认、覆盖、过滤、每一条 `warnings`）由
+`test/api-frame-entries.test.mts` 在单测里钉（纯函数，不需要浏览器）；`lib/` 七份文件的每个分支
+都在覆盖率红线上（见 `vitest.config.mts` 的 `coverage.include`，浏览器那两份靠 jsdom，
+见 [`test/frame-sync.test.mts`](../../test/frame-sync.test.mts)）；而「浏览器侧 `plugins`
 原样保留包名、插件选项到得了浏览器」是 Docusaurus 的**实现细节而非公开承诺**，由
 `demo/scripts/verify-chain.mts` 第 3 节对真实生成的 `.docusaurus/docusaurus.config.mjs` 钉 ——
 升级后序列化形状变了会判红，而不是静默退化成「什么都没装」。
 用例「同一页写两把键时，注册表里排前面的赢」钉默认分发的端到端行为。
 
-新增一条 API 层 = 注册表加一条 + 新包写两份（入口调一次 `createApiFrameTheme()`、框内一份 view），
+新增一条 API 层 = 注册表加一条 + 新包写两份（入口调一次 `createApiFrameTheme()`、框内那一页
+`theme/XxxPage` 调一次 `createApiFrameView()`，各家那个渲染用的 UI 组件作为参数交给它），
 并把中心声明进新包的 `peerDependencies`（协议变 → 中心升版 → 消费方在安装期被范围拦下，
 而不是等构建期工厂抛错）。现阶段本站所有包版本都是 `0.0.0`，这份契约**拦不住任何东西**，
 是为发版升版之后预留的；另外 `workspace:` 协议在非 pnpm 包管理器下的行为未实测。外层一概不动。
-工厂拿命名空间去注册表取条目，取不到直接抛 ——
+两边那两份工厂都拿命名空间去注册表取条目，取不到直接抛 ——
 宁可构建期红，不带一条没人注册的路由。
 
 ## 那三条消息
@@ -177,10 +182,15 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
 时没有外层送值，那一份文档的模式格是空的（Scalar 那一层落到挂载那一刻读到的那份内联属性上），
 也就是亮色。那三条地址本来也不该发给别人。
 
-## 尺寸与样式表不在这里
+## 尺寸与样式表
 
-iframe 那一格的 CSS（定高、正文容器让位、页脚收不收、站点的侧栏让不让位）与渲染器自己那份样式表
-怎么进来，**三家不一样**，所以都留在各包里：
+**外层那一格共用一份**：`components/api-frame.css` 的 `.api-frame` 给框定高
+（`calc(100vh - var(--ifm-navbar-height))`）、`display: block`、去边框，`.container:has(iframe)`
+让正文容器去掉内边距与最大宽度 —— 四条层的 `<iframe>` 都挂 `.api-frame`，所以这四条规则只有一处。
+各层那个专属类名（`.scalar-frame`……）现在只用来认「这一格是哪一层赢的」，挂只属于一层的规则：
+目前只剩 stoplight 那条收页脚的。
+
+**框内那一格与样式表怎么进来，三家不一样**，留在各包里：
 
 - Redoc 按「整份文档跟着滚动」排版，框内那份文档不能定高；它的样式由 styled-components 在运行期插进
   框内那份文档的 `<head>`，站点那一份 css bundle 里根本没有它。
@@ -189,6 +199,11 @@ iframe 那一格的 CSS（定高、正文容器让位、页脚收不收、站点
 - Scalar 也是静态样式表、也并进全站那一份，但这一层**不改构建配置**：它出厂时每条规则已经带着
   `.scalar-app` 前缀，越不出那一格（实测与代价记在
   [`theme-scalar` 的 README](../../theme-scalar/README.md) 的「样式」一节）。
+
+还有一条**只在 e2e 里看得见**的约定：`.container:has(iframe)` 是全局的，正文里手写的 `<iframe>`
+也会让承载它的容器去掉内边距。所以「这一页正文容器真的为框让位」那一句判据认的是
+「包含**主题那个框**的 `.container`」（`test/e2e/steps/common.steps.mts` 里那条 `:has()`），
+而不是页面上任意一个 `.container` —— 否则夹具正文里手写的框会让那一句假绿。
 
 三包的 README 各有一节写自己那一条。
 
@@ -202,11 +217,16 @@ iframe 那一格的 CSS（定高、正文容器让位、页脚收不收、站点
 [`test/e2e/steps/common.steps.mts`](../../test/e2e/steps/common.steps.mts)，量框内那份文档的那几个
 辅助函数在 [`test/e2e/helpers.mts`](../../test/e2e/helpers.mts)。
 
+这一族自己那份源码另有单测**直接**钉着（分发、注册表、配置期工厂、消息形状、两条 hook），
+每个文件钉哪一面、以及覆盖率红线量哪几份，都记在 [`test/README.md`](../../test/README.md)。
+
 ## 局限
 
 - **改了它要三条层一起回归**：它的产物出口不存在，三个包直接引源码，所以改动会同时进三条层的
-  浏览器 bundle。单测不覆盖这一层（`pnpm test` 只测 `plugin-prev-layer-resolver`），拦它的是
-  `pnpm test:e2e` 里那十二条用例，只在本地跑。
+  浏览器 bundle。`lib/` 那七份文件的每个分支都挂在覆盖率红线上（两条 hook 也在，靠 jsdom 把
+  「递交交给浏览器」那一步换成直接点监听器与查 `postMessage`），所以接线方式一改就会红；
+  但**真浏览器上那条通道**——跨文档、异步、以及渲染器认不认那一段——只有 `pnpm test:e2e`
+  里那十二条用例量得到，而它只在本地跑。
 - **它只服务「整页交给一个框」这一种形状**：想把渲染器嵌进 `DocItem` 的正文区（页面上还有别的
   内容），路由与亮暗那两格仍然要跨文档，但外层那一格的尺寸归调用方自己管，这一层不提供。
 - 那条通道上没有握手之外的东西：框里那份文档加载失败、超时或 `src` 取不到，外层只会看到一个空框，

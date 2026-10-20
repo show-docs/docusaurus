@@ -1,30 +1,11 @@
-/* 外层文档页里那一个框的版式（类名 `stoplight-frame` 由 theme-iframe 的注册表给出，外层套壳
-   也归那一个包；这一份 CSS 与框内那份（`stoplight-ui.css`）分别站在 iframe 的两侧，各管各的
-   文档，进 bundle 的通道是 `stoplight-view.tsx` 那一句 import）。 */
+/* 只属于 Elements 这一层的一条规则：页脚收掉。框的尺寸与正文容器让位都在 theme-iframe 那份
+   共用版式（`components/api-frame.css` 的 `.api-frame` 与 `.container:has(iframe)`）里，
+   类名 `stoplight-frame` 由注册表给出，`components/api-frame.tsx` 把它与 `api-frame` 一起挂在
+   `<iframe>` 上；外层套壳也归那一个包，所以这一份是**本包 CSS 进全站 bundle 的唯一通道**
+   （CSS 由站点编译，只有被 import 的那份才进产物）。
 
-/* 框占满 navbar 以下那一屏。
-
-   这里**要**定高：滚动条长在框里那一份文档上，外层这一格给多高它就占多高，两层滚动容器
-   各滚各的文档，互不打扰。与 theme-redoc 同一条式子，也与 theme-iframe 同一口径。 */
-
-.stoplight-frame {
-  display: block;
-  border: 0;
-  width: 100%;
-  height: calc(100vh - var(--ifm-navbar-height));
-}
-
-/* 整页交给这个框时，正文容器的内边距与最大宽度都不要了（这条与 redoc 那层同形，
-   只是选择器换成认本包那个类名 —— 站点上任何 iframe 都会命中 `.container:has(iframe)`
-   那一格，那是 theme-iframe 那层自己声明的边界，本层不复用它）。
-
-   页脚一并收掉：框已经占满 navbar 以下那一屏，页脚留在下面只会被推出可视区，
-   显式收掉与改造前「整页交给 Elements」的观感一致。 */
-
-.container:has(.stoplight-frame) {
-  padding: 0 !important;
-  max-width: unset !important;
-}
+   页脚这一格别的层没有：框已经占满 navbar 以下那一屏，页脚留在下面只会被推出可视区，
+   与其留一片空白边距，不如显式收掉 —— 与改造前「整页交给 Elements」的观感一致。 */
 
 .main-wrapper:has(.stoplight-frame) + .footer {
   display: none;

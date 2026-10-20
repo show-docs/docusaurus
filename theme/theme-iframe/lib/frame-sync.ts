@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import type { RefObject } from 'react';
 
 import type { FrameColorMode, FrameMessages } from './frame-messages.ts';
-import { isTrustedMessage } from './frame-trust.ts';
 
 /**
 那两条消息循环：外层那份文档里的一个 iframe，与框内那份文档里的渲染器。
@@ -18,6 +17,23 @@ import { isTrustedMessage } from './frame-trust.ts';
 
 /** 外层那个 iframe 的 ref，与调用方渲染时挂的是同一个。 */
 export type FrameRef = RefObject<HTMLIFrameElement | null>;
+
+/**
+这条消息是不是从 `expectedSource` 那个窗口、同一个源发来的。
+
+两个方向都过这一格：外层只收自己那个 iframe 的，框内只收装载它的父窗口的。别人手工拼进
+地址栏的那一条、以及页面上任何第三方脚本发的消息，都进不到这条路里。
+
+引 DOM 类型的只有这两条 hook 这一份文件：注册表那条链（`api-frame-registry.ts` → 各包入口
+在配置期引的那几格）不碰 `Window`，配置期与浏览器期因此能共用同一份源码。
+*/
+export function isTrustedMessage(
+  event: MessageEvent,
+  expectedSource: Window | null,
+  origin: string,
+): boolean {
+  return event.source === expectedSource && event.origin === origin;
+}
 
 /**
 挂在**外层**那份文档里：把地址栏那一段与当前亮暗模式送进框里，并接住框里报回来的那一段。
@@ -43,34 +59,36 @@ export function useOuterFrameSync(options: {
     }
     const { origin } = window.location;
 
-    const postRoute = (): void => {
-      frame.contentWindow?.postMessage(
-        messages.route(window.location.hash),
-        origin,
-      );
+    const postRoute = (target: Window): void => {
+      target.postMessage(messages.route(window.location.hash), origin);
     };
 
-    const postMode = (): void => {
-      frame.contentWindow?.postMessage(messages.mode(colorMode), origin);
+    const postMode = (target: Window): void => {
+      target.postMessage(messages.mode(colorMode), origin);
     };
 
-    // 框里那一份是不是已经站在同一个源上。还没开始加载时它是 `about:blank`，那里的 origin 是
-    // 字符串 `null`，这一格送过去只会被浏览器按目标源丢掉、白刷一条控制台报错。
-    // 读它的 `location` 只在同源时不抛，抛了就当还没起来。
-    const isFrameLoaded = (): boolean => {
+    // 框里那一份是不是已经站在同一个源上，是的话把它交出去。还没开始加载时它是
+    // `about:blank`，那里的 origin 是字符串 `null`，这一格送过去只会被浏览器按目标源丢掉、
+    // 白刷一条控制台报错。读它的 `location` 只在同源时不抛，抛了就当还没起来。
+    // 同源的判定只做一次并交出那个窗口，而不是每格各判一次再 `?.` —— 「判过同源之后
+    // contentWindow 又变空」在同步代码里不发生，留着那条可选链就是永远量不到的分支。
+    const isFrameLoaded = (): Window | undefined => {
       try {
-        return frame.contentWindow?.location.origin === origin;
+        return frame.contentWindow?.location.origin === origin
+          ? frame.contentWindow
+          : undefined;
       } catch {
-        return false;
+        return undefined;
       }
     };
 
     const pushToFrame = (): void => {
-      if (!isFrameLoaded()) {
+      const target = isFrameLoaded();
+      if (target === undefined) {
         return;
       }
-      postRoute();
-      postMode();
+      postRoute(target);
+      postMode(target);
     };
 
     const onMessage = (event: MessageEvent): void => {
@@ -94,8 +112,13 @@ export function useOuterFrameSync(options: {
       );
     };
 
+    // 前进/后退时框可能还没站到同源上（或已经被摘掉）：走同一条同源判定，而不是赌
+    // contentWindow 一定在。
     const onPopState = (): void => {
-      postRoute();
+      const target = isFrameLoaded();
+      if (target !== undefined) {
+        postRoute(target);
+      }
     };
 
     window.addEventListener('message', onMessage);
