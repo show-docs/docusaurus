@@ -18,7 +18,7 @@ import DocCardList from '@theme/DocCardList';
 
 ## 示例页
 
-每个主题包各占一份文档源：多数由 frontmatter 里的键触发，`.dbml` 则由扩展名触发；不命中的页面那一层等于透明。
+每个主题包各占一份文档源：多数由 frontmatter 里的键触发，`.dbml` 由扩展名触发，图片查看器那一层判的是正文里有没有图片；不命中的页面那一层等于透明。
 
 <DocCardList />
 
@@ -38,7 +38,7 @@ import DocCardList from '@theme/DocCardList';
 ## 文档
 
 - 链式覆盖方案（docusaurus-plugin-prev-layer-resolver）—— 落地实现：`@theme-prev/X` 系列 specifier；正文在仓库里的 `plugins/plugin-prev-layer-resolver/README.md`（站点文档源只收 `docs/`，链接出去只会是死链）。
-- 各主题包的行为与约束：`theme/theme-{markmap,erd,iframe,stoplight,redoc,scalar}/README.md`、`demo/theme-{a,b,c}/`，同样在仓库里。`stoplight`、`redoc` 与 `scalar` 那三条共用的跨 iframe 约定（iframe 地址与两份文档之间那三条消息）住在 `theme/theme-iframe/lib/`，口径在 `theme/theme-iframe/docs/iframe-protocol.md`；「整页交给一个框」的外层套壳（判键的 `DocItem` 与那个通用 `<iframe>`）也从那一个包走，三条 API 层自己不再有 `DocItem`。
+- 各主题包的行为与约束：`theme/theme-{markmap,erd,iframe,stoplight,redoc,scalar,viewer}/README.md`、`demo/theme-{a,b,c}/`，同样在仓库里。`stoplight`、`redoc` 与 `scalar` 那三条共用的跨 iframe 约定（iframe 地址与两份文档之间那三条消息）住在 `theme/theme-iframe/lib/`，口径在 `theme/theme-iframe/docs/iframe-protocol.md`；「整页交给一个框」的外层套壳（判键的 `DocItem` 与那个通用 `<iframe>`）也从那一个包走，三条 API 层自己不再有 `DocItem`。
 
 ## 命令
 

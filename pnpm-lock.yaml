@@ -206,6 +206,9 @@ importers:
       '@show-docs/docusaurus-theme-stoplight':
         specifier: workspace:^
         version: link:theme/theme-stoplight
+      '@show-docs/docusaurus-theme-viewer':
+        specifier: workspace:^
+        version: link:theme/theme-viewer
       '@show-docs/theme-a':
         specifier: workspace:^
         version: link:demo/theme-a
@@ -448,6 +451,24 @@ importers:
       url:
         specifier: ^0.11.4
         version: 0.11.4
+
+  theme/theme-viewer:
+    dependencies:
+      '@docusaurus/types':
+        specifier: ^3.9.2
+        version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      postcss-nesting:
+        specifier: ^13.0.2
+        version: 13.0.2(postcss@8.5.29)
+      react:
+        specifier: ~18.3.1
+        version: 18.3.1
+      viewerjs:
+        specifier: ^1.15.2
+        version: 1.15.2
+      webpack:
+        specifier: ^5.112.0
+        version: 5.112.0(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
 packages:
 
@@ -9649,6 +9670,9 @@ packages:
 
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
+
+  viewerjs@1.15.2:
+    resolution: {integrity: sha512-CYEqSFfPUSnmn1PjrhYxXOScaUC7n8+NpSqI+MrOSM8wcKPe35MlwQYwksuD5rjFkYv/ePmY5NsUa51uRNN2jA==}
 
   vite@8.3.3:
     resolution: {integrity: sha512-cTAldKPImjg6c+gk48U19POPn3GCBzZwpdsN8ZMEEcbpes+6/wvfqUd0C2y3qYY4wsj8PwgFwrZ/1jBPVttMSg==}
@@ -22251,6 +22275,8 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
+
+  viewerjs@1.15.2: {}
 
   vite@8.3.3(@types/node@22.20.5)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1):
     dependencies:

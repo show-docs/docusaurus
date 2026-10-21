@@ -1,0 +1,19 @@
+/* viewerjs 那份样式表由 `getClientModules()` 与本文件一起交给站点（口径见 src/index.mts）；
+   这里收三处：查看器的展开态、标题与缩略图栏。 */
+
+/* 展开态。第三方那份靠先后顺序分出 `.viewer-fade`（opacity: 0）与 `.viewer-in`（opacity: 1），
+   而样式表压缩器会把声明相同的选择器并到一处 —— 并完 `.viewer-in` 就跑到了 `.viewer-fade`
+   前面，容器上两个类同时在场时反而读成 0，查看器打开了但整层是透明的。这里把「展开」写成
+   两个类的组合：比的是特异性，不是先后顺序，压缩器怎么并都还是它。 */
+.viewer-container.viewer-in {
+  opacity: 1;
+}
+
+.viewer-container .viewer-title {
+  color: white !important;
+  font-size: 18px !important;
+}
+
+.viewer-container .viewer-list > li {
+  width: 60px !important;
+}

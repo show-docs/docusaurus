@@ -1,0 +1,125 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  aria-label="主题层栈示意"
+  height="700"
+  role="img"
+  viewBox="0 0 1000 700"
+  width="1000"
+>
+  <rect fill="#f7f9fc" height="700" width="1000" />
+  <text
+    fill="#1b2a41"
+    font-family="Segoe UI, Microsoft YaHei, sans-serif"
+    font-size="30"
+    text-anchor="middle"
+    x="500"
+    y="56"
+  >主题层栈：谁包着谁</text>
+  <text
+    fill="#5b6b7f"
+    font-family="Segoe UI, Microsoft YaHei, sans-serif"
+    font-size="17"
+    text-anchor="middle"
+    x="500"
+    y="92"
+  >@theme-prev/X 每次往下走一层，顺序就是 docusaurus.config 里 plugins 的顺序</text>
+
+  <rect
+    fill="none"
+    height="520"
+    rx="14"
+    stroke="#2f6fdb"
+    stroke-width="3"
+    width="880"
+    x="60"
+    y="130"
+  />
+  <text
+    fill="#2f6fdb"
+    font-family="Segoe UI, Microsoft YaHei, sans-serif"
+    font-size="20"
+    x="86"
+    y="166"
+  >站点层 src/theme（最外圈）</text>
+
+  <rect
+    fill="none"
+    height="420"
+    rx="14"
+    stroke="#7a5af8"
+    stroke-width="3"
+    width="780"
+    x="110"
+    y="190"
+  />
+  <text
+    fill="#7a5af8"
+    font-family="Segoe UI, Microsoft YaHei, sans-serif"
+    font-size="20"
+    x="136"
+    y="226"
+  >theme-c</text>
+
+  <rect
+    fill="none"
+    height="320"
+    rx="14"
+    stroke="#e0761b"
+    stroke-width="3"
+    width="680"
+    x="160"
+    y="250"
+  />
+  <text
+    fill="#e0761b"
+    font-family="Segoe UI, Microsoft YaHei, sans-serif"
+    font-size="20"
+    x="186"
+    y="286"
+  >theme-b</text>
+
+  <rect
+    fill="none"
+    height="220"
+    rx="14"
+    stroke="#12a56b"
+    stroke-width="3"
+    width="580"
+    x="210"
+    y="310"
+  />
+  <text
+    fill="#12a56b"
+    font-family="Segoe UI, Microsoft YaHei, sans-serif"
+    font-size="20"
+    x="236"
+    y="346"
+  >theme-a</text>
+
+  <rect
+    fill="#ffffff"
+    height="120"
+    rx="14"
+    stroke="#42546c"
+    stroke-width="3"
+    width="480"
+    x="260"
+    y="370"
+  />
+  <text
+    fill="#42546c"
+    font-family="Segoe UI, Microsoft YaHei, sans-serif"
+    font-size="20"
+    text-anchor="middle"
+    x="500"
+    y="418"
+  >官方 theme-classic 的实现</text>
+  <text
+    fill="#5b6b7f"
+    font-family="Segoe UI, Microsoft YaHei, sans-serif"
+    font-size="16"
+    text-anchor="middle"
+    x="500"
+    y="452"
+  >最里面那一份，渲染真正的正文</text>
+</svg>

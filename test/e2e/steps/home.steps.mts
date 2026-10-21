@@ -15,6 +15,7 @@ const demoHrefs = [
   '/redoc-demo',
   '/scalar-demo',
   '/erd-demo',
+  '/viewer-demo',
 ];
 
 /**
@@ -44,7 +45,7 @@ Then('卡片列表被套进四层主题的链里', async ({ page }) => {
 });
 
 Then(
-  '链里有六张分别指向 markmap、iframe、stoplight、redoc、scalar、erd 示例页的卡片',
+  '链里有七张分别指向 markmap、iframe、stoplight、redoc、scalar、erd、viewer 示例页的卡片',
   async ({ page }) => {
     for (const href of demoHrefs) {
       await expect(

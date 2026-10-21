@@ -40,6 +40,10 @@ const config = {
     '@show-docs/docusaurus-theme-stoplight',
     '@show-docs/docusaurus-theme-redoc',
     '@show-docs/docusaurus-theme-scalar',
+    // 图片查看器主题层：它不看 frontmatter，判的是正文里有没有图片。这一层覆盖的是
+    // `DocItem/Content`（其余各层覆盖的是 `DocItem`），放在最里面，`@theme-prev` 那一步
+    // 落到官方那份实现，正文一个字都不改。
+    '@show-docs/docusaurus-theme-viewer',
   ],
 
   presets: [
@@ -65,7 +69,7 @@ const config = {
     navbar: { title: 'Theme Override Test', items: [] },
     footer: {
       style: 'dark',
-      // 三条 API 层的示例页 + 那两条非 API 页，各占一列，用来验「整页交给框」时页脚该收掉
+      // 三条 API 层的示例页 + 那四条非 API 页，各占一列，用来验「整页交给框」时页脚该收掉
       links: [
         {
           title: 'API 渲染器',
@@ -80,6 +84,7 @@ const config = {
           items: [
             { label: '思维导图', to: '/markmap-demo' },
             { label: '数据库关系图', to: '/erd-demo' },
+            { label: '图片查看器', to: '/viewer-demo' },
             { label: '外部页面（iframe）', to: '/iframe-demo' },
           ],
         },

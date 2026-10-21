@@ -464,10 +464,12 @@ describe('构建脚本与 CI 护栏', () => {
       'demo/theme-b',
       'demo/theme-c',
       'theme/theme-markmap',
+      'theme/theme-erd',
       'theme/theme-iframe',
       'theme/theme-stoplight',
       'theme/theme-redoc',
       'theme/theme-scalar',
+      'theme/theme-viewer',
     ];
     const names: string[] = [];
     for (const dir of subpackages) {

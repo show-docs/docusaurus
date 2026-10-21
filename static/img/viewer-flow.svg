@@ -1,0 +1,166 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  aria-label="文档源到页面那一步的流向"
+  height="700"
+  role="img"
+  viewBox="0 0 1000 700"
+  width="1000"
+>
+  <rect fill="#f7f9fc" height="700" width="1000" />
+  <text
+    fill="#1b2a41"
+    font-family="Segoe UI, Microsoft YaHei, sans-serif"
+    font-size="30"
+    text-anchor="middle"
+    x="500"
+    y="56"
+  >一份文档源到页面，中间经过哪几步</text>
+
+  <g font-family="Segoe UI, Microsoft YaHei, sans-serif">
+    <rect
+      fill="#eaf1ff"
+      height="120"
+      rx="12"
+      stroke="#2f6fdb"
+      stroke-width="3"
+      width="240"
+      x="70"
+      y="150"
+    />
+    <text
+      fill="#1b2a41"
+      font-size="21"
+      text-anchor="middle"
+      x="190"
+      y="200"
+    >docs/*.md</text>
+    <text
+      fill="#42546c"
+      font-size="16"
+      text-anchor="middle"
+      x="190"
+      y="232"
+    >正文与 frontmatter</text>
+
+    <rect
+      fill="#eafaf3"
+      height="120"
+      rx="12"
+      stroke="#12a56b"
+      stroke-width="3"
+      width="240"
+      x="380"
+      y="150"
+    />
+    <text
+      fill="#1b2a41"
+      font-size="21"
+      text-anchor="middle"
+      x="500"
+      y="200"
+    >webpack loader</text>
+    <text
+      fill="#42546c"
+      font-size="16"
+      text-anchor="middle"
+      x="500"
+      y="232"
+    >构建期追加导出（erd / markmap）</text>
+
+    <rect
+      fill="#fff2e6"
+      height="120"
+      rx="12"
+      stroke="#e0761b"
+      stroke-width="3"
+      width="240"
+      x="690"
+      y="150"
+    />
+    <text
+      fill="#1b2a41"
+      font-size="21"
+      text-anchor="middle"
+      x="810"
+      y="200"
+    >MDX 组件</text>
+    <text
+      fill="#42546c"
+      font-size="16"
+      text-anchor="middle"
+      x="810"
+      y="232"
+    >default 导出 + 命名导出</text>
+
+    <rect
+      fill="#f2ecff"
+      height="120"
+      rx="12"
+      stroke="#7a5af8"
+      stroke-width="3"
+      width="240"
+      x="225"
+      y="400"
+    />
+    <text
+      fill="#1b2a41"
+      font-size="21"
+      text-anchor="middle"
+      x="345"
+      y="450"
+    >主题层 DocItem</text>
+    <text
+      fill="#42546c"
+      font-size="16"
+      text-anchor="middle"
+      x="345"
+      y="482"
+    >按层栈从外往里逐个包裹</text>
+
+    <rect
+      fill="#ffffff"
+      height="120"
+      rx="12"
+      stroke="#42546c"
+      stroke-width="3"
+      width="240"
+      x="535"
+      y="400"
+    />
+    <text
+      fill="#1b2a41"
+      font-size="21"
+      text-anchor="middle"
+      x="655"
+      y="450"
+    >浏览器</text>
+    <text
+      fill="#42546c"
+      font-size="16"
+      text-anchor="middle"
+      x="655"
+      y="482"
+    >图片查看器、关系图都在这一步接上</text>
+  </g>
+
+  <g fill="none" marker-end="url(#arrow)" stroke="#8798ad" stroke-width="3">
+    <path d="M310 210 H374" />
+    <path d="M620 210 H684" />
+    <path d="M810 274 V340 Q810 370 780 370 H400 Q345 370 345 400" />
+    <path d="M465 460 H529" />
+  </g>
+
+  <defs>
+    <marker
+      id="arrow"
+      markerHeight="7"
+      markerWidth="7"
+      orient="auto-start-reverse"
+      refX="9"
+      refY="5"
+      viewBox="0 0 10 10"
+    >
+      <path d="M0 0 L10 5 L0 10 z" fill="#8798ad" />
+    </marker>
+  </defs>
+</svg>
