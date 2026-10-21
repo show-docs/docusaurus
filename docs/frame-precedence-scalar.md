@@ -7,9 +7,9 @@ description: '同一页写满 scalar / redoc / oas3 / iframe 四把键，生效�
 # frontmatter 里，判的是 theme-iframe 那份 `DocItem` 按 `lib/api-frame-registry.ts` 的
 # 顺序逐条判、第一个命中就换框 —— 这一页应该摆 scalar 那个框，另外三把一概轮不到。
 # 正文在渲染后的页面上看不到：整页已经交给框了。
-scalar: /openapi.yaml
-redoc: /openapi.yaml
-oas3: /openapi.yaml
+scalar: /openapi-scalar.yaml
+redoc: /openapi-redoc.yaml
+oas3: /openapi-stoplight.yaml
 iframe: /404
 ---
 

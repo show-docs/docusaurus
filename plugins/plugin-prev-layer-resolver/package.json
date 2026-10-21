@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-plugin-prev-layer-resolver",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "让多个主题层层包裹同一个组件成立，且 @theme-original 官方语义零改动",
   "license": "UNLICENSED",
   "author": {

@@ -56,7 +56,7 @@ function LocationMirror(props: Pick<Props, 'onRouteChange'>): null {
 }
 
 // `hideExport`：那条「Export / Download」入口在本仓的示例页上没有对象（文档是站点自己那份
-// `static/openapi.yaml`，导出一份再存回本地没有意义）。
+// `static/openapi-stoplight.yaml`，导出一份再存回本地没有意义）。
 // `router: 'hash'` 这一格**不再**决定用哪种路由（下面那层 `HashRouter` 才是），它喂的是
 // Elements 的 `RouterTypeContext`：章节标题那颗锚点链接按它决定要不要把 `#id` 接在当前路径后面
 // （`hash` 那一支会，见包里的 `LinkHeading`）。**不传 `basePath`**：命中 `outerRouter` 那一支时

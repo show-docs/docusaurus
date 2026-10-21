@@ -16,7 +16,7 @@ export interface PrevLayerResolverOptions {
 让「多个主题链式包裹同一个组件」成立，**无需任何配置清单**：站点 plugins 里放一个实例，
 之后任意主题层都能写 `import PrevLogo from '@theme-prev/Logo'`（= 我下面那一层）。
 
-配置写法、层栈语义、specifier 为什么另起，全文在 `./README.md`（「接入方式」「新 specifier」）。
+配置写法、层栈语义、specifier 为什么另起，全文在 `./README.md`（「使用」「工作方式」）。
 这里只留接线所需的两条事实：层栈在**初始化阶段**由 {@link PluginDiscovery} 取好（时机为什么
 必须是这里见下方 `discover()` 那行）；拿不到插件列表时 `layersFromPlugins` 接受 null，
 缺席的是全部主题层 —— 站点层的 `@theme-prev/*` 最多落到 stub 层，不会静默产出错误产物。
@@ -45,7 +45,7 @@ export default async function prevLayerResolverPlugin(
       const layers = layersFromPlugins({ siteDir, plugins, logger });
 
       // 空层栈 = 本插件什么都不做，最容易变成静默失效 ⇒ 由「问层栈的那个人」报一次
-      // （README「会告警的地方」第 9 条）。层栈本身不打印：要排查时问 `layersFromPlugins`。
+      // （README「告警」第 9 条）。层栈本身不打印：要排查时问 `layersFromPlugins`。
       if (layers.length === 0) {
         logger.warn?.(
           '[plugin-prev-layer-resolver] 没拿到主题层栈，@theme-prev/* 将全部交回官方解析（真实报 Module not found）。',

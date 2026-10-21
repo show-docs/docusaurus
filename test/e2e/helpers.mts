@@ -150,8 +150,8 @@ export const themeLayers = ['redoc', 'scalar', 'stoplight'] as const;
 
 export type ThemeLayer = (typeof themeLayers)[number];
 
-/** 三层示例页的 frontmatter 里写的那份文档地址：`static/openapi.yaml`，产物里就是这一串。 */
-const layerSpec = '/openapi.yaml';
+/** 三层示例页各自那份文档地址：`static/openapi-{层名}.yaml`，产物里就是这一串。 */
+const layerSpec = (layer: ThemeLayer): string => `/openapi-${layer}.yaml`;
 
 export const themeFrame = (page: Page): Locator =>
   page.locator(themeLayers.map((layer) => `iframe.${layer}-frame`).join(', '));
@@ -175,7 +175,7 @@ export const layerViewUrl = (layer: ThemeLayer): string => `/${layer}-view`;
 
 /** 命中页那个框的 `src`，也是「带着 spec 独立打开」那一条用的地址：上面那条路由 + 那份 spec。 */
 export const layerFrameSrc = (layer: ThemeLayer): string =>
-  `${layerViewUrl(layer)}?src=${encodeURIComponent(layerSpec)}`;
+  `${layerViewUrl(layer)}?src=${encodeURIComponent(layerSpec(layer))}`;
 
 /**
 「站点这一头的配色落到框里了没有」那一句的读法：把框内那份文档上的两处读数拼成一串。

@@ -317,7 +317,7 @@ export class PrevLayerResolverPlugin {
     if (issuerIndex < 0) {
       // 按类别限流，而不是按完整消息：消息里带 issuer 路径，一个 pnpm 布局差异就能产生上千个
       // 不同的 issuer → 上千条「新消息」→ 去重失效、日志被刷满。三种成因同一条告警列全，
-      // 判据与文案的理由见 README「会告警的地方」第 3 条。
+      // 判据与文案的理由见 README「告警」第 3 条。
       this.warnSample(
         'issuer-not-in-any-layer',
         `[plugin-prev-layer-resolver] ${requestLabel(componentName)} 的导入者不在任何主题层内：${issuer}。` +
@@ -337,7 +337,7 @@ export class PrevLayerResolverPlugin {
 
     const targetIndex = this.findTargetLayerIndex(issuerIndex, componentName);
     // 落点必须在导入者下方：`>=` 之外的一切都是同一条不变量违规，这里是它**唯一**的判据
-    // （为什么取 `>=` 见 README「会告警的地方」第 2 条）。{@link findTargetLayerIndex} 的扫描
+    // （为什么取 `>=` 见 README「告警」第 2 条）。{@link findTargetLayerIndex} 的扫描
     // 条件本就保证成立，所以这条只由替换了它的子类触达。
     if (targetIndex >= issuerIndex) {
       this.reportInvariantViolation(componentName, issuerIndex, targetIndex);
@@ -375,7 +375,7 @@ export class PrevLayerResolverPlugin {
   apply(resolver: ResolverLike): void {
     // 能力自检 + 取出口 hook 是同一次调用：`ensureHook` 幂等，自检拿到的那份就是每次改写
     // 要用的那份，不必每条 request 再走一遍 Tapable。为什么要自检，见 README
-    // 「会告警的地方」第 4 条。
+    // 「告警」第 4 条。
     let target: ReturnType<ResolverLike['ensureHook']>;
     try {
       target = resolver.ensureHook('internal-resolve');
@@ -464,7 +464,7 @@ export class PrevLayerResolverPlugin {
   /**
   登记并告警一次「不变量违规」：`targetIndex >= issuerIndex`。判据按**层**判而不按文件路径：
   层不等 ⇒ 文件必不等，判得更强，而路径比较两个方向都会错。理由与后果见 README
-  「会告警的地方」第 2 条。
+  「告警」第 2 条。
   */
   private reportInvariantViolation(
     componentName: string,

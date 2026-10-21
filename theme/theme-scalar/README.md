@@ -1,17 +1,32 @@
-# theme/theme-scalar
+# @show-docs/docusaurus-theme-scalar
 
-主题包：md 的 frontmatter 写 `scalar: <URL>` 时，该文档页整页换成**一个 iframe**，框里是本包
-自己那条页面（`/scalar-view`），[Scalar](https://github.com/scalar/scalar) 的
-`@scalar/api-reference`（Vue 3 组件）渲染的 OpenAPI 文档跑在那一份文档里。
+用 [Scalar](https://github.com/scalar/scalar) 的 `@scalar/api-reference` 渲染 OpenAPI 文档的
+Docusaurus 主题插件。frontmatter 写 `scalar: <spec 地址>` 时，该文档页整页换成一个 iframe，
+Scalar 在框内页面 `/scalar-view` 中渲染那份文档。
 
-形状与 [`theme-redoc`](../theme-redoc/README.md)、[`theme-stoplight`](../theme-stoplight/README.md)
-是一对一的，而且外层那一半三家共用一份：判键的 `DocItem`、那个 `<iframe>`、地址拼装与跨文档那
-两格都住在 [`theme-iframe`](../theme-iframe/README.md)，本包只剩入口那一次工厂调用与**框内那一页**。
+## 安装
 
-> 这一层内部怎么组成、渲染器怎么挂、样式表为什么不用请出全站那一份、亮暗为什么落在 `<body>`
-> 的两个类名上，收在维护者文档 [`docs/internals.md`](./docs/internals.md)。
+外层套壳由 theme-iframe 提供，两个包一起安装：
 
-## 怎么用
+```bash
+pnpm add @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-scalar
+```
+
+## 使用
+
+### 注册插件
+
+```js
+// docusaurus.config.mjs
+export default {
+  plugins: [
+    '@show-docs/docusaurus-theme-iframe',
+    '@show-docs/docusaurus-theme-scalar'
+  ]
+};
+```
+
+### 写 frontmatter
 
 ```md
 ---
@@ -20,53 +35,47 @@ scalar: /openapi.yaml
 ---
 ```
 
-命中时整页换成那一个 iframe，**不包下层 `DocItem`**（判键与替换都发生在 theme-iframe 那一份
-`DocItem` 里，与 redoc / stoplight / `iframe:` 同一落点），
-所以那一页不会有文档正文外壳、也不会再有导图。
+`scalar` 的值是框内页面要加载的 spec 地址：`static/openapi.yaml` 对应 `/openapi.yaml`，也可以写
+完整 URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保留文档正文外壳，也不再渲染导图。
+框内页面只接受 spec 地址这一种入参，不支持传入内联文档。
 
-`scalar:` 那个值是**框里那份文档去取哪个地址**，它被编码进 iframe 的 `src`
-（`/scalar-view?src=%2Fopenapi.yaml`）。
+## 配置
 
-框内那一格的入参只有地址这一种，且界面文案走 Scalar 自带的简体（`localization.locale`）；
-要换语言或调那几处「收掉 / 多摆」的取舍，改 `components/scalar-ui.tsx` 里那份配置。
+本包没有插件选项。Scalar 的渲染参数集中在
+[`components/scalar-ui.tsx`](./components/scalar-ui.tsx)：界面语言为简体中文
+（`localization.locale: 'zh-cn'`），并关闭了 Test Request、Ask AI、暗色切换等入口。语言值要使用
+Scalar 内置的小写连字符 id（例如 `zh-cn`，不是 `zh-CN`）。
 
-## 渲染放在独立页面，文档页只嵌它
+## 渲染方式
 
-命中的文档页只留一个 `<iframe class="api-frame scalar-frame">`，Scalar 的运行时只在框里那份文档
-（`/scalar-view?src=…`）里加载；外层看不到 `.scalar-app`。两份文档各放什么、为什么换一份文档，
-见 [`docs/internals.md`](./docs/internals.md) 的「两份文档各管什么」与「为什么要换一份文档」两节。
+- 文档页只输出 `<iframe class="api-frame scalar-frame" src="/scalar-view?src=...">`。Scalar 的
+  脚本只在框内页面加载，外层页面没有 Scalar 运行时。
+- 框内页面只做客户端渲染，静态 HTML 里没有渲染结果。
+- 亮暗模式跟随站点开关；直接打开 `/scalar-view` 时使用页面加载时的模式，之后不再跟随站点。
 
-## 路由与深链：`#tag/orders/POST/orders` 那一段
+## 路由与深链
 
-三条层的 hash 长得不一样，各按各的写法记在这里，别抄：
+- 可分享的地址是外层文档页：`/scalar-demo#tag/orders/POST/orders`。hash 不参与请求文件，整页
+  加载返回 200。
+- hash 段由框内与框外的消息双向同步；Scalar 的格式是 `#tag/<tag>/<METHOD>/<path>`，`#` 后面没有
+  前导斜杠。
+- `/scalar-view?src=…` 可以直接打开，但它是框内页面本身，不带外层 hash，不应作为分享地址。
+- 产物中每条接口没有独立的 HTML。
 
-- Scalar：`#tag/orders/POST/orders` —— 按**标签 + 方法 + 路径**拼，`#` 后面**没有**前导斜杠；
-- Redoc：`#/orders/createorder` —— 有前导斜杠，`operationId` 被小写；
-- Elements：`#/operations/createOrder` —— 有前导斜杠，`operationId` 原样。
+## 已知限制
 
-能发给别人的是**外层**那条地址（`/scalar-demo#tag/orders/POST/orders`）。hash 段不参与取文件，
-整页加载它回 200；iframe 的 `src` 里**不**塞那一段，它靠框里那句 `ready` 换进框内。为什么不是
-外层在 iframe 的 `load` 事件上推、两侧各推一次的来由，记在
-[`iframe-protocol.md`](../theme-iframe/docs/iframe-protocol.md)。
+- 站点全站样式表因为本包多出约 359 KB，每个页面都会下载；实测数据见
+  [维护者文档](./docs/internals.md) 的「样式」一节。
+- 站点保留 300px 宽的文档侧栏；Scalar 左栏需要 iframe 宽度至少 1024px 才展开。视口 1280px 时
+  iframe 只有 980px，整套 API 导航会收成「打开菜单」抽屉。
+- 正文按需挂载：视口下方尚未滚动到的章节不在 DOM 中。
+- iframe 内容对搜索引擎和抓取工具不可见。
+- 页面上的 `#` 由 Scalar 占用，正文标题锚点不适用。
+- `/scalar-view` 会进入站点地图；缺少 `src` 参数时整屏空白。
+- spec 地址必须能从浏览器访问；外网地址需要配置 CORS。
 
-`/scalar-view?src=%2Fopenapi.yaml` 本身也是条能直接打开的地址（产物里有那份 html）。它不带外层
-那段 hash，也不该有人拿它当分享链接。
+## 相关文档
 
-## 局限
-
-- **每条接口在产物里没有自己的 html**。外层地址是真的，但内容仍然只有 `build/scalar-demo/index.html`
-  一份，接口那一格是框里客户端渲染出来的。
-- **框里那一页对搜索引擎与抓取工具不可见**：iframe 的内容按惯例不算进宿主页面。
-- **多出来的那 359 KB 样式表每一页都下载**（净增字节数与「为什么不拦」的实测在
-  [`docs/internals.md`](./docs/internals.md) 的「样式」一节）。
-- **站点那一列窗口窄的时候会挤**：命中页与 redoc、stoplight 一样保留站点的文档侧栏（300px），
-  而 Scalar 的左栏要**框**宽 ≥1024 才展开 —— 视口 1280 时框只有 980，整套 API 导航收成一颗
-  「打开菜单」抽屉。量法与那一档断点见 [`docs/internals.md`](./docs/internals.md) 的「宽度」一节。
-- **正文区是按需挂载的**：视口之下还没滚到的那几节不在 DOM 里，e2e 那句整页直达的判据因此只钉到
-  地址里那条接口为止。量法见 [`docs/internals.md`](./docs/internals.md) 的「正文按需挂载」一节。
-- **`#` 归 Scalar 用**：站点常规那种「正文里某个小标题的锚点」在这一页上不成立。
-- **`/scalar-view` 会进站点地图**：`addRoute` 注册的路由在 Docusaurus 眼里就是一条页面，实测
-  `build/sitemap.xml` 里有它。缺 `src` 时那一页整屏空白，被索引到也没有内容可展示。
-- **亮暗模式只有一个来源**：框内那份文档自己不再判断。直接打开 `/scalar-view?src=…`（没有外层
-  送值）时那一格停在加载时内联脚本写下的那份，之后不跟站点开关。
-- 站点根目录得真的有 `static/openapi.yaml` 那种本站可读的 spec；外网 spec 要另配 CORS。
+- [维护者文档](./docs/internals.md)：样式、宽度、界面文案与实测记录。
+- [跨 iframe 协议](../theme-iframe/docs/iframe-protocol.md)：地址与亮暗同步的消息形状。
+- [Scalar 示例](../../docs/scalar-demo.md)。

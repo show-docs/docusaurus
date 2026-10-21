@@ -6,8 +6,8 @@ description: '同一页写 redoc / oas3 / iframe 三把键，生效的是注册�
 # 这一页也是 e2e 夹具：把注册表第一把（`scalar:`）拿掉，剩下三把按顺序就该 redoc 赢 ——
 # 上一份夹具只钉得住「scalar 赢」，那可能因为它是唯一被实现的判法；这一份钉「顺序真的在逐条走」。
 # 正文在渲染后的页面上看不到：整页已经交给框了。
-redoc: /openapi.yaml
-oas3: /openapi.yaml
+redoc: /openapi-redoc.yaml
+oas3: /openapi-stoplight.yaml
 iframe: /404
 ---
 

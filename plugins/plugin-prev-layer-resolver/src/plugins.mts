@@ -501,7 +501,7 @@ async function instantiateThemePlugins(
       // 时会抛错；它们本来就不提供主题，跳过合理。但**一条都不能省**：这里无法区分「本来
       // 就没主题」和「有主题但在有限 context 下构造失败」，而后者让层栈少一层且完全静默
       // —— 没有可用判据（`getThemePath` 在产物里可能被压成短名），理由见 README
-      // 「会告警的地方」第 6 条。只收集、不当场 warn：逐条报就是每次构建刷 N 行。
+      // 「告警」第 6 条。只收集、不当场 warn：逐条报就是每次构建刷 N 行。
       // `?? '<inline plugin>'` 给的是内联插件（配置里直接写函数、没有入口）的标签，
       // 否则这一行打印 `undefined` 而看不出是谁失败了。`String(error)` 而非 `.message`：
       // 带上错误类型名，非 Error 抛出（`throw 'boom'`）也不会变成 `undefined`。

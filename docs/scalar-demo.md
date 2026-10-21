@@ -4,8 +4,8 @@ sidebar_position: 6
 title: Scalar 示例
 description: 'frontmatter 写 scalar: <URL>，整页换成一个 iframe，框里用 Scalar 渲染 API 文档。'
 # 命中 theme-scalar 那一层：整页换成一个 iframe，Scalar 跑在本包自己那条 /scalar-view 页面上。
-# /openapi.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
-scalar: /openapi.yaml
+# /openapi-scalar.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
+scalar: /openapi-scalar.yaml
 ---
 
 # Scalar 示例
@@ -14,10 +14,10 @@ scalar: /openapi.yaml
 把整个 `DocItem` 换成 iframe，
 整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
-- 取的是 `static/openapi.yaml`（构建产物里的 `/openapi.yaml`）：与 stoplight、redoc 那两页同一份
-  输入，为的是三个渲染器能横向比对。
+- 取的是 `static/openapi-scalar.yaml`（构建产物里的 `/openapi-scalar.yaml`）：只给这一页用，
+  Stoplight 与 Redoc 的示例页各取自己那份，三页不再共用同一份输入。
 - **形状与 `theme-redoc` 一对一**：这一页放的是一个 `<iframe class="api-frame scalar-frame"
-src="/scalar-view?src=%2Fopenapi.yaml">`，`/scalar-view` 是本包自己注册的一条插件路由，构建产物里
+src="/scalar-view?src=%2Fopenapi-scalar.yaml">`，`/scalar-view` 是本包自己注册的一条插件路由，构建产物里
   真的有一份 `build/scalar-view/index.html`；跨 iframe 那两格（地址栏里 `#` 那一段、站点的亮暗模式）
   走 `theme/theme-iframe/lib/` 那份共享约定，与上面两条层同一份实现。
 - **差在框内那一页里**：`@scalar/api-reference` 是 Vue 3 的组件，本层用它的非 Vue 宿主入口

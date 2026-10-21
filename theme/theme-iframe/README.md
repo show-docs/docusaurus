@@ -1,23 +1,40 @@
-# theme/theme-iframe
+# @show-docs/docusaurus-theme-iframe
 
-主题包，两件事：
+把文档页整页替换成 iframe 的 Docusaurus 主题插件。frontmatter 写 `iframe:`、`scalar:`、`redoc:`
+或 `oas3:` 时，命中的页面保留站点 navbar，正文区换成一个 iframe。
 
-1. **「整页交给一个框」这一族的外层套壳**：md 的 frontmatter 写 `scalar:` / `redoc:` /
-   `oas3:` / `iframe:` 任何一把键时，那一篇文档页**整页**换成一个 `<iframe>` —— 命中的那一页
-   不再有文档正文外壳（面包屑、正文、翻页、右侧目录），只剩站点的 navbar。
-2. **三条 API 层共用的跨 iframe 约定**：iframe 地址怎么拼、三条 postMessage 的形状、两侧的
-   消息循环。三个 API 包按 `@show-docs/docusaurus-theme-iframe/lib/index.ts` 直接引源码。
+`iframe:` 由本包直接处理，用来嵌外部页面；`scalar:` / `redoc:` / `oas3:` 分别由 theme-scalar、
+theme-redoc、theme-stoplight 在框内渲染，本包负责外层套壳与跨 iframe 的地址、亮暗同步。
 
-本包自己那条 `iframe:` 嵌的是**外部站点**（跨源，没有那条通道）；三条 API 层嵌的是各包自己
-那条 `/…-view` 页面（同源），那边才用得上消息循环。
+## 安装
 
-判哪几把键、按什么顺序、框的地址怎么拼，由包内那份注册表给出。包内组成、验到哪一步、新增一条
-API 层要动哪几格、本包的编译口径，收在维护者文档 [`docs/internals.md`](./docs/internals.md)；
-跨 iframe 的口径在 [`docs/iframe-protocol.md`](./docs/iframe-protocol.md)。
+```bash
+pnpm add @show-docs/docusaurus-theme-iframe
+```
 
-## 怎么用
+## 使用
 
-本层自己那条键：
+### 注册插件
+
+```js
+// docusaurus.config.mjs
+export default {
+  plugins: ['@show-docs/docusaurus-theme-iframe']
+};
+```
+
+使用 API 三把键时，同时注册对应的渲染包：
+
+```js
+[
+  '@show-docs/docusaurus-theme-iframe',
+  '@show-docs/docusaurus-theme-stoplight',
+  '@show-docs/docusaurus-theme-redoc',
+  '@show-docs/docusaurus-theme-scalar'
+];
+```
+
+### 写 frontmatter
 
 ```md
 ---
@@ -26,49 +43,67 @@ iframe: https://example.com/handbook/
 ---
 ```
 
-命中的页面上，整个 `DocItem` 换成 iframe —— 这一页 markdown 的正文在渲染后的页面上看不到，
-和三条 API 层那个「整页交给渲染器」是同一类取舍。没写任何一把键的文档页照常走下层实现，
-本层等于透明。
+| 键       | 渲染方                                  | 值的含义         |
+| -------- | --------------------------------------- | ---------------- |
+| `iframe` | 本包                                    | 要嵌入的页面地址 |
+| `scalar` | `@show-docs/docusaurus-theme-scalar`    | OpenAPI 文档地址 |
+| `redoc`  | `@show-docs/docusaurus-theme-redoc`     | OpenAPI 文档地址 |
+| `oas3`   | `@show-docs/docusaurus-theme-stoplight` | OpenAPI 文档地址 |
 
-`iframe:` 的地址原样用；以 `/` 开头时按当前站点的 origin 补成绝对地址。地址栏带
-`?path=<相对路径>` 时，以补好的地址为基准再解一层（用来切外部站点的子页）；只对那一段解码，
-地址里其它的 `%` 序列原样保留。开发模式（`pnpm start`）与构建产物是同一个行为：直接嵌 iframe。
+`iframe:` 的值原样使用；以 `/` 开头时按当前站点 origin 补成绝对地址。地址栏带
+`?path=<相对路径>` 时，会在该地址之下再解析一层，用来切换外部站点的子页面。
 
-`scalar:` / `redoc:` / `oas3:` 三条键的用法在各层自己的 README；框本身（深链与亮暗对齐）由
-这里的 `ApiFrame` 提供，值都是同一个形状：框要渲染的 spec 地址。
+## 配置
 
-## 放在层栈的哪一处
+只有一个可选插件选项，用于覆盖本包判键的顺序和启用范围：
 
-判定清单只有一条规则：**参与判定的 = 装了的层**（`plugins` 里有其包名、或其包目录内入口路径的
-那一项）。默认先后 = 注册表里条目的排列顺序（`scalar` → `redoc` → `oas3` → `iframe`）。站点可以
-在本层插件选项里用命名空间数组覆盖先后与启用范围（`plugins` 里写成
-`['@show-docs/docusaurus-theme-iframe', { themeConfig: { apiFrame: { order } } }]`），覆盖**同样
-查装机**。同一页同时写两把键时排在前面的赢。
+```js
+[
+  [
+    '@show-docs/docusaurus-theme-iframe',
+    {
+      themeConfig: {
+        apiFrame: {
+          order: [
+            '@show-docs/docusaurus-theme-redoc',
+            '@show-docs/docusaurus-theme-stoplight',
+            '@show-docs/docusaurus-theme-iframe'
+          ]
+        }
+      }
+    }
+  ]
+];
+```
 
-没装的层不再像以前那样照样命中、渲染出一个指向不存在路由的框，而是那一格落空交回普通文档页。
-落空从「坏框」变成「页面看着正常但键没生效」，所以每一次落空的原因都收进 `warnings`，开发模式由
-`DocItem` 打到控制台（每种文本只打一次）。覆盖的写法（四种 `plugins` 原始形状各怎么认）、为什么
-覆盖挂在插件选项而不是站点 `themeConfig`、浏览器侧那份 `plugins` 由谁钉，口径住在
-[`iframe-protocol.md` 的「注册表与分发」一节](./docs/iframe-protocol.md)，这里不抄第二份；分支
-语义由 `test/api-frame-entries.test.mts` 在单测里钉死。本站不设覆盖，走注册表默认，判据在 e2e 的
-frame-precedence 用例。
+| 选项                         | 类型       | 默认值                                 | 说明                                                         |
+| ---------------------------- | ---------- | -------------------------------------- | ------------------------------------------------------------ |
+| `themeConfig.apiFrame.order` | `string[]` | `scalar` → `redoc` → `oas3` → `iframe` | 判定顺序与启用范围；排在前面的层优先，未列出的层不参与判定。 |
 
-- 与 `theme-markmap` **并存**：那一层把导图插在 `DocItem` 前面，本层换的是它插进去包着的
-  那一格 `DocItem`，所以同一页两个键都命中时两样都在（导图在上、iframe 在下；按机制说的，
-  站点没有这样一页，未实测）。
-- 四把键之间**互斥**：命中任何一把就把整个 `DocItem` 换掉，其余键与下层实现都轮不到。
+覆盖不会绕过「已安装」这一条：清单里列了但 `plugins` 里没装的层仍然不参与判定。同一页写了多
+把键时，按顺序取第一个命中的已安装层。开发模式下，写了键却没有层接收会在控制台给出告警。
 
-## 已知的边界
+## 工作方式
 
-- 外部站点自己设了 `X-Frame-Options` 或 CSP 的 `frame-ancestors` 时，iframe 位置会是空白 ——
-  那是浏览器拒绝嵌它，不是本包的失败，构建与渲染都是绿的。
-- iframe 里的内容与站点主题、暗亮模式、路由都不相干：`iframe:` 嵌的是**外部站点**时只能这样
-  （跨源，也没有对方的代码可配合）。站点上另外三处 iframe 装的是**各包自己那条页面**
-  （`/redoc-view` 等，同源），所以那边能把亮暗模式与地址栏里 `#` 那一段两份文档对齐 ——
-  那条通道就住在本包 `lib/`，做法与代价见
-  [`docs/iframe-protocol.md`](./docs/iframe-protocol.md) 与各层的 `docs/internals.md`。
-- 命中的那页连官方 `DocItem/Metadata` 一起不要，所以浏览器标签页的标题与 `<meta description>`
-  退回站点名，不跟这一页的 `title:` / `description:` 走。
-- 命中页占满 navbar 以下那一屏，并收掉站点的页脚。框的版式规则四条层共用一份；其中
-  `.container:has(iframe)` 按「这一格里有 iframe」匹配，**正文里手写的 iframe 也会让承载它的
-  容器去掉内边距**。站点要配了页脚（`themeConfig.footer`）才看得出收页脚那一条。
+- 命中时用 iframe 替换整个 `DocItem`：不渲染面包屑、正文、右侧目录和翻页，站点 navbar 保留。
+- 页面占满 navbar 以下的一屏，并隐藏站点页脚；框的版式由四条层共用一份样式。
+- 三个 API 包的框内页面（`/scalar-view`、`/redoc-view`、`/stoplight-view`）与本包通过
+  `postMessage` 同步地址栏 `#` 段和亮暗模式；`iframe:` 嵌外部站点时没有这条通道。
+- 与 `theme-markmap` 同页使用且两把键都命中时，导图渲染在 iframe 上方。
+
+## 已知限制
+
+- 外部站点设置了 `X-Frame-Options` 或 CSP `frame-ancestors` 时，iframe 区域会空白；这是浏览器
+  拒绝嵌入，不是本插件报错。
+- 外部 iframe 的内容与站点主题、亮暗模式、路由互不影响；跨源页面也没有可配合的代码。
+- 命中页不渲染官方 `DocItem/Metadata`，浏览器标签页标题与 `<meta name="description">` 退回
+  站点默认值，不读该页的 `title:` / `description:`。
+- 承载 iframe 的容器会通过 `.container:has(iframe)` 去掉内边距；正文里手写的 iframe 同样命中
+  这条样式。
+- 对应插件未安装时，frontmatter 里的键不生效，页面按普通文档渲染。
+
+## 相关文档
+
+- [维护者文档](./docs/internals.md)：包内组成、编译方式、新增一条 API 层的步骤。
+- [跨 iframe 协议](./docs/iframe-protocol.md)：地址与亮暗同步的消息形状、两侧的监听。
+- [iframe 示例](../../docs/iframe-demo.md)。

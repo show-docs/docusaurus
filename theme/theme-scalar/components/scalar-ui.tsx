@@ -76,7 +76,7 @@ export function ScalarUI(props: Props) {
       // 那条栏上真的摆出来的是标题与「改配置」那颗）。这一层跑在 `pnpm start` 与 e2e 的本地服务上，
       // 正好命中那个判断 —— 同一份产物在本地与线上会长得不一样，所以按 `never` 钉死。
       showDeveloperTools: 'never',
-      // 每条接口标题旁那颗 operationId 徽标（实测这份 `static/openapi.yaml` 三条都有：listOrders /
+      // 每条接口标题旁那颗 operationId 徽标（实测这份 `static/openapi-scalar.yaml` 三条都有：listOrders /
       // createOrder / getOrder）。默认是 `false`，抄 curl、生成客户端的人认的是这个，本层摆出来。
       showOperationId: true,
       // 厂商默认值是 `true`。实测这份安装的 1.75.0 里 `dist/plugins/posthog/index.js` 没有被任何地方

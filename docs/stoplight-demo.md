@@ -4,8 +4,8 @@ sidebar_position: 4
 title: API 文档示例
 description: 'frontmatter 写 oas3: <URL>，整页换成一个 iframe，框里用 Stoplight Elements 渲染 API 文档。'
 # 命中 theme-stoplight 那一层：整页换成一个 iframe，Elements 跑在本包自己那条 /stoplight-view 页面上。
-# /openapi.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
-oas3: /openapi.yaml
+# /openapi-stoplight.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
+oas3: /openapi-stoplight.yaml
 ---
 
 # API 文档示例
@@ -14,10 +14,10 @@ oas3: /openapi.yaml
 把整个 `DocItem` 换成 iframe，
 整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
-- 取的是 `static/openapi.yaml`（构建产物里的 `/openapi.yaml`）：与 Redoc 那页同一份输入，
-  为的是两个渲染器能横向比对，也保证离线就能看完整渲染。
+- 取的是 `static/openapi-stoplight.yaml`（构建产物里的 `/openapi-stoplight.yaml`）：只给这一页用，
+  Redoc 与 Scalar 的示例页各取自己那份，三页不再共用同一份输入。
 - **Elements 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
-  `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi.yaml">`，`/stoplight-view`
+  `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi-stoplight.yaml">`，`/stoplight-view`
   是本包自己注册的一条插件路由，构建产物里真的有一份 `build/stoplight-view/index.html`。框里那份
   文档装的是 Elements 的运行时代码、它自己的路由、它写的 localStorage，站点的文档页都碰不到。
 - **这一层比 Redoc 那层多做一步：那份样式表不进站点的 css**。Redoc 的样式是运行时插进它自己那份

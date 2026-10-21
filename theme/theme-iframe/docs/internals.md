@@ -9,7 +9,7 @@
 ## 状态：已接入站点
 
 `docusaurus.config.mjs` 的 `plugins` 里排在 `@show-docs/docusaurus-theme-markmap` **之后**。
-四条 API 相关层的先后不再决定判定优先级 —— 优先级住在注册表里（见 README 的「放在层栈的哪一处」一节），
+四条 API 相关层的先后不再决定判定优先级 —— 优先级住在注册表里（见 README 的「配置」一节），
 `plugins` 顺序现在只决定 `@theme-prev` 链上「本层 vs markmap」的相对位置。站点根的
 `package.json` 声明了 `"@show-docs/docusaurus-theme-iframe": "workspace:^"`。
 `pnpm build` 与 `pnpm verify:chain` 都绿，推导出的层栈里有 `theme/theme-iframe/theme`。
@@ -64,7 +64,7 @@ README 的「构建包的编译口径」。
 
 1. `lib/api-frame-registry.ts` 加一条（命名空间、键名、路由名、参数名、类名、`@theme/` 别名、
    `title` 兜底值）。想让某个站点换判定先后或只放行其中几把，不用改这里 —— 插件选项里那条
-   `order`（见 README 的「放在层栈的哪一处」一节）。新层的包还要把本层写进它自己的 `peerDependencies`（版本契约的口径见
+   `order`（见 README 的「配置」一节）。新层的包还要把本层写进它自己的 `peerDependencies`（版本契约的口径见
    [`iframe-protocol.md`](./iframe-protocol.md) 末了那条配方）。
 2. 新包只写两份代码：`src/index.mts` 调 `createApiFrameTheme()` 一次拿 Plugin 形状，框内那一页
    `theme/XxxPage/index.tsx` 调 `createApiFrameView()` 一次（交三格：包名、渲染接线那个组件、

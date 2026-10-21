@@ -311,7 +311,7 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 
 框内 → 外层那一条由 `redoc-ui.tsx` 里那个 `LocationMirror` 站在 `HashRouter` 里面用
 `useLocation()` 报出去（`createRouteReporter()` 造的函数）；「刚挂载那一次不报」的理由见
-iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2Fopenapi.yaml` 本身也是条能
+iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2Fopenapi-redoc.yaml` 本身也是条能
 直接打开的地址（产物里有那份 html），不带外层那段 hash，也不该有人拿它当分享链接。
 
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
@@ -325,7 +325,7 @@ iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2
 
 已实测到的（都在 `test/e2e/features/redoc.feature` 那四条用例里）：
 
-- 外层：`build/redoc-demo/index.html` 里是 `<iframe class="api-frame redoc-frame" src="/redoc-view?src=%2Fopenapi.yaml">`；
+- 外层：`build/redoc-demo/index.html` 里是 `<iframe class="api-frame redoc-frame" src="/redoc-view?src=%2Fopenapi-redoc.yaml">`；
   这一页没有 `<article>` 正文外壳、styled 表 0 张、`.redoc-root` 0 个，`.container` 的内边距是 0，
   框的上沿贴着 navbar 下沿、下沿贴着视口（navbar 60px），站点的 docs 侧栏仍在（框左偏移 300px）。
 - 框内：`.redoc-root` 那一格在、左栏三个接口点开就在导航里、点新建订单时详情换成它**并且外层地址栏
@@ -359,7 +359,7 @@ iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2
 `RedocUI` 原先还留着「给内联文档」那一支（`spec` 收解析好的对象或 YAML/JSON 文本），和
 [`theme-stoplight` 的组件](../../theme-stoplight/components/stoplight-ui.tsx)是同一形状的 `Props`。
 两支在两条层里都没有调用方（frontmatter 取的就是一个地址），所以两条一起删了，理由记在
-stoplight 那份 README 的「怎么用」一节。删剩的那两格入参（`url` 与 `onRouteChange`）本来就是三条层
+stoplight 那份 README 的「使用」一节。删剩的那两格入参（`url` 与 `onRouteChange`）本来就是三条层
 同一个形状，所以类型也不再多份：三个组件引的是框内工厂那份 `ApiFrameViewProps`
 （[`theme-iframe` 的 `lib/api-frame-view.tsx`](../../theme-iframe/lib/api-frame-view.tsx)）。
 

@@ -20,7 +20,7 @@ const { layersFromPlugins, normalizeLayerPath, resolveCoreModule } =
   await import('../plugins/plugin-prev-layer-resolver/src/layers.mts');
 
 /**
-加固测试：每条对应一个具体的静默失败模式，见 ../plugins/plugin-prev-layer-resolver/README.md 的「边界与限制」。
+加固测试：每条对应一个具体的静默失败模式，见 ../plugins/plugin-prev-layer-resolver/README.md 的「已知限制」。
 */
 describe('层身份：嵌套层 / 软链不给同一目录发两张牌', () => {
   let site: ReturnType<typeof makeFixtureSite>;

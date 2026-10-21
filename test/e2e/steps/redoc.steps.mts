@@ -49,7 +49,7 @@ const menuHref = (name: string): string => `#/orders/${name}`;
 整页加载一条**别人转发过来的接口地址**：`#/orders/createorder` 这段是框里点了接口之后
 由 postMessage 送进外层地址栏的。这一条用例钉的是它在静态产物里也打得开，而且是 **HTTP 200**
 —— 页面本身是 `build/redoc-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
-（换成按路径的路由就是 404，取舍见包 README 的「局限」一节。）
+（换成按路径的路由就是 404，取舍见包 README 的「已知限制」一节。）
 */
 Given('我直达 redoc 那条接口的地址', async ({ page }) => {
   watchPageErrors(page);
@@ -59,14 +59,14 @@ Given('我直达 redoc 那条接口的地址', async ({ page }) => {
   expect(response?.status(), '这条地址没被当成真页面来回').toBe(200);
 });
 
-// 取的是 `static/openapi.yaml`（产物里的 `/openapi.yaml`）：文档标题先证明框里真取到了。
+// 取的是 `static/openapi-redoc.yaml`（产物里的 `/openapi-redoc.yaml`）：文档标题先证明框里真取到了。
 Then('Redoc 在框里接管了这一屏，读的是本站那份 yaml', async ({ page }) => {
   await expect(
     root(page),
     '框里没有 `.redoc-root`：`redoc:` 那一步没命中，或框内那份文档没渲染',
   ).toBeVisible();
   await expect(root(page), '框里左栏没有 API 标题：spec 没取到').toContainText(
-    '主题覆盖演示 API',
+    'Redoc 演示 API',
   );
 });
 
@@ -113,12 +113,7 @@ Then('Redoc 的详情面板换成那条接口，外层地址也跟着换', async
   await expect(
     root(page).locator('h1, h2'),
     '接口详情没渲染出来',
-  ).toContainText([
-    '主题覆盖演示 API (1.0.0)',
-    'orders',
-    '列出订单',
-    '新建订单',
-  ]);
+  ).toContainText(['Redoc 演示 API (1.0.0)', 'orders', '列出订单', '新建订单']);
   await expect(page).toHaveURL(/\/redoc-demo#\/orders\/createorder$/);
 });
 
@@ -190,7 +185,7 @@ Then('外层文档里没有 Redoc 的痕迹', async ({ page }) => {
           ) ?? false,
       ).length,
       redocRoot: doc.querySelectorAll('.redoc-root').length,
-      hasSpecText: (doc.body.textContent ?? '').includes('主题覆盖演示 API'),
+      hasSpecText: (doc.body.textContent ?? '').includes('Redoc 演示 API'),
     };
   });
 
@@ -372,7 +367,7 @@ Then('站点自己的那几处样式在暗色下也不被 Redoc 改写', async (
 
 Then('这一页直接渲染 Redoc', async ({ page }) => {
   await expect(page.locator('.redoc-root')).toBeVisible();
-  await expect(page.locator('.redoc-root')).toContainText('主题覆盖演示 API');
+  await expect(page.locator('.redoc-root')).toContainText('Redoc 演示 API');
 });
 
 /**

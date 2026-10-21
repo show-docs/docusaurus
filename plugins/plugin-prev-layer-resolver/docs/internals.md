@@ -177,7 +177,7 @@ src/theme                                  ← 最外层「哨兵」层
 
 常量也全部借官方，避免抄第二遍：`THEME_PATH` 直接读 `@docusaurus/utils`，
 theme-fallback 的位置以**官方同一基准**推导（core 的 `lib/webpack/aliases` →
-`../../client/theme-fallback`，与官方定义同构）；定位不到 core 就说这一层缺失（见 README「边界与限制」）。
+`../../client/theme-fallback`，与官方定义同构）；定位不到 core 就说这一层缺失（见 README「已知限制」）。
 
 > **⚠️ 为什么不直接读别名表**
 > 官方别名表里每个组件只有三个落点（`@theme-init` / `@theme-original` / `@theme`）。

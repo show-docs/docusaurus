@@ -1,5 +1,5 @@
 /* Elements 渲染区的落位。**这一份 CSS 生效在框内那一页**（`/stoplight-view`，见包 README 的
-   「渲染放在独立页面，文档页只嵌它」一节）：站点的文档页里根本没有 `.stoplight-root` 这一格，
+   「渲染方式」一节）：站点的文档页里根本没有 `.stoplight-root` 这一格，
    下面每条规则的落点都是框内那份文档。
 
    与 theme-stoplight 的老口径不同的一处：这里**不再**依赖构建期把 Elements 那份全局样式表

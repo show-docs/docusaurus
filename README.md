@@ -55,7 +55,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 | 目录                                  | 是什么                                                                                                                                                                          | 形态                                                      | 细节                                                                                                                                                  |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                                                                                                   | 构建包（`src/` → `dist/`，改完要编译）                    | [README](./plugins/plugin-prev-layer-resolver/README.md) · [internals](./plugins/plugin-prev-layer-resolver/docs/internals.md)                        |
-| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                                                                                               | 构建包（只编译入口与 loader；层与组件是源码）             | [示例页](./docs/markmap-demo.md)                                                                                                                      |
+| `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                                                                                               | 构建包（只编译入口与 loader；层与组件是源码）             | [README](./theme/theme-markmap/README.md) · [示例页](./docs/markmap-demo.md)                                                                          |
 | `theme/theme-iframe/`                 | 主题包，也是「整页交给一个框」这一族唯一的**外层套壳**：判四把 frontmatter 键，命中就把那一页换成一个通用框；`lib/` 里另住着三条 API 层共用的跨 iframe 约定与配置期工厂         | 构建包（同上，`src/` 里只有入口那一份；`lib/` 免编译）    | [README](./theme/theme-iframe/README.md) · [internals](./theme/theme-iframe/docs/internals.md) · [协议](./theme/theme-iframe/docs/iframe-protocol.md) |
 | `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/stoplight-view` 页面，Elements 在那份文档里渲染 API 文档 | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-stoplight/README.md) · [internals](./theme/theme-stoplight/docs/internals.md)                                                  |
 | `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/redoc-view` 页面，Redoc 在那份文档里渲染 API 文档       | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-redoc/README.md) · [internals](./theme/theme-redoc/docs/internals.md)                                                          |
@@ -112,7 +112,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 | `docs/`   | 站点文档源：`intro.md` **就是主页**（卡片列表），每个主题包一份 `*-demo.md` | [`docs/intro.md`](./docs/intro.md) |
 | `test/`   | 核心包单元测试（按契约面组织）                                              | [README](./test/README.md)         |
 | `src/`    | 只剩站点层 swizzle `src/theme/`（主页由 docs 承担，站点侧没有页面层）       | [README](./src/theme/README.md)    |
-| `static/` | 原样复制到站点根的静态文件（示例页要取的那份 OpenAPI 文档）                 | —                                  |
+| `static/` | 原样复制到站点根的静态文件（三条 API 示例页各取一份 OpenAPI 文档）          | —                                  |
 
 上表的 `plugins/*`、`theme/*`、`demo/*` 是 **pnpm workspace 包**（各自有 `package.json`，
 也在 `pnpm-workspace.yaml` 的 `packages:` 里）；其余是仓库根的目录，不是包 —— 判据是
@@ -131,8 +131,9 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
   机制为什么这样设计、实测与内部契约清单在同包
   [docs/internals.md](./plugins/plugin-prev-layer-resolver/docs/internals.md)
 - **导图主题**（frontmatter 触发、渲染位置、明暗跟随全站主题）：
-  行为见 [docs/markmap-demo.md](./docs/markmap-demo.md)，实现见 `theme/theme-markmap/`（入口与
-  loader 在 `src/`，层与组件在 `theme/`、`components/`）
+  行为见 [docs/markmap-demo.md](./docs/markmap-demo.md)，用法见
+  [theme/theme-markmap/README.md](./theme/theme-markmap/README.md)；实现见
+  `theme/theme-markmap/`（入口与 loader 在 `src/`，层与组件在 `theme/`、`components/`）
 - **iframe 主题**（frontmatter 触发、URL 怎么算、在层栈里放哪一格、命中时丢掉的是哪一块）：
   行为见 [docs/iframe-demo.md](./docs/iframe-demo.md)，用法见
   [theme/theme-iframe/README.md](./theme/theme-iframe/README.md)；实现与包内组成在同包
@@ -140,17 +141,19 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
   [iframe-protocol.md](./theme/theme-iframe/docs/iframe-protocol.md)
 - **Stoplight 主题**（`oas3:` 触发、渲染为什么挪到本包自己那条 `/stoplight-view` 页面）：
   行为见 [docs/stoplight-demo.md](./docs/stoplight-demo.md)（示例取
-  `static/openapi.yaml`），用法见
+  `static/openapi-stoplight.yaml`），用法见
   [theme/theme-stoplight/README.md](./theme/theme-stoplight/README.md)；实现（含那份静态样式表
   怎么只出现在框内那一页、浏览器 bundle 要补哪几样 Node 侧依赖）在同包
   [docs/internals.md](./theme/theme-stoplight/docs/internals.md)
 - **Redoc 主题**（`redoc:` 触发、渲染为什么挪到本包自己那条 `/redoc-view` 页面）：
-  行为见 [docs/redoc-demo.md](./docs/redoc-demo.md)（同一份 `static/openapi.yaml`），用法见
+  行为见 [docs/redoc-demo.md](./docs/redoc-demo.md)（示例取
+  `static/openapi-redoc.yaml`），用法见
   [theme/theme-redoc/README.md](./theme/theme-redoc/README.md)；实现（含样式为什么不需要构建期
   处理而暗色表仍要在运行期改挂）在同包
   [docs/internals.md](./theme/theme-redoc/docs/internals.md)
 - **Scalar 主题**（`scalar:` 触发、渲染为什么挪到本包自己那条 `/scalar-view` 页面）：
-  行为见 [docs/scalar-demo.md](./docs/scalar-demo.md)（同一份 `static/openapi.yaml`），用法见
+  行为见 [docs/scalar-demo.md](./docs/scalar-demo.md)（示例取
+  `static/openapi-scalar.yaml`），用法见
   [theme/theme-scalar/README.md](./theme/theme-scalar/README.md)；实现（含它的静态样式表为什么
   拦不住而只能靠 `.scalar-app` 那层前缀、亮暗为什么落在 `<body>` 那两个类名上）在同包
   [docs/internals.md](./theme/theme-scalar/docs/internals.md)
@@ -170,7 +173,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 | 你想改什么                       | 动哪里                                                                                                                                                                                                           | 细节                                                                                                                                                                                                                                                                                                                                                                                                            |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 层栈怎么推导、specifier 怎么解析 | `plugins/plugin-prev-layer-resolver/`                                                                                                                                                                            | [README](./plugins/plugin-prev-layer-resolver/README.md) · [internals](./plugins/plugin-prev-layer-resolver/docs/internals.md)                                                                                                                                                                                                                                                                                  |
-| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                                                                                                                                                                                           | [示例页](./docs/markmap-demo.md)                                                                                                                                                                                                                                                                                                                                                                                |
+| 导图怎么触发、渲染在哪           | `theme/theme-markmap/`                                                                                                                                                                                           | [README](./theme/theme-markmap/README.md) · [示例页](./docs/markmap-demo.md)                                                                                                                                                                                                                                                                                                                                    |
 | 整页交给外部站点或外部文档       | `theme/theme-iframe/`（跨 iframe 那两格在同包 `lib/` 与 `docs/iframe-protocol.md`）、`theme/theme-stoplight/`、`theme/theme-redoc/`、`theme/theme-scalar/` —— 四包的内部实现与实测记录在各包 `docs/internals.md` | [示例页](./docs/iframe-demo.md) · [stoplight 示例页](./docs/stoplight-demo.md) · [redoc 示例页](./docs/redoc-demo.md) · [scalar 示例页](./docs/scalar-demo.md) · [iframe](./theme/theme-iframe/README.md) · [跨 iframe 约定](./theme/theme-iframe/docs/iframe-protocol.md) · [stoplight](./theme/theme-stoplight/README.md) · [redoc](./theme/theme-redoc/README.md) · [scalar](./theme/theme-scalar/README.md) |
 | 某层包在组件外面的样子           | `demo/theme-{a,b,c}/theme/`、`src/theme/`                                                                                                                                                                        | [demo](./demo/README.md) · [src/theme](./src/theme/README.md)                                                                                                                                                                                                                                                                                                                                                   |
 | 验证「链真的成立」               | `demo/scripts/verify-chain.mts`                                                                                                                                                                                  | [demo](./demo/README.md)                                                                                                                                                                                                                                                                                                                                                                                        |

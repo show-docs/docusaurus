@@ -55,10 +55,10 @@ Given('我直达 stoplight 那条接口的地址', async ({ page }) => {
 });
 
 /**
-取的是 `static/openapi.yaml`（产物里的 `/openapi.yaml`）：文档标题先证明框里真取到了。
+取的是 `static/openapi-stoplight.yaml`（产物里的 `/openapi-stoplight.yaml`）：文档标题先证明框里真取到了。
 
 量的**不是 `h1`** 而是左栏那条 `h4`：两种入口下 `h1` 的落点不一样 —— 先打开这一页时正文区摆的是
-文档概览（`h1` 就是「主题覆盖演示 API」），整页直达一条接口时 Elements 从地址那一格往下铺，
+文档概览（`h1` 就是「Stoplight 演示 API」），整页直达一条接口时 Elements 从地址那一格往下铺，
 `h1` 变成那条接口的 summary（实测「新建订单」）。左栏那条 API 标题两种入口都在，而且只有一颗
 （实测），拿它当「spec 取到了」的证据才不会跟着入口形状变。
 */
@@ -70,7 +70,7 @@ Then('Elements 在框里接管了这一屏，读的是本站那份 yaml', async 
   await expect(
     root(page).locator('h4'),
     '框里左栏没有 API 标题：spec 没取到',
-  ).toContainText('主题覆盖演示 API');
+  ).toContainText('Stoplight 演示 API');
 });
 
 // 三个接口挂在 `orders` 分组下面，而这一组**默认折叠**（折叠时链接根本不在 DOM 里），先点开。
@@ -383,7 +383,7 @@ Then('站点自己的那几处样式在暗色下也不被 Elements 改写', asyn
 Then('这一页直接渲染 Elements', async ({ page }) => {
   await expect(page.locator('.stoplight-root')).toBeVisible();
   await expect(page.locator('.stoplight-root')).toContainText(
-    '主题覆盖演示 API',
+    'Stoplight 演示 API',
   );
 });
 

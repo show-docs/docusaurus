@@ -39,7 +39,7 @@ function LocationMirror(props: Pick<Props, 'onRouteChange'>): null {
 }
 
 // `disableTelemetry`：`redoc` 的依赖里挂着 `@redocly/redoc-opentelemetry`，默认会把文档标题
-// 之类的用量报出去。本仓的示例页全在本地（`/openapi.yaml`），也不该往第三方发东西。
+// 之类的用量报出去。本仓的示例页全在本地（`/openapi-redoc.yaml`），也不该往第三方发东西。
 //
 // `options` 里**没有** `scrollYOffset`：Redoc 渲染时调用那个函数，把返回值写成容器上的
 // `--navbar-height` 与 `--navbar-stack-height`，左栏高度、sticky 停靠位、滚过去的

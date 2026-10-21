@@ -139,7 +139,7 @@ Node 核心模块，站点构建会直接 `Module not found`。客户端那一�
 `DefinePlugin`，这样不必把 `webpack` 声明成本包依赖）。
 
 > 那份 shim 只给 `process.env` / `nextTick` / `cwd()`（返回 `/`），**没有** `process.browser`
-> —— 取到 `undefined`，那几个分支走非浏览器一侧。示例页用的是站点根绝对路径 `/openapi.yaml`，
+> —— 取到 `undefined`，那几个分支走非浏览器一侧。示例页用的是站点根绝对路径 `/openapi-stoplight.yaml`，
 > 所以结果一样；要嵌相对路径的 spec，得再把它显式设成 `true`。
 
 **③ `@stoplight/elements` 的类型** —— 它 `exports` 里没有 `types`，那一格由仓库根 `tsconfig.json`
@@ -225,7 +225,7 @@ DOM 里 —— e2e 那两句按可见性判、不按数量判：
 
 「Export / Download」那一格不用 CSS 收：`API` 的 `hideExport` 是真读的配置（本层在
 `components/stoplight-ui.tsx` 的 `shared` 常量里设成 `true`），
-本仓的示例文档是站点自己那份 `static/openapi.yaml`，导出一份再存回本地没有意义。
+本仓的示例文档是站点自己那份 `static/openapi-stoplight.yaml`，导出一份再存回本地没有意义。
 
 ## 路由：框内那份文档钉成 hash
 
@@ -261,7 +261,7 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 
 - **整页直达一条深链时，正文区第一颗 `h1` 是那条接口的 summary，不是文档标题**：Elements 从地址
   指的那一格往下铺（实测 `/stoplight-demo#/operations/createOrder` 那份文档里 `h1` 就是
-  「新建订单」），而先打开这一页再点下去时 `h1` 是「主题覆盖演示 API」。左栏那条 API 标题
+  「新建订单」），而先打开这一页再点下去时 `h1` 是「Stoplight 演示 API」。左栏那条 API 标题
   （一颗 `h4`）两种入口都在、且只有一颗，所以「框里真取到了那份 yaml」这一句量的是它，
   不是跟着入口形状变的 `h1`。
 
@@ -277,7 +277,7 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 已实测到的（都在 `test/e2e/features/stoplight.feature` 那四条用例里）：
 
 - 外层：`build/stoplight-demo/index.html` 里是
-  `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi.yaml">`；这一页没有
+  `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi-stoplight.yaml">`；这一页没有
   `<article>` 正文外壳、没有 `.stoplight-root`、没有 Elements 那张表的 `<link>`、控制台干净。
 - 框内：左栏三条接口在，点「新建订单」后详情面板换过去，**外层地址栏那一段跟着换**
   （`#/operations/createOrder`）；那张表 2344 条规则在这里生效，`.stoplight-root` 定高占满整屏，

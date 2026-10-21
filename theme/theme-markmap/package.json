@@ -1,8 +1,17 @@
 {
-  "private": true,
   "name": "@show-docs/docusaurus-theme-markmap",
   "version": "0.0.0",
   "description": "Md 的 frontmatter 写 markmap: true 就在正文上方渲染思维导图",
+  "keywords": [],
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/theme/theme-markmap",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
+    "directory": "theme/theme-markmap"
+  },
+  "bugs": {
+    "url": "https://github.com/show-docs/docusaurus/issues"
+  },
   "types": "dist/index.d.mts",
   "main": "dist/index.mjs",
   "exports": {
@@ -44,5 +53,9 @@
   },
   "engines": {
     "node": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

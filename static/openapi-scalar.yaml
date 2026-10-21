@@ -1,11 +1,16 @@
 openapi: 3.0.3
 info:
   version: 1.0.0
-  title: 主题覆盖演示 API
-  description: |
-    这份文档只用来让 Stoplight Elements 有东西可渲染：
-    `docs/stoplight-demo.md` 的 frontmatter 写 `oas3: /openapi.yaml`，
-    构建时它从 `static/` 复制到站点根，浏览器端按这个地址取。
+  title: Scalar 演示 API
+  description: >
+    这份文档只给 `docs/scalar-demo.md` 那一页用：frontmatter 写
+
+    `scalar: /openapi-scalar.yaml`，构建时它从 `static/` 复制到站点根，浏览器端按这个地址取。
+
+    Stoplight 与 Redoc 的示例页各用自己那份（`openapi-stoplight.yaml` /
+    `openapi-redoc.yaml`），
+
+    三页不再共用。
 servers:
   - url: https://api.example.com/v1
 paths:

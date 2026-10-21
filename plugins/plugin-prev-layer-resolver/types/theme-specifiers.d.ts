@@ -13,7 +13,7 @@
 - `@theme-original/X` → 与 `@theme/X` 同一个文件
 - `@theme-prev/X`     → 我下面最近一层提供的 X
 
-语义详见本包 README 的「新 specifier」那张表。默认导出钉成 `FunctionComponent`，props 收成
+语义详见本包 README 的「工作方式」那张表。默认导出钉成 `FunctionComponent`，props 收成
 `Record<string, unknown>`：每层包裹的组件 props 由各自的主题层决定，透传形态（`{...props}`）
 本来就不该假设它的形状 —— 用 `unknown` 会连 JSX 都渲染不了，用 `any` 则会把下游拼错的
 prop 名一并放过。

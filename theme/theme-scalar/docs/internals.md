@@ -292,7 +292,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   动的是**这份演示文档的内容与正文一整块**，比收一颗按钮大。
 
 **给读文档的人多摆的一处**：每条接口标题旁那颗 operationId 徽标（`showOperationId: true`，厂商默认
-`false`）。抄 curl、生成客户端的人认的就是这一串，这份 `static/openapi.yaml` 三条都有
+`false`）。抄 curl、生成客户端的人认的就是这一串，这份 `static/openapi-scalar.yaml` 三条都有
 （`listOrders` / `createOrder` / `getOrder`）。实测它是标题旁 `div.flex.flex-wrap.gap-1` 里的一颗
 `div`，e2e 那句按「整段文案正好等于 `createOrder`」认，把代码示例里那几个同样出现的字排除掉。
 
@@ -354,7 +354,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
 已实测到的（都在 `test/e2e/features/scalar.feature` 那四条用例里）：
 
 - 外层：`build/scalar-demo/index.html` 里是 `<iframe class="api-frame scalar-frame"
-src="/scalar-view?src=%2Fopenapi.yaml">`；这一页没有 `<article>` 正文外壳、`.scalar-app` 0 个、
+src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` 正文外壳、`.scalar-app` 0 个、
   没有 Scalar 渲染出来的文字，`.container` 的内边距是 0，框的上沿贴着 navbar
   下沿、下沿贴着视口，框宽 1140（1440 视口减掉站点那 300 的文档侧栏，它在这一页照常摆着）。
 - 框内：Scalar 的布局根（`.scalar-app.scalar-api-reference`）在、左栏三个接口 `#tag/orders/GET|POST/orders…` 都在（**默认就是展开的**，

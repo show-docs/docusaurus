@@ -87,8 +87,8 @@ Given('我直达 scalar 那条接口的地址', async ({ page }) => {
   expect(response?.status(), '这条地址没被当成真页面来回').toBe(200);
 });
 
-// 取的是 `static/openapi.yaml`（产物里的 `/openapi.yaml`）：文档标题先证明框里真取到了。
-// 认的是左栏那颗 `h1`（实测整页只有它一颗「主题覆盖演示 API」，两种入口下都在）。
+// 取的是 `static/openapi-scalar.yaml`（产物里的 `/openapi-scalar.yaml`）：文档标题先证明框里真取到了。
+// 认的是左栏那颗 `h1`（实测整页只有它一颗「Scalar 演示 API」，两种入口下都在）。
 Then('Scalar 在框里接管了这一屏，读的是本站那份 yaml', async ({ page }) => {
   await expect(
     root(page),
@@ -97,7 +97,7 @@ Then('Scalar 在框里接管了这一屏，读的是本站那份 yaml', async ({
   await expect(
     root(page).locator('h1'),
     '框里左栏没有 API 标题：spec 没取到',
-  ).toContainText('主题覆盖演示 API');
+  ).toContainText('Scalar 演示 API');
 });
 
 /**
@@ -144,7 +144,7 @@ Then('Scalar 的详情面板换成那条接口，外层地址也跟着换', asyn
     root(page).locator('h1, h2, h3'),
     '接口详情没渲染出来',
   ).toContainText([
-    '主题覆盖演示 API',
+    'Scalar 演示 API',
     'orders',
     '列出订单',
     '新建订单',
@@ -159,11 +159,11 @@ Then('Scalar 的详情面板换成那条接口，外层地址也跟着换', asyn
 地址里那一段指哪条接口，框里的正文区就摆哪条接口。
 
 这一句**不复用**上一条：那一条是「先打开这一页再点下去」的判据。整页直达时 Scalar 从地址那一段
-往下铺，实测标题是「主题覆盖演示 API」「orders」「列出订单」「新建订单」—— 与点击那一份同形。
+往下铺，实测标题是「Scalar 演示 API」「orders」「列出订单」「新建订单」—— 与点击那一份同形。
 
 清单只钉到「新建订单」为止，不含最后那条「取单个订单」：Scalar 的正文区是**按需挂载**的，
 视口（e2e 用 1440×720）之下还没滚到的那一节不在 DOM 里 —— 实测这一页整页直达时可见的标题就是
-「主题覆盖演示 API」「orders」「列出订单」「新建订单」四颗，把窗口加高到 900 也还是这四颗。
+「Scalar 演示 API」「orders」「列出订单」「新建订单」四颗，把窗口加高到 900 也还是这四颗。
 判据按这一层真正要证的那一格钉 —— 地址里那条接口摆出来了没有。
 */
 Then('Scalar 框里摆的是地址里那条接口', async ({ page }) => {
@@ -177,7 +177,7 @@ Then('Scalar 框里摆的是地址里那条接口', async ({ page }) => {
 那条接口的 operationId 也摆在正文里（`showOperationId: true`，厂商默认是 `false`）。
 
 认的是**整段文案正好等于** `createOrder` 的那一颗：实测它是接口标题旁 `div.flex.flex-wrap.gap-1`
-里的一颗 `div`（那份 `static/openapi.yaml` 三条都有 id：`listOrders` / `createOrder` / `getOrder`）。
+里的一颗 `div`（那份 `static/openapi-scalar.yaml` 三条都有 id：`listOrders` / `createOrder` / `getOrder`）。
 代码示例里也出现这几个字，但都在更长的句子里，`exact` 那一格把它们排除掉了。
 */
 Then('那条接口的 operationId 也摆在正文里', async ({ page }) => {
@@ -391,7 +391,7 @@ Then('外层文档里没有 Scalar 的痕迹', async ({ page }) => {
     const doc = el.ownerDocument;
     return {
       appCount: doc.querySelectorAll('.scalar-app').length,
-      hasSpecText: (doc.body.textContent ?? '').includes('主题覆盖演示 API'),
+      hasSpecText: (doc.body.textContent ?? '').includes('Scalar 演示 API'),
     };
   });
 
@@ -487,7 +487,7 @@ Then('站点自己的那几处样式在暗色下也不被 Scalar 改写', async 
 Then('这一页直接渲染 Scalar', async ({ page }) => {
   const app = page.locator(scalarAppSelector);
   await expect(app).toBeVisible();
-  await expect(app).toContainText('主题覆盖演示 API');
+  await expect(app).toContainText('Scalar 演示 API');
 });
 
 /**

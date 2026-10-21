@@ -1,21 +1,71 @@
-# plugins/plugin-prev-layer-resolver
+# @show-docs/docusaurus-plugin-prev-layer-resolver
 
-核心包：让**多个主题层层包裹同一个组件**成立，且 `@theme-original` 官方语义零改动。
+让多个主题层层包裹同一个组件成立，且 `@theme-original` 的官方语义零改动。插件在 webpack
+resolve 阶段按「导入者属于哪一层」改写 `@theme-prev/X`；层栈由站点 `plugins` 自动推导，不需要
+配置清单，也不需要给 Docusaurus 打补丁。
 
-使用它只需要两件事：在站点配置里加载插件、在主题层里写 `@theme-prev/X`（见下方「接入方式」）。
-不需要配置清单，也不需要给 Docusaurus 打补丁。环境：`pnpm 12` + `Docusaurus 3.10.2` + `React 18`。
+## 安装
 
-> 机制为什么这样设计、输入怎么校验、层归属怎么判、内部契约与实测记录，收在维护者文档
-> [`docs/internals.md`](./docs/internals.md)。源码注释里的「理由见 README『…』」指针，
-> 落在那些章节的已改指那份文件。
+```bash
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver
+```
 
-## 一句话说明
+需要 Docusaurus `^3.10.2` 与 Node `^24`。
+
+## 使用
+
+### 注册插件
+
+```js
+// docusaurus.config.mjs
+export default {
+  plugins: [
+    '@show-docs/docusaurus-plugin-prev-layer-resolver', // 一个实例即可
+    '@show-docs/theme-a',
+    '@show-docs/theme-b',
+    '@show-docs/theme-c'
+  ]
+};
+```
+
+- 主题在 `plugins` 里的先后就是层栈顺序：越靠前越靠内。
+- 本插件放在数组的哪一格不影响层栈推导，放在主题之前只是为了读起来直观。
+- 主题增删、调序只改这个数组，没有单独的清单要维护。
+
+### 在主题层里包住下一层
+
+```js
+// plugins/theme-x/theme/Logo/index.tsx —— 任意多个插件都这么写
+import PrevLogo from '@theme-prev/Logo'; // = 我下面最近的一层
+
+import React from 'react';
+
+export default function MyLogo(props) {
+  return (
+    <span data-theme-wrapper="theme-x">
+      <span className="mark">[X]</span>
+      <PrevLogo {...props} />
+    </span>
+  );
+}
+```
+
+每一层的写法与站点层完全一致，不需要知道自己在层栈里的位置。
+
+### 站点层
+
+`src/theme` 里原有代码不用改，继续用官方 `@theme-original/X` 即可（它本来就只在最外层安全，
+语义不变）。想统一写法也可以用 `@theme-prev/X`（本仓库的 `src/theme/DocCardList` 就是这么写的）。
+
+## 配置
+
+本包没有插件选项。需要调整的只有 `plugins` 里主题的先后。
+
+## 工作方式
 
 官方 `@theme-original/X` 是**每个组件一个全局值**，只能等于层栈里的某一层；本包不碰它，另开一个
 specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改写。层栈（哪些层、什么顺序）
 **全部自动推导**。
-
-## 新 specifier
 
 设层栈（内 → 外）为 `L0..Ln`，导入者在 `Li`：
 
@@ -23,7 +73,7 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 | --------------- | ----------------------------- | ---------------- |
 | `@theme-prev/X` | 最大的 `j < i` 且 `Lj` 提供 X | 我下面最近的一层 |
 
-`X` 是 `/` 分隔的组件名，嵌套组件（`@theme-prev/DocItem/Footer`）照常支持；`?raw` / `#…` 那类
+`X` 是 `/` 分隔的组件名，嵌套组件（`@theme-prev/DocItem/Footer`）照常支持；`?raw` / `#…` 这类
 尾部原样保留。组件名必须是安全的相对路径（不接受 `.` / `..` / 绝对路径 / `\` / 空段），越界时
 告警并交回官方解析 —— 校验口径见 [`docs/internals.md`](./docs/internals.md) 的「输入处理」一节。
 
@@ -40,10 +90,7 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 文件里写清了收录口径与默认导出的形状，这里不抄第二份。三条为什么收成一体，见
 [`docs/internals.md`](./docs/internals.md) 的「类型声明」。
 
-这份文件**不编译**（构建项目的 `include` 只有 `src/`），发布要靠 `files` 点名 —— 本包是
-`["dist", "types"]`，只发 `dist` 的包装上站点就拿不到它。
-
-消费方拿到它的写法是把自己 `tsconfig.json` 的 `files` 指过去：
+消费方在 `tsconfig.json` 的 `files` 里点名它：
 
 ```json
 {
@@ -53,12 +100,11 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 }
 ```
 
-本仓库里被三处收到：`tsconfig.demo.json` 与 `tsconfig.test.json` 把自己的 workspace 路径
-`plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts` 列进 `files`（那两份的 `include`
-只收源码，不吃 `.d.ts`），仓库根 `tsconfig.json` 走默认 include（`**/*`），
-站点 swizzle（`src/theme/**`）与各主题包里未编译的层和组件都靠它。
+本仓库里 `tsconfig.demo.json` 与 `tsconfig.test.json` 按 workspace 路径列它；仓库根
+`tsconfig.json` 走默认 include（`**/*`），站点 swizzle（`src/theme/**`）与各主题包里未编译的
+层和组件都靠它。
 
-## 会告警的地方
+## 告警
 
 核心意图是**不要静默退化**：危险的往往不是「它会做错」，而是「它什么都不做还不告诉你」。
 所以所有静默退化路径都告警（只 `warn`，各报一次，同一构建内不刷屏）。
@@ -106,51 +152,7 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 > 要某个具体实现时，把 `layersFromPlugins` 推导出的层栈打出来、显式
 > import 该主题路径，比依赖任何「跳过 stub」的隐式语义都稳。
 
-## 接入方式
-
-**1. 站点配置里加载插件 —— 不需要任何选项**
-
-```js
-// docusaurus.config.mjs
-const config = {
-  plugins: [
-    require.resolve('@show-docs/docusaurus-plugin-prev-layer-resolver'), // = tsc 产物，只放一个实例
-    '@show-docs/theme-a', // 下面这些的顺序 = 层栈顺序
-    '@show-docs/theme-b',
-    '@show-docs/theme-c'
-  ]
-};
-
-export default config;
-```
-
-主题增删 / 调序都不用改上面这一行。把本插件放在其它主题插件之前只是更直观 ——
-层栈在初始化阶段推导，与它在 `plugins` 里的位置无关。
-
-**2. 每一层的写法和站点层完全一致，无需感知层级**
-
-```js
-// plugins/theme-x/theme/Logo/index.tsx —— 任意多个插件都这么写
-import PrevLogo from '@theme-prev/Logo'; // = 我下面那一层
-
-import React from 'react';
-
-export default function MyLogo(props) {
-  return (
-    <span data-theme-wrapper="theme-x">
-      <span className="mark">[X]</span>
-      <PrevLogo {...props} />
-    </span>
-  );
-}
-```
-
-**3. 站点层 `src/theme` 原有代码不用改**
-
-继续用官方 `@theme-original/X` 即可（它本来就只在最外层安全，语义不变）。
-想统一写法也可以用 `@theme-prev/X`（本仓库的 `src/theme/DocCardList` 就是这么写的）。
-
-## 使用约束（硬性）
+## 使用约束
 
 这套机制的语义建立在「导入者属于哪一层」这个**隐式上下文**上，而它不像普通 import 那样显式。
 以下约束越界都不报错，但行为会变得难以推理。层归属的具体判法见
@@ -185,7 +187,7 @@ export default function MyLogo(props) {
 
 需要这种结构时，别把主题文件软链到层外。
 
-## 边界与限制
+## 已知限制
 
 面向使用者的事实（机制为什么这样设计见 `docs/internals.md`「设计取舍」）：
 
@@ -202,5 +204,10 @@ export default function MyLogo(props) {
 - **会告警**：主题插件构造失败、组件名不是安全路径、层栈不变量违规、落点是 `theme-fallback`、
   导入者不属于任何已知层、resolver 缺 `internal-resolve` hook、`apply()` 抛错 / `doResolve` 失败。
 
-  **告警 ≠ 放过**：哪些告警后面是硬失败、哪些是降级，只看上方「会告警的地方」一节的两档表
+  **告警 ≠ 放过**：哪些告警后面是硬失败、哪些是降级，只看上方「告警」一节的两档表
   —— 别处不复述那张表。
+
+## 相关文档
+
+- [维护者文档](./docs/internals.md)：机制为什么这样设计、输入怎么校验、层归属怎么判、内部契约与实测记录。
+- [仓库根 README](../../README.md)：本包在仓库里的位置、构建口径与目录结构。
