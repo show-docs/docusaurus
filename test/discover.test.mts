@@ -330,6 +330,7 @@ export default { loadPluginConfigs: async () => [{ plugin, entryPath: '/fake/fro
     ['大版本过低', '2.4.3'],
     // 「同 major、minor 更低」才是更常见的情形（升级 core 的 minor 忘了看下限）
     ['同 major 但 minor 过低', '3.0.1'],
+    ['同 minor 但 patch 过低', '3.9.1'],
   ])(
     'core 版本过低时告警（不阻断）：%s',
     async (_label, version) => {
@@ -354,6 +355,24 @@ export default { loadPluginConfigs: async () => [{ plugin, entryPath: '/fake/fro
     },
     60_000,
   );
+
+  it('正好落在支持下限（3.9.2）时不告警', async () => {
+    const { siteDir } = site;
+    fakeRoot = fakeCore(siteDir, {
+      site: FAKE_SITE,
+      configs: FAKE_CONFIGS,
+    });
+    fs.writeFileSync(
+      path.join(fakeRoot, 'package.json'),
+      JSON.stringify({ name: '@docusaurus/core', version: '3.9.2' }),
+    );
+
+    const warn = vi.fn();
+    await discoverPlugins(siteDir, { warn });
+    expect(warn.mock.calls.map((c) => String(c[0])).join('\n')).not.toContain(
+      '低于已验证的',
+    );
+  }, 60_000);
 
   it('版本号里的 minor 缺失 / 非数字时安静跳过（当作「不知道」，不制造噪音）', async () => {
     const { siteDir } = site;

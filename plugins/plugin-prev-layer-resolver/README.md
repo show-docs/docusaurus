@@ -10,7 +10,7 @@ resolve 阶段按「导入者属于哪一层」改写 `@theme-prev/X`；层栈�
 pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver
 ```
 
-需要 Docusaurus `^3.10.2` 与 Node `^24`。
+需要 Docusaurus `^3.9.2` 与 Node `^24`。
 
 ## 使用
 
@@ -138,7 +138,7 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 6. **插件构造失败**：**一律告警，但一次构建聚合成一条**（没有判据能区分「本来就没主题」与
    「有主题但构造失败」，漏报的代价是层栈少一层且完全静默 —— 所以一条都不能省；N 个失败
    逐条报就是每次构建刷 N 行，汇总里名单与原因全内联，行数从 N 降到 1）。
-7. **Docusaurus 版本低于已验证区间**：读一次 core 版本，低于 `^3.10.0` 时告警（不阻断）。
+7. **Docusaurus 版本低于已验证区间**：读一次 core 版本，低于 `^3.9.2` 时告警（不阻断）。
    高于已验证区间的漂移**不在护栏内**，升级 core 后按 `docs/internals.md`「升级 `@docusaurus/core` 时的检查单」逐项跑一遍。
 8. **组件文件用了官方体系外的扩展名**（`mjs/cjs/mts/cts`）：不算组件（与官方同口径）。
    8b. **组件路径里有点开头的段**（`.hidden/Logo`、`Sub/.Icon.js`）：官方枚举用的 glob 默认

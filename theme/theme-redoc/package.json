@@ -37,8 +37,8 @@
     "styled-components": "^6.6.0"
   },
   "peerDependencies": {
-    "@docusaurus/theme-common": "^3.10.2",
-    "@docusaurus/types": "^3.10.2",
+    "@docusaurus/theme-common": "^3.9.2",
+    "@docusaurus/types": "^3.9.2",
     "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "react": "~18.3.1"
   },

@@ -180,10 +180,10 @@ importers:
   .:
     dependencies:
       '@docusaurus/core':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3)
       '@docusaurus/preset-classic':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(@algolia/client-search@5.59.0)(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(@types/react@18.3.31)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3)
       '@show-docs/docusaurus-plugin-prev-layer-resolver':
         specifier: workspace:^
@@ -226,7 +226,7 @@ importers:
         specifier: ^0.9.6
         version: 0.9.6(@bring-it/cli@0.11.3)
       '@docusaurus/types':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@ianvs/prettier-plugin-sort-imports':
         specifier: ^4.7.1
@@ -298,19 +298,19 @@ importers:
   plugins/plugin-prev-layer-resolver:
     dependencies:
       '@docusaurus/core':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3)
       '@docusaurus/types':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       webpack:
-        specifier: ^5.111.1
+        specifier: ^5.112.0
         version: 5.112.0(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
   theme/theme-iframe:
     dependencies:
       '@docusaurus/types':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       react:
         specifier: ~18.3.1
@@ -319,10 +319,10 @@ importers:
   theme/theme-markmap:
     dependencies:
       '@docusaurus/theme-common':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(@docusaurus/plugin-content-docs@3.10.2(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@docusaurus/types':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       markmap-common:
         specifier: ^0.18.9
@@ -340,16 +340,16 @@ importers:
         specifier: ~18.3.1
         version: 18.3.1
       webpack:
-        specifier: ^5.111.1
+        specifier: ^5.112.0
         version: 5.112.0(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
   theme/theme-redoc:
     dependencies:
       '@docusaurus/theme-common':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(@docusaurus/plugin-content-docs@3.10.2(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@docusaurus/types':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@redocly/config':
         specifier: ^0.66.0
@@ -373,10 +373,10 @@ importers:
   theme/theme-scalar:
     dependencies:
       '@docusaurus/theme-common':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(@docusaurus/plugin-content-docs@3.10.2(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@docusaurus/types':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@scalar/api-reference':
         specifier: ^1.75.0
@@ -391,10 +391,10 @@ importers:
   theme/theme-stoplight:
     dependencies:
       '@docusaurus/theme-common':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(@docusaurus/plugin-content-docs@3.10.2(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3))(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@docusaurus/types':
-        specifier: ^3.10.2
+        specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^

@@ -122,11 +122,12 @@ export class PluginDiscovery {
 
 /**
 版本护栏：靠 core 内部 API + enhanced-resolve 的内部 hook 工作，而它们都没有稳定性承诺。
-读一次 core 版本，低于已知可用的 minor 时**告警不阻断**（也许只是没测过的更高版本）。
+读一次 core 版本，低于已知可用的 major/minor/patch 时**告警不阻断**（也许只是没测过的更高版本）。
 与 `peerDependencies` 互补：peerDeps 在安装时可见，这里覆盖「从源码直接跑」的情形。
 */
 const MIN_SUPPORTED_DOCUSAURUS_MAJOR = 3;
-const MIN_SUPPORTED_DOCUSAURUS_MINOR = 10;
+const MIN_SUPPORTED_DOCUSAURUS_MINOR = 9;
+const MIN_SUPPORTED_DOCUSAURUS_PATCH = 2;
 
 function checkDocusaurusVersion(siteDir: string, logger: LoggerLike): void {
   // 与 `resolveNormalizePluginOptions` 同一条口径：从 core 的解析上下文读它自己的
@@ -137,24 +138,31 @@ function checkDocusaurusVersion(siteDir: string, logger: LoggerLike): void {
     '@docusaurus/core/package.json',
   );
   const version = typeof corePkg?.version === 'string' ? corePkg.version : '';
-  const [major, minor] = version.split('.').map((n) => Number.parseInt(n, 10));
-  // 解析不出 major/minor（缺字段 / 非数字）时当作「不知道」，不制造噪音
+  const [major, minor, patch] = version
+    .split('.')
+    .map((n) => Number.parseInt(n, 10));
+  // 解析不出 major/minor/patch（缺字段 / 非数字）时当作「不知道」，不制造噪音
   if (
     major === undefined ||
     minor === undefined ||
+    patch === undefined ||
     !Number.isFinite(major) ||
-    !Number.isFinite(minor)
+    !Number.isFinite(minor) ||
+    !Number.isFinite(patch)
   )
     return;
-  // 两侧都由用例覆盖：大版本过低（`2.x`）与同 major 但 minor 过低（`3.0`）。
+  // 三档都由用例覆盖：大版本过低（`2.x`）、同 major 但 minor 过低（`3.0`）、
+  // 同 minor 但 patch 过低（`3.9.1`）。
   if (
     major < MIN_SUPPORTED_DOCUSAURUS_MAJOR ||
     (major === MIN_SUPPORTED_DOCUSAURUS_MAJOR &&
-      minor < MIN_SUPPORTED_DOCUSAURUS_MINOR)
+      (minor < MIN_SUPPORTED_DOCUSAURUS_MINOR ||
+        (minor === MIN_SUPPORTED_DOCUSAURUS_MINOR &&
+          patch < MIN_SUPPORTED_DOCUSAURUS_PATCH)))
   ) {
     logger.warn?.(
       `[plugin-prev-layer-resolver] 检测到 @docusaurus/core@${version}，低于已验证的 ` +
-        `^${MIN_SUPPORTED_DOCUSAURUS_MAJOR}.${MIN_SUPPORTED_DOCUSAURUS_MINOR}.0。` +
+        `^${MIN_SUPPORTED_DOCUSAURUS_MAJOR}.${MIN_SUPPORTED_DOCUSAURUS_MINOR}.${MIN_SUPPORTED_DOCUSAURUS_PATCH}。` +
         '本插件依赖 core 的内部 API（loadPluginConfigs / 主题别名规则）与 enhanced-resolve ' +
         '的 internal-resolve hook，版本差异可能导致层栈推导失败或链静默不生效。',
     );

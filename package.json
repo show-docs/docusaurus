@@ -30,8 +30,8 @@
     "version:pin": "syncpack fix"
   },
   "dependencies": {
-    "@docusaurus/core": "^3.10.2",
-    "@docusaurus/preset-classic": "^3.10.2",
+    "@docusaurus/core": "^3.9.2",
+    "@docusaurus/preset-classic": "^3.9.2",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
     "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "@show-docs/docusaurus-theme-markmap": "workspace:^",
@@ -47,7 +47,7 @@
   "devDependencies": {
     "@bring-it/cli": "^0.11.3",
     "@bring-it/npm": "^0.9.6",
-    "@docusaurus/types": "^3.10.2",
+    "@docusaurus/types": "^3.9.2",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@mdx-js/react": "^3.1.1",
     "@nice-move/all-in-react": "^0.9.4",
@@ -72,7 +72,7 @@
   "packageManager": "pnpm@12.14.0",
   "engines": {
     "node": "^24.0.0",
-    "pnpm": "^12.10.1"
+    "pnpm": "^12.14.0"
   },
   "browserslist": {
     "development": [
