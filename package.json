@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm build:core && docusaurus build",
-    "build:core": "pnpm --filter=@show-docs/docusaurus-plugin-prev-layer-resolver --filter=@show-docs/docusaurus-theme-markmap --filter=@show-docs/docusaurus-theme-iframe --filter=@show-docs/docusaurus-theme-stoplight --filter=@show-docs/docusaurus-theme-redoc --filter=@show-docs/docusaurus-theme-scalar run build",
+    "build:core": "pnpm --filter=@show-docs/docusaurus-plugin-prev-layer-resolver --filter=@show-docs/docusaurus-theme-erd --filter=@show-docs/docusaurus-theme-markmap --filter=@show-docs/docusaurus-theme-iframe --filter=@show-docs/docusaurus-theme-stoplight --filter=@show-docs/docusaurus-theme-redoc --filter=@show-docs/docusaurus-theme-scalar run build",
     "clear": "docusaurus clear",
     "docusaurus": "docusaurus",
     "fmt:prettier": "prettier -w .",
@@ -33,6 +33,7 @@
     "@docusaurus/core": "^3.9.2",
     "@docusaurus/preset-classic": "^3.9.2",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
+    "@show-docs/docusaurus-theme-erd": "workspace:^",
     "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "@show-docs/docusaurus-theme-markmap": "workspace:^",
     "@show-docs/docusaurus-theme-redoc": "workspace:^",

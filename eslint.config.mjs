@@ -17,6 +17,9 @@ const ignores = [
   '.temp/**',
   'test-results/**',
   'playwright-report/**',
+  // 旧主题源码，只留作拆包素材；不在 workspace 安装集合里，也就不用本仓的口径检查
+  // （原因见 `pnpm-workspace.yaml` 的 `!theme/theme-all`）。
+  'theme/theme-all/**',
 ];
 
 // Docusaurus 的虚拟模块 + 我们的 `@theme-prev*` specifier 族（口径产地见

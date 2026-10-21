@@ -2,6 +2,9 @@ packages:
   - plugins/*
   - demo/*
   - theme/*
+  # `theme-all` 是旧主题 `@eaphone/docusaurus-theme` 的原始源码，只当拆包素材：
+  # 它的包清单引用了本仓没有的 catalog，装进来还会把一堆没用的依赖和 lint 面拉进工作区。
+  - '!theme/theme-all'
 
 configDependencies:
   pnpm-plugin-nice-move: latest

@@ -393,16 +393,20 @@ describe('构建脚本与 CI 护栏', () => {
     ).toContain('slug: /');
   });
 
-  it('每个主题包有一份 docs/*-demo.md，主页的卡片列表由侧边栏自动给', () => {
+  it('每个主题包有一份 docs/*-demo.{md,dbml}，主页的卡片列表由侧边栏自动给', () => {
     // 口径：`theme/<name>` 那一层的触发键要有一个页面演示它，命名固定为
-    // `docs/<name 去掉 theme- 前缀>-demo.md`。新增主题包却没写示例页时这条用例变红 ——
-    // 光看 plugins 数组不知道那一层命中时长什么样。
+    // `docs/<name 去掉 theme- 前缀>-demo.{md,dbml}`。新增主题包却没写示例页时这条用例变红
+    // —— 光看 plugins 数组不知道那一层命中时长什么样。
+    // theme-all 是拆分前的源目录：不在 workspace（`pnpm-workspace.yaml` 的
+    // `!theme/theme-all`）、也不接进站点，不该要求它有一份示例页。
     const themeNames = fs
       .readdirSync(path.join(siteDir, 'theme'))
-      .filter((name) => name.startsWith('theme-'));
+      .filter((name) => name.startsWith('theme-') && name !== 'theme-all');
     expect(themeNames.length, 'theme/ 下应有主题包').toBeGreaterThan(0);
 
-    const demoOf = (name: string) => `${name.slice('theme-'.length)}-demo.md`;
+    // 触发条件可以是 frontmatter 的键（示例页是 `.md`），也可以是文件扩展名
+    // （`theme-erd` 的示例页就是 `.dbml`）；两种都算这一层的示例页。
+    const demoOf = (name: string) => `${name.slice('theme-'.length)}-demo`;
     const intro = fs.readFileSync(path.join(siteDir, 'docs/intro.md'), 'utf8');
 
     // 主页只写 `<DocCardList />`（不接 items）：卡片就是这一页在侧边栏里的兄弟项，
@@ -414,15 +418,19 @@ describe('构建脚本与 CI 护栏', () => {
     ).not.toContain('items=');
 
     for (const name of themeNames) {
-      const file = path.join(siteDir, 'docs', demoOf(name));
-      expect(fs.existsSync(file), `${name} 缺示例页 docs/${demoOf(name)}`).toBe(
-        true,
+      const base = path.join(siteDir, 'docs', demoOf(name));
+      const file = [`${base}.md`, `${base}.dbml`].find((candidate) =>
+        fs.existsSync(candidate),
       );
+      expect(
+        file,
+        `${name} 缺示例页 docs/${demoOf(name)}.md 或 ${demoOf(name)}.dbml`,
+      ).toBeDefined();
       // 卡片上那行说明取自 frontmatter 的 `description:`（DocCard 用它作兜底），
       // 没写就只剩一个标题卡片。
       expect(
-        fs.readFileSync(file, 'utf8').slice(0, 400),
-        `docs/${demoOf(name)} 的 frontmatter 要有 description:，主页卡片才有说明`,
+        fs.readFileSync(file!, 'utf8').slice(0, 400),
+        `docs/${path.basename(file!)} 的 frontmatter 要有 description:，主页卡片才有说明`,
       ).toContain('description:');
     }
   });

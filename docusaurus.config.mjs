@@ -26,6 +26,8 @@ const config = {
     '@show-docs/theme-c',
     // 思维导图主题层：md 里 `markmap: true` 即在原文上方加导图
     '@show-docs/docusaurus-theme-markmap',
+    // 关系图主题层：`.dbml` 文件在上方画关系图，正文附上各格式导出
+    '@show-docs/docusaurus-theme-erd',
     // iframe 主题层：它是「整页交给一个框」这一族的**唯一外层套壳** —— 那份 `DocItem` 判四把键
     // （`scalar` / `redoc` / `oas3` / `iframe`），命中就把正文区换成通用框。默认顺序与启用范围在
     // `theme/theme-iframe/lib/api-frame-registry.ts`（未安装的层不参与判定），站点可在这一项自己的
@@ -49,7 +51,11 @@ const config = {
       ({
         // 站点没有单独的首页组件：`docs/intro.md` 就是主页（`slug: /` 落在这里）。
         // `routeBasePath: '/'` 把 docs 的前缀挪到根，于是没有「页面层」去和主题层争同一格。
-        docs: { routeBasePath: '/' },
+        // docs 默认只收 `.md` / `.mdx`；`.dbml` 是 theme-erd 的文档源，得写进 include。
+        docs: {
+          routeBasePath: '/',
+          include: ['**/*.{md,mdx,dbml}'],
+        },
         blog: false,
       }),
     ],
@@ -73,6 +79,7 @@ const config = {
           title: '其他',
           items: [
             { label: '思维导图', to: '/markmap-demo' },
+            { label: '数据库关系图', to: '/erd-demo' },
             { label: '外部页面（iframe）', to: '/iframe-demo' },
           ],
         },

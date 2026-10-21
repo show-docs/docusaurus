@@ -1,0 +1,33 @@
+---
+id: erd-demo
+sidebar_position: 9
+title: 数据库关系图示例
+description: '一份 .dbml 文件：上方渲染关系图，正文附上六种格式的导出。'
+---
+
+Project erd_demo {
+  database_type: 'PostgreSQL'
+  Note: '演示关系图与各格式导出'
+}
+
+Enum order_status {
+  pending [note: '待支付']
+  paid [note: '已支付']
+  cancelled [note: '已取消']
+}
+
+Table users {
+  id integer [pk, increment]
+  name varchar(64) [not null, unique, note: '用户名']
+  email varchar(128) [not null, unique, note: '邮箱']
+  create_time timestamp
+}
+
+Table orders {
+  id integer [pk, increment]
+  user_id integer [not null, note: '下单用户', ref: > users.id]
+  status order_status [not null, default: 'pending']
+  amount decimal(10,2) [not null, note: '金额']
+  record_date date [not null, note: '对账日']
+  create_time timestamp
+}
