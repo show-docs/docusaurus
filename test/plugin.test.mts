@@ -465,6 +465,7 @@ describe('构建脚本与 CI 护栏', () => {
       'demo/theme-c',
       'theme/theme-markmap',
       'theme/theme-erd',
+      'theme/theme-diff',
       'theme/theme-iframe',
       'theme/theme-stoplight',
       'theme/theme-redoc',

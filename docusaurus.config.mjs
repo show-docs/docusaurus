@@ -28,6 +28,8 @@ const config = {
     '@show-docs/docusaurus-theme-markmap',
     // 关系图主题层：`.dbml` 文件在上方画关系图，正文附上各格式导出
     '@show-docs/docusaurus-theme-erd',
+    // 差异视图主题层：md 里 `diff: true`（或一个路径）即在正文上方渲染这份文件最近一次提交的差异
+    '@show-docs/docusaurus-theme-diff',
     // iframe 主题层：它是「整页交给一个框」这一族的**唯一外层套壳** —— 那份 `DocItem` 判四把键
     // （`scalar` / `redoc` / `oas3` / `iframe`），命中就把正文区换成通用框。默认顺序与启用范围在
     // `theme/theme-iframe/lib/api-frame-registry.ts`（未安装的层不参与判定），站点可在这一项自己的
@@ -69,7 +71,7 @@ const config = {
     navbar: { title: 'Theme Override Test', items: [] },
     footer: {
       style: 'dark',
-      // 三条 API 层的示例页 + 那四条非 API 页，各占一列，用来验「整页交给框」时页脚该收掉
+      // 三条 API 层的示例页 + 那五条非 API 页，各占一列，用来验「整页交给框」时页脚该收掉
       links: [
         {
           title: 'API 渲染器',
@@ -85,6 +87,7 @@ const config = {
             { label: '思维导图', to: '/markmap-demo' },
             { label: '数据库关系图', to: '/erd-demo' },
             { label: '图片查看器', to: '/viewer-demo' },
+            { label: '差异视图', to: '/diff-demo' },
             { label: '外部页面（iframe）', to: '/iframe-demo' },
           ],
         },

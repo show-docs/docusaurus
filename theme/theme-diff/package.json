@@ -1,0 +1,57 @@
+{
+  "name": "@show-docs/docusaurus-theme-diff",
+  "version": "0.1.0",
+  "description": "Md 的 frontmatter 写 diff 就在正文上方渲染这份文件上一次改动的差异视图",
+  "keywords": [],
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/theme/theme-diff",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
+    "directory": "theme/theme-diff"
+  },
+  "bugs": {
+    "url": "https://github.com/show-docs/docusaurus/issues"
+  },
+  "types": "dist/index.d.mts",
+  "main": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "default": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": [
+    "components",
+    "dist",
+    "theme"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@git-diff-view/react": "^0.1.8"
+  },
+  "peerDependencies": {
+    "@docusaurus/theme-common": "^3.9.2",
+    "@docusaurus/types": "^3.9.2",
+    "react": "~18.3.1",
+    "webpack": "^5.112.0"
+  },
+  "peerDependenciesMeta": {
+    "@docusaurus/types": {
+      "optional": true
+    },
+    "webpack": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
