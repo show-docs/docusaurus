@@ -36,7 +36,7 @@ function toJavaType({ type_name }: DbmlField['type']): string {
 }
 
 // 生成的是项目模板级的代码（实体 / repository / service / task），不是通用 JPA 映射：
-// 字符串拼接照搬旧主题的实现，只为在文档里给出可读的起点。
+// 字段命名与 Java 类型映射是这一份里写死的一套约定，只为在文档里给出一个可读的起点。
 export function dbml2jpa(model: DbmlModel): string {
   const { tables, fields, enums } = model;
   const output: string[] = [];

@@ -22,8 +22,5 @@
     "coverage",
     "plugins/*/dist",
     "theme/*/dist",
-    // 旧主题源码，只留作拆包素材，不参与本仓的类型检查
-    // （原因见 `pnpm-workspace.yaml` 的 `!theme/theme-all`）。
-    "theme/theme-all",
   ],
 }

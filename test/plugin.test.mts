@@ -397,11 +397,9 @@ describe('构建脚本与 CI 护栏', () => {
     // 口径：`theme/<name>` 那一层的触发键要有一个页面演示它，命名固定为
     // `docs/<name 去掉 theme- 前缀>-demo.{md,dbml}`。新增主题包却没写示例页时这条用例变红
     // —— 光看 plugins 数组不知道那一层命中时长什么样。
-    // theme-all 是拆分前的源目录：不在 workspace（`pnpm-workspace.yaml` 的
-    // `!theme/theme-all`）、也不接进站点，不该要求它有一份示例页。
     const themeNames = fs
       .readdirSync(path.join(siteDir, 'theme'))
-      .filter((name) => name.startsWith('theme-') && name !== 'theme-all');
+      .filter((name) => name.startsWith('theme-'));
     expect(themeNames.length, 'theme/ 下应有主题包').toBeGreaterThan(0);
 
     // 触发条件可以是 frontmatter 的键（示例页是 `.md`），也可以是文件扩展名

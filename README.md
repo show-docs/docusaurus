@@ -122,8 +122,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 上表的 `plugins/*`、`theme/*`、`demo/*` 是 **pnpm workspace 包**（各自有 `package.json`，
 也在 `pnpm-workspace.yaml` 的 `packages:` 里）；其余是仓库根的目录，不是包 —— 判据是
-「有没有 `package.json`」。`theme/theme-all/` 是个例外：它是旧主题
-`@eaphone/docusaurus-theme` 的原始源码，只当拆包素材，已从 workspace、lint 与 tsc 里排除。
+「有没有 `package.json`」。
 
 > 分包要被解析，判据是**用它的那个 importer 声明了它**：`packages:` 里收了、目录里有
 > `package.json` 都不算，站点根不写 `"@show-docs/theme-a": "workspace:^"`，pnpm 就不会建链接，
