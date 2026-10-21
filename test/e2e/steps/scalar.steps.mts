@@ -124,7 +124,7 @@ Then('三个接口都在 Scalar 的左栏里', async ({ page }) => {
   }
 });
 
-When('我点开 Scalar 左栏里的新建订单', async ({ page }) => {
+When('我点开 Scalar 左栏里的新建订单那条接口', async ({ page }) => {
   await menu(page)
     .locator(`a[href="${operationHref('POST', 'orders')}"]`)
     .click();
@@ -139,7 +139,7 @@ When('我点开 Scalar 左栏里的新建订单', async ({ page }) => {
 
 这份清单只适用于「先打开这一页再点下去」，整页直达那条用例另有判据（见下）。
 */
-Then('详情面板换成 Scalar 里那条接口，外层地址也跟着换', async ({ page }) => {
+Then('Scalar 的详情面板换成那条接口，外层地址也跟着换', async ({ page }) => {
   await expect(
     root(page).locator('h1, h2, h3'),
     '接口详情没渲染出来',
@@ -197,7 +197,7 @@ Then('那条接口的 operationId 也摆在正文里', async ({ page }) => {
 6 颗（只认 `Copy`）加 11 颗（只认「复制」），并起来才是那 17 颗 —— 所以只认英文会静默少 11 颗、
 只认中文会静默少 6 颗，两句都得留着。
 */
-Then('框里代码块的复制按钮还在', async ({ page }) => {
+Then('Scalar 代码块里的复制按钮还在', async ({ page }) => {
   const copyButtons = root(page)
     .locator('button')
     .filter({ hasText: /copy|复制/i });
@@ -253,7 +253,7 @@ Then('Scalar 那颗「问 AI」的按钮不出现', async ({ page }) => {
 收它的理由不是「本地和线上长得不一样」，是**它真的会把请求发出去**：那一格读的是这份文档自己的
 `servers`，任何人点一下就从站点的页面上朝那个地址发一条请求。这一层摆的是给别人看的接口文档，
 凭据与 CORS 都不在本层的承诺里，所以按配置收掉；代码示例与那份文档的下载不受影响（见上面那句
-「框里代码块的复制按钮还在」与包 `docs/internals.md` 的「收掉的几处」）。
+「Scalar 代码块里的复制按钮还在」与包 `docs/internals.md` 的「收掉的几处」）。
 
 按文案认。厂商那一格 `hideTestRequestButton` 的默认值是 `false`（`@scalar/types@0.24.0`，类型注释
 写的是 `Whether to show the "Test Request" button`），那颗按钮没有 `data-testid`，文案取自本地化表
@@ -327,24 +327,21 @@ Then('Scalar 那条开发者工具栏不出现', async ({ page }) => {
 不是 Tailwind 那串 `flex flex-col …` —— 换个版本类名就重排）。
 它是 `display: none` 收的，元素仍在 DOM 里，所以判据走可见性而不是数量（与 redoc 那三处同口径）。
 */
-Then(
-  '「powered by Scalar」那条署名不出现，左栏那一格还在',
-  async ({ page }) => {
-    const poweredCell = menu(page).locator(
-      'div:has(> a[href^="https://scalar.com/?utm_source=powered-by"])',
-    );
-    expect(
-      await poweredCell.count(),
-      '框里找不到那一格署名，选择器先失效了',
-    ).toBeGreaterThan(0);
-    await expect(
-      poweredCell.first(),
-      '「powered by Scalar」那一格还看得见',
-    ).toBeHidden();
+Then('Scalar 那条署名不出现，左栏那一格还在', async ({ page }) => {
+  const poweredCell = menu(page).locator(
+    'div:has(> a[href^="https://scalar.com/?utm_source=powered-by"])',
+  );
+  expect(
+    await poweredCell.count(),
+    '框里找不到那一格署名，选择器先失效了',
+  ).toBeGreaterThan(0);
+  await expect(
+    poweredCell.first(),
+    '「powered by Scalar」那一格还看得见',
+  ).toBeHidden();
 
-    await expect(menu(page), '收署名时把左栏整格一起收掉了').toBeVisible();
-  },
-);
+  await expect(menu(page), '收署名时把左栏整格一起收掉了').toBeVisible();
+});
 
 /**
 那颗「生成 SDK」（简体那份是「生成 SDK」，英文 "Generate SDK"）不出现。
@@ -389,7 +386,7 @@ Then('Scalar 那颗「生成 SDK」的按钮不出现', async ({ page }) => {
 框内那一份文档里它的样式往哪儿打，本层不再钉：Scalar 那份表是发布好的静态产物，随框内那份
 文档加载，「不打到站点上」由浏览器给的文档边界负责（口径见包 `docs/internals.md` 的「样式」一节）。
 */
-Then('外层文档里没有 Scalar 的运行时痕迹', async ({ page }) => {
+Then('外层文档里没有 Scalar 的痕迹', async ({ page }) => {
   const state = await page.locator('html').evaluate((el) => {
     const doc = el.ownerDocument;
     return {
@@ -509,7 +506,7 @@ Then('Scalar 那一格不出现，那句「取不到」也不出现', async ({ p
 就是 0；实测 `top: 0 / bottom = innerHeight`）。这一层不给容器定高，那份文档自己是滚动的那一份
 （长内容滚在框内文档上，滚在 iframe 里面看不见 —— 与 redoc 那两层「文档自己滚」同形）。
 */
-Then('框里左栏贴满那一份文档的一屏', async ({ page }) => {
+Then('Scalar 左栏贴满那一份文档的一屏', async ({ page }) => {
   const box = await menu(page).evaluate((el) => {
     const view = el.ownerDocument.defaultView;
     const rect = el.getBoundingClientRect();

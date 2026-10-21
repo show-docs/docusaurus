@@ -24,9 +24,9 @@
   "exclude": [
     "plugins/*/dist"
   ],
-  "//files": "`@theme*` 的类型声明归解析器包（`types/` 是源码，不是 dist，类型检查不依赖构建产物存在）；`@docusaurus/useIsBrowser` 这类只在构建期存在的 import 由 theme-iframe 自己那份 `module-aliases.d.ts` 说明。上面的 include 只收源码，这一格按 files 点名。",
+  "//files": "`@theme*` 的类型声明归解析器包（`types/` 是源码，不是 dist，类型检查不依赖构建产物存在）；`@docusaurus/useIsBrowser` 这类只在构建期存在的 import 由仓库根那份 `module-aliases.d.ts` 说明（根 `tsconfig.json` 的 include 收得到它，本项目的 include 只列源码，所以按 files 点名）。",
   "files": [
     "plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts",
-    "theme/theme-iframe/module-aliases.d.ts"
+    "module-aliases.d.ts"
   ]
 }

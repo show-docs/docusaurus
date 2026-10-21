@@ -10,25 +10,25 @@ Feature: theme-scalar
     Then 这一页放的是一个 iframe，指向 scalar 那条独立页面
     And Scalar 在框里接管了这一屏，读的是本站那份 yaml
     And Scalar 没有报那份文档取不到
-    Then 三个接口都在 Scalar 的左栏里
-    When 我点开 Scalar 左栏里的新建订单
-    Then 详情面板换成 Scalar 里那条接口，外层地址也跟着换
+    And 三个接口都在 Scalar 的左栏里
+    When 我点开 Scalar 左栏里的新建订单那条接口
+    Then Scalar 的详情面板换成那条接口，外层地址也跟着换
     And 那条接口的 operationId 也摆在正文里
-    And 框里代码块的复制按钮还在
+    And Scalar 代码块里的复制按钮还在
     And 这一页没有文档正文外壳
     And 这一页没有站点的页脚
     And 框的无障碍标题用的是页面自己的标题 "Scalar 示例"
     And 正文容器在这一页让位
     And 框占满 navbar 以下那一屏
-    And 框里左栏贴满那一份文档的一屏
+    And Scalar 左栏贴满那一份文档的一屏
     And Scalar 自己那颗亮暗开关不出现
+    And Scalar 那条署名不出现，左栏那一格还在
     And Scalar 那颗「问 AI」的按钮不出现
     And Scalar 那颗「试调用」的按钮不出现
     And 左栏底部那一颗换成了 API client，不是 MCP 安装入口
     And Scalar 那条开发者工具栏不出现
-    And 「powered by Scalar」那条署名不出现，左栏那一格还在
     And Scalar 那颗「生成 SDK」的按钮不出现
-    And 外层文档里没有 Scalar 的运行时痕迹
+    And 外层文档里没有 Scalar 的痕迹
     And 站点自己的那几处样式不被 Scalar 改写
     And 浏览器里没有运行期错误
 

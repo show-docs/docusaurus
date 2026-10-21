@@ -12,7 +12,7 @@
   `onMode`（Scalar 换 `<body>` 上互斥的两个类名）。两格互斥，形状就是 `useInnerFrameSync`
   那一条，本层不另设一套。
 
-两个方向怎么对齐、各家路由踩过的那些坑，记在 `docs/iframe-protocol.md` 与各层 README。
+两个方向怎么对齐、各家路由踩过的那些坑，记在 `docs/iframe-protocol.md` 与各层 `docs/internals.md`。
 
 ## 产出的那一页是什么形状
 

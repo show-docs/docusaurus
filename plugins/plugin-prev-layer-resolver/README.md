@@ -5,18 +5,15 @@
 使用它只需要两件事：在站点配置里加载插件、在主题层里写 `@theme-prev/X`（见下方「接入方式」）。
 不需要配置清单，也不需要给 Docusaurus 打补丁。环境：`pnpm 12` + `Docusaurus 3.10.2` + `React 18`。
 
-> 机制为什么这样设计、内部契约与实测记录，收在维护者文档
+> 机制为什么这样设计、输入怎么校验、层归属怎么判、内部契约与实测记录，收在维护者文档
 > [`docs/internals.md`](./docs/internals.md)。源码注释里的「理由见 README『…』」指针，
 > 落在那些章节的已改指那份文件。
 
 ## 一句话说明
 
-官方 `@theme-original/X` 是**每个组件一个全局值**，只能等于层栈里的某一层；
-而链上每一层想要的是「**我自己下面那一层**」——多个消费者要多个不同答案，
-一个全局别名原理上无法同时满足。
-
-本方案**不碰它**，另开一个 specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改写。
-层栈（哪些层、什么顺序）**全部自动推导**。
+官方 `@theme-original/X` 是**每个组件一个全局值**，只能等于层栈里的某一层；本包不碰它，另开一个
+specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改写。层栈（哪些层、什么顺序）
+**全部自动推导**。
 
 ## 新 specifier
 
@@ -26,32 +23,22 @@
 | --------------- | ----------------------------- | ---------------- |
 | `@theme-prev/X` | 最大的 `j < i` 且 `Lj` 提供 X | 我下面最近的一层 |
 
-> **⚠️ `@theme-prev` 必须满足 `j < i`**
->
-> 「落点严格在导入者下方」不是顺带的性质，而是**整套机制的安全性来源**：每一层只依赖它下面那些层，
-> 模块图因此天然无环。
->
-> 组件名是**不可信输入**：`@theme-prev/<rest>` 的 `<rest>` 来自用户写的 import，会原样进
-> `path.join(layer.owner, <rest>)`。所以它必须是 `/` 分隔的安全片段（不接受 `.` / `..` /
-> 绝对路径 / `\` / 空段），被拒绝时告警并交回官方解析。嵌套组件（`@theme-prev/DocItem/Footer`）照常支持。
->
-> `?` / `#` 之后的部分**不算组件名，但算改写后的请求**：官方别名对 `@theme/X?raw` 一样生效并把尾部
-> 带回解析结果（实测），所以这里用裸名定位文件、把尾部原样拼回落点。切法与上游 `ParseModule` 同口径
-> —— 第一个 `?` 或 `#` 起整段是尾部。
+`X` 是 `/` 分隔的组件名，嵌套组件（`@theme-prev/DocItem/Footer`）照常支持；`?raw` / `#…` 那类
+尾部原样保留。组件名必须是安全的相对路径（不接受 `.` / `..` / 绝对路径 / `\` / 空段），越界时
+告警并交回官方解析 —— 校验口径见 [`docs/internals.md`](./docs/internals.md) 的「输入处理」一节。
 
 ### 层栈里没人提供该组件时
 
 交回官方解析。`@theme-prev/*` 是官方不认识的 specifier，所以这里**必定**是 `Module not found`。
-
-不回落官方别名，是因为能用的落点里没有语义对的：`@theme-init` 要「最内层提供者」，
-而 `@theme` 是**最外层**全局赢家 —— 正好相反。宁可让人看到官方报错，
-也不要安静地给一个语义相反的落点。
+不回落官方别名：能用的落点里没有语义对的（理由见
+[`docs/internals.md`](./docs/internals.md) 的「设计取舍」一节），宁可让人看到官方报错。
 
 ## 类型声明
 
 `types/theme-specifiers.d.ts` 给 `@theme/X`、`@theme-original/X`、`@theme-prev/X` 三条 specifier
 补类型：它们由本包在 resolve 阶段改写，磁盘上没有对应目录，`tsc` 只看得到 import 那一句。
-文件里写清了收录口径与默认导出的形状，这里不抄第二份。
+文件里写清了收录口径与默认导出的形状，这里不抄第二份。三条为什么收成一体，见
+[`docs/internals.md`](./docs/internals.md) 的「类型声明」。
 
 这份文件**不编译**（构建项目的 `include` 只有 `src/`），发布要靠 `files` 点名 —— 本包是
 `["dist", "types"]`，只发 `dist` 的包装上站点就拿不到它。
@@ -70,11 +57,6 @@
 `plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts` 列进 `files`（那两份的 `include`
 只收源码，不吃 `.d.ts`），仓库根 `tsconfig.json` 走默认 include（`**/*`），
 站点 swizzle（`src/theme/**`）与各主题包里未编译的层和组件都靠它。
-
-官方那两个别名（`@theme/X`、`@theme-original/X`）不是顺手带上的：Docusaurus 的
-`@docusaurus/module-type-aliases` 只列了 `@theme-original/*` 与 `@theme-init/*` 两条**无类型**
-的通配，`@theme/*` 则是一串写死的组件名；而本仓库的 `node_modules` 布局让 `tsc` 解析不到
-`@docusaurus/theme-classic`。所以这三条是一个整体，**不能只删 `@theme-prev` 那一条**。
 
 ## 会告警的地方
 
@@ -171,13 +153,10 @@ export default function MyLogo(props) {
 ## 使用约束（硬性）
 
 这套机制的语义建立在「导入者属于哪一层」这个**隐式上下文**上，而它不像普通 import 那样显式。
-以下约束越界都不报错，但行为会变得难以推理：
+以下约束越界都不报错，但行为会变得难以推理。层归属的具体判法见
+[`docs/internals.md`](./docs/internals.md) 的「层归属怎么判」一节。
 
 ### ① `@theme-prev/*` 只能写在主题层的**组件文件**里
-
-`findIssuerLayerIndex` 只做**目录前缀**判定：任何落在某层目录内的文件（包括
-`theme-a/shared/util.js`、`theme-a/node_modules/...`）都会被当作「那一层的导入者」。
-也就是说，同一个模块被两层的文件 import 时解析结果不同 —— 这不是 bug，是**位置敏感**。
 
 **约束**：把 `@theme-prev/*` 当成「主题层的组件专用 specifier」。
 不要写在公共工具模块 / 共享库里（即使它们物理上位于主题目录内），否则一旦它在层间被复用，
@@ -190,31 +169,21 @@ export default function MyLogo(props) {
 | 文件**物理在层内**，但被层间复用（共享工具模块）                                                     | 解析结果**随导入者变化**（位置敏感），不报错                               | 不能 —— 得靠约定                       |
 | 文件**不在任何层内**（站点 `pages` / `components`、自定义插件的运行时模块、`docusaurus.config.mjs`） | 一律 `issuerIndex = -1` → 交回官方 → **必定 `Module not found`，构建失败** | 能 —— 告警会把这一格列为「最常见成因」 |
 
-第二种是**硬失败**（不是「位置敏感」）。实测：同一个 `import '@theme-prev/Logo'`，
-写在层内文件里构建成功、写在层外文件里直接 `Module not found`（真实 webpack 5.111.1）。
-「站点自己的另一个消费方」这一格正是第二种 —— 站点目录里只有 `src/theme` 是层，
-站点自己的页面与组件目录（若存在）都不是。
+第二种是**硬失败**（不是「位置敏感」）。「站点自己的另一个消费方」这一格正是第二种 —— 站点目录
+里只有 `src/theme` 是层，站点自己的页面与组件目录（若存在）都不是。
 
 ### ② 主题插件模块顶层不得创建**身份敏感**的全局对象
 
-`loadPluginConfigs` 用官方 `loadFreshModule` 加载插件模块（每次新建 jiti 工厂 +
-`requireCache: false`），所以 ESM 主题插件模块会被加载**两次**（官方一次、我们一次）；
-实测 ESM 顶层求值 2 次、CJS 1 次，两者构造函数各跑 2 遍（`test/discover.test.mts` 钉住）。
-
-所以约束不是「构造函数无副作用」，而是「**整个模块加载期无副作用**」：
+**约束**不是「构造函数无副作用」，而是「**整个模块加载期无副作用**」：
 顶层不得创建「跨实例身份敏感」的对象（React Context、自定义 `Symbol`、全局注册表单例）。
 我们只取 `getThemePath()`、不碰它的 Context，正常主题不受影响。
 
 ### ③ 层归属是「**真实路径**」意义上的
 
-`findIssuerLayerIndex` 把 issuer 与每个 layer owner 都 `realpath` 一次再比前缀，所以
-「同一目录的两种写法」不会因为 `..` / 软链被算成两层。代价是一条反直觉的边界：
-
 > **物理上位于主题目录内、但真实路径在层外的文件，不属于该主题层。**
 > （`theme-a/logo-link -> /elsewhere/Logo.tsx` ⇒ `issuerIndex = -1` ⇒ 退回官方解析 + 告警。）
 
-需要这种结构时，别把主题文件软链到层外（只按字符串比较会让同一目录被算成两层，
-那是**静默的错层**，比显式的「不在层内」更难查）。
+需要这种结构时，别把主题文件软链到层外。
 
 ## 边界与限制
 

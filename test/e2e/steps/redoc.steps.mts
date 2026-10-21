@@ -49,7 +49,7 @@ const menuHref = (name: string): string => `#/orders/${name}`;
 整页加载一条**别人转发过来的接口地址**：`#/orders/createorder` 这段是框里点了接口之后
 由 postMessage 送进外层地址栏的。这一条用例钉的是它在静态产物里也打得开，而且是 **HTTP 200**
 —— 页面本身是 `build/redoc-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
-（换成按路径的路由就是 404，取舍与理由见包 README 的「深链」一节。）
+（换成按路径的路由就是 404，取舍见包 README 的「局限」一节。）
 */
 Given('我直达 redoc 那条接口的地址', async ({ page }) => {
   watchPageErrors(page);
@@ -81,7 +81,7 @@ Then('Redoc 自己的 404 没有出现', async ({ page }) => {
 });
 
 // 三个接口挂在 `orders` 分组下面，分组默认折叠（折叠时接口链接不在 DOM 里），先点开。
-When('我点开 Redoc 左栏的 orders 分组', async ({ page }) => {
+When('我点开 Redoc 左栏里的 orders 分组', async ({ page }) => {
   await menu(page).locator('a[href="#/orders"]').click();
 });
 
@@ -94,7 +94,7 @@ Then('三个接口都在 Redoc 的左栏里', async ({ page }) => {
   }
 });
 
-When('我点开 Redoc 左栏里新建订单那条接口', async ({ page }) => {
+When('我点开 Redoc 左栏里的新建订单那条接口', async ({ page }) => {
   await menu(page)
     .locator(`a[href="${menuHref('createorder')}"]`)
     .click();
@@ -109,7 +109,7 @@ When('我点开 Redoc 左栏里新建订单那条接口', async ({ page }) => {
 
 这份四条清单只适用于「先打开这一页再点下去」，整页直达那条用例另有判据（见下）。
 */
-Then('详情面板换成那条接口', async ({ page }) => {
+Then('Redoc 的详情面板换成那条接口，外层地址也跟着换', async ({ page }) => {
   await expect(
     root(page).locator('h1, h2'),
     '接口详情没渲染出来',
@@ -145,7 +145,7 @@ Then('Redoc 框里摆的是地址里那条接口', async ({ page }) => {
 文档 —— 实测 `scrollTop` 停在 502，左栏整条往上跑出可视区，上方只剩一片底色。现在滚动条长在
 框内那份文档上，那一格仍然不该是自己滚的。
 */
-Then('框里的左栏占满整屏', async ({ page }) => {
+Then('Redoc 左栏贴满那一份文档的一屏', async ({ page }) => {
   const box = await menu(page).evaluate((el) => {
     const view = el.ownerDocument.defaultView;
     const rect = el.getBoundingClientRect();
@@ -179,7 +179,7 @@ styled-components 那张运行期注入的 `<style>` 一张都没有（改造前
 圈定没把 Redoc 自己的样式压掉）钉的是运行期圈定的效果，圈定随 iframe 改造一起删了 ——
 Redoc 关在自己那份文档里，「不打到站点上」由浏览器给的文档边界负责，理由记在包 `docs/internals.md` 的「样式」一节。
 */
-Then('外层文档里没有 Redoc 的运行时样式表', async ({ page }) => {
+Then('外层文档里没有 Redoc 的痕迹', async ({ page }) => {
   const state = await page.locator('html').evaluate((el) => {
     const doc = el.ownerDocument;
     return {
@@ -229,7 +229,7 @@ Redoc 左栏底部那一排图标里有一颗它自己的亮暗切换按钮。�
 把它收掉了。
 这一条钉它确实看不见（元素还在 DOM 里，是 `display: none`，所以判据用可见性而不是数量）。
 */
-Then('Redoc 自己那颗亮暗切换按钮不出现', async ({ page }) => {
+Then('Redoc 自己那颗亮暗开关不出现', async ({ page }) => {
   await expect(
     root(page).locator('[data-testid="color-mode-switcher"]'),
     'Redoc 自己那颗亮暗切换按钮还看得见',
@@ -242,7 +242,7 @@ Then('Redoc 自己那颗亮暗切换按钮不出现', async ({ page }) => {
 `redoc-ui.css` 收的是署名的那个 `span`，不是整格 —— 整格一起收会把收起侧栏那颗带走。
 两句钉的是这一刀切得准不准：署名看不见，同一格里那颗按钮还在。
 */
-Then('Redocly 的署名不出现，同一格里的收起侧栏还在', async ({ page }) => {
+Then('Redoc 那条署名不出现，同一格里的收起侧栏还在', async ({ page }) => {
   await expect(
     menu(page).locator('span:has(a[href^="https://redocly.com/"])'),
     '「API docs by Redocly」那条署名还看得见',
@@ -279,7 +279,7 @@ Then('章节标题旁那一整格操作按钮不出现', async ({ page }) => {
 与上一条配对的一句：代码块里那些复制按钮**不该**被一起收掉，所以这里钉它们还在。
 认的是 Redoc 给那几颗自己的 `data-testid="copy-button"`（标题那颗没有这个标识）。
 */
-Then('代码块里的复制按钮还在', async ({ page }) => {
+Then('Redoc 代码块里的复制按钮还在', async ({ page }) => {
   const visibleCopies = root(page).locator(
     'button[data-testid="copy-button"]:visible',
   );

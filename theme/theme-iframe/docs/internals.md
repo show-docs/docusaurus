@@ -40,13 +40,25 @@
 | `lib/frame-messages.ts`     | ❌ 站点编译         | 约定与形状：iframe 地址（框内那条拼与拆、`iframe:` 那条 `externalFrameURL()`）、三条 postMessage（纯函数，不引 React、不引 DOM）                                                                                                                                                                                                                                                            |
 | `lib/frame-sync.ts`         | ❌ 站点编译         | 两侧的消息循环：`useOuterFrameSync` / `useInnerFrameSync` / `createRouteReporter`，含两边都过的来源校验 `isTrustedMessage`（引 DOM 类型的只有这一份，注册表那条配置期链路碰不到 `Window`）                                                                                                                                                                                                  |
 | `docs/iframe-protocol.md`   | ——                  | 那份共享约定的口径与踩过的坑（含注册表一节）（原 `theme/frame-kit/README.md`）                                                                                                                                                                                                                                                                                                              |
-| `module-aliases.d.ts`       | 类型                | 引官方 `@docusaurus/module-type-aliases`，给构建期才存在的那些 import 补类型                                                                                                                                                                                                                                                                                                                |
 | `tsconfig.build.json`       | ——                  | 构建项目：只有 `src/`，所以本包的产物出口是 `dist/index.mjs`；`lib/` 与 `components/`、`theme/` 都不进 `tsc`                                                                                                                                                                                                                                                                                |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/` 里的
 `.tsx`，本包就不编译第二遍；`lib/api-frame-theme.mts` 是唯一的例外形态：它既不由站点编译，
 也不由本包编译，而是 jiti（Docusaurus 的配置加载器）在配置期直接吃这份源码。口径的产地在仓库根
 README 的「构建包的编译口径」。
+
+## 落点为什么是 `DocItem`
+
+命中时**不包**下层 `DocItem`，与 `theme-markmap` 同键不同做法（markmap 包着下层，本层替换）。
+早期版本落在 `DocItem/Content`，为的是保住文档外壳；那时踩过一个坑——官方 `DocItem` 渲染的是
+`<DocItemLayout><MDXComponent /></DocItemLayout>`，`MDXComponent` 就是它的 `props.content`，
+**`props.children` 它一个字都不读**，把 iframe 当 children 塞给 `DocItem` 会静默丢掉（构建产物里
+`iframe` 标签数为 0）。现在这一层根本不使用 children，那个坑不成立。
+
+## 开发模式与构建产物同一个行为
+
+`iframe:` 曾经在开发模式给的是链接（本地改动会不断重载被嵌的页面，太吵），那条分支已经删掉。
+现在 `pnpm start` 与构建产物都直接嵌 iframe，要看真的 iframe 不用先构建。
 
 ## 新增一条 API 层要动哪里
 
@@ -86,6 +98,6 @@ README 的「构建包的编译口径」。
   源码），改入口才要 `pnpm build:core`。这些未编译的源码归仓库根 `tsconfig.json` 检查，
   所以 `pnpm lint:type` 就是它们的门：`@theme-prev/DocItem` 的类型产地在解析器包里
   [`types/theme-specifiers.d.ts`](../../../plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts)，
-  `@docusaurus/router` 那几条靠包根的 `module-aliases.d.ts`；
+  `@docusaurus/router` 那几条靠仓库根那份 `module-aliases.d.ts`；
   `@theme-prev/X` 的语义见
   [plugin-prev-layer-resolver 的 README](../../../plugins/plugin-prev-layer-resolver/README.md)。

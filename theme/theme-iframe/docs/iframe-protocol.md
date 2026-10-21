@@ -56,8 +56,11 @@
   时优先用页面自己的，`ApiFrame` 那一步）。框里是本包那条插件页面，同源，
   深链与亮暗靠消息循环对齐。
 - `external`（`iframe:`）：只有命名空间、键、类名与 `title` —— 框里是外部站点，地址算法在
-  `lib/frame-messages.ts` 的 `externalFrameURL()`（`/` 打头补 origin、`?path=` 再解一层；曾经还有
-  「整串 `decodeURIComponent`」的第三步，会把地址里合法的 `%` 序列二次解码，删了）。
+  `lib/frame-messages.ts` 的 `externalFrameURL()`：`src` 以 `/` 开头时按当前站点的 origin 补成
+  绝对地址，否则原样用；地址栏带 `?path=<相对路径>` 时以它为基准再解一层（参数值由
+  `URLSearchParams` 自动解码）。只对**应解的那一段**动手 —— 曾经还有「整串 `decodeURIComponent`」
+  的第三步，会把地址里本来合法的 `%` 序列二次解码，已删。服务端渲染阶段拿不到 `window`，那时
+  `url` 就是 frontmatter 里那个原值。
 
 **条目的排列顺序是判定优先级的默认值**，但决定权在站点，分发在 `lib/api-frame-entries.ts`
 （`resolveFrameDistribution(siteConfig.plugins, frontMatter)`，交出 `{ entries, warnings }`）。
@@ -90,7 +93,7 @@
 这一格有三道门禁钉着：分支语义（默认、覆盖、过滤、每一条 `warnings`）由
 `test/api-frame-entries.test.mts` 在单测里钉（纯函数，不需要浏览器）；`lib/` 七份文件的每个分支
 都在覆盖率红线上（见 `vitest.config.mts` 的 `coverage.include`，浏览器那两份靠 jsdom，
-见 [`test/frame-sync.test.mts`](../../test/frame-sync.test.mts)）；而「浏览器侧 `plugins`
+见 [`test/frame-sync.test.mts`](../../../test/frame-sync.test.mts)）；而「浏览器侧 `plugins`
 原样保留包名、插件选项到得了浏览器」是 Docusaurus 的**实现细节而非公开承诺**，由
 `demo/scripts/verify-chain.mts` 第 3 节对真实生成的 `.docusaurus/docusaurus.config.mjs` 钉 ——
 升级后序列化形状变了会判红，而不是静默退化成「什么都没装」。
@@ -177,8 +180,8 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
 一个值，由外层读 `useColorMode()` 送进来。落到框内那一份文档身上时**两家按属性、一家按类名**，
 所以 `useInnerFrameSync` 的入参是一个二选一（`modeAttribute` XOR `onMode`）：按属性判亮暗的渲染器
 给属性名（Elements 那边是 `data-theme`，Redoc 那边是 `data-redoc-mode`），Scalar 那两个互斥类名
-（`dark-mode` / `light-mode`）写在 `<body>` 上、属性名换不动它，就给自己的回调。理由见各层 README
-的「亮暗模式」一节。一个来源，两边不会打架。
+（`dark-mode` / `light-mode`）写在 `<body>` 上、属性名换不动它，就给自己的回调。理由见各包
+`docs/internals.md` 的「亮暗模式」一节。一个来源，两边不会打架。
 
 代价要记一句：直接打开 `/redoc-view?src=…`、`/stoplight-view?src=…` 或 `/scalar-view?src=…`
 时没有外层送值，那一份文档的模式格是空的（Scalar 那一层落到挂载那一刻读到的那份内联属性上），
@@ -190,6 +193,8 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
 （`calc(100vh - var(--ifm-navbar-height))`）、`display: block`、去边框，`.container:has(iframe)`
 让正文容器去掉内边距与最大宽度，`.main-wrapper:has(.api-frame) + .footer` 收掉站点页脚 ——
 四条层的 `<iframe>` 都挂 `.api-frame`，所以这几条只有一处。
+把各层重复的那三条 `.container:has(.X-frame)` 收进这一条时核过等价：那一格是 `.container` 自己，
+父链上没有别的宽度约束，`max-width: 100%` 与原先那些 `unset` 都落到「铺满」。
 各层那个专属类名（`.scalar-frame`……）现在只用来认「这一格是哪一层赢的」：e2e 按它判赢家，
 再没有只属于一层的版式规则（页脚那一条以前写在 `theme-stoplight` 自己那份里，另外三条因此漏掉）。
 
@@ -201,27 +206,27 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
   导入都并进全站那一份 bundle，所以本层要改构建配置把那份文件当成资源发出去。
 - Scalar 也是静态样式表、也并进全站那一份，但这一层**不改构建配置**：它出厂时每条规则已经带着
   `.scalar-app` 前缀，越不出那一格（实测与代价记在
-  [`theme-scalar` 的 README](../../theme-scalar/README.md) 的「样式」一节）。
+  [`theme-scalar` 的 docs/internals.md](../../theme-scalar/docs/internals.md) 的「样式」一节）。
 
 还有一条**只在 e2e 里看得见**的约定：`.container:has(iframe)` 是全局的，正文里手写的 `<iframe>`
 也会让承载它的容器去掉内边距。所以「这一页正文容器真的为框让位」那一句判据认的是
 「包含**主题那个框**的 `.container`」（`test/e2e/steps/common.steps.mts` 里那条 `:has()`），
 而不是页面上任意一个 `.container` —— 否则夹具正文里手写的框会让那一句假绿。
 
-三包的 README 各有一节写自己那一条。
+三包各自的 `docs/internals.md` 里各有一节写自己那一条。
 
 ## 状态：三条层都从这一份走，浏览器里实测过
 
 `pnpm build`、`pnpm verify:chain` 与 `pnpm test:e2e` 都绿。这一层的行为由那三个包的用例间接钉住，
-判据分别在 [`test/e2e/features/redoc.feature`](../../test/e2e/features/redoc.feature)、
-[`test/e2e/features/stoplight.feature`](../../test/e2e/features/stoplight.feature) 与
-[`test/e2e/features/scalar.feature`](../../test/e2e/features/scalar.feature)；三条层共用的
+判据分别在 [`test/e2e/features/redoc.feature`](../../../test/e2e/features/redoc.feature)、
+[`test/e2e/features/stoplight.feature`](../../../test/e2e/features/stoplight.feature) 与
+[`test/e2e/features/scalar.feature`](../../../test/e2e/features/scalar.feature)；三条层共用的
 那几句（切暗色、做记号、比对翻色前后、容器让位、框占满那一屏）住在
-[`test/e2e/steps/common.steps.mts`](../../test/e2e/steps/common.steps.mts)，量框内那份文档的那几个
-辅助函数在 [`test/e2e/helpers.mts`](../../test/e2e/helpers.mts)。
+[`test/e2e/steps/common.steps.mts`](../../../test/e2e/steps/common.steps.mts)，量框内那份文档的那几个
+辅助函数在 [`test/e2e/helpers.mts`](../../../test/e2e/helpers.mts)。
 
 这一族自己那份源码另有单测**直接**钉着（分发、注册表、配置期工厂、消息形状、两条 hook），
-每个文件钉哪一面、以及覆盖率红线量哪几份，都记在 [`test/README.md`](../../test/README.md)。
+每个文件钉哪一面、以及覆盖率红线量哪几份，都记在 [`test/README.md`](../../../test/README.md)。
 
 ## 局限
 

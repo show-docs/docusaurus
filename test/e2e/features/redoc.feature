@@ -9,21 +9,21 @@ Feature: theme-redoc
     Then 这一页放的是一个 iframe，指向 redoc 那条独立页面
     And Redoc 在框里接管了这一屏，读的是本站那份 yaml
     And Redoc 自己的 404 没有出现
-    When 我点开 Redoc 左栏的 orders 分组
+    When 我点开 Redoc 左栏里的 orders 分组
     Then 三个接口都在 Redoc 的左栏里
-    When 我点开 Redoc 左栏里新建订单那条接口
-    Then 详情面板换成那条接口
-    And 代码块里的复制按钮还在
+    When 我点开 Redoc 左栏里的新建订单那条接口
+    Then Redoc 的详情面板换成那条接口，外层地址也跟着换
+    And Redoc 代码块里的复制按钮还在
     And 这一页没有文档正文外壳
     And 这一页没有站点的页脚
     And 框的无障碍标题用的是页面自己的标题 "Redoc 示例"
     And 正文容器在这一页让位
     And 框占满 navbar 以下那一屏
-    And 框里的左栏占满整屏
-    And Redoc 自己那颗亮暗切换按钮不出现
-    And Redocly 的署名不出现，同一格里的收起侧栏还在
+    And Redoc 左栏贴满那一份文档的一屏
+    And Redoc 自己那颗亮暗开关不出现
+    And Redoc 那条署名不出现，同一格里的收起侧栏还在
     And 章节标题旁那一整格操作按钮不出现
-    And 外层文档里没有 Redoc 的运行时样式表
+    And 外层文档里没有 Redoc 的痕迹
     And 站点自己的那几处样式不被 Redoc 改写
     And 浏览器里没有运行期错误
 

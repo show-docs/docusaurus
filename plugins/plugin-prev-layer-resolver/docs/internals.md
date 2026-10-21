@@ -46,9 +46,12 @@
 - 「prev-layer」落在**被解析的落点**上（导入者下面那一层），「resolver」落在**它做的事**上。
   别叫 `theme-chain` / `layer-chain`，那描述的是整套机制，不是干这件事的东西。
 
-## 背景：不接本方案时的实测结论
+## 背景：一个全局别名喂不饱一条链
 
-上面那句「原理上无法同时满足」不是推理出来的，是在一个最小站点上实测出来的五条：
+官方 `@theme-original/X` 是**每个组件一个全局值**，只能等于层栈里的某一层；而链上每一层想要的
+是「**我自己下面那一层**」—— 多个消费者要多个不同答案，一个全局别名原理上无法同时满足。
+
+这不是推理出来的，是在一个最小站点上实测出来的五条：
 
 1. **多个主题覆盖同一个组件** → 后声明的主题完全覆盖前者，前者被静默丢弃，不叠加也不链式。
 2. **`@theme-original` 的语义** → 它与 `@theme` 指向**同一个文件**；
@@ -103,6 +106,17 @@ export default {
 > （`configureWebpack(...) ?? {}`），而推导层栈要 import core 的 ESM 入口。
 > 插件初始化函数本身是被 `await` 的，因此层栈在初始化阶段算好、`configureWebpack` 直接用。
 
+## 输入处理：`@theme-prev/<rest>` 怎么切、怎么校验
+
+组件名是**不可信输入**：`@theme-prev/<rest>` 的 `<rest>` 来自用户写的 import，会原样进
+`path.join(layer.owner, <rest>)`。所以它必须是 `/` 分隔的安全片段（不接受 `.` / `..` /
+绝对路径 / `\` / 空段），被拒绝时告警并交回官方解析。嵌套组件（`@theme-prev/DocItem/Footer`）照常支持。
+这条校验是纯输入检查，对合法输入零成本；没有它，「层」的隔离能被一段相对路径绕过。
+
+`?` / `#` 之后的部分**不算组件名，但算改写后的请求**：官方别名对 `@theme/X?raw` 一样生效并把尾部
+带回解析结果（实测），所以这里用裸名定位文件、把尾部原样拼回落点。切法与上游 `ParseModule` 同口径
+—— 第一个 `?` 或 `#` 起整段是尾部。
+
 ## 两个 hook 的选择（换一个就坏）
 
 > 入口必须 tap `resolve`（裸 specifier 默认走「去 node_modules 里找」那条支路，
@@ -114,6 +128,27 @@ export default {
 > 原样挂成 `request.context`（`Resolver.js`：`obj = { context, path, request }`）—— 只有这一种
 > 形态。enhanced-resolve 里不存在 `request.contextInfo`；首参给成字符串时上游会把它挪去 `path`、
 > `context` 归一成 `{}`，所以顶层 `request.issuer` 同样永远不出现（判据见 `resolveIssuer`）。
+
+## 层归属怎么判
+
+`findIssuerLayerIndex` 只做**目录前缀**判定：任何落在某层目录内的文件（包括
+`theme-a/shared/util.js`、`theme-a/node_modules/...`）都会被当作「那一层的导入者」。
+也就是说，同一个模块被两层的文件 import 时解析结果不同 —— 这不是 bug，是**位置敏感**。
+
+判之前把 issuer 与每个 layer owner 都 `realpath` 一次再比前缀，所以「同一目录的两种写法」不会
+因为 `..` / 软链被算成两层。代价是一条反直觉的边界：**物理上位于主题目录内、但真实路径在层外
+的文件，不属于该主题层**（`theme-a/logo-link -> /elsewhere/Logo.tsx` ⇒ `issuerIndex = -1`
+⇒ 退回官方解析 + 告警）。需要这种结构时，别把主题文件软链到层外（只按字符串比较会让同一目录
+被算成两层，那是**静默的错层**，比显式的「不在层内」更难查）。
+
+实测：同一个 `import '@theme-prev/Logo'`，写在层内文件里构建成功、写在层外文件里直接
+`Module not found`（真实 webpack 5.111.1）。
+
+**主题插件模块会被加载两次**：`loadPluginConfigs` 用官方 `loadFreshModule` 加载插件模块（每次
+新建 jiti 工厂 + `requireCache: false`），所以 ESM 主题插件模块会被加载两次（官方一次、我们一次）；
+实测 ESM 顶层求值 2 次、CJS 1 次，两者构造函数各跑 2 遍（`test/discover.test.mts` 钉住）。因此
+约束不是「构造函数无副作用」，而是「**整个模块加载期无副作用**」：顶层不得创建「跨实例身份
+敏感」的对象（React Context、自定义 `Symbol`、全局注册表单例）。
 
 ## 环境相关的层栈漂移（已知边界）
 
@@ -214,6 +249,7 @@ build/markmap-demo/index.html  整页没有任何包裹标记
 | **层栈从 plugin 列表推导，而不是只读别名表**                                | 别名表每个组件只有 3 个落点，3 层以上覆盖会丢中间层                                                                                                                                                                                                                                                                                                                                                                                                  |
 | **不改 Docusaurus 任何文件**                                                | 只复用官方已导出的 `loadContext` / `loadPluginConfigs`，不与版本强绑定                                                                                                                                                                                                                                                                                                                                                                               |
 | **解析失败一律交回官方**                                                    | 最坏情况退化为官方语义（真实报错），而不是静默产出错误产物                                                                                                                                                                                                                                                                                                                                                                                           |
+| **层栈里没人提供该组件时不回落官方别名**                                    | 能用的落点里没有语义对的：`@theme-init` 要「最内层提供者」，而 `@theme` 是**最外层**全局赢家 —— 正好相反。宁可让人看到官方 `Module not found`，也不要安静地给一个语义相反的落点                                                                                                                                                                                                                                                                      |
 | **不试图让插件主题「感知自己是不是栈顶」**                                  | 那需要跨层运行时状态，反而引入不可判定行为                                                                                                                                                                                                                                                                                                                                                                                                           |
 | **`@theme-prev` 恒满足 `j < i`**                                            | 「落点严格在导入者下方」是模块图无环（不会 OOM）的来源，整个机制只有这一个 specifier，没有例外形态                                                                                                                                                                                                                                                                                                                                                   |
 | **组件名必须通过安全校验**                                                  | 它是从 specifier 拼出来的不可信输入，直接进 `path.join` 会让「层」的隔离被一段相对路径绕过；校验是纯输入检查，对合法输入零成本                                                                                                                                                                                                                                                                                                                       |
@@ -244,6 +280,18 @@ build/markmap-demo/index.html  整页没有任何包裹标记
 | 自己读配置算指纹感知配置改动                                   | 配置要生效必先过官方那一关，官方重读后 `loadContext` 交出的就是新配置；自己再读一遍多一类「读到了但没生效」的失败                                                                                                                                                |
 | 从 `configureWebpack` 的第二参数（或插件上下文）取插件实例列表 | 第二个形参是 `isServer` **布尔值**；`context.plugins` 在初始化阶段也还没有（实测：它只在官方自己调 `configureWebpack` 时才被拼进那份拷贝里）。据此改过一版，「链失效」被 `.docusaurus` 的 webpack 缓存遮住，本地全绿、CI 红在 `Can't resolve '@theme-prev/Logo'` |
 
+## 类型声明
+
+`types/theme-specifiers.d.ts` 把三条 specifier 收成一体，理由不是顺手：
+
+- Docusaurus 的 `@docusaurus/module-type-aliases` 只列了 `@theme-original/*` 与 `@theme-init/*`
+  两条**无类型**的通配，`@theme/*` 则是一串写死的组件名；
+- 本仓库的 `node_modules` 布局让 `tsc` 解析不到 `@docusaurus/theme-classic`。
+
+所以这三条是一个整体，**不能只删 `@theme-prev` 那一条**。文件怎么被消费方收进 program（`files`
+点名）、为什么它不编译、发布要靠 `files` 带上 `types/`，是使用者要照着做的那一半，记在
+[`../README.md`](../README.md) 的「类型声明」一节。
+
 ## 语言与编译约定
 
 核心包用 TypeScript 编写（`.mts`，ESM，源码在 `src/`），由 `tsc` 编译到本包的 `dist/`
@@ -251,5 +299,5 @@ build/markmap-demo/index.html  整页没有任何包裹标记
 （`pnpm build` / `pnpm test` 已内置）。
 
 `@theme-prev/*` 是运行时动态别名，类型声明见本包的
-[`../types/theme-specifiers.d.ts`](../types/theme-specifiers.d.ts)（连同官方那两个别名一起，理由在
-README「类型声明」）；删掉那份文件，`pnpm typecheck` 与 `pnpm lint:type` 都会红。
+[`../types/theme-specifiers.d.ts`](../types/theme-specifiers.d.ts)（连同官方那两个别名一起，理由见本文件的
+「类型声明」一节）；删掉那份文件，`pnpm typecheck` 与 `pnpm lint:type` 都会红。

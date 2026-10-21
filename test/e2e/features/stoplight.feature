@@ -10,19 +10,19 @@ Feature: theme-stoplight
     Given 我打开 stoplight 示例页
     Then 这一页放的是一个 iframe，指向 stoplight 那条独立页面
     And Elements 在框里接管了这一屏，读的是本站那份 yaml
-    When 我点开框里左栏的 orders 分组
+    When 我点开 Elements 左栏里的 orders 分组
     Then 三个接口都在 Elements 的左栏里
-    When 我点开框里左栏的新建订单那条接口
-    Then 详情面板换成那条接口，外层地址也跟着换
-    And 「powered by Stoplight」那条署名不出现
-    And 「Try it」面板里那颗发送按钮不出现
+    When 我点开 Elements 左栏里的新建订单那条接口
+    Then Elements 的详情面板换成那条接口，外层地址也跟着换
     And 这一页没有文档正文外壳
     And 这一页没有站点的页脚
     And 框的无障碍标题用的是页面自己的标题 "API 文档示例"
     And 正文容器在这一页让位
     And 框占满 navbar 以下那一屏
     And 框里那一屏不留下自己的滚动条
-    And 外层文档里没有 Elements 的那份样式表
+    And Elements 那条署名不出现
+    And 「Try it」面板里那颗发送按钮不出现
+    And 外层文档里没有 Elements 的痕迹
     And Elements 那份样式表只挂在框里
     And 站点自己的那几处样式不被 Elements 改写
     And 浏览器里没有运行期错误
@@ -53,7 +53,8 @@ Feature: theme-stoplight
     When 我在框里那份文档上做个记号
     And 我把站点切成暗色
     Then 框里的配色跟着站点翻过去，那份文档没有重新加载
-    And 框里的暗色是站点送进来的，不是 Elements 自己那份存档选的
+    And Elements 那一格也收到站点送进来的暗色
+    And 暗色不是 Elements 自己那份存档选的
     And 站点自己的那几处样式在暗色下也不被 Elements 改写
 
   # 框内那条地址本身也是站点的一条页面：带着 `src` 就能独立打开（调试、别人点到它），

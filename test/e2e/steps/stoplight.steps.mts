@@ -74,7 +74,7 @@ Then('Elements 在框里接管了这一屏，读的是本站那份 yaml', async 
 });
 
 // 三个接口挂在 `orders` 分组下面，而这一组**默认折叠**（折叠时链接根本不在 DOM 里），先点开。
-When('我点开框里左栏的 orders 分组', async ({ page }) => {
+When('我点开 Elements 左栏里的 orders 分组', async ({ page }) => {
   await root(page)
     .locator('div.sl-cursor-pointer')
     .filter({ hasText: /^orders$/ })
@@ -90,7 +90,7 @@ Then('三个接口都在 Elements 的左栏里', async ({ page }) => {
   }
 });
 
-When('我点开框里左栏的新建订单那条接口', async ({ page }) => {
+When('我点开 Elements 左栏里的新建订单那条接口', async ({ page }) => {
   await root(page)
     .locator(`a[href="${operationHref('createOrder')}"]`)
     .click();
@@ -106,7 +106,7 @@ When('我点开框里左栏的新建订单那条接口', async ({ page }) => {
 
 这份清单只适用于「先打开这一页再点下去」，整页直达那条用例另有判据（见下）。
 */
-Then('详情面板换成那条接口，外层地址也跟着换', async ({ page }) => {
+Then('Elements 的详情面板换成那条接口，外层地址也跟着换', async ({ page }) => {
   await expect(root(page).locator('h1'), '接口详情没渲染出来').toContainText(
     '新建订单',
   );
@@ -130,7 +130,7 @@ Then('Elements 框里摆的是地址里那条接口', async ({ page }) => {
 左栏底部那条「Powered by Stoplight」，`stoplight-ui.css` 按「那一栏最后一条指向 stoplight.io
 的链接」收掉。认的是它**是什么**，不是它排在第几颗 —— 实测这一格在 DOM 里、`offsetParent` 为空。
 */
-Then('「powered by Stoplight」那条署名不出现', async ({ page }) => {
+Then('Elements 那条署名不出现', async ({ page }) => {
   const poweredBy = root(page).locator('a[href*="stoplight.io"]');
   expect(
     await poweredBy.count(),
@@ -201,7 +201,7 @@ Then('框里那一屏不留下自己的滚动条', async ({ page }) => {
 漏回全站那一份的表现就是这三条里第一条红：站点每页都会 `<link>` 同一个文件，静态样式拦不住，
 只能靠「它根本不在那个文件里」。理由与实测的漏法记在包 `docs/internals.md` 的「样式」一节。
 */
-Then('外层文档里没有 Elements 的那份样式表', async ({ page }) => {
+Then('外层文档里没有 Elements 的痕迹', async ({ page }) => {
   const state = await page.locator('html').evaluate((el) => {
     const doc = el.ownerDocument;
     const unscoped: string[] = [];
@@ -322,6 +322,14 @@ localStorage 写的、没人维护），Elements 那份存档也想写它。实�
 
 量的那一格是框内那份文档 `<html>` 上的两处读数（`frameModeSignal`）：这一层的 `<html>` 底色
 是站点那条规则给的，`--canvas-l` 那个变量才是 Elements 自己的调色板。
+
+这一组三句与另两层同形（句子形状见 `redoc.steps.mts`、`scalar.steps.mts`）：先钉操作系统换不了
+这一页，切成暗色后钉消息落点翻过去了，最后单独钉这一页的暗色不是 Elements 自己那份存档选的。
+这一层少一句：另两层在系统深色、站点亮色时各钉一条「那一格收的是站点这一头的亮色」，量的是
+只有本层那条消息会写的东西（redoc 的 `data-redoc-mode`、scalar 的 `<body>` 类名）。这一层的落点
+是 `data-theme`，而框内那份文档的 SSR 里就有一条内联脚本无条件写它（`theme` 那格取不到时按
+`light` 落，实测产物里那句就是 `document.documentElement.setAttribute("data-theme",t||"light")`）
+—— 亮色时两份写手给出同一个值，钉不出是谁写的，所以这一层只在暗色那一句上做对照。
 */
 Then('Elements 的配色不跟操作系统走', async ({ page }) => {
   const onDarkSystem = await frameModeSignal(page);
@@ -337,25 +345,28 @@ Then('Elements 的配色不跟操作系统走', async ({ page }) => {
   ).toBe(onDarkSystem);
 });
 
-Then(
-  '框里的暗色是站点送进来的，不是 Elements 自己那份存档选的',
-  async ({ page }) => {
-    // 站点这一头的暗色写在框内那份文档的 `<html data-theme>` 上（消息落点就是这条属性）。
-    await expect(frameDoc(page).locator('html')).toHaveAttribute(
-      'data-theme',
-      'dark',
-    );
-    // 而 Elements 自己那份存档仍是默认的亮色：同一个属性、两个想写它的名字，落定的是站点这一头。
-    // （哪天 Elements 把存档同步成站点这一头的值，这一句会红 —— 那时把它删掉，别改成比相等。）
-    const stored = await frameDoc(page)
-      .locator('body')
-      .evaluate(() => localStorage.getItem('mosaic-theme') ?? '');
-    expect(
-      stored,
-      `框里那份存档已经不是默认的亮色了（${stored}）：这一句的对比不成立了`,
-    ).toContain('light');
-  },
-);
+Then('Elements 那一格也收到站点送进来的暗色', async ({ page }) => {
+  // 开关跨过 iframe 的边界：外层那条消息送到了，框内那份文档的 `<html data-theme>` 也是 dark。
+  await expect(frameDoc(page).locator('html')).toHaveAttribute(
+    'data-theme',
+    'dark',
+  );
+});
+
+/**
+同一个 `<html data-theme>` 上有两个想写它的名字：站点这一头送进来的那一个，和 Elements 自己存在
+localStorage 里那份存档（`mosaic-theme`，默认 `light`）。这一句钉落定的是站点这一头。
+（哪天 Elements 把存档同步成站点这一头的值，这一句会红 —— 那时把它删掉，别改成比相等。）
+*/
+Then('暗色不是 Elements 自己那份存档选的', async ({ page }) => {
+  const stored = await frameDoc(page)
+    .locator('body')
+    .evaluate(() => localStorage.getItem('mosaic-theme') ?? '');
+  expect(
+    stored,
+    `框里那份存档已经不是默认的亮色了（${stored}）：这一句的对比不成立了`,
+  ).toContain('light');
+});
 
 Then('站点自己的那几处样式在暗色下也不被 Elements 改写', async ({ page }) => {
   const onStoplightPage = await siteStyles(page);

@@ -14,7 +14,6 @@
 | `theme/StoplightPage/index.tsx` | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`StoplightUI`、亮暗的属性名；本包的 CSS 由 `stoplight-ui.tsx` 那一句 import 带进 bundle                                                                                         |
 | `components/stoplight-ui.tsx`   | ❌ 站点编译         | 浏览器端渲染 `API`（只收地址那一种入参），外面套 `HashRouter`；`LocationMirror` 把路由变化报给外层；那条 `<link>` 挂 Elements 的样式表                                                                                                                                  |
 | `components/stoplight-ui.css`   | ❌ 站点编译         | 生效在框内那一页：给 `.stoplight-root` 定高、把站点主题加在 Elements 子树上的几处默认样式还原、收掉署名与那颗发送按钮、滚动条配色沿用站点                                                                                                                               |
-| `module-aliases.d.ts`           | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                                                                                 |
 | `tsconfig.build.json`           | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                  |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
@@ -25,6 +24,16 @@
 约定归 [`lib/`](../../theme-iframe/lib/index.ts)（口径见 [`iframe-protocol.md`](../../theme-iframe/docs/iframe-protocol.md)）；本包交出的只有注册表里那个命名空间。
 为什么两侧各推一次消息、为什么框内 → 外层不听 `hashchange`，那份理由记在共享层的文档，
 不在这里抄第二遍。
+
+## 两份文档各放什么
+
+|                   | 外层：站点的文档页（`/stoplight-demo`）                                                         | 框内：本包那条页面（`/stoplight-view?src=…`）         |
+| ----------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 本层放的东西      | 一个 `<iframe class="api-frame stoplight-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `StoplightUI`，即 `.stoplight-root` 那一格            |
+| Elements 的运行时 | 不加载，一行都没有                                                                              | 全在这里                                              |
+| 样式表            | 站点的产物 CSS（不含 Elements 那份）                                                            | 站点的产物 CSS + **一条 `<link>` 指向 Elements 那份** |
+| 亮暗模式          | 站点的 `<html data-theme>`，开关在这                                                            | 自己 `<html>` 上的 `data-theme`，值由外层送来         |
+| 能分享的地址      | 有，`#` 那一段代表当前那条接口                                                                  | 有，但那是「直接打开框里那一页」，见下面「深链」      |
 
 ## 上一版的做法（prefixwrap）为什么换掉
 
@@ -77,7 +86,7 @@ Docusaurus 把每一个 css 导入都并进同一个 `styles` chunk（`splitChun
 
 框内那份文档里那张表实测 2344 条规则（按 `cssRules` 计数，一条 `@media` 算一条）原样生效；
 外层那份文档里它的 `<link>` 0 条、`.stoplight-root` 0 个。这就是两条判据「外层文档里没有 Elements
-的那份样式表」与「Elements 那份样式表只挂在框里」量的东西，另有「站点自己的那几处样式不被 Elements
+的痕迹」与「Elements 那份样式表只挂在框里」量的东西，另有「站点自己的那几处样式不被 Elements
 改写」按值比（同一批元素在 stoplight 页与主页各算一遍 computed style 比相等，不抄站点该有的值）。
 
 `?url` 行内查询**用不了**：那是 Vite / Rspack 的写法，webpack 5 没有这一条（实测：请求连规则匹配
@@ -152,8 +161,8 @@ styled-components 的中间件去改它暗色表的生效条件，只要把「�
 **实测过它会不会跟 mosaic 自己那一份打架**：mosaic 的 `useThemeStore` 会按那份存档写同一条属性，
 而存档的默认值是 `light`。把 `mosaic-theme` 手工写成 `dark`、站点切成暗色、再把框内那份文档重新
 渲染一遍，结论是站点这一头赢 —— 本层的写发生在它之后，而且这一页没有任何东西去调它那个开关。
-判据就是那条「框里的暗色是站点送进来的，不是 Elements 自己那份存档选的」：切成暗色后
-`<html data-theme>` 是 `dark`，`localStorage['mosaic-theme']` 里仍然是 `light`。
+判据就是那两句「Elements 那一格也收到站点送进来的暗色」与「暗色不是 Elements 自己那份存档选的」：
+切成暗色后 `<html data-theme>` 是 `dark`，`localStorage['mosaic-theme']` 里仍然是 `light`。
 
 框内那份文档 `<html>` 上的信号，实测两格取值：亮色是 `--canvas-l: 100%` /
 `--color-text-primary: #0081cc` / 底色 `transparent`，暗色翻成 `8%` / `#66c7ff` / `rgb(27,27,29)`。
@@ -165,7 +174,8 @@ styled-components 的中间件去改它暗色表的生效条件，只要把「�
 Elements 这一版没有给用户看的亮暗切换按钮（`theme-redoc` 那边有，收掉了），所以这一格不需要处理。
 
 那条 `mode` 不塞进 iframe 的 `src`：那个地址必须服务端与客户端算出同一个字符串（理由见
-[`README.md`](../README.md) 的「深链」一节），而它会跟着开关变。
+[`iframe-protocol.md`](../../theme-iframe/docs/iframe-protocol.md) 的「四个方向各走一条路」一节），
+而它会跟着开关变。
 
 ## 高度：两侧都要定高，这一点与 theme-redoc 相反
 
@@ -228,8 +238,8 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
   `useInRouterContext()` 读不到这里的 context，它还是会自己再造一个路由；那时框里的地址照样变，
   但本层收不到，外层地址栏就不跟着换。版本线由本包 `package.json` 里那一条
   `"react-router-dom": "^6.30.6"` 钉住，它要和 `elements-core` 自己声明的那一条落在同一份产物上
-  （pnpm 的扁平安装在这里帮了忙，但它不是保证 —— 判据就是那句「详情面板换成那条接口，外层地址
-  也跟着换」）。
+  （pnpm 的扁平安装在这里帮了忙，但它不是保证 —— 判据就是那句「Elements 的详情面板换成那条接口，
+  外层地址也跟着换」）。
 - `options` 里那一条 `router: 'hash'` **不再**决定用哪种路由（外面那层 `HashRouter` 才是），它喂
   的是 Elements 的 `RouterTypeContext`：章节标题那颗锚点链接按这一格决定要不要把 `#id` 接在当前
   路径后面（`hash` 那一支会，见它包里的 `LinkHeading`）。
@@ -240,6 +250,20 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 404 摆在正文区 —— 左栏、搜索框、样式全在，页面看着完全正常，中间写着找不到内容。这一页
 `#/operations/createOrder` 那一段是 `operationId` **原样**（大小写不变），与 Redoc 那段全小写的
 形状不同，抄错就成了那种「看着正常其实空了」的失败。
+
+## 深链：Stoplight 这一层实测到的形状
+
+能发给别人的是**外层**那条地址：`/stoplight-demo#/operations/createOrder`。hash 段不参与取文件，
+浏览器请求的还是这一页自己的那份 html，产物里有它，所以 `pnpm serve` 回 **HTTP 200**。四个方向
+各走哪条路、为什么框内 → 外层不听 `hashchange`、为什么外层写地址用 `replaceState`，记在
+[`iframe-protocol.md`](../../theme-iframe/docs/iframe-protocol.md) 的「四个方向各走一条路」一节；
+这里只留这一层实测到的形状：
+
+- **整页直达一条深链时，正文区第一颗 `h1` 是那条接口的 summary，不是文档标题**：Elements 从地址
+  指的那一格往下铺（实测 `/stoplight-demo#/operations/createOrder` 那份文档里 `h1` 就是
+  「新建订单」），而先打开这一页再点下去时 `h1` 是「主题覆盖演示 API」。左栏那条 API 标题
+  （一颗 `h4`）两种入口都在、且只有一颗，所以「框里真取到了那份 yaml」这一句量的是它，
+  不是跟着入口形状变的 `h1`。
 
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 

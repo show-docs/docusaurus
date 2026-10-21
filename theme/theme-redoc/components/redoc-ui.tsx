@@ -56,7 +56,7 @@ export function RedocUI(props: Props) {
   // 服务端那一遍不在这里挡：渲染到这一格的只有 theme-iframe 那份框内工厂，它在浏览器之外就返回
   // `null`（spec 地址在地址栏里，那份数据服务端根本没有）。
   //
-  // 外面这一层 `HashRouter` 是本层的路由口径，理由见包 README 的「深链」一节：
+  // 外面这一层 `HashRouter` 是本层的路由口径，理由见包 `docs/internals.md` 的「路由」一节：
   // `RedocStandalone` 自己不带 `router` 选项，只在**没有外层路由**时补一个按路径的
   // `BrowserRouter`。地址改成 `#/…` 之后有两处对上：框内换成另一条接口不重新加载整份文档；
   // 外层那条能分享的地址（`/redoc-demo#/orders/createorder`）里 hash 不参与取文件，托管侧回 200
