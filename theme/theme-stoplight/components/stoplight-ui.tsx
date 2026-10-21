@@ -1,5 +1,8 @@
 import './stoplight-ui.css';
 
+// 交给 `@stoplight/elements` 的那个地址，加上「选中了哪条接口」报给框外那一份文档 ——
+// 这一格的形状由 theme-iframe 那份框内工厂给出（`ApiFrameViewProps`），三份渲染接线共用一份。
+import type { ApiFrameViewProps as Props } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 import { API } from '@stoplight/elements';
 // 这一条 `import` 拿到的不是「把这文件打进 bundle」，而是**它单独那个产物的地址**（一个字符串）：
 // `src/index.mts` 给这一条路径配了 webpack 的 `asset/resource` 规则，并把它从 Docusaurus 的 css
@@ -14,13 +17,6 @@ import stoplightStylesUrl from '@stoplight/elements/styles.min.css';
 
 import { useEffect, useRef } from 'react';
 import { HashRouter, useLocation } from 'react-router-dom';
-
-// 交给 `@stoplight/elements` 的那个地址，加上「选中了哪条接口」报给框外那一份文档（用它的就是
-// theme-iframe 那份框内工厂）。形状与 `theme-redoc` 的 `RedocUI` 一致。
-type Props = {
-  url: string;
-  onRouteChange: (hash: string) => void;
-};
 
 /**
 框内那份文档拿来说「现在是暗色」的那条属性。

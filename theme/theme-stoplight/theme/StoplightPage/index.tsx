@@ -1,9 +1,8 @@
 import { createApiFrameView } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 
-// 外层版式（`.stoplight-frame` 定高、容器让位、页脚收掉）归本包声明，规则留在
-// `stoplight-frame.css`；外层套壳收拢到 theme-iframe 之后，这一句 import 就是它进全站
-// bundle 的唯一通道。
-import '../../components/stoplight-frame.css';
+// 外层那一格版式（框定高、容器让位、页脚收掉）整条在 theme-iframe 的
+// `components/api-frame.css` 里，四条层共用；本包不再有只属于自己的那条外层规则，
+// 所以这里不 import 任何外层 CSS（本包的 CSS 由下面那份 `stoplight-ui.tsx` 带进 bundle）。
 
 import {
   COLOR_MODE_ATTRIBUTE,

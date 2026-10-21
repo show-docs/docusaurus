@@ -1,5 +1,8 @@
 import './redoc-ui.css';
 
+// 渲染要用的那份文档地址，加上「选中了哪条接口」报给框外那一份文档 ——
+// 这一格的形状由 theme-iframe 那份框内工厂给出（`ApiFrameViewProps`），三份渲染接线共用一份。
+import type { ApiFrameViewProps as Props } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 import { RedocStandalone } from 'redoc';
 import { StyleSheetManager } from 'styled-components';
 
@@ -11,13 +14,6 @@ import { followSiteColorMode } from './redoc-color-mode.ts';
 // 包着 Redoc 的那层壳。`redoc-ui.css` 收掉的三处、e2e 那几条判据都认这个类名；
 // 它**不再**参与样式圈定（那件事现在由 iframe 的文档边界负责，见 `redoc-color-mode.ts`）。
 const REDOC_ROOT_CLASS = 'redoc-root';
-
-type Props = {
-  /** 要渲染的那份 OpenAPI 文档的地址。 */
-  url: string;
-  /** 选中了哪条接口，报给框外那一份文档（用它的就是 theme-iframe 那份框内工厂）。 */
-  onRouteChange: (hash: string) => void;
-};
 
 /**
 站在 `HashRouter` 里面，把「地址里 `#` 那一段」报给外面。

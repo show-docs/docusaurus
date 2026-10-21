@@ -8,15 +8,14 @@
 
 ## 组成
 
-| 文件                             | 编译吗              | 职责                                                                                                                                                                                                                                                                    |
-| -------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/stoplight-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它，干两件事（把 Elements 那份 css 拆成独立产物 + 补浏览器 bundle 缺的 Node 侧依赖） |
-| `theme/StoplightPage/index.tsx`  | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`StoplightUI`、亮暗的属性名；这一句 import 也是 `stoplight-frame.css` 进全站 bundle 的唯一通道                                                                                  |
-| `components/stoplight-frame.css` | ❌ 站点编译         | **只属于本层的那一条**：页脚收掉（见「高度」一节）。框定高与正文容器让位不在这份里，四条层共用 theme-iframe 那份 `components/api-frame.css`；类名 `stoplight-frame` 取自注册表                                                                                          |
-| `components/stoplight-ui.tsx`    | ❌ 站点编译         | 浏览器端渲染 `API`（只收地址那一种入参），外面套 `HashRouter`；`LocationMirror` 把路由变化报给外层；那条 `<link>` 挂 Elements 的样式表                                                                                                                                  |
-| `components/stoplight-ui.css`    | ❌ 站点编译         | 生效在框内那一页：给 `.stoplight-root` 定高、把站点主题加在 Elements 子树上的几处默认样式还原、收掉署名与那颗发送按钮、滚动条配色沿用站点                                                                                                                               |
-| `module-aliases.d.ts`            | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                                                                                 |
-| `tsconfig.build.json`            | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                  |
+| 文件                            | 编译吗              | 职责                                                                                                                                                                                                                                                                    |
+| ------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/stoplight-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它，干两件事（把 Elements 那份 css 拆成独立产物 + 补浏览器 bundle 缺的 Node 侧依赖） |
+| `theme/StoplightPage/index.tsx` | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`StoplightUI`、亮暗的属性名；本包的 CSS 由 `stoplight-ui.tsx` 那一句 import 带进 bundle                                                                                         |
+| `components/stoplight-ui.tsx`   | ❌ 站点编译         | 浏览器端渲染 `API`（只收地址那一种入参），外面套 `HashRouter`；`LocationMirror` 把路由变化报给外层；那条 `<link>` 挂 Elements 的样式表                                                                                                                                  |
+| `components/stoplight-ui.css`   | ❌ 站点编译         | 生效在框内那一页：给 `.stoplight-root` 定高、把站点主题加在 Elements 子树上的几处默认样式还原、收掉署名与那颗发送按钮、滚动条配色沿用站点                                                                                                                               |
+| `module-aliases.d.ts`           | 类型                | 引官方 `@docusaurus/module-type-aliases`，给 `useIsBrowser` 与 `*.css` 这些构建期才存在的 import 补类型                                                                                                                                                                 |
+| `tsconfig.build.json`           | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                  |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -170,17 +169,20 @@ Elements 这一版没有给用户看的亮暗切换按钮（`theme-redoc` 那边
 
 ## 高度：两侧都要定高，这一点与 theme-redoc 相反
 
-**外层**：框的尺寸与正文容器让位四条层共用一条规则，住在
-[`theme-iframe` 的 `components/api-frame.css`](../../theme-iframe/README.md)（`.api-frame` 定高
-`calc(100vh - var(--ifm-navbar-height))` + `.container:has(iframe)` 去内边距与最大宽度），本包
-**不**重复写那两条。iframe 是一个「尺寸由外面决定」的元素，不给它定高，框就只有一点高、里面那份
-文档的滚动条也没地方长。
+**外层**：框的尺寸、正文容器让位与站点页脚这三条，四条层共用同一份
+[`theme-iframe` 的 `components/api-frame.css`](../../theme-iframe/components/api-frame.css)
+（`.api-frame` 定高 `calc(100vh - var(--ifm-navbar-height))` + `.container:has(iframe)` 去内边距
+与最大宽度 + `.main-wrapper:has(.api-frame) + .footer` 收页脚），本包**不**重复写那三条。
+iframe 是一个「尺寸由外面决定」的元素，不给它定高，框就只有一点高、里面那份文档的滚动条也没地方长。
 
-本包自己那条是页脚（`stoplight-frame.css` 挂在注册表给的 `.stoplight-frame` 上，`ApiFrame` 把它
-与共用的 `.api-frame` 一起挂在 `<iframe>` 上）：框已经占满 navbar
-以下那一屏，页脚留在下面只会被推出可视区，显式收掉与「整页交给 Elements」的观感一致。
-`theme-redoc` 与 `theme-scalar` 那两层没有这一条（页脚留着，redoc 那层实测落在可视区之外），
-三条 API 层里只有本层收掉它，这一处差别是本层自己的取舍。
+页脚那一格以前是本层独有的一条（写在 `stoplight-frame.css` 里、认注册表给的 `.stoplight-frame`）：
+框已经占满 navbar 以下那一屏，页脚留在下面只会被推出可视区，显式收掉与「整页交给 Elements」的观感
+一致。站点配上 `themeConfig.footer` 之后实测到那是**这一族共有的**问题 —— `theme-redoc`、
+`theme-scalar` 与 `theme-iframe` 自己那三条页，页脚留在框下面多出一条 238px 的空白（那一页因此
+能滚 238px，滚到的只有页脚），所以那条规则收进了上面那份共用的里，认四把层都挂的 `.api-frame`；
+本包不再有只属于自己的外层规则，`stoplight-frame.css` 随之删掉。判据是共用的那一句
+「这一页没有站点的页脚」（四把键的命中页各钉一次），反面一句「这一页有站点的页脚」钉在 markmap
+那一页上 —— 缺了反面那句，站点没装配页脚时正面试跑会假绿。
 
 **框内**（`stoplight-ui.css`）：`.stoplight-root` **也**定高，取 `100vh`。这一点与
 `theme-redoc` 正好相反，原因是两个渲染器的滚动模型不一样：Elements 自带内层滚动（左栏与右侧正文

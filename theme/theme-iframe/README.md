@@ -93,11 +93,15 @@ iframe: https://example.com/handbook/
   [`docs/iframe-protocol.md`](./docs/iframe-protocol.md) 与各层 README。
 - 命中的那页连官方 `DocItem/Metadata` 一起不要，所以浏览器标签页的标题与 `<meta description>`
   退回站点名，不跟这一页的 `title:` / `description:` 走。
-- `components/api-frame.css` 是**全局**样式，而且是四条层共用的那一格：`.api-frame` 的定高与
-  `.container:has(iframe)` 的让位都写在这份里，`.container:has(iframe)` 按「这一格里有 iframe」
+- `components/api-frame.css` 是**全局**样式，而且是四条层共用的那一格：`.api-frame` 的定高、
+  `.container:has(iframe)` 的让位，与 `.main-wrapper:has(.api-frame) + .footer` 收掉的站点页脚
+  都写在这份里。`.container:has(iframe)` 按「这一格里有 iframe」
   匹配，正文里手写的 iframe 也会让承载它的容器去掉内边距。把各层重复的那三条
   `.container:has(.X-frame)` 收进这一条时核过等价：那一格是 `.container` 自己，父链上没有别的
   宽度约束，`max-width: 100%` 与原先那些 `unset` 都落到「铺满」。
-- **只有尺寸与让位共用**：某一层要改自己那一格（比如页脚收不收），给它那个类名一条规则就够了，
-  不必再抄一份尺寸。三条 API 层的框各挂两个类名（`.api-frame` + `.redoc-frame` 这样），
+- **站点配了页脚（`themeConfig.footer`）才看得出这一条**：框占满 navbar 以下那一屏，页脚留在下面
+  就是一条只能滚到页脚的空白，所以命中页把它收掉。收掉的判据认的是共用的 `.api-frame` 而不是裸
+  `iframe` —— 正文里手写 iframe 的普通文档页不该顺带把整站页脚收掉。
+- **三条规则都共用，目前没有只属于一层的版式规则**：某一层真要改自己那一格，给它那个类名一条
+  规则就够了，不必再抄一份尺寸。三条 API 层的框各挂两个类名（`.api-frame` + `.redoc-frame` 这样），
   e2e 判「这一格是哪一层赢的」认的也是那第二个。

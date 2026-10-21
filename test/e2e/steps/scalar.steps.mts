@@ -2,7 +2,13 @@ import { expect } from '@playwright/test';
 import type { FrameLocator, Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-import { frameModeSignal, siteStyles, watchPageErrors } from '../helpers.mts';
+import {
+  frameModeSignal,
+  layerDemoUrl,
+  layerFrameDoc,
+  siteStyles,
+  watchPageErrors,
+} from '../helpers.mts';
 
 const { Given, When, Then } = createBdd();
 
@@ -28,12 +34,11 @@ Scalar 的路由也走 hash，但它按**标签 + 方法 + 路径**拼那一段�
 
 与另两层的一处形状差：orders 这一组**默认就是展开的**（实测三条接口链接都在 DOM 里、都可见），
 所以这里没有 redoc / stoplight 那条「先点开分组」，三条链接直接在「三个接口都在左栏」那一句里钉。
-*/
-const frameElement = (page: Page): Locator =>
-  page.locator('iframe.scalar-frame');
 
-const frameDoc = (page: Page): FrameLocator =>
-  frameElement(page).contentFrame();
+「打开哪一页」「框的 `src` 指向哪儿」那五句在三条层之间只差一个层名，实现收在
+`common.steps.mts`（句子按层名捕获、地址由层名算）；这里只留 Scalar 这一头独有的句子。
+*/
+const frameDoc = (page: Page): FrameLocator => layerFrameDoc(page, 'scalar');
 
 /**
 框里那份文档的 Scalar 根格。
@@ -43,8 +48,10 @@ const frameDoc = (page: Page): FrameLocator =>
 只带 `scalar-api-reference` 的那一颗才是布局根（实测 1 格）。本层包着它的那格 `<div>` 是挂载
 宿主，不带类名。
 */
-const root = (page: Page): Locator =>
-  frameDoc(page).locator('.scalar-app.scalar-api-reference');
+/** 那两格类名只写一处：`root` 量框内那一格，「这一页直接渲染 Scalar」量直接打开时的那一格。 */
+const scalarAppSelector = '.scalar-app.scalar-api-reference';
+
+const root = (page: Page): Locator => frameDoc(page).locator(scalarAppSelector);
 
 const menu = (page: Page): Locator => root(page).locator('aside');
 
@@ -60,11 +67,6 @@ const operationHrefs = [
   operationHref('GET', 'orders/{orderId}'),
 ];
 
-Given('我打开 scalar 示例页', async ({ page }) => {
-  watchPageErrors(page);
-  await page.goto('/scalar-demo');
-});
-
 /**
 整页加载一条**别人转发过来的接口地址**：`#tag/orders/POST/orders` 这段是框里点了接口之后
 由 postMessage 送进外层地址栏的。这一条钉的是它在静态产物里也打得开，而且是 **HTTP 200**
@@ -79,23 +81,10 @@ Given('我打开 scalar 示例页', async ({ page }) => {
 */
 Given('我直达 scalar 那条接口的地址', async ({ page }) => {
   watchPageErrors(page);
-  const response = await page.goto('/scalar-demo#tag/orders/POST/orders');
-  expect(response?.status(), '这条地址没被当成真页面来回').toBe(200);
-});
-
-/**
-命中页放的就那一个 iframe，`src` 指向本包那条插件路由。
-
-地址里带的是 frontmatter 那个 spec 地址（编码成 `src` 参数），**不带** hash：iframe 的 `src`
-只由配置决定，服务端与客户端算出的完全一样，深链那一段靠框里那句 ready 换进框内（见包 README
-的「路由与深链」）。这里比的是属性原文，不是解析后的绝对地址。
-*/
-Then('这一页放的是一个 iframe，指向 scalar 那条独立页面', async ({ page }) => {
-  await expect(frameElement(page), '命中页没有那一个 iframe').toHaveCount(1);
-  await expect(frameElement(page)).toHaveAttribute(
-    'src',
-    '/scalar-view?src=%2Fopenapi.yaml',
+  const response = await page.goto(
+    `${layerDemoUrl('scalar')}#tag/orders/POST/orders`,
   );
+  expect(response?.status(), '这条地址没被当成真页面来回').toBe(200);
 });
 
 // 取的是 `static/openapi.yaml`（产物里的 `/openapi.yaml`）：文档标题先证明框里真取到了。
@@ -450,13 +439,6 @@ postMessage 通道接（`theme/theme-iframe/lib/`：外层 `api-frame.tsx` 送�
 本身。量的那一格是框内那份文档 `<body>` 上的配色读数，为什么分支到 `<body>`，见
 `../helpers.mts` 的 `frameModeSignal`。
 */
-Given('我按操作系统的深色偏好打开 scalar 示例页', async ({ page }) => {
-  watchPageErrors(page);
-  // 要在加载前定下来：Scalar 那套配色里读系统偏好的是挂载那一次判定，加载完再改就只是改个媒体查询。
-  await page.emulateMedia({ colorScheme: 'dark' });
-  await page.goto('/scalar-demo');
-});
-
 Then(
   'Scalar 那一格收的是站点这一头的亮色，它自己那份类名不写暗色',
   async ({ page }) => {
@@ -505,24 +487,10 @@ Then('站点自己的那几处样式在暗色下也不被 Scalar 改写', async 
   ).toEqual(onScalarPage);
 });
 
-/**
-框内那条地址本身也是站点的一条页面：带着 `src` 就能独立打开（调试用，也证明这一层没有把
-渲染绑死在 iframe 上）。`src` 按 frontmatter 那个值写，与 iframe 属性里那条一字不差。
-*/
-Given('我直接打开 scalar 框内那条地址', async ({ page }) => {
-  watchPageErrors(page);
-  const response = await page.goto('/scalar-view?src=%2Fopenapi.yaml');
-  expect(response?.status(), '框内那条地址在产物里不存在').toBe(200);
-});
-
 Then('这一页直接渲染 Scalar', async ({ page }) => {
-  const app = page.locator('.scalar-app.scalar-api-reference');
+  const app = page.locator(scalarAppSelector);
   await expect(app).toBeVisible();
   await expect(app).toContainText('主题覆盖演示 API');
-});
-
-When('我把 scalar 框内那条地址里的 spec 去掉', async ({ page }) => {
-  await page.goto('/scalar-view');
 });
 
 /**

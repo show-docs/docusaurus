@@ -8,4 +8,5 @@ Feature: theme-markmap
     And 导图已经画出来，节点和工具条都在
     And 导图落在正文标题的上方
     And 原文那几行照常在场
+    And 这一页有站点的页脚
     And 浏览器里没有运行期错误

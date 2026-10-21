@@ -5,11 +5,16 @@ import {
   frameMarks,
   frameModeSignal,
   frameTimeOrigin,
+  layerDemoUrl,
+  layerFrame,
+  layerFrameSrc,
+  layerViewUrl,
   themeFrame,
+  themeLayers,
   watchPageErrors,
 } from '../helpers.mts';
 
-const { Then, When } = createBdd();
+const { Given, When, Then } = createBdd();
 
 /**
 每条用例的最后一句：这一路点下来，浏览器一个字都不该报。
@@ -21,6 +26,85 @@ Then('浏览器里没有运行期错误', async ({ page }) => {
   const errors = watchPageErrors(page);
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+/**
+## 三条层「打开哪一页」与「那个框指向哪儿」，五句共用一份实现
+
+三层（`theme-redoc`、`theme-stoplight`、`theme-scalar`）各有同形状的两条页面：示例页
+`/{层名}-demo`（整页交给框那一条文档页）与本包那条插件路由 `/{层名}-view`（框内那一份文档）。
+这五句两两之间只差层名，所以句子按层名捕获、地址由层名算（`../helpers.mts` 的 `themeLayers`），
+实现只有一份。
+
+正则步骤：playwright-bdd 的 Cucumber 表达式里中文句子带参数不好解析，捕获组最稳
+（同下面「框的无障碍标题」那一条）。
+*/
+const layerWord = themeLayers.join('|');
+
+/** 捕获组交回的是 `string`，这里按那份清单认出它是哪一层；认不出就是清单与句子脱了。 */
+function layerOf(word: string) {
+  const found = themeLayers.find((candidate) => candidate === word);
+  if (!found) {
+    throw new Error(
+      `句子里的层名「${word}」不在三层清单（${themeLayers.join('、')}）里`,
+    );
+  }
+  return found;
+}
+
+Given(new RegExp(`^我打开 (${layerWord}) 示例页$`), async ({ page }, word) => {
+  watchPageErrors(page);
+  await page.goto(layerDemoUrl(layerOf(word)));
+});
+
+/**
+系统偏好要在**加载前**定下来：三家渲染器都在挂载那一次读它，加载完再改就只是改个媒体查询。
+各层那一次读具体发生在哪儿，记在各包 `docs/internals.md` 的「亮暗模式」一节。
+*/
+Given(
+  new RegExp(`^我按操作系统的深色偏好打开 (${layerWord}) 示例页$`),
+  async ({ page }, word) => {
+    watchPageErrors(page);
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto(layerDemoUrl(layerOf(word)));
+  },
+);
+
+/**
+框内那条地址本身也是站点的一条页面：带着 `src` 就能独立打开（调试用，也证明这一层没有把渲染
+绑死在 iframe 上）。这一条钉它在静态产物里真是 **HTTP 200**。
+*/
+Given(
+  new RegExp(`^我直接打开 (${layerWord}) 框内那条地址$`),
+  async ({ page }, word) => {
+    watchPageErrors(page);
+    const response = await page.goto(layerFrameSrc(layerOf(word)));
+    expect(response?.status(), '框内那条地址在产物里不存在').toBe(200);
+  },
+);
+
+/** 把上面那条地址里的 `src` 去掉：这一格要钉的是「缺了 spec 就什么都不摆」。 */
+When(
+  new RegExp(`^我把 (${layerWord}) 框内那条地址里的 spec 去掉$`),
+  async ({ page }, word) => {
+    await page.goto(layerViewUrl(layerOf(word)));
+  },
+);
+
+/**
+命中页放的就那一个 iframe，`src` 指向本包那条插件路由。
+
+地址里带的是 frontmatter 那个 spec 地址（编码成 `src` 参数），**不带** hash：iframe 的 `src`
+只由配置决定，服务端与客户端算出的完全一样，深链那一段靠框里那句 ready 换进框内
+（见 `theme/theme-iframe/docs/iframe-protocol.md`）。这里比的是属性原文，不是解析后的绝对地址。
+*/
+Then(
+  new RegExp(`^这一页放的是一个 iframe，指向 (${layerWord}) 那条独立页面$`),
+  async ({ page }, word) => {
+    const frame = layerFrame(page, layerOf(word));
+    await expect(frame, '命中页没有那一个 iframe').toHaveCount(1);
+    await expect(frame).toHaveAttribute('src', layerFrameSrc(layerOf(word)));
+  },
+);
 
 /**
 整页替换那一族（`theme-iframe` 的 `DocItem` 按 `lib/api-frame-registry.ts` 的顺序判四把键：
@@ -126,6 +210,27 @@ Then('正文容器在这一页让位', async ({ page }) => {
     .filter({ has: themeFrame(page) });
   await expect(container, 'iframe 没落在 `.container` 里').toHaveCount(1);
   await expect(container).toHaveCSS('padding', '0px');
+});
+
+/**
+命中页把站点页脚收掉：那条 `.main-wrapper:has(.api-frame) + .footer` 在 theme-iframe 那份共用
+版式里，四条层都吃它（以前只写在 stoplight 自己那份、认 `stoplight-frame`，另外三条漏掉）。
+判的是**计算后的 display**而不是元素在不在 DOM 里 —— 页脚由 SSR 一并渲染，DOM 里一直在场，
+只有 CSS 把它收掉；`toHaveCSS` 会等样式表落地，不靠固定等待。
+*/
+Then('这一页没有站点的页脚', async ({ page }) => {
+  await expect(page.locator('footer.footer')).toHaveCSS('display', 'none');
+});
+
+/**
+另一头：没命中任何一把键的文档页，页脚照常在场。这一句和上面那句是一对，缺了它上面那句会假绿
+（站点没配 `themeConfig.footer` 时两条都读不到东西）。这里连 DOM 一起判，确保配的就是页脚本体
+而不是别的 `.footer`。
+*/
+Then('这一页有站点的页脚', async ({ page }) => {
+  const footer = page.locator('footer.footer');
+  await expect(footer, '站点没配上 themeConfig.footer').toHaveCount(1);
+  await expect(footer).not.toHaveCSS('display', 'none');
 });
 
 /**

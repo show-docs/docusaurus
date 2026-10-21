@@ -2,17 +2,13 @@ import '@scalar/api-reference/style.css';
 import './scalar-ui.css';
 
 import { createApiReference } from '@scalar/api-reference';
+// 渲染要用的那份文档地址，加上「选中了哪条接口」报给框外那一份文档 ——
+// 这一格的形状由 theme-iframe 那份框内工厂给出（`ApiFrameViewProps`），三份渲染接线共用一份。
+import type { ApiFrameViewProps as Props } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 
 import { useEffect, useRef } from 'react';
 
 import { isDarkColorModeAtLoad } from './scalar-color-mode.ts';
-
-type Props = {
-  /** 要渲染的那份 OpenAPI 文档的地址。 */
-  url: string;
-  /** 选中了哪条接口，报给框外那一份文档（用它的就是 theme-iframe 那份框内工厂）。 */
-  onRouteChange: (hash: string) => void;
-};
 
 /**
 把 Scalar 挂到这一格 `<div>` 上，并把两头的地址对接起来。

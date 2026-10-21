@@ -43,7 +43,9 @@ import {
 
 /** 三份渲染接线的共同形状：文档地址，加上「框内换了接口，报给外层」那一句。 */
 export type ApiFrameViewProps = {
+  /** 选中了哪条接口，报给框外那一份文档（就是下面那份 `createRouteReporter` 造的函数）。 */
   onRouteChange: (hash: string) => void;
+  /** 要渲染的那份 OpenAPI 文档的地址（从框内那条地址的 `src` 参数里解出来）。 */
   url: string;
 };
 

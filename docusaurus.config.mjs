@@ -57,6 +57,29 @@ const config = {
 
   themeConfig: {
     navbar: { title: 'Theme Override Test', items: [] },
+    footer: {
+      style: 'dark',
+      // 三条 API 层的示例页 + 那两条非 API 页，各占一列，用来验「整页交给框」时页脚该收掉
+      links: [
+        {
+          title: 'API 渲染器',
+          items: [
+            { label: 'Scalar', to: '/scalar-demo' },
+            { label: 'Redoc', to: '/redoc-demo' },
+            { label: 'Stoplight', to: '/stoplight-demo' },
+          ],
+        },
+        {
+          title: '其他',
+          items: [
+            { label: '思维导图', to: '/markmap-demo' },
+            { label: '外部页面（iframe）', to: '/iframe-demo' },
+          ],
+        },
+      ],
+      copyright:
+        'Theme Override Test —— 本页脚由站点 themeConfig.footer 配置。',
+    },
   },
 };
 

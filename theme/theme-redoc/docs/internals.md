@@ -332,7 +332,9 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 `RedocUI` 原先还留着「给内联文档」那一支（`spec` 收解析好的对象或 YAML/JSON 文本），和
 [`theme-stoplight` 的组件](../../theme-stoplight/components/stoplight-ui.tsx)是同一形状的 `Props`。
 两支在两条层里都没有调用方（frontmatter 取的就是一个地址），所以两条一起删了，理由记在
-stoplight 那份 README 的「怎么用」一节。
+stoplight 那份 README 的「怎么用」一节。删剩的那两格入参（`url` 与 `onRouteChange`）本来就是三条层
+同一个形状，所以类型也不再多份：三个组件引的是框内工厂那份 `ApiFrameViewProps`
+（[`theme-iframe` 的 `lib/api-frame-view.tsx`](../../theme-iframe/lib/api-frame-view.tsx)）。
 
 ## 框内那份文档的 `<html>` 上落了什么（实测）
 

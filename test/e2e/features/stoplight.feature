@@ -17,6 +17,7 @@ Feature: theme-stoplight
     And 「powered by Stoplight」那条署名不出现
     And 「Try it」面板里那颗发送按钮不出现
     And 这一页没有文档正文外壳
+    And 这一页没有站点的页脚
     And 框的无障碍标题用的是页面自己的标题 "API 文档示例"
     And 正文容器在这一页让位
     And 框占满 navbar 以下那一屏
@@ -35,6 +36,7 @@ Feature: theme-stoplight
     Then Elements 在框里接管了这一屏，读的是本站那份 yaml
     And Elements 框里摆的是地址里那条接口
     And 这一页没有文档正文外壳
+    And 这一页没有站点的页脚
     And 正文容器在这一页让位
     And 框占满 navbar 以下那一屏
     And 浏览器里没有运行期错误

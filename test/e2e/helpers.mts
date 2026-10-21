@@ -138,14 +138,44 @@ export async function siteStyles(page: Page): Promise<SiteStyles> {
 
 `theme-iframe` 那一层放的也是 iframe，但那是别人站点的地址，没有本仓这套消息通道，所以这里
 按这三个层各自声明的类名认，不复用裸 `iframe`。
+
+## 层名：这一族 e2e 只认这一个词
+
+句子按它捕获（`我打开 redoc 示例页`），类名、示例页与框内那条页面的地址也由它算 —— 层名与
+注册表里那三条 internal 条目一对一（`frameClass` 是 `{层名}-frame`、`route` 是 `{层名}-view`；
+`theme-stoplight` 那一条 frontmatter 键写的是 `oas3:`，路由与类名用的还是 `stoplight`）。
+新增一条层在这里加一个词，各处地址与类名不用再各抄一份字面量。
 */
+export const themeLayers = ['redoc', 'scalar', 'stoplight'] as const;
+
+export type ThemeLayer = (typeof themeLayers)[number];
+
+/** 三层示例页的 frontmatter 里写的那份文档地址：`static/openapi.yaml`，产物里就是这一串。 */
+const layerSpec = '/openapi.yaml';
+
 export const themeFrame = (page: Page): Locator =>
-  page.locator(
-    'iframe.redoc-frame, iframe.stoplight-frame, iframe.scalar-frame',
-  );
+  page.locator(themeLayers.map((layer) => `iframe.${layer}-frame`).join(', '));
 
 export const themeFrameDoc = (page: Page): FrameLocator =>
   themeFrame(page).contentFrame();
+
+/** 某一层命中页里那一个 `<iframe>`（量的是**外层**这一份文档上的那一格）。 */
+export const layerFrame = (page: Page, layer: ThemeLayer): Locator =>
+  page.locator(`iframe.${layer}-frame`);
+
+/** 某一层框内那一份文档的框。 */
+export const layerFrameDoc = (page: Page, layer: ThemeLayer): FrameLocator =>
+  layerFrame(page, layer).contentFrame();
+
+/** 某一层的示例页：整页交给框那一条文档页 `/{层名}-demo`。 */
+export const layerDemoUrl = (layer: ThemeLayer): string => `/${layer}-demo`;
+
+/** 某一层框内那条独立页面（本包那条插件路由）：`/{层名}-view`，不带参数就是「缺 spec」那一格。 */
+export const layerViewUrl = (layer: ThemeLayer): string => `/${layer}-view`;
+
+/** 命中页那个框的 `src`，也是「带着 spec 独立打开」那一条用的地址：上面那条路由 + 那份 spec。 */
+export const layerFrameSrc = (layer: ThemeLayer): string =>
+  `${layerViewUrl(layer)}?src=${encodeURIComponent(layerSpec)}`;
 
 /**
 「站点这一头的配色落到框里了没有」那一句的读法：把框内那份文档上的两处读数拼成一串。

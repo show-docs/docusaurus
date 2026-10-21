@@ -188,9 +188,10 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
 
 **外层那一格共用一份**：`components/api-frame.css` 的 `.api-frame` 给框定高
 （`calc(100vh - var(--ifm-navbar-height))`）、`display: block`、去边框，`.container:has(iframe)`
-让正文容器去掉内边距与最大宽度 —— 四条层的 `<iframe>` 都挂 `.api-frame`，所以这四条规则只有一处。
-各层那个专属类名（`.scalar-frame`……）现在只用来认「这一格是哪一层赢的」，挂只属于一层的规则：
-目前只剩 stoplight 那条收页脚的。
+让正文容器去掉内边距与最大宽度，`.main-wrapper:has(.api-frame) + .footer` 收掉站点页脚 ——
+四条层的 `<iframe>` 都挂 `.api-frame`，所以这几条只有一处。
+各层那个专属类名（`.scalar-frame`……）现在只用来认「这一格是哪一层赢的」：e2e 按它判赢家，
+再没有只属于一层的版式规则（页脚那一条以前写在 `theme-stoplight` 自己那份里，另外三条因此漏掉）。
 
 **框内那一格与样式表怎么进来，三家不一样**，留在各包里：
 

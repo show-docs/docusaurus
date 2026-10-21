@@ -14,6 +14,7 @@ Feature: theme-iframe
     And 外层站点的壳还在，navbar 照旧
     And 本页 markdown 的正文一行都不剩
     And 这一页没有文档正文外壳
+    And 这一页没有站点的页脚
     And 浏览器里没有运行期错误
 
   Scenario: 地址栏带 path 参数时换嵌另一个页面

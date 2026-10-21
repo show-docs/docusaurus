@@ -9,6 +9,7 @@ Feature: theme-iframe 注册表 —— 同页多把键按注册表顺序判
     Given 我打开四把键同写的演示页
     Then 这一页只摆一个框，而且是 scalar 那一个
     And 这一页没有文档正文外壳
+    And 这一页没有站点的页脚
     And 浏览器里没有运行期错误
 
   # 上一份夹具只钉得住「scalar 赢」；这一份拿掉 scalar 那把，剩下三把按顺序该 redoc 赢 ——
@@ -17,4 +18,5 @@ Feature: theme-iframe 注册表 —— 同页多把键按注册表顺序判
     Given 我打开不写 scalar 的三把键演示页
     Then 这一页只摆一个框，而且是 redoc 那一个
     And 这一页没有文档正文外壳
+    And 这一页没有站点的页脚
     And 浏览器里没有运行期错误

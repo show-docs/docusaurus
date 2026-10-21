@@ -15,6 +15,7 @@ Feature: theme-redoc
     Then 详情面板换成那条接口
     And 代码块里的复制按钮还在
     And 这一页没有文档正文外壳
+    And 这一页没有站点的页脚
     And 框的无障碍标题用的是页面自己的标题 "Redoc 示例"
     And 正文容器在这一页让位
     And 框占满 navbar 以下那一屏
@@ -36,6 +37,7 @@ Feature: theme-redoc
     And Redoc 自己的 404 没有出现
     And Redoc 框里摆的是地址里那条接口
     And 这一页没有文档正文外壳
+    And 这一页没有站点的页脚
     And 正文容器在这一页让位
     And 框占满 navbar 以下那一屏
     And 浏览器里没有运行期错误

@@ -2,7 +2,13 @@ import { expect } from '@playwright/test';
 import type { FrameLocator, Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-import { frameModeSignal, siteStyles, watchPageErrors } from '../helpers.mts';
+import {
+  frameModeSignal,
+  layerDemoUrl,
+  layerFrameDoc,
+  siteStyles,
+  watchPageErrors,
+} from '../helpers.mts';
 
 const { Given, When, Then } = createBdd();
 
@@ -18,17 +24,14 @@ const { Given, When, Then } = createBdd();
   `html` 那一颗，回调里再拿 `el.ownerDocument`。
 
 同源，两边都能直接读 DOM 与 CSSOM，不需要往测试里塞第二层通道。
-「切成暗色」「做个记号」「配色跟着翻」那三步两层共用，在 `common.steps.mts`。
+「切成暗色」「做个记号」「配色跟着翻」那三步，加上「打开哪一页」「框的 `src` 指向哪儿」那五句，
+三层只差一个层名，共用一份实现，在 `common.steps.mts`。
 
 Elements 的路由也走 hash，但它认 `operationId` **原样**（`createOrder` 就是 `createOrder`，
 Redoc 那边是小写的），下面的 href 按浏览器里真的那串写。href 不带路径前缀，是因为框内那份文档
 的地址里没有前缀可剥（口径记在 `theme/theme-stoplight/docs/internals.md`）。
 */
-const frameElement = (page: Page): Locator =>
-  page.locator('iframe.stoplight-frame');
-
-const frameDoc = (page: Page): FrameLocator =>
-  frameElement(page).contentFrame();
+const frameDoc = (page: Page): FrameLocator => layerFrameDoc(page, 'stoplight');
 
 /** 包着 Elements 的那层壳，也是本层那份版式的作用范围。 */
 const root = (page: Page): Locator => frameDoc(page).locator('.stoplight-root');
@@ -38,11 +41,6 @@ const operationHref = (operationId: string): string =>
 
 const operationIds = ['listOrders', 'createOrder', 'getOrder'];
 
-Given('我打开 stoplight 示例页', async ({ page }) => {
-  watchPageErrors(page);
-  await page.goto('/stoplight-demo');
-});
-
 /**
 整页加载一条**别人转发过来的接口地址**：`#/operations/createOrder` 这段是框里点了接口之后
 送进外层地址栏的。这一条钉的是它在静态产物里也打得开，而且是 **HTTP 200** —— 页面本身是
@@ -50,34 +48,11 @@ Given('我打开 stoplight 示例页', async ({ page }) => {
 */
 Given('我直达 stoplight 那条接口的地址', async ({ page }) => {
   watchPageErrors(page);
-  const response = await page.goto('/stoplight-demo#/operations/createOrder');
+  const response = await page.goto(
+    `${layerDemoUrl('stoplight')}#/operations/createOrder`,
+  );
   expect(response?.status(), '这条地址没被当成真页面来回').toBe(200);
 });
-
-Given('我按操作系统的深色偏好打开 stoplight 示例页', async ({ page }) => {
-  watchPageErrors(page);
-  // 要在加载前定下来：Elements 那套配色里读系统偏好的是它自己那份判定，加载完再改就只是改个媒体查询。
-  await page.emulateMedia({ colorScheme: 'dark' });
-  await page.goto('/stoplight-demo');
-});
-
-/**
-命中页放的就那一个 iframe，`src` 指向本包那条插件路由。
-
-地址里带的是 frontmatter 那个 spec 地址（编码成 `src` 参数），**不带** hash：iframe 的 `src`
-只由配置决定，服务端与客户端算出的完全一样，深链那一段靠框里那句 ready 换进框内。
-这里比的是属性原文，不是解析后的绝对地址。
-*/
-Then(
-  '这一页放的是一个 iframe，指向 stoplight 那条独立页面',
-  async ({ page }) => {
-    await expect(frameElement(page), '命中页没有那一个 iframe').toHaveCount(1);
-    await expect(frameElement(page)).toHaveAttribute(
-      'src',
-      '/stoplight-view?src=%2Fopenapi.yaml',
-    );
-  },
-);
 
 /**
 取的是 `static/openapi.yaml`（产物里的 `/openapi.yaml`）：文档标题先证明框里真取到了。
@@ -394,25 +369,11 @@ Then('站点自己的那几处样式在暗色下也不被 Elements 改写', asyn
   ).toEqual(onStoplightPage);
 });
 
-/**
-框内那条地址本身也是站点的一条页面：带着 `src` 就能独立打开（调试用，也证明这一层没有把渲染
-绑死在 iframe 上）。`src` 按 frontmatter 那个值写，与 iframe 属性里那条一字不差。
-*/
-Given('我直接打开 stoplight 框内那条地址', async ({ page }) => {
-  watchPageErrors(page);
-  const response = await page.goto('/stoplight-view?src=%2Fopenapi.yaml');
-  expect(response?.status(), '框内那条地址在产物里不存在').toBe(200);
-});
-
 Then('这一页直接渲染 Elements', async ({ page }) => {
   await expect(page.locator('.stoplight-root')).toBeVisible();
   await expect(page.locator('.stoplight-root')).toContainText(
     '主题覆盖演示 API',
   );
-});
-
-When('我把 stoplight 框内那条地址里的 spec 去掉', async ({ page }) => {
-  await page.goto('/stoplight-view');
 });
 
 /**

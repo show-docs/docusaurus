@@ -2,7 +2,13 @@ import { expect } from '@playwright/test';
 import type { FrameLocator, Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-import { frameModeSignal, siteStyles, watchPageErrors } from '../helpers.mts';
+import {
+  frameModeSignal,
+  layerDemoUrl,
+  layerFrameDoc,
+  siteStyles,
+  watchPageErrors,
+} from '../helpers.mts';
 
 const { Given, When, Then } = createBdd();
 
@@ -20,6 +26,9 @@ const { Given, When, Then } = createBdd();
 
 同源，所以两边都能直接读 DOM 与 CSSOM，不需要往测试里塞第二层通道。
 
+「打开哪一页」「框的 `src` 指向哪儿」那五句在三条层之间只差一个层名，实现收在
+`common.steps.mts`（句子按层名捕获、地址由层名算）；这里只留 Redoc 这一头独有的句子。
+
 Redoc 的路由走 hash：左栏那些链接由它自己拼成 `#/orders/…`；`operationId` 被小写进地址
 （`createOrder` → `createorder`），下面的 href 按浏览器里真的那串写。href 不带路径前缀，
 是因为组件里 `basePath` 用的是默认值 `/`（口径记在 `theme/theme-redoc/docs/internals.md`）。
@@ -27,11 +36,7 @@ Redoc 的路由走 hash：左栏那些链接由它自己拼成 `#/orders/…`；
 每条都限定在 `.menu-content` 里：正文面板上也有指向同一个接口的锚（标签标题旁那个
 「link to orders」），不限定就会命中两处，Playwright 的严格模式直接报错。
 */
-const frameElement = (page: Page): Locator =>
-  page.locator('iframe.redoc-frame');
-
-const frameDoc = (page: Page): FrameLocator =>
-  frameElement(page).contentFrame();
+const frameDoc = (page: Page): FrameLocator => layerFrameDoc(page, 'redoc');
 
 const menu = (page: Page): Locator =>
   frameDoc(page).locator('.redoc-root .menu-content');
@@ -39,11 +44,6 @@ const menu = (page: Page): Locator =>
 const root = (page: Page): Locator => frameDoc(page).locator('.redoc-root');
 
 const menuHref = (name: string): string => `#/orders/${name}`;
-
-Given('我打开 redoc 示例页', async ({ page }) => {
-  watchPageErrors(page);
-  await page.goto('/redoc-demo');
-});
 
 /**
 整页加载一条**别人转发过来的接口地址**：`#/orders/createorder` 这段是框里点了接口之后
@@ -53,23 +53,10 @@ Given('我打开 redoc 示例页', async ({ page }) => {
 */
 Given('我直达 redoc 那条接口的地址', async ({ page }) => {
   watchPageErrors(page);
-  const response = await page.goto('/redoc-demo#/orders/createorder');
-  expect(response?.status(), '这条地址没被当成真页面来回').toBe(200);
-});
-
-/**
-命中页放的就那一个 iframe，`src` 指向本包那条插件路由。
-
-地址里带的是 frontmatter 那个 spec 地址（编码成 `src` 参数），**不带** hash：iframe 的 `src`
-只由配置决定，服务端与客户端算出的完全一样，深链那一段靠框里那句 ready 换进框内（见包 README
-的「深链」）。这里比的是属性原文，不是解析后的绝对地址。
-*/
-Then('这一页放的是一个 iframe，指向 redoc 那条独立页面', async ({ page }) => {
-  await expect(frameElement(page), '命中页没有那一个 iframe').toHaveCount(1);
-  await expect(frameElement(page)).toHaveAttribute(
-    'src',
-    '/redoc-view?src=%2Fopenapi.yaml',
+  const response = await page.goto(
+    `${layerDemoUrl('redoc')}#/orders/createorder`,
   );
+  expect(response?.status(), '这条地址没被当成真页面来回').toBe(200);
 });
 
 // 取的是 `static/openapi.yaml`（产物里的 `/openapi.yaml`）：文档标题先证明框里真取到了。
@@ -328,13 +315,6 @@ Redoc 那条 `:root { background-color: var(--bg-color) }` 现在原样落在 `<
 `--bg-color` 那组变量，所以同一个属性跟着翻 —— 这也是为什么这里不能改去量 `.redoc-root`：
 那是本层包的一层壳，它自己没有底色。
 */
-Given('我按操作系统的深色偏好打开 redoc 示例页', async ({ page }) => {
-  watchPageErrors(page);
-  // 要在加载前定下来：Redoc 是在渲染时读 `matchMedia` 的，加载完再改就只是改个媒体查询。
-  await page.emulateMedia({ colorScheme: 'dark' });
-  await page.goto('/redoc-demo');
-});
-
 Then('Redoc 那一格收的是站点这一头的亮色，类名却写着深色', async ({ page }) => {
   // 框内那一格的亮暗由外层送进来（不是它自己读的），所以这一句钉的是那条消息确实到了、
   // 值是站点这一头的亮色。属性名与 `redoc-color-mode.ts` 里的 `COLOR_MODE_ATTRIBUTE` 同值。
@@ -390,23 +370,9 @@ Then('站点自己的那几处样式在暗色下也不被 Redoc 改写', async (
   ).toEqual(onRedocPage);
 });
 
-/**
-框内那条地址本身也是站点的一条页面：带着 `src` 就能独立打开（调试用，也证明这一层没有把
-渲染绑死在 iframe 上）。`src` 按 frontmatter 那个值写，与 iframe 属性里那条一字不差。
-*/
-Given('我直接打开 redoc 框内那条地址', async ({ page }) => {
-  watchPageErrors(page);
-  const response = await page.goto('/redoc-view?src=%2Fopenapi.yaml');
-  expect(response?.status(), '框内那条地址在产物里不存在').toBe(200);
-});
-
 Then('这一页直接渲染 Redoc', async ({ page }) => {
   await expect(page.locator('.redoc-root')).toBeVisible();
   await expect(page.locator('.redoc-root')).toContainText('主题覆盖演示 API');
-});
-
-When('我把 redoc 框内那条地址里的 spec 去掉', async ({ page }) => {
-  await page.goto('/redoc-view');
 });
 
 /**
