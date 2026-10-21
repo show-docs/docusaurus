@@ -1,27 +1,14 @@
 import fs from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, relative } from 'node:path';
 
 import type { LoaderContext } from 'webpack';
 
 import type { DiffData, LoaderContextExtras } from '../types.mts';
 
+import { readDiffValue, resolveDiffTarget } from './diff-decision.mts';
 import { findRepoRoot, readLastChange } from './git-diff.mts';
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
-const DIFF_KEY = /^diff[ \t]*:[ \t]*(\S.*)$/m;
-
-/** frontmatter 里那个值：`true`，或加不加引号的路径；`false` 与空值都算没开。 */
-function readDiffValue(frontMatterBlock: string): string | undefined {
-  const value = DIFF_KEY.exec(frontMatterBlock)?.[1]?.trim();
-
-  if (!value || value === 'false' || value === 'null') {
-    return undefined;
-  }
-
-  const quoted = /^(['"])(.*)\1$/.exec(value);
-
-  return (quoted?.[2] ?? value).trim();
-}
 
 /**
 差异数据；仓库外、或这份文件还没有「上一次改动」时返回 `undefined`。
@@ -62,10 +49,7 @@ export default function loader(
   }
 
   // `diff: true` 对比本文自己；写成路径时相对这份 md 所在目录去找
-  const target =
-    value === 'true'
-      ? this.resourcePath
-      : resolve(dirname(this.resourcePath), value);
+  const target = resolveDiffTarget(value, this.resourcePath);
 
   if (!fs.existsSync(target)) {
     this.emitWarning(
@@ -88,11 +72,11 @@ export default function loader(
 
     callback(null, `${source}\nexport const diff = ${JSON.stringify(data)};\n`);
   } catch (error) {
-    // git 本身出问题（仓库损坏、git 不在 PATH）只让这一页少一块视图，不让整站构建失败
+    // git 本身出问题（仓库损坏、git 不在 PATH）只让这一页少一块视图，不让整站构建失败。
+    // 抛出来的是 Error（`execFileSync` 与下面的读取都是），这里只是把 `catch` 到的 unknown
+    // 取回一句可读的消息。
     this.emitWarning(
-      `读取 ${value} 的 git 历史失败，这一页不渲染差异视图：${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      `读取 ${value} 的 git 历史失败，这一页不渲染差异视图：${(error as Error).message}`,
     );
     callback(null, source);
   }

@@ -1,14 +1,7 @@
 import { expect } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-import { watchPageErrors } from '../helpers.mts';
-
-const { Given, When, Then } = createBdd();
-
-Given('我打开 ERD 示例页', async ({ page }) => {
-  watchPageErrors(page);
-  await page.goto('/erd-demo');
-});
+const { When, Then } = createBdd();
 
 // 关系图画在浏览器里：`erdiagram` 把项目、枚举、表与图例都变成 X6 节点，
 // `ref` 变成边。表节点落在虚拟渲染的视口之外时 DOM 里根本不会有它，

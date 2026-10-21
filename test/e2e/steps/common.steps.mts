@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
 import {
@@ -11,6 +12,7 @@ import {
   layerViewUrl,
   themeFrame,
   themeLayers,
+  viewLayers,
   watchPageErrors,
 } from '../helpers.mts';
 
@@ -55,6 +57,22 @@ Given(new RegExp(`^我打开 (${layerWord}) 示例页$`), async ({ page }, word)
   watchPageErrors(page);
   await page.goto(layerDemoUrl(layerOf(word)));
 });
+
+/**
+## 四条视图层的「打开示例页」，一句共用
+
+`theme-markmap`、`theme-erd`、`theme-diff`、`theme-viewer` 各把一块视图挂在正文上方，第一步都是
+「打开这一层的示例页」，实现只差一个地址。句子与地址查 `../helpers.mts` 的 `viewLayers`：
+表里一行注册一条步骤，实现只有 `openDemoPage` 这一份，新增一层只加表里一行。
+*/
+async function openDemoPage(page: Page, demo: string): Promise<void> {
+  watchPageErrors(page);
+  await page.goto(demo);
+}
+
+for (const { step, demo } of viewLayers) {
+  Given(step, ({ page }) => openDemoPage(page, demo));
+}
 
 /**
 系统偏好要在**加载前**定下来：三家渲染器都在挂载那一次读它，加载完再改就只是改个媒体查询。

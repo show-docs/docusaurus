@@ -2,9 +2,7 @@ import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-import { watchPageErrors } from '../helpers.mts';
-
-const { Given, Then } = createBdd();
+const { Then } = createBdd();
 
 /**
 本层那一格：组件把说明行与视图一起套在自己这个节点里，所以「有没有这一格」与
@@ -15,11 +13,6 @@ const diffBlock = (page: Page): Locator => page.locator('[data-diff-view]');
 
 const diffView = (page: Page): Locator =>
   diffBlock(page).locator('.diff-tailwindcss-wrapper');
-
-Given('我打开差异视图示例页', async ({ page }) => {
-  watchPageErrors(page);
-  await page.goto('/diff-demo');
-});
 
 // 差异视图是 `DocItem` 的前一个兄弟节点，正文外壳从它下面才开始。这一格连同它自己
 // 那份按需加载的渲染代码都在懒 chunk 里，所以先等它出现，再比两者的位置。

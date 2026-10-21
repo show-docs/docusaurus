@@ -2,9 +2,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-import { watchPageErrors } from '../helpers.mts';
-
-const { Given, When, Then } = createBdd();
+const { When, Then } = createBdd();
 
 /** 正文里那几张图片：这一层判的就是它们，别的格（侧栏、页脚）不算。 */
 const bodyImages = (page: Page) =>
@@ -28,11 +26,6 @@ const expectSameImageAsInBody = async (page: Page, index: number) => {
   expect(source, '正文里没有这张图').not.toBeNull();
   await expect(viewerImage(page)).toHaveAttribute('src', source ?? '');
 };
-
-Given('我打开图片查看器示例页', async ({ page }) => {
-  watchPageErrors(page);
-  await page.goto('/viewer-demo');
-});
 
 Then('正文里的两张图片都在', async ({ page }) => {
   await expect(bodyImages(page), '示例页的正文该有两张图片').toHaveCount(2);

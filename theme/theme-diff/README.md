@@ -33,6 +33,16 @@ diff: true
 
 差异视图渲染在整页内容上方；正文仍由官方 `DocItem` 正常渲染，标题、目录、翻页都不受影响。
 
+## 层栈
+
+本层提供 `theme/DocItem/index.tsx`：它先向下面那一层要 `DocItem` 的实现
+（`@theme-prev/DocItem`），把差异视图摆在它前面，正文那一格照常交下去。命不中（frontmatter
+没写 `diff`，或写了却没取到上一次改动）时原样交回，这一页看不出这一层存在过。
+
+层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
+[`plugin-prev-layer-resolver` 的 README](../../plugins/plugin-prev-layer-resolver/README.md)；
+这一层自己只负责「摆在哪一格」。
+
 ## 配置
 
 没有插件选项。`diff` 的值决定对比哪份文件：
@@ -53,7 +63,6 @@ diff: true
   追加到 md 模块的导出上；差异组件在 `DocItem` 前渲染。
 - 差异视图按站点亮暗模式取色；展开与并排视图（GitHub 的分栏样式）在组件里写死。
 - 差异数据在构建时就算好了，成品站点里的这一页不再需要 `git`。
-- 一次 git 调用用的是参数数组而不是拼好的命令串，路径里有空格或引号也不会被拆开。
 - 视图初始化失败时显示一条提示，正文继续渲染。
 
 ## 已知限制
@@ -69,5 +78,6 @@ diff: true
 
 ## 相关文档
 
+- [维护者文档](./docs/internals.md)：组成、`git` 那几步、取不到历史时的几种落点。
 - [差异视图示例](../../docs/diff-demo.md)。
 - [git-diff-view 文档](https://mrwangjusttodo.github.io/git-diff-view)。

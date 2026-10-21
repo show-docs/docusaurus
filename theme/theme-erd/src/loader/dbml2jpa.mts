@@ -138,7 +138,7 @@ export function dbml2jpa(model: DbmlModel): string {
 
 import java.util.Date;
 
-import com.eaphone.smarthealth.model.BaseEntity;
+import com.example.demo.model.BaseEntity;
 
 ${imports.toSorted((a, b) => a.localeCompare(b)).join('\n')}
 
@@ -185,7 +185,7 @@ import java.util.Date;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.eaphone.smarthealth.service.BaseJpaService;
+import com.example.demo.service.BaseJpaService;
 
 @Service
 public class ${javaTableName}Service extends BaseJpaService<${javaTableName}> {
@@ -218,7 +218,7 @@ import java.util.Date;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.eaphone.smarthealth.util.DateUtil;
+import com.example.demo.util.DateUtil;
 
 @Component
 public class Write${javaTableName}Task extends BaseJobTask<${javaTableName}> {

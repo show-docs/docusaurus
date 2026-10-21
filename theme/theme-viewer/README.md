@@ -29,6 +29,16 @@ export default {
 注册之后，每篇文档正文里的图片都归查看器管。同一页的多张图进同一个图集，查看器里的
 「上一张 / 下一张」按它们在页面里出现的顺序走。
 
+## 层栈
+
+本层提供 `theme/DocItem/Content/index.tsx`：它先向下面那一层要 `DocItem/Content` 的实现
+（`@theme-prev/DocItem/Content`），正文原样交下去，只在它外面套一层查看器。这一层不摆自己的
+DOM、也不读 frontmatter，命不中（正文没有图片）时等于透明。
+
+层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
+[`plugin-prev-layer-resolver` 的 README](../../plugins/plugin-prev-layer-resolver/README.md)；
+这一层自己只负责「挂在哪一格」。
+
 ## 配置
 
 没有插件选项。工具条上摆哪几颗按钮写死在 `components/viewer.tsx` 的 `options` 里
@@ -39,12 +49,8 @@ export default {
 - 这一层覆盖 `DocItem/Content`，正文原样交给下面的实现；它自己不放任何 DOM，
   只在正文落位之后把里面的图片接上查看器。
 - `viewerjs` 在浏览器里按需加载：正文没有图片的页面不会请求它。
-- 第三方那份样式表要过站点的样式表管线，本包替它补了两处：它写的是 CSS 原生嵌套，而压缩器
-  不认嵌套（会把子层的声明并进父选择器、再多吐一个 `}`），所以入口的 `configurePostCss()`
-  先按本包自带的 `postcss-nesting` 摊平一次；压缩器还会把声明相同的选择器并到一处、
-  顺带改变先后顺序，而查看器的「展开」靠的就是 `.viewer-in` 排在 `.viewer-fade` 后面，
-  于是展开态读回 `opacity: 0`，`styles/viewer.css` 把这一格写成 `.viewer-container.viewer-in`
-  —— 比的是特异性，不是先后顺序。
+- 第三方那份样式表要过站点的样式表管线，本包替它补了两处（嵌套摊平与展开态的先后顺序），
+  否则查看器打开是透明的；实测口径见[维护者文档](./docs/internals.md)。
 - 换页时先销毁上一个查看器再接新的一页，图片清单跟着页面走。
 - 初始化失败只在控制台留一条 warning，正文照常渲染。
 
@@ -58,5 +64,6 @@ export default {
 
 ## 相关文档
 
+- [维护者文档](./docs/internals.md)：组成、挂与不挂的两处判据、第三方样式表要补的那两处。
 - [图片查看器示例](../../docs/viewer-demo.md)。
 - [viewerjs 文档](https://fengyuanchen.github.io/viewerjs/)。

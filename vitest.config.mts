@@ -29,13 +29,17 @@ export default defineConfig({
       provider: 'istanbul',
       reporter: ['lcov', 'json-summary'],
       reportsDirectory: './coverage',
-      // 红线盖住两处：核心解析器的纯逻辑，与 theme-iframe 那条框的 `lib/`（配置期的注册表 /
-      // 分发 / 入口工厂，浏览器侧的消息形状与两条同步 hook）。
+      // 红线盖住三处：核心解析器的纯逻辑、theme-iframe 那条框的 `lib/`（配置期的注册表 /
+      // 分发 / 入口工厂，浏览器侧的消息形状与两条同步 hook），与两条**构建期判据**的 loader
+      //（`theme-diff`：frontmatter 那把键与 git 里那一次改动；`theme-erd`：一份 `.dbml`
+      // 落成六种格式的导出）。哪个 theme 包不在红线里、为什么，见 `test/README.md`。
       // `lib/` 里浏览器那几份要 DOM，靠测试文件自己标 `@vitest-environment jsdom` 切环境，
       // 全局口径仍是 node。
       include: [
         'plugins/plugin-prev-layer-resolver/src/**/*.mts',
         'theme/theme-iframe/lib/**',
+        'theme/theme-diff/src/loader/**/*.mts',
+        'theme/theme-erd/src/loader/**/*.mts',
       ],
       exclude: [
         'plugins/plugin-prev-layer-resolver/src/**/*.d.mts',

@@ -54,6 +54,16 @@ loader 会先摘掉它再把剩下的部分交给 DBML 解析器。
 - 六个代码页：`DBML`、`MySQL`、`PostgreSQL`、`JSON`、`JSON Schema`、`Spring Data JPA`。
 - 枚举与表字段的说明表格（字段、含义、类型、非空、唯一、自增、默认值）。
 
+## 层栈
+
+本层提供 `theme/DocItem/index.tsx`：它先向下面那一层要 `DocItem` 的实现
+（`@theme-prev/DocItem`），把关系图摆在它前面，正文那一格照常交下去。命不中（这一页不是
+`.dbml`，产物里没有 `dbml_json` 那条导出）时原样交回，这一页看不出这一层存在过。
+
+层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
+[`plugin-prev-layer-resolver` 的 README](../../plugins/plugin-prev-layer-resolver/README.md)；
+这一层自己只负责「摆在哪一格」。
+
 ## 配置
 
 没有插件选项。JSON Schema 与 Spring Data JPA 两页是固定模板（字段命名与 Java 类型映射
@@ -77,5 +87,6 @@ loader 会先摘掉它再把剩下的部分交给 DBML 解析器。
 
 ## 相关文档
 
+- [维护者文档](./docs/internals.md)：组成、`@dbml/core` 实测到的形状、两页模板里写死的约定。
 - [数据库关系图示例](../../docs/erd-demo.dbml)。
 - [DBML 语法](https://dbml.dbdiagram.io/docs/)。

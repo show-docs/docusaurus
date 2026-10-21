@@ -172,8 +172,9 @@ export default function loader(
   try {
     callback(null, createMdx(source));
   } catch (error) {
-    // `exporter.export()` 抛的就是 Error（DBML 语法错误时带位置信息），这里只是把
-    // `catch` 到的 unknown 交回 webpack 回调要的签名
+    // 语法错或引用错时 `exporter.export()` 抛的**不是** `Error`，而是解析器那份
+    // `{ diags: [{ message, location }] }`（行列都在里面）。这里原样交回，不拼成一句
+    // 只剩 `[object Object]` 的消息；要把它收成一条 `Error` 是改行为，先看这一份形状。
     callback(error as Error);
   }
 }

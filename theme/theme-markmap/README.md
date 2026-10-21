@@ -28,12 +28,22 @@ title: 思维导图示例
 markmap: true
 ---
 
-# 主题覆盖验证
+# 一级标题
 
-## 层栈
+## 二级标题
 ```
 
 导图渲染在整页内容上方；正文仍由官方 `DocItem` 正常渲染，标题、目录、翻页都不受影响。
+
+## 层栈
+
+本层提供 `theme/DocItem/index.tsx`：它先向下面那一层要 `DocItem` 的实现
+（`@theme-prev/DocItem`），把导图摆在它前面，正文一格都不动。命不中（frontmatter 没写
+`markmap`）时原样交回，这一页看不出这一层存在过。
+
+层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
+[`plugin-prev-layer-resolver` 的 README](../../plugins/plugin-prev-layer-resolver/README.md)；
+这一层自己只负责「摆在哪一格」。
 
 ## 配置
 

@@ -178,6 +178,24 @@ export const layerFrameSrc = (layer: ThemeLayer): string =>
   `${layerViewUrl(layer)}?src=${encodeURIComponent(layerSpec(layer))}`;
 
 /**
+## 四条视图层：句子里的词与示例页地址
+
+`theme-markmap`、`theme-erd`、`theme-diff`、`theme-viewer` 这四层各把一块视图挂在正文上方，
+用例的第一步都是「打开这一层的示例页」，实现只差一个地址。这一张表把句子与地址对上：
+新增一层只在这里加一行，不用再写一条 `Given`。
+
+句子按 feature 里的**原文**整句写死，不在这里拼 —— 层名是拉丁字母时前后有空格
+（「我打开 markmap 示例页」），是中文时不带（「我打开差异视图示例页」），拼出来的正则会把
+后两句匹配成别的句子。
+*/
+export const viewLayers = [
+  { step: '我打开 markmap 示例页', demo: '/markmap-demo' },
+  { step: '我打开 ERD 示例页', demo: '/erd-demo' },
+  { step: '我打开差异视图示例页', demo: '/diff-demo' },
+  { step: '我打开图片查看器示例页', demo: '/viewer-demo' },
+] as const;
+
+/**
 「站点这一头的配色落到框里了没有」那一句的读法：把框内那份文档上的两处读数拼成一串。
 
 - `background-color`：`theme-redoc` 那一层看的是它 —— Redoc 那条 `:root { background-color: var(--bg-color) }`

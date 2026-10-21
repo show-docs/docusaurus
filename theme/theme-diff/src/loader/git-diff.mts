@@ -47,14 +47,12 @@ export function readLastChange(
     return undefined;
   }
 
+  // 能取到两个提交，这两个版本在这条路径上就必然不同（`git log` 只登记改动过它的那一次），
+  // 对比结果不会是空串。
   const diff = git(
     ['diff', '-M', '--follow', prevHash, 'HEAD', '--', pathFromRoot],
     repoRoot,
   );
-
-  if (!diff) {
-    return undefined;
-  }
 
   // 这一次改动里这份文件原来叫什么：`--name-status` 在重命名那条给的是旧名。
   // 新增（`A`）没有旧版本可读，其余都按当前名取。

@@ -1,14 +1,7 @@
 import { expect } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-import { watchPageErrors } from '../helpers.mts';
-
-const { Given, Then } = createBdd();
-
-Given('我打开 markmap 示例页', async ({ page }) => {
-  watchPageErrors(page);
-  await page.goto('/markmap-demo');
-});
+const { Then } = createBdd();
 
 // 那条四层链只属于主页：站点里只有 `docs/intro.md` 写了 `<DocCardList />`。
 // 「只在 intro 页」在浏览器里也要成立，不只在看构建产物。
