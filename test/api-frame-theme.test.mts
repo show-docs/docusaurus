@@ -112,14 +112,58 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
     ).toThrow(/主题层目录不存在/);
   });
 
-  it('configureWebpack 传了才接进 Plugin 形状（Scalar 那种没差异的不带这一格）', () => {
-    const without = make('scalar');
-    expect(without.configureWebpack).toBeUndefined();
-    const withWebpack = createApiFrameTheme(contextWithBase('/'), {
+  /** `configureWebpack` 在测试里只碰 `getJSLoader`；loader 给个哨兵，方便断言它按 isServer 取。 */
+  const utilsWith = (isServer: boolean) =>
+    ({
+      getJSLoader: () => ({ loader: `js-loader:${isServer}` }),
+    }) as never;
+
+  type RulesConfig = {
+    ignoreWarnings?: unknown[];
+    module: { rules: Array<{ test: RegExp; use: unknown[] }> };
+  };
+
+  const webpackResultOf = (plugin: Plugin, isServer = false): RulesConfig =>
+    plugin.configureWebpack!(
+      {} as never,
+      isServer,
+      utilsWith(isServer),
+      {} as never,
+    ) as RulesConfig;
+
+  it('恒补一条只覆盖本包的 TS 源码规则：npm 装机后 node_modules 不在官方 babel 范围里', () => {
+    for (const pkg of ['redoc', 'scalar', 'stoplight'] as const) {
+      const result = webpackResultOf(make(pkg));
+      const rule = result.module.rules[0]!;
+      expect(rule.test.test('index.tsx')).toBe(true);
+      expect(rule.test.test('index.ts')).toBe(true);
+      expect(rule.test.test('index.js')).toBe(false);
+      expect(rule.use).toEqual([{ loader: 'js-loader:false' }]);
+    }
+  });
+
+  it('调用方自己的 configureWebpack 结果原样并入，并接在源码规则前面', () => {
+    const callerRule = { test: /\.md$/, loader: 'caller-loader' };
+    const plugin = createApiFrameTheme(contextWithBase('/'), {
       namespace: '@show-docs/docusaurus-theme-redoc',
       selfEntryUrl: entryUrlOf('redoc'),
-      configureWebpack: () => ({ ignoreWarnings: [/x/] }) as never,
+      configureWebpack: () =>
+        ({ ignoreWarnings: [/x/], module: { rules: [callerRule] } }) as never,
     });
-    expect(typeof withWebpack.configureWebpack).toBe('function');
+
+    const result = webpackResultOf(plugin, true);
+    expect(result.ignoreWarnings).toEqual([/x/]);
+    expect(result.module.rules[0]).toBe(callerRule);
+    expect(result.module.rules[1]!.use).toEqual([{ loader: 'js-loader:true' }]);
+  });
+
+  it('调用方返回 undefined 时也照常补规则', () => {
+    const plugin = createApiFrameTheme(contextWithBase('/'), {
+      namespace: '@show-docs/docusaurus-theme-scalar',
+      selfEntryUrl: entryUrlOf('scalar'),
+      configureWebpack: () => undefined,
+    });
+
+    expect(webpackResultOf(plugin).module.rules).toHaveLength(1);
   });
 });

@@ -61,6 +61,7 @@ export function createApiFrameTheme(
         '（由入口产物所在目录算出；若构建输出目录不再是 dist/，上一句 resolve 就是要改的地方）。',
     );
   }
+  const packageRoot = resolve(themePath, '..');
 
   return {
     name: namespace,
@@ -68,7 +69,29 @@ export function createApiFrameTheme(
     getThemePath() {
       return themePath;
     },
-    ...(configureWebpack !== undefined && { configureWebpack }),
+    configureWebpack(config, isServer, utils, content) {
+      const callerConfig =
+        configureWebpack?.(config, isServer, utils, content) ?? {};
+      // 装进 node_modules 后官方那条 babel 规则会按 `excludeJS` 排除整个 node_modules，
+      // 只给 `docusaurus*.js` 开例外 —— 本包的 .ts/.tsx 源码于是报 `Module parse failed`。
+      // 用官方给插件作者的 `getJSLoader()` 补一条只覆盖本包的规则，让「站点的 loader 编译
+      // 本包源码」在 npm 安装后也成立。工作区里链路解析到 node_modules 之外，官方规则本来
+      // 就会编译：两条规则各跑一遍 babel，产物不变，只是多一遍开销。
+      return {
+        ...callerConfig,
+        module: {
+          ...callerConfig.module,
+          rules: [
+            ...(callerConfig.module?.rules ?? []),
+            {
+              test: /\.tsx?$/,
+              include: [packageRoot],
+              use: [utils.getJSLoader({ isServer })],
+            },
+          ],
+        },
+      };
+    },
     contentLoaded({ actions }) {
       // 框内那条独立页面：不是文档页、没有 frontmatter 可判，走官方插件路由 API。
       // `component` 写 `@theme/` 别名 —— 打包器按别名找得到各包挂进层栈的那份页面，

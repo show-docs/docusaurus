@@ -29,10 +29,18 @@ export default function theme(): Plugin {
         resolve(thisDir, '../styles/markmap.css'),
       ];
     },
-    configureWebpack() {
+    configureWebpack(_config, isServer, utils) {
       return {
         module: {
           rules: [
+            {
+              // 官方那条 babel 规则排除整个 node_modules、只放行 `docusaurus*.js`，本包从
+              // npm 安装后的 `.tsx` 会报 `Module parse failed`。补一条只覆盖本包的规则
+              // （理由与代价见 theme-iframe 的 `lib/api-frame-theme.mts` 里同一条）。
+              test: /\.tsx?$/,
+              include: [resolve(thisDir, '..')],
+              use: [utils.getJSLoader({ isServer })],
+            },
             {
               // md 由官方 mdx-loader 编译，这里只能在其产物后追加导出
               enforce: 'post',
