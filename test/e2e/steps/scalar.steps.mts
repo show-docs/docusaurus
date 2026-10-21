@@ -13,7 +13,7 @@ const { Given, When, Then } = createBdd();
 `/scalar-view`）上。所以每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有 Scalar 的 DOM（`.scalar-app` 是框内那一份
-  的形状，边界由浏览器给，本层不再做样式圈定，口径见包 README 的「样式」一节）；
+  的形状，边界由浏览器给，本层不再做样式圈定，口径见包 `docs/internals.md` 的「样式」一节）；
 - 框内：`frameDoc(page)` —— 它是那一份文档的**框**（`Locator#contentFrame()` 交回 `FrameLocator`，
   只给 `locator()` 不给你 `evaluate()`），后面的选择器都从它往下找；要跑脚本就先取它下面的
   `html` 那一颗，回调里再拿 `el.ownerDocument`。
@@ -24,7 +24,7 @@ Scalar 的路由也走 hash，但它按**标签 + 方法 + 路径**拼那一段�
 `#tag/orders/POST/orders`，不是 operationId —— Redoc 那边是小写的 `operationId`，Elements 那边
 是原样的 `#operations/…`），下面的 href 按浏览器里真的那串写（实测清单：`#description/introduction`、
 `#tag/orders`、三条接口、`#models`）。href 不带路径前缀，是因为框内那份文档的地址里没有前缀可剥
-（口径记在 `theme/theme-scalar/README.md`）。
+（口径记在 `theme/theme-scalar/docs/internals.md`）。
 
 与另两层的一处形状差：orders 这一组**默认就是展开的**（实测三条接口链接都在 DOM 里、都可见），
 所以这里没有 redoc / stoplight 那条「先点开分组」，三条链接直接在「三个接口都在左栏」那一句里钉。
@@ -69,7 +69,7 @@ Given('我打开 scalar 示例页', async ({ page }) => {
 整页加载一条**别人转发过来的接口地址**：`#tag/orders/POST/orders` 这段是框里点了接口之后
 由 postMessage 送进外层地址栏的。这一条钉的是它在静态产物里也打得开，而且是 **HTTP 200**
 —— 页面本身是 `build/scalar-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
-（换成按路径的路由就是 404，取舍与理由见包 README 的「深链」一节。）
+（换成按路径的路由就是 404，取舍与理由见包 README 的「路由与深链」一节。）
 
 那一段写的是 `#tag/…` 而不是 `#/tag/…`：Scalar 自己拼的就是前者，`#` 后面紧跟 `tag`，
 **没有**前导斜杠（Redoc 那边是 `#/orders/…`，有）。实测多写一个斜段就静默失灵 —— 外层把
@@ -88,7 +88,7 @@ Given('我直达 scalar 那条接口的地址', async ({ page }) => {
 
 地址里带的是 frontmatter 那个 spec 地址（编码成 `src` 参数），**不带** hash：iframe 的 `src`
 只由配置决定，服务端与客户端算出的完全一样，深链那一段靠框里那句 ready 换进框内（见包 README
-的「深链」）。这里比的是属性原文，不是解析后的绝对地址。
+的「路由与深链」）。这里比的是属性原文，不是解析后的绝对地址。
 */
 Then('这一页放的是一个 iframe，指向 scalar 那条独立页面', async ({ page }) => {
   await expect(frameElement(page), '命中页没有那一个 iframe').toHaveCount(1);
@@ -264,7 +264,7 @@ Then('Scalar 那颗「问 AI」的按钮不出现', async ({ page }) => {
 收它的理由不是「本地和线上长得不一样」，是**它真的会把请求发出去**：那一格读的是这份文档自己的
 `servers`，任何人点一下就从站点的页面上朝那个地址发一条请求。这一层摆的是给别人看的接口文档，
 凭据与 CORS 都不在本层的承诺里，所以按配置收掉；代码示例与那份文档的下载不受影响（见上面那句
-「框里代码块的复制按钮还在」与包 README 的「收掉的几处」）。
+「框里代码块的复制按钮还在」与包 `docs/internals.md` 的「收掉的几处」）。
 
 按文案认。厂商那一格 `hideTestRequestButton` 的默认值是 `false`（`@scalar/types@0.24.0`，类型注释
 写的是 `Whether to show the "Test Request" button`），那颗按钮没有 `data-testid`，文案取自本地化表
@@ -398,7 +398,7 @@ Then('Scalar 那颗「生成 SDK」的按钮不出现', async ({ page }) => {
 （`.scalar-app`）都不存在，正文文字更不在外层文档里。
 
 框内那一份文档里它的样式往哪儿打，本层不再钉：Scalar 那份表是发布好的静态产物，随框内那份
-文档加载，「不打到站点上」由浏览器给的文档边界负责（口径见包 README 的「样式」一节）。
+文档加载，「不打到站点上」由浏览器给的文档边界负责（口径见包 `docs/internals.md` 的「样式」一节）。
 */
 Then('外层文档里没有 Scalar 的运行时痕迹', async ({ page }) => {
   const state = await page.locator('html').evaluate((el) => {

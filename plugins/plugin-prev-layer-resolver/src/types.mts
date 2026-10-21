@@ -24,17 +24,16 @@ export interface DocusaurusPluginLike {
   /** 插件所在目录（`getThemePath()` 相对路径的基准），官方 `initPlugins` 会补 */
   path?: string;
   /**
-  插件选项（含官方补的 `id`）。推导路径下我们自己实例化插件，官方 `initPlugins`
-  补的 `options` 不会出现，因此对齐官方行为手动补上。
+  插件选项（含官方补的 `id`）：推导路径下由我们自己实例化插件，官方那份不会出现，
+  因此对齐官方行为手动补上（补齐口径见 `plugins.mts` 的 `withOfficialFields`）。
   */
   options?: Record<string, unknown>;
   getThemePath?: () => string | undefined;
 }
 
 /**
-解析请求（enhanced-resolve 的 `ResolveRequest` 里我们真正读的那几个字段）。`context` 由
-上游保证是对象（webpack 传的 `contextInfo`），但形状不归我们定，所以用 `unknown` 接收、
-运行时判型（见 `resolveIssuer`）。
+解析请求（enhanced-resolve 的 `ResolveRequest` 里我们真正读的那几个字段）。
+`context` 的形状不归我们定，所以用 `unknown` 接收、运行时判型（见 `resolveIssuer`）。
 */
 export interface ResolveRequestLike {
   request?: string;

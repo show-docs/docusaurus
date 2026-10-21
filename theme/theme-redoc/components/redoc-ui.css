@@ -1,5 +1,5 @@
 /* Redoc 渲染区的落位。**这一份 CSS 生效在框内那一页**（`/redoc-view`，见包 README 的
-   「渲染放在独立页面」一节）：站点的文档页里根本没有 `.redoc-root` 这一格，
+   「渲染放在独立页面，文档页只嵌它」一节）：站点的文档页里根本没有 `.redoc-root` 这一格，
    下面每条规则的落点都是框内那份文档。
 
    与 theme-stoplight 不同的一处：Redoc 的样式是 styled-components 在**运行时**注入的
@@ -8,7 +8,7 @@
    那一步 —— 站点那一页只放一个框，Redoc 的样式打不到站点的壳上，边界由浏览器给；
    框内那份文档里除本层自己那一层壳（`.redoc-root`，那份文档没有 navbar、footer 之类）之外
    没有别的元素可被打到。那条链上现在只剩「暗色表改挂到本层自己那条
-   `<html data-redoc-mode>`」这一件事，见 `redoc-color-mode.ts` 与包 README 的「样式」
+   `<html data-redoc-mode>`」这一件事，见 `redoc-color-mode.ts` 与包 `docs/internals.md` 的「样式」
    「亮暗模式」两节。 */
 
 /* 这一层**不**给 `.redoc-root` 定高，也不开 `overflow: hidden`，与框内那份文档的排版模型有关：
@@ -23,7 +23,7 @@
    `components/api-frame.css`，两边各管各的文档。 */
 
 /* 收掉的三处 Redoc 自己的东西。全是 `display: none`：元素仍留在 DOM 里，所以 e2e 那几句
-   按可见性判、不按数量判。为什么不走配置、为什么署名只收自己那一格，见包 README 的
+   按可见性判、不按数量判。为什么不走配置、为什么署名只收自己那一格，见包 `docs/internals.md` 的
    「收掉的三处 Redoc 自己的东西」一节。 */
 
 .redoc-root [data-testid='color-mode-switcher'] {
@@ -33,7 +33,7 @@
 /* 左栏底部那条「API docs by Redocly」署名收掉。认的是它**是什么**（装着指向 redocly.com
    那条链接的 `span`），不是 styled-components 那个 `HUGFg` 类名 —— 换个版本就重排。
    只收这个 `span`，不收它所在的那一整格：同一格里还并着「收起侧栏」那颗按钮
-   （`Sidebar/SidebarActions`），整格收掉会把它一起带走。口径见包 README
+   （`Sidebar/SidebarActions`），整格收掉会把它一起带走。口径见包 `docs/internals.md`
    的「收掉的三处 Redoc 自己的东西」一节。 */
 
 .redoc-root .menu-content > div > span:has(a[href^='https://redocly.com/']) {
@@ -45,7 +45,7 @@
    它们不在这格里面，判据也就一行都不碰它们。
    为什么不走配置：`navigation.actions` 这一格在 `@redocly/config` 的 schema 里确实有
    （`items` 的枚举含 `copy`、`hide` 是个布尔），redoc 的 `options` 类型也收，但 `redoc@3.0.1`
-   的实现不读它 —— 实测两发都没让这一格有任何变化。口径与依据见包 README
+   的实现不读它 —— 实测两发都没让这一格有任何变化。口径与依据见包 `docs/internals.md`
    的「收掉的三处 Redoc 自己的东西」一节。 */
 
 .redoc-root [data-testid='page-actions'] {

@@ -49,7 +49,7 @@ function LocationMirror(props: Pick<Props, 'onRouteChange'>): null {
 // `--navbar-height` 与 `--navbar-stack-height`，左栏高度、sticky 停靠位、滚过去的
 // `scroll-margin-top` 全从这两条取值；不给就按 0 算（`redoc` 里那一格是
 // `Math.max(fn?.() ?? 0, 0)`）。本组件只跑在框内那份文档上，那份文档没有 navbar，
-// 量出来本来也是 0，于是连量都省了。高度链的口径在包 README 的「高度」一节。
+// 量出来本来也是 0，于是连量都省了。高度链的口径在包 `docs/internals.md` 的「高度」一节。
 const options = { disableTelemetry: true } as const;
 
 // 数组写成模块级的常量：`StyleSheetManager` 按 props 认这张样式表，每次渲染换一个新数组就
@@ -73,7 +73,7 @@ export function RedocUI(props: Props) {
   // `StyleSheetManager` 同一个道理：它靠 React context 把中间件递给 styled-components，只有和
   // `redoc` 用**同一份** styled-components 才接得上（版本线见 `package.json`）。这条链上现在只剩
   // 一件事 —— 把 Redoc 的暗色表改挂到本层自己那条 `<html data-redoc-mode>` 上（值由外层送来，
-  // 口径记在包 README 的「样式」与「亮暗模式」两节），写在 `redoc-color-mode.ts`。
+  // 口径记在包 `docs/internals.md` 的「样式」与「亮暗模式」两节），写在 `redoc-color-mode.ts`。
   return (
     <div className={REDOC_ROOT_CLASS}>
       <HashRouter>

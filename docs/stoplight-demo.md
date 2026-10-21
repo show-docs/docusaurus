@@ -24,10 +24,10 @@ oas3: /openapi.yaml
   文档的，而 Elements 的样式是一张静态文件（`@stoplight/elements/styles.min.css`）——站点只有
   **一份**全站 css，每个页面都 `<link>` 同一个文件，iframe 拦不住这种静态样式。所以本包的入口在
   构建配置期把这一条路径改成「当一个独立文件发出去」，产物里是
-  `assets/css/styles.min.<hash>.css`，只由框内那份文档挂一条 `<link>`。那文件里有 20 条不带前缀的
-  全局规则（`html`、`body`、`a`、`h1`–`h6`、`button`、`ol,ul`…），以前它们进全站那一份时实测把
-  站点 `<html>` 的字体换成了 Inter、主页 `h1` 压到 `16px`、正文链接没了下划线；现在站点那一份 css
-  里一条 Elements 的规则都没有。口径与依据记在 `theme/theme-stoplight/README.md` 的「样式」一节
+  `assets/css/styles.min.<hash>.css`，只由框内那份文档挂一条 `<link>`。要防的不是「框里的样式打到框里
+  的内容」（那有文档边界管着），而是这张表里那批不带前缀的全局规则（`html`、`body`、`a`、`h1`–`h6`…）
+  跟着全站那一份 css 打到**外层每一条页面**；现在站点那一份里一条 Elements 的规则都没有。
+  口径与依据记在 `theme/theme-stoplight/docs/internals.md` 的「样式」一节
   （站点文档源只收 `docs/`，链接出去只会是死链）。
 - **点进接口后的地址也能分享**：能发给别人的地址**还是这一页自己的** ——
   `/stoplight-demo#/operations/createOrder`。地址栏里 `#` 那一段由框里那份文档报给外层（Elements

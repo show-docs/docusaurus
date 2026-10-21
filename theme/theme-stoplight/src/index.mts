@@ -24,7 +24,7 @@ const STOPLIGHT_NAMESPACE = '@show-docs/docusaurus-theme-stoplight';
 本层的做法是**别让这份文件进打包**：webpack 的 `asset/resource` 把它当一个资源原样发出去，
 产物里是一个独立的 css 文件，`import` 拿到的就是它的地址（一个字符串），由框内那份文档自己挂
 一条 `<link>`（见 `components/stoplight-ui.tsx`）。Elements 的样式因此只在框内那份文档里生效，
-边界是浏览器给的文档边界，不需要构建期圈定。实测的条数与两句判据记在包 README 的「样式」一节。
+边界是浏览器给的文档边界，不需要构建期圈定。实测的条数与两句判据记在 `docs/internals.md` 的「样式」一节。
 
 两条规则同时命中同一份文件会把 loaders 和资源类型叠在一起，所以除了加规则，还得把这份文件从
 **带 loader 的规则**里摘出去。判据不是抄官方那条 `.css` 规则的正则（版本一变就对不上），而是拿
@@ -97,7 +97,7 @@ export default function theme(context: LoadContext): Plugin {
 
       // 补的是包里真 polyfill 不是空模块：`url` / `buffer` 都走在「按 URL 取 schema」那条路上，
       // 置 false 会在运行时抛；裸的全局 `process` 那一种形状（`resolve.fallback` 只管按模块 id
-      // 筛的 require，裸标识符要由 `ProvidePlugin` 补）与三种形状的完整理由，记在包 README 的
+      // 筛的 require，裸标识符要由 `ProvidePlugin` 补）与三种形状的完整理由，记在 `docs/internals.md` 的
       // 「浏览器 bundle 要补的那几格 Node 侧依赖」一节。
       //
       // 和 `plugin-prev-layer-resolver` 一样**只返回自己新增的那一格**：官方 `applyConfigureWebpack`

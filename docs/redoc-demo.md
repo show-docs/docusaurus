@@ -27,7 +27,7 @@ redoc: /openapi.yaml
   它的样式打到的都是它自己那一屏。实测外层那份文档里 styled 表 0 张、`.redoc-root` 0 个；框内
   那份文档里那张表 427 条规则原样生效。运行期那条中间件链上只剩一件事 —— 把它的暗色表改挂到
   框内那份文档自己的 `<html data-redoc-mode>` 上（下一条）。口径与依据记在
-  `theme/theme-redoc/README.md` 的「样式」一节（站点文档源只收 `docs/`，链接出去只会是死链）。
+  `theme/theme-redoc/docs/internals.md` 的「样式」一节（站点文档源只收 `docs/`，链接出去只会是死链）。
 - **点进接口后的地址也能分享**：这一层的渲染虽然挪进了框里，能发给别人的地址**还是这一页自己的**
   —— `/redoc-demo#/orders/createorder`。地址栏里 `#` 那一段由框里那份文档报给外层（Redoc 的路由
   走 `history.pushState`，`hashchange` 收不到），整页加载一条深链时反过来由框里向外层要一次再写进

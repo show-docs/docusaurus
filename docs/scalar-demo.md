@@ -26,7 +26,7 @@ src="/scalar-view?src=%2Fopenapi.yaml">`，`/scalar-view` 是本包自己注册�
   `@scalar/api-reference/style.css`，webpack 把它并进全站那一份 css，每一页都下载 —— 这一格与
   theme-redoc 相反（那张表是运行期注入的，只存在于框内那份文档），也与 theme-stoplight 同处境但
   结论不同。这里不动构建期改写，因为 Scalar 每条规则出厂就带 `.scalar-app` 前缀，实测对上站点没有
-  改写。代价（每页 +359 KB）与实测口径记在 `theme/theme-scalar/README.md` 的「样式」一节。
+  改写。代价（每页 +359 KB）与实测口径记在 `theme/theme-scalar/docs/internals.md` 的「样式」一节。
 - **点进接口后的地址也能分享**：能发给别人的是**这一页自己的**地址
   —— `/scalar-demo#tag/orders/POST/orders`。注意 `#` 后面**没有前导斜杠**，那是 Scalar 自己的
   路由写法；与 redoc 的 `#/orders/createorder`、stoplight 的 `#/operations/createOrder` 都不一样，
@@ -39,7 +39,7 @@ src="/scalar-view?src=%2Fopenapi.yaml">`，`/scalar-view` 是本包自己注册�
 - **站点的文档侧栏在这一页照常摆着**（与 redoc、stoplight 那两层一样，本层不动站点那侧的版式）。
   要留意的是 Scalar 那套 API 左栏有一个**框宽**门槛：实测 1024 CSS px，够就展开、不够就收成一颗
   「打开菜单」抽屉。侧栏占 300px，所以窗口要 ≥1324 宽这一屏才是两种导航都在的样子；1280 宽时
-  框只有 980，只剩站点那一列。取舍与量法记在 `theme/theme-scalar/README.md` 的「宽度」一节；
+  框只有 980，只剩站点那一列。取舍与量法记在 `theme/theme-scalar/docs/internals.md` 的「宽度」一节；
   要连 navbar 与侧栏一起不要，用 `iframe:` 那一层。
 - 组件只在浏览器端渲染（SSR 阶段返回 `null`），要看结果得 `pnpm build && pnpm serve`。
 

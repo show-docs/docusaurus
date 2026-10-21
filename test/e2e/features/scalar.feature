@@ -1,7 +1,8 @@
 # 命中 frontmatter 的 `scalar: <地址>` 后，这一层整页换成**一个 iframe**：Scalar 跑在本包自己
 # 那条插件路由（`/scalar-view`）上的一份独立文档里。它的运行时代码（Vue 3）、它那份 335K 的
-# 样式表、它写的 localStorage 与它自己的路由都关在框内，站点的文档页一行都碰不到（口径见包
-# README）。形状与 `theme-redoc` 一对一，差在框内那一页里挂的是 `createApiReference`。
+# 样式表、它写的 localStorage 与它自己的路由都关在框内，站点的文档页一行都碰不到
+# （口径见包 `docs/internals.md` 的「为什么要换一份文档」一节）。形状与 `theme-redoc` 一对一，
+# 差在框内那一页里挂的是 `createApiReference`。
 Feature: theme-scalar
 
   Scenario: 命中页整页交给 iframe，Scalar 在框里渲染
@@ -35,7 +36,7 @@ Feature: theme-scalar
   # hash 段不参与取文件，浏览器请求的还是这一页自己的那份 html，所以整页加载它回 200；页面起来
   # 之后，那一段由框里那句 ready 换进框内那份文档，再经 `scalar-ui.tsx` 那一步
   # `hashchange` → `popstate` 的转发交给 Scalar（为什么不是外层在 iframe 的 load 事件上推，
-  # 见包 README 的「深链」一节）。
+  # 见 theme/theme-iframe/docs/iframe-protocol.md 的「对齐是两侧各推一次的」一节）。
   Scenario: 那条接口的地址在静态产物里也打得开
     Given 我直达 scalar 那条接口的地址
     Then Scalar 在框里接管了这一屏，读的是本站那份 yaml
@@ -49,7 +50,7 @@ Feature: theme-scalar
   # Scalar 自带一套亮暗模式：判据是 `<body>` 上互斥的两个类名（`dark-mode` / `light-mode`），
   # 自己还会把选择写进 localStorage。站点自己另有开关（`<html data-theme>`），两处各切各的就打架。
   # 本层用配置 `hideDarkModeToggle` 收掉它自己那颗按钮，配色改由共享层那条消息驱动那两个类名
-  # （见包 README 的「亮暗模式」一节）。
+  # （见包 `docs/internals.md` 的「亮暗模式」一节）。
   Scenario: 亮暗模式跟站点走，不跟操作系统走
     Given 我按操作系统的深色偏好打开 scalar 示例页
     Then 站点的亮暗模式不受操作系统影响

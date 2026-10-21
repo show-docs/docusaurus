@@ -9,4 +9,4 @@
 // Elements 那份样式表**不是**打进 bundle 的 css，而是它单独一个产物的地址：`src/index.mts`
 // 给它配了 `asset/resource`。类型上官方那条 `*.css` 已经交回 `string`，正好对得上，
 // 但「这个 string 是地址而不是别的东西」是构建规则给的，不是类型给的 —— 两边为什么必须配套，
-// 记在 `components/stoplight-ui.tsx` 上面那段与包 README 的「样式」一节。
+// 记在 `components/stoplight-ui.tsx` 上面那段与 `docs/internals.md` 的「样式」一节。

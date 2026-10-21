@@ -4,20 +4,17 @@ import { isFile } from './layers.mts';
 import type { ResolveRequestLike, ThemeLayer } from './types.mts';
 
 /**
-「@theme-prev/* → 真实文件」这一步的纯逻辑：全是「层栈 + 组件名 + 导入者路径 →
-目标文件」的纯函数，因此可被用例穷举（resolver 本身依赖 webpack 的 request 结构，难以单测）。
+「@theme-prev/* → 真实文件」这一步的纯逻辑（层栈 + 组件名 + 导入者路径 → 目标文件）。
+全部可被用例穷举；切分口径见 docs/internals.md「实现结构」。
 */
 
 /**
 组件候选的 ext **优先级**：目录形式恒胜单文件，同类里 `tsx > ts > jsx > js`。
 
-正据是**官方实现**而不是我们的排序推理：官方 `createAliasesForTheme` 枚举 js/jsx/ts/tsx
-四种扩展名的组件文件且**后写覆盖**，而 fast-glob 在同一目录里先发文件、再发子目录，
-赢家因此是 `X/index.tsx`。这条发射顺序是 fast-glob 的行为、**不是文档化契约**，所以由
-用例把两边钉在一起（`test/resolve.test.mts` 的「官方别名赢家」），上游一漂移就报红。
-
-不能扩张到 `mjs/cjs/mts/cts`：比官方宽一寸就会解析到官方体系里**不存在**的文件
-（链看起来工作了，但那个组件拿不到 `@theme/X`）。
+正据是**官方实现**而不是我们的排序推理（赢家恒为 `X/index.tsx`），而那条发射顺序来自
+fast-glob、**不是文档化契约**，所以由用例把两边钉在一起（`test/resolve.test.mts` 的
+「官方别名赢家」），上游一漂移就报红。完整理由与「为何不收 `mjs/cjs/mts/cts`」，
+见 docs/internals.md「设计取舍」的「组件扩展名固定为官方四种」。
 */
 const EXT_PRIORITY = ['tsx', 'ts', 'jsx', 'js'] as const;
 
@@ -28,13 +25,10 @@ const EXT_PRIORITY = ['tsx', 'ts', 'jsx', 'js'] as const;
 const SPECIFIER_PREFIX = '@theme-prev/';
 
 /**
-组件名把候选**拼成官方会忽略的形状**时跳过该候选。
-
-官方枚举组件文件时忽略四类（点开头的段、`__tests__/`、`*.d.ts`、`*.test.*`），而本方案的
-候选名是**拼出来的**，所以拦在这里：认了它们就会出现「本插件认、官方不认」的两套可见性
-（`@theme-prev/X` 解析成功，而 `@theme/X` 根本不存在这个组件）。
-
-入参恒是 `/` 分隔（组件名已过 `isSafeComponentName`，它禁反斜杠），故不按 `path.sep` 归一。
+组件名把候选**拼成官方会忽略的形状**时跳过该候选（四类见下方逐行）。
+认了它们就会出现「本插件认、官方不认」的两套可见性（`@theme-prev/X` 解析成功，
+而 `@theme/X` 根本没有这个组件）。入参恒是 `/` 分隔（组件名已过
+{@link isSafeComponentName}，它禁反斜杠），故不按 `path.sep` 归一。
 */
 function isIgnoredComponentFile(relativePath: string): boolean {
   return (
@@ -46,17 +40,14 @@ function isIgnoredComponentFile(relativePath: string): boolean {
 }
 
 /**
-组件名合法性校验：它是**被 specifier 拼出来的字符串**，不是可信输入。
+组件名合法性校验：`<rest>` 来自用户写的 import，会原样参与
+`path.join(layer.owner, componentName)`，所以是不可信输入（为什么必须白名单式检查、
+为什么不做「先归一再看越界」，见 docs/internals.md「设计取舍」的「组件名必须通过安全校验」）。
 
-`<rest>` 来自用户写的 import，会原样参与 `path.join(layer.owner, componentName)`：
-`@theme-prev/../b/Logo` 就能读到别的层（层与层之间本来只靠「目录前缀」隔离）。
-所以规则是「**每一段都必须是安全的路径片段**」：拒绝绝对路径与盘符（`path.join`
-遇到绝对尾段会整体丢弃前缀）、`..` / `.` / 空段、`\`（在 POSIX 上是合法文件名字符，
-会造成同一组件两种写法）、NUL（部分 fs 调用会截断）。嵌套组件
-（`@theme-prev/DocItem/Footer`）是合法用法，所以校验的是「组件路径」而不是「文件名」。
-
-不做「先归一再看是否越界」：归一是字符串层面的，`path.join` 之后仍有平台差异；
-白名单式的片段校验对合法输入零成本。
+这里定的是**拒哪些形状**：绝对路径与盘符（`path.join` 遇到绝对尾段会整体丢弃前缀）、
+`..` / `.` / 空段、`\`（POSIX 上是合法文件名字符，会造成同一组件两种写法）、NUL
+（部分 fs 调用会截断）。嵌套组件（`@theme-prev/DocItem/Footer`）是合法用法，
+所以校验的是「组件路径」而不是「文件名」。
 */
 export function isSafeComponentName(componentName: string): boolean {
   // `typeof` 那半是类型契约上的防御：调用方已由 `matchSpecifier` 保证是字符串，但这是
@@ -82,14 +73,13 @@ export function isSafeComponentName(componentName: string): boolean {
 /**
 在层目录里解析组件名对应的真实文件；该层没有此组件时返回 null。
 
-候选顺序必须是「目录恒胜单文件、同类里 tsx > ts > jsx > js」：层内同名组件可以并存多种
-形态，而这个答案必须与 `@theme/X` 指向的**同一个文件**，否则同一个组件在
-`@theme-prev/X` 与官方别名两条路上拿到两个模块。顺序取 {@link EXT_PRIORITY}（依据是官方
-实现，不是声明序）。另两条因为候选是拼出来的而必须显式处理：组件名 `index` 只有目录
-形式成立（官方把 `index.tsx` 映射成裸 `@theme`）、候选拼成官方会忽略的形状时跳过。
+赢家顺序必须与 `@theme/X` 指向**同一个文件**（依据与钉法见 {@link EXT_PRIORITY}），
+否则同一组件在两条路上拿到两个模块。另两条因为候选是拼出来的而必须显式处理：组件名
+`index` 只有目录形式成立（官方把 `index.tsx` 映射成裸 `@theme`）、候选拼成官方会忽略的
+形状时跳过（{@link isIgnoredComponentFile}）。
 
-组件名已过 `isSafeComponentName`，`path.join` 不可能越出层目录 —— 不再加 realpath 落点
-校验（挡不住任何进来的输入，只多一个漂移点）。探测用 {@link isFile}：候选必须是**文件**。
+组件名已过 {@link isSafeComponentName}，`path.join` 不可能越出层目录 —— 不再加 realpath
+落点校验（挡不住任何进来的输入，只多一个漂移点）。探测用 {@link isFile}：候选必须是**文件**。
 */
 export function resolveComponentInLayer(
   layer: ThemeLayer | null | undefined,
@@ -129,12 +119,9 @@ function toPosix(p: string): string {
 /**
 导入者属于哪一层：取「最长路径前缀」命中的那一层（兼容主题目录嵌套），-1 表示不在任何层内。
 
-两侧都先 `realpath` 再比前缀：换来「同一个目录不会因为 `..` / 软链被算成两层」，
-代价是**软链到层外的文件不属于它物理所在的那一层**（`theme-a/logo-link -> /elsewhere`
-⇒ `-1` ⇒ 退回官方解析 + 告警）。反过来只按字符串，会让「同一目录两种写法」被算成两层
-—— 那是**静默的错层**，比显式的「不在层内」更糟。这条边界写在使用约束里。
-
-`realpath` 由调用方给（每次构建一份的缓存，见 `resolver.mts` 的 `realpathOf`）。
+两侧都先 `realpath` 再比前缀（`realpath` 由调用方给，每次构建一份的缓存，见 `resolver.mts`
+的 `realpathOf`）。为什么必须走真实路径、以及「物理在层内但真实路径在层外 ⇒ 不属于该层」
+这条反直觉的代价，记在 README 使用约束 ③。
 
 issuer 是不可信输入，判据只能是「是不是字符串」：`!issuer` 挡不住 `{}` / `42`，
 而 `path.resolve` 对非字符串直接抛 `ERR_INVALID_ARG_TYPE`（与「不认识就当不在层内」
@@ -171,11 +158,11 @@ export function findIssuerLayerIndex(
 }
 
 /**
-取「谁 import 的」，只有一种形态：webpack 把 `contextInfo`（含 `issuer`）作为
-`resolver.resolve()` 的**首参**传入，上游把它原样挂成 `request.context`。enhanced-resolve
-里不存在 `request.contextInfo`，而首参给成字符串时会被挪去 `path`、`context` 归一成 `{}`
-（`Resolver.js` 的重载位移），所以 `request.context` 恒是对象、`request.issuer` 恒不存在。
-取不到返回 ''（= 不在任何层内 → 交回官方解析）。
+取「谁 import 的」：只认 `request.context.issuer` 这一种形态。
+
+为什么没有第二条路（webpack 把 `contextInfo` 挂成 `request.context`、`request.issuer`
+恒不存在、首参给成字符串时会被上游挪去 `path`），docs/internals.md「两个 hook 的选择」末尾是产地；
+这里只留运行时判形：读不到一律返回 ''（= 不在任何层内 → 交回官方解析）。
 */
 export function resolveIssuer(request?: ResolveRequestLike): string {
   const { context } = request ?? {};

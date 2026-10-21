@@ -22,7 +22,7 @@ const { Given, When, Then } = createBdd();
 
 Elements 的路由也走 hash，但它认 `operationId` **原样**（`createOrder` 就是 `createOrder`，
 Redoc 那边是小写的），下面的 href 按浏览器里真的那串写。href 不带路径前缀，是因为框内那份文档
-的地址里没有前缀可剥（口径记在 `theme/theme-stoplight/README.md`）。
+的地址里没有前缀可剥（口径记在 `theme/theme-stoplight/docs/internals.md`）。
 */
 const frameElement = (page: Page): Locator =>
   page.locator('iframe.stoplight-frame');
@@ -224,7 +224,7 @@ Then('框里那一屏不留下自己的滚动条', async ({ page }) => {
 - 外层文档里也没有 `.stoplight-root` 那一格。
 
 漏回全站那一份的表现就是这三条里第一条红：站点每页都会 `<link>` 同一个文件，静态样式拦不住，
-只能靠「它根本不在那个文件里」。理由与实测的漏法记在包 README 的「样式」一节。
+只能靠「它根本不在那个文件里」。理由与实测的漏法记在包 `docs/internals.md` 的「样式」一节。
 */
 Then('外层文档里没有 Elements 的那份样式表', async ({ page }) => {
   const state = await page.locator('html').evaluate((el) => {

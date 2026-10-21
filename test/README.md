@@ -59,10 +59,11 @@ Playwright 跑的就是那份产物 —— 它是生成物，不进 git，也别
 时序缺陷 —— 框里那句「我起来了」可能先于外层的监听器发出（命中缓存时框里那份文档跑得比外层的水合
 还快），于是深链与亮暗模式都收不到。外层也主动推一次之后才不丢；为什么单跑绿、整套跑也绿、只有开着
 trace 才红，记在 [`theme/theme-iframe/docs/iframe-protocol.md`](../theme/theme-iframe/docs/iframe-protocol.md)
-（那条通道现在 redoc、stoplight、scalar 三条层共用）。三层的细节分别记在
+（那条通道现在 redoc、stoplight、scalar 三条层共用）。三层的用法与限制分别记在
 [`theme/theme-redoc/README.md`](../theme/theme-redoc/README.md)、
 [`theme/theme-stoplight/README.md`](../theme/theme-stoplight/README.md)、
-[`theme/theme-scalar/README.md`](../theme/theme-scalar/README.md) 与通道本身
+[`theme/theme-scalar/README.md`](../theme/theme-scalar/README.md)，
+实现细节与实测记录在各包同目录的 `docs/internals.md`，通道本身在
 [`theme/theme-iframe/docs/iframe-protocol.md`](../theme/theme-iframe/docs/iframe-protocol.md)。
 
 | 场景（`features/`）        | 实现（`steps/`）             | 钉住的行为                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |

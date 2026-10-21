@@ -18,8 +18,8 @@ Scalar 这一层的入口：外层套壳（`DocItem` 判 `scalar:`、那个 `<if
 源码），不再有「编译边界两侧各写一份常量」这件事。
 
 本包唯一的 webpack 差异是按住 Scalar 那条动态 `import` 的构建告警（客户端与服务端两遍
-各报一次，理由与实测记在包 README 的「随这一层多出来的构建告警」一节）；样式表不需要
-构建期动手，见 README 的「样式」一节。
+各报一次，理由与实测记在包 `docs/internals.md` 的「随这一层多出来的构建告警」一节）；样式表不需要
+构建期动手，见 `docs/internals.md` 的「样式」一节。
 */
 export default function theme(context: LoadContext): Plugin {
   return createApiFrameTheme(context, {

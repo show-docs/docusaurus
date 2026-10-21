@@ -29,7 +29,8 @@ export default function theme(context: LoadContext): Plugin {
       // 那支 Worker 是给「离线把文档再算一遍」用的，本仓这条路径不碰它。
       //
       // 照 `plugin-prev-layer-resolver` 的口径**只返回自己新增的那一格**（返回整个 config 会被
-      // webpack-merge 把数组 concat 翻倍，理由记在它的 README）。
+      // webpack-merge 把数组 concat 翻倍，理由记在它的维护者文档
+      // `plugins/plugin-prev-layer-resolver/docs/internals.md`）。
       return isServer
         ? {}
         : { resolve: { fallback: { worker_threads: false } } };

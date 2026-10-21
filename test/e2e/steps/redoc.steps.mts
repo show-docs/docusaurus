@@ -13,7 +13,7 @@ const { Given, When, Then } = createBdd();
 `/redoc-view`）上。所以每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有任何 Redoc 的东西（边界由浏览器给，
-  本层不再做样式圈定，口径见包 README 的「样式」一节）；
+  本层不再做样式圈定，口径见包 `docs/internals.md` 的「样式」一节）；
 - 框内：`frameDoc(page)` —— 它是那一份文档的**框**（`Locator#contentFrame()` 交回 `FrameLocator`，
   只给 `locator()` 不给你 `evaluate()`），后面的选择器都从它往下找；要跑脚本就先取它下面的
   `html` 那一颗，回调里再拿 `el.ownerDocument`。
@@ -22,7 +22,7 @@ const { Given, When, Then } = createBdd();
 
 Redoc 的路由走 hash：左栏那些链接由它自己拼成 `#/orders/…`；`operationId` 被小写进地址
 （`createOrder` → `createorder`），下面的 href 按浏览器里真的那串写。href 不带路径前缀，
-是因为组件里 `basePath` 用的是默认值 `/`（口径记在 `theme/theme-redoc/README.md`）。
+是因为组件里 `basePath` 用的是默认值 `/`（口径记在 `theme/theme-redoc/docs/internals.md`）。
 
 每条都限定在 `.menu-content` 里：正文面板上也有指向同一个接口的锚（标签标题旁那个
 「link to orders」），不限定就会命中两处，Playwright 的严格模式直接报错。
@@ -190,8 +190,7 @@ styled-components 那张运行期注入的 `<style>` 一张都没有（改造前
 
 框内那一份文档里 Redoc 的样式往哪儿打，本层不再钉：曾经那两条判据（外溢只剩 `:root *`、
 圈定没把 Redoc 自己的样式压掉）钉的是运行期圈定的效果，圈定随 iframe 改造一起删了 ——
-Redoc 关在自己那份文档里，「不打到站点上」由浏览器给的文档边界负责，理由记在包 README 的
-「样式」一节。
+Redoc 关在自己那份文档里，「不打到站点上」由浏览器给的文档边界负责，理由记在包 `docs/internals.md` 的「样式」一节。
 */
 Then('外层文档里没有 Redoc 的运行时样式表', async ({ page }) => {
   const state = await page.locator('html').evaluate((el) => {
@@ -271,7 +270,7 @@ Then('Redocly 的署名不出现，同一格里的收起侧栏还在', async ({ 
 /**
 Redoc 在每个章节标题右边摆一整格操作按钮：「Copy」（把这一节的文档复制成 YAML 给大模型的那一颗）
 加一个「More actions」下拉（Open in Claude / ChatGPT 两项在里面）。本层整格收掉 ——
-代码块里那几颗「复制到剪贴板」不在这格里面，碰不到（口径与理由见包 README
+代码块里那几颗「复制到剪贴板」不在这格里面，碰不到（口径与理由见包 `docs/internals.md`
 的「收掉的三处 Redoc 自己的东西」一节）。
 这一格是 `display: none` 收的，元素仍在 DOM 里，所以判据走可见性；先钉「DOM 里认得出这一格」
 再钉「一格都不显眼」，免得选择器哪天匹配不上就静默通过。

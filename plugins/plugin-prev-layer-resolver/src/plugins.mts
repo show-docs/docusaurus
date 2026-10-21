@@ -12,18 +12,17 @@ import type { DocusaurusPluginLike, LoggerLike } from './types.mts';
 /**
 「谁在链上、什么顺序」这一步。
 
-层栈顺序完全由 `plugins` 声明顺序决定，而 `configureWebpack` 的签名里拿不到它，
-所以必须从 Docusaurus 那边要回来。官方自己（`createBaseConfig` → `loadThemeAliases`）
-用的是 `initPlugins` 取的列表；我们**复用它的第一步** `loadPluginConfigs`
-（只读配置 + 解析模块 + 归一化，**不调用插件构造函数**）：
+层栈顺序完全由 `plugins` 声明顺序决定，而 `configureWebpack` 的签名里拿不到它，所以必须从
+Docusaurus 那边要回来。官方自己（`createBaseConfig` → `loadThemeAliases`）用的是 `initPlugins`
+取的列表；我们**复用它的第一步** `loadPluginConfigs`（只读配置 + 解析模块 + 归一化，
+**不调用插件构造函数**），再只保留**实例化后带 `getThemePath`** 的，顺序即官方看到的那个顺序：
 
   plugins = await loadPluginConfigs(await loadContext({ siteDir }))
 
-再只保留**实例化后带 `getThemePath`** 的，顺序即官方 `loadThemeAliases` 看到的顺序。
-不用 `initPlugins`（它会把本插件也实例化 ⇒ 本插件的初始化又走整条推导：自检漏判时是
-**无限递归 OOM**，不漏判也是三倍实例化）、也不用 `loadPlugins`（下游，还会跑
-`contentLoaded()` 并真实写 `.docusaurus/`）的理由，与「包装 `loadThemeAliases` /
-从上下文取 `plugins` 等不成立的做法」记在 `./README.md`，此处不抄。
+不用 `initPlugins`：它会把本插件也实例化 ⇒ 本插件的初始化又走整条推导 ⇒ 自检漏判时是
+**无限递归 OOM**，不漏判也是三倍实例化。也不用 `loadPlugins`：它在下游，还会跑
+`contentLoaded()` 并真实写 `.docusaurus/`。「包装 `loadThemeAliases`」「从上下文取 `plugins`」
+这类看着可行的做法记在 `./docs/internals.md`「不能碰的做法」。
 
 代价：官方把这两个入口当内部 API，因此整条路径带降级（失败返回 null，resolver 退化为
 不改写任何 request，最坏是真实的 `Module not found`）；且会**重复实例化**主题插件
@@ -231,17 +230,14 @@ function isSelfPlugin(entryPath: string | undefined): boolean {
 
 /**
 给插件实例补齐官方 `initPlugins` 会补的字段：`{ ...pluginInstance, options, version, path }`，
-返回补齐后的那一份（不改入参对象）。
+返回补齐后的那一份（不改入参对象）。跳过 `version`（要读 package.json，推导层栈用不到）；
+`options` 保留实例自带的那份（插件自己挂在返回值上的才是它实际用的）。
 
-跳过 `version`（要读 package.json，推导层栈用不到）。`options` 保留实例自带的那份
-（插件自己挂在返回值上的才是它实际用的；官方用传入的校验值覆盖，等价）。
-
-`path` 与官方一致**恒取 `dirname(entryPath)`**（官方 `initializePlugin` 原文）：
-官方 `loadThemeAliases` 用这个 `path` 解析 `getThemePath()`，保留实例自带的 `path`
-会在「插件自设 path ≠ 入口目录」时与官方算出**不同的层路径** —— 同一组件在
-`@theme-prev/X` 与 `@theme/X` 落到两个模块，正是本方案要避免的两套可见性。entryPath
-恒存在（见 {@link NormalizedPluginConfig}）；真缺失时 `dirname` 抛错被上层 catch 接住
-（告警 + 跳过该层），比 silently 退回实例自带值诚实。
+`path` 与官方一致**恒取 `dirname(entryPath)`**：官方 `loadThemeAliases` 用它解析
+`getThemePath()`，保留实例自带的 `path` 会在「插件自设 path ≠ 入口目录」时与官方算出**不同的
+层路径** —— 同一组件在 `@theme-prev/X` 与 `@theme/X` 落到两个模块，正是本方案要避免的两套可见性。
+entryPath 恒存在（见 {@link NormalizedPluginConfig}）；真缺失时 `dirname` 抛错被上层 catch 接住
+（告警 + 跳过该层），比静默退回实例自带值诚实。
 */
 function withOfficialFields(
   instance: DocusaurusPluginLike,
@@ -256,18 +252,14 @@ function withOfficialFields(
 }
 
 /**
-复刻官方 `initPluginsConfigs` 的 `doValidatePluginOptions`。
+复刻官方 `initPluginsConfigs` 的 `doValidatePluginOptions`。关键不是「补一个 id」，而是跑插件
+自己的 `validateOptions`：官方给构造函数的是「校验 + 默认值归一化之后」的 options，而声明值可能
+缺字段。实测一个 `getThemePath()` 读 `options.dir` 的主题：声明值推出 `<siteDir>/NO_DIR`，
+校验之后才是 `<siteDir>/theme`。`owner` / issuer 归属 / 组件定位全建在 layer path 上，所以这不是
+「少一个字段」，是**层路径直接算错**。
 
-关键不是「补一个 id」，而是跑插件自己的 `validateOptions`：官方给构造函数的是
-「校验 + 默认值归一化之后」的 options，而声明值可能缺字段。实测一个 `getThemePath()`
-读 `options.dir` 的主题：声明值推出 `<siteDir>/NO_DIR`，校验之后才是 `<siteDir>/theme`。
-`owner` / issuer 归属 / 组件定位全建在 layer path 上，所以这不是「少一个字段」，
-是**层路径直接算错**（层在栈里但路径不对，比少一层更难查）。
-
-校验函数的位置**照官方**（`getOptionValidationFunction`，见 {@link findOptionValidationFunction}）：
-漏掉任一条查找路都会让对应声明形态的插件丢默认值 ⇒ 层路径静默算错。
-
-校验没跑起来时**退回声明值**（不抛）—— 后果见 `resolver.mts`，属「降级」而非「构建失败」，与拿不到 core 同一档。
+校验函数的位置**照官方**（见 {@link findOptionValidationFunction}），漏掉任一条查找路都会让
+对应声明形态的插件丢默认值。校验没跑起来时**退回声明值**（不抛），属「降级」而非「构建失败」。
 */
 function validatePluginOptions(
   config: NormalizedPluginConfig,
@@ -303,11 +295,9 @@ function validatePluginOptions(
 /**
 官方 `getOptionValidationFunction` 的同款查找，**两条路官方都走**：有 `pluginModule`
 （字符串 / 数组声明的插件）看模块导出 `module.default.validateOptions ?? module.validateOptions`；
-没有（**内联函数插件**）看插件函数自己的静态属性 `plugin.validateOptions`。
-
-曾经只实现了第 1 条、第 2 条查了一个官方返回形状里不存在的字段：内联声明的主题插件
-因此整体丢默认值（层路径静默算错）。`plugin` 在官方形状里恒为函数，但这里不替上游
-保证，安全取值。
+没有（**内联函数插件**）看插件函数自己的静态属性 `plugin.validateOptions` —— 曾经只实现了第 1 条，
+内联声明的主题插件因此整体丢默认值（层路径静默算错）。`plugin` 在官方形状里恒为函数，
+但这里不替上游保证，安全取值。
 */
 function findOptionValidationFunction(config: NormalizedPluginConfig): unknown {
   const { pluginModule } = config;
@@ -352,13 +342,9 @@ function resolveNormalizePluginOptions(siteDir: string): NormalizeOptions {
 }
 
 /**
-官方 `getThemeValidationFunction` 的同款查找，**两条路官方都走**：有 `pluginModule`
-（字符串 / 数组声明的插件）看模块导出 `module.default.validateThemeConfig ??
-module.validateThemeConfig`；没有（内联函数插件）看插件函数自己的静态属性
-`plugin.validateThemeConfig`。
-
-与 {@link findOptionValidationFunction} 同构，但喂的是另一份官方实现
-（{@link NormalizeThemeConfig}）—— 见 {@link mergeValidatedThemeConfig}。
+{@link findOptionValidationFunction} 的同构查找，只是换成 `validateThemeConfig`：有
+`pluginModule` 看模块导出 `module.default.validateThemeConfig ?? module.validateThemeConfig`，
+没有（内联函数插件）看插件函数自己的静态属性。两条路官方都走，少一条就有一类声明形态丢默认值。
 */
 function findThemeValidationFunction(config: NormalizedPluginConfig): unknown {
   const { pluginModule } = config;
@@ -427,19 +413,15 @@ function withMergedThemeConfig(
 
 /**
 官方 `initializePlugin` 里「先合并 themeConfig，再调构造函数」那一步（core
-`server/plugins/init.js`）：把本插件 `validateThemeConfig` 的返回值并入**累积的**
-themeConfig，返回交给构造函数的 context。
+`server/plugins/init.js`）：把本插件 `validateThemeConfig` 的返回值并入**累积的** themeConfig，
+返回交给构造函数的 context。
 
-为什么必须做：官方给每个构造函数的 context 都带着「前序插件校验并填好默认值之后」
-的 themeConfig，而 `theme-classic` 的构造函数**就读它**（`themeConfig.prism.additionalLanguages`，
-站点不声明 `prism` 时直接 TypeError）。跳过这一步的代价不是「少几个默认值」——
-是那个主题插件整个构造失败、**从层栈里静默消失**（实测本仓库：配置去掉 `prism` 后
-theme-classic 即如此，链底少一层）。
-
-按官方口径做（不另立标准）：累积值从声明时那份 themeConfig 起算，逐插件并入；
-校验函数自己的两条查找路见 {@link findThemeValidationFunction}。取不到官方
-`normalizeThemeConfig`（core 的 utils-validation 被裁剪 / 加载即抛）或校验本身抛错时
-**跳过合并**：推导层栈这一轮不需要它炸，真正的构建会在官方那轮把同一个错报出来。
+为什么必须做：官方给每个构造函数的 context 都带着「前序插件校验并填好默认值之后」的
+themeConfig，而 `theme-classic` 的构造函数**就读它**（`themeConfig.prism.additionalLanguages`，
+站点不声明 `prism` 时直接 TypeError）。跳过这一步的代价不是「少几个默认值」—— 是那个主题插件
+整个构造失败、**从层栈里静默消失**（实测本仓库：配置去掉 `prism` 后 theme-classic 即如此，
+链底少一层）。累积值从声明时那份起算、逐插件并入；取不到官方 `normalizeThemeConfig`
+或校验本身抛错时**跳过合并**，真正的构建会在官方那轮把同一个错报出来。
 */
 function mergeValidatedThemeConfig(
   config: NormalizedPluginConfig,
@@ -516,23 +498,20 @@ async function instantiateThemePlugins(
       }
     } catch (error) {
       // 多数插件（content-docs / content-pages 等）需要完整 context 才能构造，只有 siteDir
-      // 时会抛错；它们本来就不提供主题，跳过合理。但**一条都不能省**：这个 catch 无法区分
-      // 「本来就没主题」和「有主题但在有限 context 下构造失败」，而后者会让层栈少一层且
-      // 完全静默（最难查的一类故障）。可用的判据一个都没有 —— entryPath 是声明入口
-      // （构建产物里 `getThemePath` 可能被压缩成短名），而普通插件与主题插件的入口都读得到。
-      // `?? '<inline plugin>'` 给的是内联插件（配置里直接写函数，没有入口）的标签，
-      // 否则这一行会打印 `undefined` 而看不出是谁失败了。
-      // 只收集、不当场 warn：逐条报就是每次构建刷 N 行，而「谁失败了、为什么」一条汇总
-      // 放得下（汇总见循环外）。`String(error)` 而非 `.message`：带上错误类型名
-      // （`TypeError: …`），非 Error 抛出（`throw 'boom'`）也不会变成 `undefined`。
+      // 时会抛错；它们本来就不提供主题，跳过合理。但**一条都不能省**：这里无法区分「本来
+      // 就没主题」和「有主题但在有限 context 下构造失败」，而后者让层栈少一层且完全静默
+      // —— 没有可用判据（`getThemePath` 在产物里可能被压成短名），理由见 README
+      // 「会告警的地方」第 6 条。只收集、不当场 warn：逐条报就是每次构建刷 N 行。
+      // `?? '<inline plugin>'` 给的是内联插件（配置里直接写函数、没有入口）的标签，
+      // 否则这一行打印 `undefined` 而看不出是谁失败了。`String(error)` 而非 `.message`：
+      // 带上错误类型名，非 Error 抛出（`throw 'boom'`）也不会变成 `undefined`。
       constructionFailures.push({
         entry: config.entryPath ?? '<inline plugin>',
         reason: String(error),
       });
     }
   }
-  // N 条失败一条汇总：名单与原因全内联，行数从 N 降到 1。「不报」是不可接受的降级
-  // （漏报 = 层栈少一层且完全静默），所以一条都不能省，只是不再一人一行。
+  // N 条失败聚合成一条：名单与原因全内联，行数从 N 降到 1。
   if (constructionFailures.length > 0) {
     const list = constructionFailures
       .map((failure) => `  - ${failure.entry}: ${failure.reason}`)

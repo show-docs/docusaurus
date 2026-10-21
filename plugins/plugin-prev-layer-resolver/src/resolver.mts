@@ -23,28 +23,21 @@ import type {
 const FALLBACK_NOTE = '官方链底的 stub 层，不是真实实现';
 
 /**
-两个缓存共用的条目上限策略：**超限就不再写入**（不淘汰、不抖动），退化成「现算」。
-不淘汰是因为超限的场景恰恰是「键各不相同」，继续写只是把内存涨上去；策略只有这一处，
-两个上限值才放在它下面。
+两个缓存共用的上限策略：**超限就不再写入**（不淘汰、不抖动），退化成「现算」。超限的场景恰恰是
+「键各不相同」，继续写只是把内存涨上去。
 */
 const RESOLUTION_CACHE_MAX = 8192;
 const REALPATH_CACHE_MAX = 4096;
 
-/**
-同一类告警最多逐条报几条（之后只留按量级补报的汇总，见 {@link warnSample}）。
-「导入者不属于任何层」这类消息里带 issuer 路径，按完整消息去重等于每个 issuer 一条新消息。
-*/
+/** 同一类告警最多逐条报几条，之后只按量级补报汇总（见 {@link warnSample}）。 */
 const WARN_SAMPLE_LIMIT = 5;
 
-/**
-折叠汇总的补报点取 10 的幂：汇总里那个数得真实，取幂让「报出的数」与「触发点」重合。
-*/
+/** 折叠汇总的补报点取 10 的幂：让「报出的数」与「触发点」重合。 */
 const WARN_SUMMARY_BASE = 10;
 
 /**
-该不该补报折叠汇总；该的话返回「下一个补报点」，否则返回 null。
-取**严格大于当前折叠数**的最小幂：同一个数字不报两遍，也不会停在旧数字上。
-不对外出口 —— 补报点对不对只在真实告警路径上看得见，由那条用例端到端钉住。
+该不该补报折叠汇总；该的话返回「下一个补报点」，否则返回 null。取**严格大于当前折叠数**的最小幂，
+同一个数字就不报两遍。不对外出口 —— 补报点对不对只在真实告警路径上看得见，由那条用例端到端钉住。
 */
 function nextSummaryThreshold(
   current: number,
@@ -79,16 +72,14 @@ interface StackEntryLike {
 }
 
 /**
-「这条 `(name, request)` 是否已在栈上」，**比上游 `StackEntry#has` 粗**：上游还比
-path/query/fragment/directory/module 七个字段（`Resolver.js`）。粗的方向是保守 ——
-同名的 `internal-resolve` 加上同一个绝对目标路径本就只可能来自同一条改写，误判的代价是
-少改写一次、交回官方（对 `@theme-prev/*` 即真实 `Module not found`），不会静默回环。
+「这条 `(name, request)` 是否已在栈上」，**比上游 `StackEntry#has` 粗**（上游还比七个字段）。
+粗的方向是保守：同名的 `internal-resolve` 加上同一个绝对目标路径本就只可能来自同一条改写，
+误判的代价是少改写一次、交回官方，不会静默回环。为什么不逐项复刻，
+见 docs/internals.md「设计取舍」的「改写的『栈上判等』只看 `(name, request)`」。
 */
 function stackHasEntry(
   // 收 `unknown`：这个值来自 webpack 内联的 `ResolveContext`，声明成我们的形状会让调用点
   // 不可赋值（同 `ResolverLike` 的理由）；运行时判形，读不到即「没走过」。
-  // 更早的 `Set<string>` 形态不认：条目是给人看的串，`(name, request)` 无从精确匹配；
-  // 读不到只少一次去重，随后由上游自己抛 `Recursion in resolving`，不会静默回环。
   stack: unknown,
   name: string,
   request: string,
@@ -105,9 +96,7 @@ function stackHasEntry(
 }
 
 export interface PrevLayerResolverOptions {
-  /**
-  层栈（由插件在初始化阶段推好后传入）
-  */
+  /** 层栈（由插件在初始化阶段推好后传入） */
   layers?: ThemeLayer[];
   logger?: LoggerLike;
 }
@@ -115,27 +104,21 @@ export interface PrevLayerResolverOptions {
 /**
 让「多层主题链式包裹同一个组件」成立，且**不改动 @theme-original/X 的官方语义**。
 
-官方 `@theme-original/X` 与 `@theme/X` 各是**每个组件一个全局值**，而链上每一层要的是
-「我自己下面那一层」—— 多个消费者要多个答案，全局别名原理上无法同时满足，所以这里另起
-一个新的 `@theme-prev/*` specifier（语义见 `./README.md`）：
+官方 `@theme-original/X` 与 `@theme/X` 各是**每个组件一个全局值**，而链上每一层要的是「我自己
+下面那一层」—— 多个消费者要多个答案，全局别名原理上无法同时满足，所以这里另起一个新的
+`@theme-prev/*` specifier（为什么不改写官方别名、各别名的语义差在哪，见 `./README.md`）。
 
-设层栈（内 → 外）为 `L0..Ln`、导入者在 `Li`：目标收在 `j < i` ——
-「落点在导入者下方」是整套机制无环（不会 OOM）的来源。
-层栈里没人提供该组件时交回官方解析（`@theme-prev/*` 官方不认识 ⇒ 必定
-`Module not found`）：能用的官方别名里没有语义对的 —— `-init` / `-root` 要「最内层」，
-而 `@theme` ≡ `@theme-original` 是**最外层**赢家，正好相反。
-
-因此只在「导入者属于某个已知层」且「目标不是自己」时改写 request，其余情况一律
-`callback()`：**最坏情况退化为官方语义，而不是构建失败**。
+设层栈（内 → 外）为 `L0..Ln`、导入者在 `Li`：目标收在 `j < i` —— 「落点在导入者下方」是整套
+机制无环（不会 OOM）的来源。层栈里没人提供该组件时交回官方解析（`@theme-prev/*` 官方不认识 ⇒
+必定 `Module not found`）。因此只在「导入者属于某个已知层」且「目标不是自己」时改写 request，
+其余情况一律 `callback()`：**最坏情况退化为官方语义，而不是构建失败**。
 */
 export class PrevLayerResolverPlugin {
   logger: LoggerLike;
   layers: ThemeLayer[] = [];
   /**
-  带上限的 `normalizeLayerPath`，见 {@link realpathCache}。
-  
-  箭头属性而不是方法：它被当值传给 `findIssuerLayerIndex`（那里不该知道「谁在缓存」），
-  方法形态传出去就丢了 `this`。
+  带上限的 `normalizeLayerPath`，见 {@link realpathCache}。箭头属性而不是方法：它被当值传给
+  `findIssuerLayerIndex`（那里不该知道「谁在缓存」），方法形态传出去就丢了 `this`。
   */
   realpathOf = (p: string): string => {
     const hit = this.realpathCache.get(p);
@@ -154,25 +137,22 @@ export class PrevLayerResolverPlugin {
   */
   violations = new Set<string>();
   /**
-  realpath 结果的缓存，**一份实例一份**（= 一次构建，见 {@link realpathOf}）。
-  
-  要缓存是因为 `findIssuerLayerIndex` 每层、每次请求都 realpath 一次，而
-  `resolutionCache` 只按「完全相同 issuer」命中：唯一 issuer 的站点要付「层数 × 请求数」次
-  纯同步 syscall（一次构建的请求数是万级的，所以这笔开销是构建级的）。上限见 {@link REALPATH_CACHE_MAX}。
+  realpath 结果的缓存，**一份实例一份**（= 一次构建；为什么这个粒度够用，见 docs/internals.md
+  「设计取舍」的「realpath 缓存与层栈推导都挂在实例上」）。要缓存是因为 `findIssuerLayerIndex`
+  每层、每次请求都 realpath 一次，而 `resolutionCache` 只按「完全相同 issuer」命中：
+  唯一 issuer 的站点要付「层数 × 请求数」次同步 syscall（一次构建的请求是万级的）。
   */
   private realpathCache = new Map<string, string>();
   /**
-  告警去重集合（「同一句话别说第二遍」），与 {@link violations} 分开。**没有上限**：
-  高基数可变内容（issuer 路径、用户写的组件名）必须走 {@link warnSample}；低基数且
-  罕见的失败路径（doResolve 失败、改写抛错、不变量违规）用 warn 各报一次。
+  告警去重集合（「同一句话别说第二遍」），与 {@link violations} 分开。**没有上限**：高基数可变内容
+  （issuer 路径、用户写的组件名）必须走 {@link warnSample}，低基数罕见的失败路径才用 {@link warn}。
   */
   private warnedMessages = new Set<string>();
   /** 「同类告警」的计数（键是类别，不是完整消息）—— 防刷屏要的是「已说了多少条同类」 */
   private warnCounts = new Map<string, number>();
   /**
-  每个类别「下一次补折叠汇总」的阈值（见 {@link warnSample}）。必须与 {@link warnCounts}
-  一一对应按类别各存一份：共用一份会让攒得最快的那类把阈值推到高位，后出现的类别
-  要等自己折叠同样多才报 —— 新类别的汇总永远不会出现。
+  每个类别「下一次补折叠汇总」的阈值（见 {@link warnSample}）。必须与 {@link warnCounts} 一样
+  按类别各存一份：共用一份会让攒得最快的那类把阈值推高，后出现的类别永远报不出汇总。
   */
   private nextSummaryAtFolded = new Map<string, number>();
   /**
@@ -215,16 +195,11 @@ export class PrevLayerResolverPlugin {
 
   /**
   **按类别**限流的告警：同一类别最多逐条报 {@link WARN_SAMPLE_LIMIT} 次，之后按折叠量级
-  （1 → 10 → 100 …）补报汇总，因此 N 条同类告警只出 O(log N) 行。
-  
-  与 {@link warn} 的差别只在去重键：`warn` 按完整消息（适合「同一件事反复发生」），
-  这里按类别（适合「同一类事发生在不同对象上」，消息里带 issuer 路径这类易变部分）。
-  汇总文案由调用方给（`summarize` 收到的是**本次被折叠的条数**，真实快照，
-  见 {@link nextSummaryThreshold}）。
+  （1 → 10 → 100 …）补报汇总，N 条同类告警只出 O(log N) 行。与 {@link warn} 的差别只在去重键：
+  那条按完整消息（同一件事反复发生），这条按类别（同一类事发生在不同对象上，消息里带 issuer
+  路径这类易变部分）。`summarize` 收到的是**本次被折叠的条数**，真实快照。
   
   @param category 类别键（不含易变部分，例如不要带具体路径）
-  @param message 本条消息（可以带具体路径，便于定位）
-  @param summarize 收到「本次被折叠的条数」后返回汇总文案
   */
   warnSample(
     category: string,
@@ -299,9 +274,9 @@ export class PrevLayerResolverPlugin {
     const base = sep < 0 ? componentName : componentName.slice(0, sep);
     const tail = sep < 0 ? '' : componentName.slice(sep);
 
-    // 键的四段：层栈指纹 / 前缀 / 组件名（含尾部）/ issuer。分隔符取 NUL 而不是 `|`：
-    // `|` 是合法文件名字符，出现在组件名或 issuer 里就能让两个不同组合撞进同一个键
-    // （拿到别人的落点 = 静默错层）。组件名已拒 NUL，真实路径与指纹也不含它。
+    // 键的四段：层栈指纹 / 前缀 / 组件名（含尾部）/ issuer。分隔符必须取 NUL 而不是 `|`
+    // （`|` 是合法文件名字符，能让两组字段划分撞进同一个键 = 静默错层），理由见 docs/internals.md
+    // 「设计取舍」的「缓存键的分隔符取 NUL」。
     const cacheKey = `${this.fingerprint()}\0${prefix}\0${componentName}\0${issuer}`;
     const hit = this.resolutionCache.get(cacheKey);
     if (hit !== undefined) {
@@ -320,9 +295,8 @@ export class PrevLayerResolverPlugin {
       componentName: base,
       issuer,
     });
-    // 只缓存正解：负结论会随「文件后来出现 / 层栈变了」失效，而这里没有任何失效路径，
-    // 一次「还没有」就把「现在有了」永久钉死（dev/watch 下不可恢复）。负结论每次现算，
-    // 代价只是字符串比较 + 有限次 exists。
+    // 只缓存正解：这里没有任何失效路径，存过负结论就把「现在有了」永久钉死
+    // （dev/watch 下不可恢复）；负结论每次现算，代价只是字符串比较 + 有限次 exists。
     const resolved =
       result && tail ? { ...result, target: result.target + tail } : result;
     if (resolved && this.resolutionCache.size < RESOLUTION_CACHE_MAX)
@@ -339,11 +313,11 @@ export class PrevLayerResolverPlugin {
   }): ResolvedThemeTarget | null {
     const { layers } = this;
     const issuerIndex = findIssuerLayerIndex(layers, issuer, this.realpathOf);
-    // 导入者不在任何已知层里 → 保持官方行为。这是最常见的误用（写在层外文件里）与两条真实
-    // 退化路径（软链 issuer / 层栈漏层）的共同出口，三者表现相同、成因不同（告警把它们列全）。
+    // 导入者不在任何已知层里 → 保持官方行为（最常见的误用与两条真实退化路径的共同出口）。
     if (issuerIndex < 0) {
-      // 按类别限流，而不是按完整消息：消息里带 issuer 路径，一个 pnpm 布局差异
-      // 就能产生上千个不同的 issuer → 上千条「新消息」→ 去重失效、日志被刷满。
+      // 按类别限流，而不是按完整消息：消息里带 issuer 路径，一个 pnpm 布局差异就能产生上千个
+      // 不同的 issuer → 上千条「新消息」→ 去重失效、日志被刷满。三种成因同一条告警列全，
+      // 判据与文案的理由见 README「会告警的地方」第 3 条。
       this.warnSample(
         'issuer-not-in-any-layer',
         `[plugin-prev-layer-resolver] ${requestLabel(componentName)} 的导入者不在任何主题层内：${issuer}。` +
@@ -362,9 +336,9 @@ export class PrevLayerResolverPlugin {
     }
 
     const targetIndex = this.findTargetLayerIndex(issuerIndex, componentName);
-    // 落点必须在导入者下方：`<` 之外的一切（等于自己 / 指到上方）都是同一个不变量违规，
-    // 这里是它**唯一**的判据。默认 `scan` 的循环条件本就保证成立，所以这条只由替换了
-    // `findTargetLayerIndex` 的子类触达 —— 它是给「以后有人改扫描区间」留的守门，不是热路径。
+    // 落点必须在导入者下方：`>=` 之外的一切都是同一条不变量违规，这里是它**唯一**的判据
+    // （为什么取 `>=` 见 README「会告警的地方」第 2 条）。{@link findTargetLayerIndex} 的扫描
+    // 条件本就保证成立，所以这条只由替换了它的子类触达。
     if (targetIndex >= issuerIndex) {
       this.reportInvariantViolation(componentName, issuerIndex, targetIndex);
       return null;
@@ -396,11 +370,12 @@ export class PrevLayerResolverPlugin {
 
   /**
   入口 tap `resolve`，改写成绝对路径后从 `internal-resolve` 继续 —— 两个 hook 换一个就坏，
-  各自的成因见 `./README.md` 的「两个 hook 的选择」。
+  各自的成因见 `./docs/internals.md`「两个 hook 的选择」。
   */
   apply(resolver: ResolverLike): void {
     // 能力自检 + 取出口 hook 是同一次调用：`ensureHook` 幂等，自检拿到的那份就是每次改写
-    // 要用的那份，不必每条 request 再走一遍 Tapable。自检本身的存在理由见文档第 4 条。
+    // 要用的那份，不必每条 request 再走一遍 Tapable。为什么要自检，见 README
+    // 「会告警的地方」第 4 条。
     let target: ReturnType<ResolverLike['ensureHook']>;
     try {
       target = resolver.ensureHook('internal-resolve');
@@ -487,11 +462,9 @@ export class PrevLayerResolverPlugin {
   }
 
   /**
-  登记并告警一次「不变量违规」：`targetIndex >= issuerIndex`。
-  
-  判据取 `>=` 而不是 `==`：落在导入者**上方**与落在自己身上破坏的是同一条无环性来源，
-  处理方式必须相同。按「层」判（不按文件路径）：层不等 ⇒ 文件必不等，判得更强，
-  而路径比较两个方向都会错。登记进 {@link violations}：它是真 bug 信号（层栈推导错了）。
+  登记并告警一次「不变量违规」：`targetIndex >= issuerIndex`。判据按**层**判而不按文件路径：
+  层不等 ⇒ 文件必不等，判得更强，而路径比较两个方向都会错。理由与后果见 README
+  「会告警的地方」第 2 条。
   */
   private reportInvariantViolation(
     componentName: string,

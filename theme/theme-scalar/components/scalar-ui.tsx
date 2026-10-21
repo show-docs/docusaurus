@@ -49,7 +49,7 @@ export function ScalarUI(props: Props) {
       // 把上面那格从「初始值」升成「就这一格，别的不看」：只给 `darkMode` 时，厂商那条优先级链
       // 让同源 `localStorage` 里的 `colorMode` 压得过它（框内这一页与站点同源，那个 key 谁都读得到）。
       // 钉成挂载那一刻从本份文档 `<html data-theme>` 读到的值，站点仍是唯一驱动。链的完整形状、
-      // 以及「页面开着时换操作系统主题会把钉住的那格重落一遍」那一格窄缝，记在包 README 的
+      // 以及「页面开着时换操作系统主题会把钉住的那格重落一遍」那一格窄缝，记在包 `docs/internals.md` 的
       // 「亮暗模式」一节。
       forceDarkModeState: isDarkColorModeAtLoad() ? 'dark' : 'light',
       // 左栏底部 Scalar 自己那颗亮暗开关（实测露出来时是一份 `aria-label="Set dark mode"` 的元素，
@@ -65,7 +65,7 @@ export function ScalarUI(props: Props) {
       // 界面文案走厂商自带的简体中文那份。取值认的是它内置九份那种小写带连字符的 id（不是 BCP 47，
       // 写 `zh-CN` 会退回 `en`）；`zh-cn` 实测与 `en` 一样齐，不会露半句英文。换语言牵到 e2e：
       // 按文案认的那几句判据因此两种都收（见 `test/e2e/steps/scalar.steps.mts`）。九份清单、
-      // 那句换不动的硬编码英文，记在包 README 的「界面文案」一节。
+      // 那句换不动的硬编码英文，记在包 `docs/internals.md` 的「界面文案」一节。
       localization: { locale: 'zh-cn' },
       // 左栏底部那两颗「Generate MCP」/「Connect MCP」。厂商那一格（`sidebarCta`）按 `mcp.disabled`
       // 优先，钉成 disabled 就直接退回 API client 那颗入口；不给时按「本机摆 explore、线上摆 client」走，

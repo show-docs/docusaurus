@@ -3,7 +3,7 @@
 # 样式表：Redoc 的样式是运行期插进自己那份文档的 `<head>`，Elements 的是一份静态文件 ——
 # 站点只有**一份**全站 css，每个页面都 `<link>` 同一个文件，iframe 拦不住它。所以这一层多做了
 # 一步构建期处理：把 Elements 那份 css 从「打进全站 bundle」改成「单独一个产物」，只由框内那份
-# 文档挂一条 `<link>`（口径见包 README 的「样式」一节）。
+# 文档挂一条 `<link>`（口径见包 `docs/internals.md` 的「样式」一节）。
 Feature: theme-stoplight
 
   Scenario: 命中页整页交给 iframe，Elements 在框里渲染
@@ -28,8 +28,8 @@ Feature: theme-stoplight
 
   # 能发给别人的是**外层**那条地址：`/stoplight-demo#/operations/createOrder`。hash 段不参与
   # 取文件，浏览器请求的还是这一页自己的那份 html，所以整页加载它回 200；页面起来之后那一段由
-  # 框里那句 ready 换进框内那份文档（为什么不能靠外层在 iframe 的 load 事件上推，见包 README
-  # 的「深链」一节）。Elements 认 `operationId` 原样（大小写不变），与 Redoc 那段小写不同。
+  # 框里那句 ready 换进框内那份文档（为什么不能靠外层在 iframe 的 load 事件上推，见
+  # theme/theme-iframe/docs/iframe-protocol.md 的「对齐是两侧各推一次的」一节）。Elements 认 `operationId` 原样（大小写不变），与 Redoc 那段小写不同。
   Scenario: 那条接口的地址在静态产物里也打得开
     Given 我直达 stoplight 那条接口的地址
     Then Elements 在框里接管了这一屏，读的是本站那份 yaml
@@ -41,7 +41,7 @@ Feature: theme-stoplight
 
   # Elements 用的那套配色（`@stoplight/mosaic`）自己也有亮暗模式，判据是它存在 localStorage 里
   # 那份存档（`mosaic-theme`），并把 `data-theme` 写进 `<html>` —— 和站点那条属性**同名**。
-  # 本层把站点这一头的亮暗随消息送进框内、写在那条属性上（见包 README 的「亮暗模式」一节）。
+  # 本层把站点这一头的亮暗随消息送进框内、写在那条属性上（见包 `docs/internals.md` 的「亮暗模式」一节）。
   # 实测两件事：操作系统的偏好换不了这一页；框里 Elements 自己那份存档说「亮色」也压不过
   # 站点送进来的暗色（它写在同一个属性上，但我们的写在它之后，且没人再调它那个开关）。
   Scenario: 亮暗模式跟站点走，不跟操作系统走

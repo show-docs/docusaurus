@@ -8,7 +8,7 @@ import { API } from '@stoplight/elements';
 // 不带 `.sl-` 的全局规则，进了那一份 bundle 就是整站生效。iframe 隔的是 DOM 与运行时，
 // **隔不了静态 CSS**，所以这里要的是「这份样式表只出现在框内那一页」。
 // 规则条数、改造前实测到的症状，以及为什么 `theme-redoc` 那边能整条删掉圈定（它的样式是
-// styled-components 在运行期插进它自己那份文档的 `<head>`，不进这份 bundle）都记在包 README 的
+// styled-components 在运行期插进它自己那份文档的 `<head>`，不进这份 bundle）都记在 `docs/internals.md` 的
 // 「样式」一节。
 import stoplightStylesUrl from '@stoplight/elements/styles.min.css';
 

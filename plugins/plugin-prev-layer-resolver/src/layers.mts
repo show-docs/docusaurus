@@ -82,11 +82,10 @@ export function resolveFromCore<T>(siteDir: string, id: string): T | null {
 /**
 `@docusaurus/core` 的包根目录；定位不到返回 null。
 
-只解析 `package.json`（包根标识）再 `path.join` 子路径，不解析 `lib/` 子路径：
-后者能命中只是因为 core 目前没有 `exports` 字段 —— 那是它的实现细节。上游一旦补上
-`exports`，`ERR_PACKAGE_PATH_NOT_EXPORTED` 会让所有这类定位**同时静默失效**
-（`theme-fallback` 整层消失，「`-root` 跳过 stub」的锚点随之失效）。
-「内部 API 不稳定」的固有风险仍在，但它现在是**一处**、且失败会降级并告警。
+只解析 `package.json`（包根标识）再 `path.join` 子路径，不解析 `lib/` 子路径：后者能命中只是因为
+core 目前没有 `exports` 字段 —— 那是它的实现细节。上游一旦补上，`ERR_PACKAGE_PATH_NOT_EXPORTED`
+会让所有这类定位**同时静默失效**（`theme-fallback` 整层消失）。内部 API 不稳定的固有风险仍在，
+但它现在是**一处**、且失败会降级并告警。
 */
 export function resolveCoreRoot(siteDir: string): string | null {
   // 首选：正常安装下一定命中（core 是站点直接依赖）
@@ -121,13 +120,12 @@ export function resolveCoreModule(
 
 /**
 theme-fallback 目录 —— 按官方定义（`path.join(__dirname, '../../client/theme-fallback')`，
-`__dirname` 是 `<core>/lib/webpack/aliases`）从 core 的模块位置推导，而不是把那段内部路径
-抄第二遍。锚点文件的存在性由 {@link resolveCoreModule} 保证，「这份 core 结构如官方所料」
-因此只有一个产地。
+`__dirname` 是 `<core>/lib/webpack/aliases`）从 core 的模块位置推导，而不是把那段内部路径抄第二遍；
+锚点文件的存在性由 {@link resolveCoreModule} 保证，「这份 core 结构如官方所料」因此只有一个产地。
 
-拿不到 core 时返回 null：**这一层缺失，其余层不受影响**。刻意不做「反查别名表」的兜底 ——
-别名表里只有被覆盖 / 冲突过的组件才有落点，全覆盖时一个指向 fallback 的值都没有，
-一层「有时在有时不在」的语义关键层比明说「这里拿不到」更难查。
+拿不到 core 时返回 null：**这一层缺失，其余层不受影响**。刻意不做「反查别名表」的兜底 —— 别名表里
+只有被覆盖 / 冲突过的组件才有落点，全覆盖时一个指向 fallback 的值都没有，一层「有时在有时不在」的
+语义关键层比明说「这里拿不到」更难查。
 */
 export function resolveFallbackDir(siteDir: string): string | null {
   // 锚点已由 `resolveCoreModule` 判过：不存在即 null，这里不必再兜一层。

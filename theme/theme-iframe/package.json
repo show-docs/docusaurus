@@ -15,7 +15,6 @@
   "files": [
     "components",
     "dist",
-    "docs",
     "lib",
     "theme"
   ],
