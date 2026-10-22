@@ -257,24 +257,40 @@ describe('解析缓存 / 层栈身份', () => {
     ).toBe(path.join(mid.owner, 'Logo', 'index.js'));
   });
 
-  it('resolutionCache 有上限，且超限后仍返回正确结果（退化为现算，不是错值）', () => {
+  it('两格缓存各到自己的上限，且超限后仍返回正确结果（退化为现算，不是错值）', () => {
+    // 上限交出来（`resolutionCacheMax` / `realpathCacheMax`）而不是按出厂那两个数跑：这一条要钉的是
+    // 「越过就不再写入、之后照旧现算出正确答案」这**两条行为**，与上限具体是多少无关。按 8192 跑就是
+    // 八千多次真实 fs 解析（实测 14s，CI 的慢机器上顶到 vitest 的 30s 超时就成了假红），
+    // 这里几十次就够。两格都要越过：每圈一个新 issuer，解析缓存那格写满之后不再写，
+    // realpath 那格先满（它本来就更小），之后每圈走的是「不写入、就地现算」那一路。
+    const resolutionCap = 64;
+    const realpathCap = 32;
     const inner = site.layer('a', { Logo: '' });
     const outer = site.layer('b', { Logo: '' });
-    const r = new PrevLayerResolverPlugin({ layers: [inner, outer] });
-    // 每圈都是新键 → 现算（真实 fs），圈数即耗时；越过上限 1 圈就够
-    for (let i = 0; i < 8193; i += 1) {
+    const r = new PrevLayerResolverPlugin({
+      layers: [inner, outer],
+      resolutionCacheMax: resolutionCap,
+      realpathCacheMax: realpathCap,
+    });
+    // 每圈都是新键 → 现算（真实 fs），越过上限一圈就够
+    for (let i = 0; i < resolutionCap + 1; i += 1) {
       r.resolveTarget({
         request: '@theme-prev/Logo',
         issuer: path.join(outer.owner, `x${i}`, 'a.js'),
       });
     }
     // 钉恰好是上限：只写 `<=` 时「一个都没存」也算绿
-    expect(r.resolutionCache.size).toBe(8192);
+    expect(r.resolutionCache.size).toBe(resolutionCap);
     const res = r.resolveTarget({
       request: '@theme-prev/Logo',
       issuer: path.join(outer.owner, 'Logo', 'index.js'),
     });
     expect(res?.target).toBe(path.join(inner.owner, 'Logo', 'index.js'));
+  });
+
+  it('出厂那格解析上限是 8192：站点与插件都不传，改动它要过这一条', () => {
+    const r = new PrevLayerResolverPlugin({ layers: [] });
+    expect(r.resolutionCacheMax).toBe(8192);
   });
 });
 

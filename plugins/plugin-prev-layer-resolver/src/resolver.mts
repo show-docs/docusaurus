@@ -99,6 +99,15 @@ export interface PrevLayerResolverOptions {
   /** 层栈（由插件在初始化阶段推好后传入） */
   layers?: ThemeLayer[];
   logger?: LoggerLike;
+  /**
+  解析结果缓存的上限（默认 {@link RESOLUTION_CACHE_MAX}）。测试用：那两条判据要钉的是
+  「越过上限就不再写入、且仍返回现算的正确结果」，而上限本身只是一个数 —— 按默认值去跑就是
+  八千多次真实 fs 解析（实测 14s，慢机器上直接顶到 vitest 的 30s 超时），把上限交出去，
+  同一条判据几十次就能跑完。生产路径不传它。
+  */
+  resolutionCacheMax?: number;
+  /** realpath 缓存的上限，同上（默认 {@link REALPATH_CACHE_MAX}），也供那条判据把量收小 */
+  realpathCacheMax?: number;
 }
 
 /**
@@ -124,13 +133,15 @@ export class PrevLayerResolverPlugin {
     const hit = this.realpathCache.get(p);
     if (hit !== undefined) return hit;
     const normalized = normalizeLayerPath(p);
-    if (this.realpathCache.size < REALPATH_CACHE_MAX)
+    if (this.realpathCache.size < this.realpathCacheMax)
       this.realpathCache.set(p, normalized);
     return normalized;
   };
 
-  /** 解析结果缓存（只存正解，key 见 {@link resolveTarget}）；上限 {@link RESOLUTION_CACHE_MAX} */
+  /** 解析结果缓存（只存正解，key 见 {@link resolveTarget}）；上限见 {@link resolutionCacheMax} */
   resolutionCache = new Map<string, ResolvedThemeTarget>();
+  /** 这次实例的解析缓存上限，取值口径见 {@link PrevLayerResolverOptions.resolutionCacheMax} */
+  resolutionCacheMax: number;
   /**
   已告警过的「不变量违规」—— 它是**真 bug 信号**（层栈推导错了），
   单独一份是为了让外部能断言「这次构建有没有出现真违规」；不承担防刷屏职责。
@@ -143,6 +154,8 @@ export class PrevLayerResolverPlugin {
   唯一 issuer 的站点要付「层数 × 请求数」次同步 syscall（一次构建的请求是万级的）。
   */
   private realpathCache = new Map<string, string>();
+  /** {@link PrevLayerResolverOptions.realpathCacheMax}，与 {@link resolutionCacheMax} 同一套口径 */
+  private realpathCacheMax: number;
   /**
   告警去重集合（「同一句话别说第二遍」），与 {@link violations} 分开。**没有上限**：高基数可变内容
   （issuer 路径、用户写的组件名）必须走 {@link warnSample}，低基数罕见的失败路径才用 {@link warn}。
@@ -166,9 +179,13 @@ export class PrevLayerResolverPlugin {
   constructor({
     layers = [],
     logger = console,
+    resolutionCacheMax = RESOLUTION_CACHE_MAX,
+    realpathCacheMax = REALPATH_CACHE_MAX,
   }: PrevLayerResolverOptions = {}) {
     this.logger = logger;
     this.layers = layers;
+    this.resolutionCacheMax = resolutionCacheMax;
+    this.realpathCacheMax = realpathCacheMax;
   }
 
   /**
@@ -299,7 +316,7 @@ export class PrevLayerResolverPlugin {
     // （dev/watch 下不可恢复）；负结论每次现算，代价只是字符串比较 + 有限次 exists。
     const resolved =
       result && tail ? { ...result, target: result.target + tail } : result;
-    if (resolved && this.resolutionCache.size < RESOLUTION_CACHE_MAX)
+    if (resolved && this.resolutionCache.size < this.resolutionCacheMax)
       this.resolutionCache.set(cacheKey, resolved);
     return resolved;
   }
