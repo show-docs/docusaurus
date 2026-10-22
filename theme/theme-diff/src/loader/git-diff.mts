@@ -44,6 +44,40 @@ export interface LastChange {
 }
 
 /**
+两份磁盘文件之间比一次（`git diff --no-index`），**不读 git 历史**，也不要求这两份在仓库里。
+
+两个地址按 `cwd` 的相对写法给（同一目录下的两份文件就是文件名）：git 把收到的写法原样写进
+头部，绝对地址会被它加上引号、连盘符一起写进去，视图那边没必要吃那个形状。
+
+没有差别时 git 退 0、输出为空，这里返回 `undefined`。有差别时它**退 1** —— 那不是失败，
+`execFileSync` 却把它当错误抛出，差异文本挂在 `error.stdout` 上，取回来即可。
+
+退 1 有两种，靠输出区分：读到差别就有文本，而 `Could not access`（那两份里有一份 git 读不到）
+同样是退 1、但输出为空。把后者说成「两份没有差别」是指错了方向，所以它照原样抛出，由调用方按
+「git 出问题」那一种落点处理。git 本身跑不起来（不在 PATH、目录不存在）退出码不是 1，也抛出。
+*/
+export function readFilesChange(
+  fromPath: string,
+  toPath: string,
+  cwd: string,
+): string | undefined {
+  try {
+    git(['diff', '--no-index', '--', fromPath, toPath], cwd);
+
+    return undefined;
+  } catch (error) {
+    const { status, stdout } = error as { status?: number; stdout?: string };
+    const diff = (stdout ?? '').trim();
+
+    if (status !== 1 || !diff) {
+      throw error;
+    }
+
+    return diff;
+  }
+}
+
+/**
 取「这份文件最近一次改动」：先找出动过它的最后两个提交，再对比这两者之间的差异。
 用 `--follow` 是为了改名之后还能顺着旧名找到上一次；没有两个提交（只提交过一次、
 或工作区里还没提交）就没有可对比的上一次，返回 `undefined`。

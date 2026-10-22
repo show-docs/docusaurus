@@ -8,13 +8,16 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   readDiffValue,
   resolveDiffTarget,
+  splitDiffValue,
 } from '../theme/theme-diff/src/loader/diff-decision.mts';
 import {
   findRepoRoot,
+  readFilesChange,
   readLastChange,
   repoPathFromRoot,
 } from '../theme/theme-diff/src/loader/git-diff.mts';
 import loader from '../theme/theme-diff/src/loader/md-diff-loader.mts';
+import type { DiffData } from '../theme/theme-diff/src/types.mts';
 
 import { mkdtempReal } from './helpers.mts';
 
@@ -322,5 +325,168 @@ describe('md loader 的四种落点', () => {
     expect(run.warnings).toHaveLength(1);
     expect(run.warnings[0]).toContain('读取');
     expect(run.warnings[0]).toContain('git 历史失败');
+  });
+});
+
+describe('值的形状：一份文件还是两份文件', () => {
+  it('方括号里正好两份就是两份对照，引号与逗号后的空白都吃得下', () => {
+    expect(splitDiffValue('[a.md, b.md]')).toEqual({
+      kind: 'pair',
+      from: 'a.md',
+      to: 'b.md',
+    });
+    expect(splitDiffValue('["./a.md",\t\'./b.md\']')).toEqual({
+      kind: 'pair',
+      from: './a.md',
+      to: './b.md',
+    });
+  });
+
+  it('`true` 与单个路径仍是一份文件，走它自己在 git 里的最近一次改动', () => {
+    expect(splitDiffValue('true')).toEqual({ kind: 'single', value: 'true' });
+    expect(splitDiffValue('../docs/intro.md')).toEqual({
+      kind: 'single',
+      value: '../docs/intro.md',
+    });
+  });
+
+  it('方括号里的项数不是二就点名，不猜前两份', () => {
+    // 猜成「取前两份」会把 `diff: [a, b, c]` 静默比成 a 与 b，页面看着正常、比的不是作者要的
+    for (const value of ['[]', '[a.md]', '[a.md, ]', '[a.md, b.md, c.md]']) {
+      expect(splitDiffValue(value), value).toEqual({ kind: 'invalid', value });
+    }
+  });
+});
+
+describe('两份磁盘文件对照（用 git 的差别算法，不读 git 的历史）', () => {
+  /** 一个不带仓库的临时目录，里面两份不同、两份相同。 */
+  function pairDir(): string {
+    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-'));
+    tempDirs.push(dir);
+    for (const [name, content] of [
+      ['x.txt', '第一行\n相同的一行\n'],
+      ['y.txt', '第二行\n相同的一行\n'],
+      ['same.txt', '第一行\n相同的一行\n'],
+      ['sub/z.txt', '第一行\n相同的一行\n别的行\n'],
+    ] as const) {
+      const file = path.join(dir, name);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, content, 'utf8');
+    }
+    return dir;
+  }
+
+  it('两份不同：给出 `git diff` 原文，头部用的是相对 cwd 的写法', () => {
+    const dir = pairDir();
+    const diff = readFilesChange('x.txt', 'y.txt', dir);
+
+    expect(diff).toBeDefined();
+    expect(diff).toContain('-第一行');
+    expect(diff).toContain('+第二行');
+    expect(diff).toContain('a/x.txt');
+    expect(diff).toContain('b/y.txt');
+  });
+
+  it('子目录里的两份：相对写法带目录，git 头部跟着它', () => {
+    // 夹具里 `sub/z.txt` 比 `x.txt` 多一行，所以那几行在 `+` 侧
+    const diff = readFilesChange('x.txt', 'sub/z.txt', pairDir());
+
+    expect(diff).toContain('b/sub/z.txt');
+    expect(diff).toContain('+别的行');
+  });
+
+  it('两份一样：返回 `undefined`，这一页没什么可显示', () => {
+    expect(readFilesChange('x.txt', 'same.txt', pairDir())).toBeUndefined();
+  });
+
+  it('有一份 git 读不到：抛出来，不把它说成「两份没有差别」', () => {
+    // `git diff --no-index` 读不到文件时也退 1，靠输出区分：差别有文本，读不到是空
+    expect(() =>
+      readFilesChange('x.txt', '没有这一份.txt', pairDir()),
+    ).toThrow();
+  });
+
+  it('git 跑不起来（连目录都不在）：退码不是 1，照旧抛', () => {
+    expect(() =>
+      readFilesChange(
+        'x.txt',
+        'y.txt',
+        path.join(os.tmpdir(), 'diff-pair-没有这个目录'),
+      ),
+    ).toThrow();
+  });
+});
+
+describe('md loader 的两份文件落点', () => {
+  /** 在 `dir/docs` 里放两份文件，返回这份 md 的地址（frontmatter 由用例给）。 */
+  function pairPage(dir: string, diffKey: string): string {
+    fs.mkdirSync(path.join(dir, 'docs'), { recursive: true });
+
+    for (const [name, content] of [
+      ['x.txt', '第一行\n相同的一行\n'],
+      ['y.txt', '第二行\n相同的一行\n'],
+    ] as const) {
+      fs.writeFileSync(path.join(dir, 'docs', name), content, 'utf8');
+    }
+
+    return writeMd(dir, diffKey);
+  }
+
+  it('命中：追加一条对照数据，来源是 `files`，左边那份的内容取自磁盘', () => {
+    // 这份 md 不在任何 git 仓库里：对照那一种不需要仓库
+    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-page-'));
+    tempDirs.push(dir);
+    const run = runLoader(pairPage(dir, 'diff: [x.txt, y.txt]'));
+
+    expect(run.error).toBeNull();
+    expect(run.warnings).toEqual([]);
+
+    const exported = /export const diff = (.*);\n$/.exec(run.output ?? '')?.[1];
+    expect(exported, '产物末尾该有一条 `export const diff`').toBeDefined();
+    const data = JSON.parse(exported!) as DiffData;
+    expect(data.source).toBe('files');
+    expect(data.fileName).toBe('x.txt');
+    expect(data.caption).toBe('x.txt → y.txt');
+    expect(data.old).toContain('第一行');
+    expect(data.diff).toContain('+第二行');
+  });
+
+  it('缺一份：告警点名是哪一边，正文照常', () => {
+    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-missing-'));
+    tempDirs.push(dir);
+    const file = pairPage(dir, 'diff: [x.txt, y.txt]');
+    fs.rmSync(path.join(dir, 'docs', 'y.txt'));
+    const run = runLoader(file);
+
+    expect(run.output).toBe(MDX_SOURCE);
+    expect(run.warnings).toHaveLength(1);
+    expect(run.warnings[0]).toContain('新那一份不存在');
+    expect(run.warnings[0]).toContain(path.join('docs', 'y.txt'));
+  });
+
+  it('两份一模一样：告警说没有差别', () => {
+    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-same-'));
+    tempDirs.push(dir);
+    const file = pairPage(dir, 'diff: [x.txt, y.txt]');
+    // 把右边那份写成与左边同一份内容
+    fs.copyFileSync(
+      path.join(dir, 'docs', 'x.txt'),
+      path.join(dir, 'docs', 'y.txt'),
+    );
+    const run = runLoader(file);
+
+    expect(run.output).toBe(MDX_SOURCE);
+    expect(run.warnings).toHaveLength(1);
+    expect(run.warnings[0]).toContain('没有差别');
+  });
+
+  it('方括号里写成一份：告警说正好两份，不去猜作者要比什么', () => {
+    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-shape-'));
+    tempDirs.push(dir);
+    const run = runLoader(pairPage(dir, 'diff: [x.txt]'));
+
+    expect(run.output).toBe(MDX_SOURCE);
+    expect(run.warnings).toHaveLength(1);
+    expect(run.warnings[0]).toContain('要正好两份');
   });
 });

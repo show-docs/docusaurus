@@ -29,6 +29,12 @@ const viewStyle: CSSProperties = {
   height: '100%',
 };
 
+/** 说明行后半句：这一格的差异从哪儿来，两种来源各一句。 */
+const SOURCE_NOTE: Record<DiffData['source'], string> = {
+  commit: '最近一次提交的改动；未提交的改动与更早的历史请看代码仓库。',
+  files: '两份文件的对照；与 git 历史无关，改动之前那一份在左边。',
+};
+
 export function GitDiffView({ data }: { data: DiffData }): ReactNode {
   const { colorMode } = useColorMode();
 
@@ -56,8 +62,7 @@ export function GitDiffView({ data }: { data: DiffData }): ReactNode {
   return (
     <div data-diff-view="true">
       <p style={captionStyle}>
-        <code>{data.fileName}</code>{' '}
-        最近一次提交的改动；未提交的改动与更早的历史请看代码仓库。
+        <code>{data.caption}</code> {SOURCE_NOTE[data.source]}
       </p>
       <DiffView
         diffFile={diffFile}

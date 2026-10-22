@@ -2,7 +2,9 @@ import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-const { Then } = createBdd();
+import { watchPageErrors } from '../helpers.mts';
+
+const { Given, Then } = createBdd();
 
 /**
 本层那一格：组件把说明行与视图一起套在自己这个节点里，所以「有没有这一格」与
@@ -62,4 +64,38 @@ Then('差异视图换成暗色配色', async ({ page }) => {
 
 Then('这一页没有差异视图', async ({ page }) => {
   await expect(diffBlock(page), '没写 diff 的页面被加了这一格').toHaveCount(0);
+});
+
+/**
+## 另一种来源：`diff: [旧, 新]` 比的是磁盘上那两份文件
+
+这一块与上面那几行判的是同一格视图，只差**说明行**与**正文**里的字：来源不再是「这份文件
+最近一次提交」，而是那两份文件本身，所以说明行给的是两个名字，正文也不该跟着少一行。
+这一页在仓库里，但那条来源根本不读 git 历史 —— 用例因此不能靠「换个提交就变红」来钉，
+钉的是那两份文件名与它们之间确实有的改动行。
+*/
+Given('我打开两份文件对照示例页', async ({ page }) => {
+  watchPageErrors(page);
+  await page.goto('/diff-pair-demo');
+});
+
+Then('说明行写明比的是哪两份文件', async ({ page }) => {
+  await expect(
+    diffBlock(page).locator('code'),
+    '说明行没写明比的是哪两份文件',
+  ).toHaveText('../static/openapi-redoc.yaml → ../static/openapi-scalar.yaml');
+});
+
+Then('对照这一页的视图里列出改动的行', async ({ page }) => {
+  await expect(
+    diffView(page).locator('[data-state="diff"]'),
+    '两份文件对照的视图里没有改动行',
+  ).not.toHaveCount(0);
+});
+
+Then('对照这一页的正文照常渲染', async ({ page }) => {
+  await expect(
+    page.locator('article .theme-doc-markdown'),
+    '对照页的正文没照常渲染',
+  ).toContainText('两份文件对照示例');
 });
