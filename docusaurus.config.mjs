@@ -27,7 +27,21 @@ const config = {
     // 思维导图主题层：md 里 `markmap: true` 即在原文上方加导图
     '@show-docs/docusaurus-theme-markmap',
     // 关系图主题层：`.dbml` 文件在上方画关系图，正文附上各格式导出
-    '@show-docs/docusaurus-theme-erd',
+    // `exports` 是那一串「导出模板」页签，本包不随带模板 —— 每条指向一个外接模块，
+    // 这里用的是站点自己那份：相对**站点根**的路径。
+    [
+      '@show-docs/docusaurus-theme-erd',
+      {
+        exports: [
+          {
+            id: 'table-names',
+            label: '表清单',
+            lang: 'text',
+            module: './erd/table-names.mjs',
+          },
+        ],
+      },
+    ],
     // 差异视图主题层：md 里 `diff: true`（或一个路径）即在正文上方渲染这份文件最近一次提交的差异
     '@show-docs/docusaurus-theme-diff',
     // iframe 主题层：它是「整页交给一个框」这一族的**唯一外层套壳** —— 那份 `DocItem` 判四把键

@@ -56,7 +56,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `plugins/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                                                                                                                   | 构建包（`src/` → `dist/`，改完要编译）                    | [README](./plugins/plugin-prev-layer-resolver/README.md) · [internals](./plugins/plugin-prev-layer-resolver/docs/internals.md)                        |
 | `theme/theme-markmap/`                | 主题包：md 的 frontmatter 写 `markmap: true` 即在正文上方渲染导图                                                                                                               | 构建包（只编译入口与 loader；层与组件是源码）             | [README](./theme/theme-markmap/README.md) · [示例页](./docs/markmap-demo.md)                                                                          |
-| `theme/theme-erd/`                    | 主题包：`.dbml` 文件在正文上方渲染数据库关系图，正文附上六种格式的导出                                                                                                          | 构建包（只编译入口与 loader；层与组件是源码）             | [README](./theme/theme-erd/README.md) · [internals](./theme/theme-erd/docs/internals.md) · [示例页](./docs/erd-demo.dbml)                             |
+| `theme/theme-erd/`                    | 主题包：`.dbml` 文件在正文上方渲染数据库关系图，正文附上固定四种格式加一串由插件选项决定的导出模板                                                                              | 构建包（只编译入口、清单判据与 loader；层与组件是源码）   | [README](./theme/theme-erd/README.md) · [internals](./theme/theme-erd/docs/internals.md) · [示例页](./docs/erd-demo.dbml)                             |
 | `theme/theme-diff/`                   | 主题包：md 的 frontmatter 写 `diff: true`（或一个路径）即在正文上方渲染这份文件最近一次提交的差异视图                                                                           | 构建包（只编译入口与 loader；层与组件是源码）             | [README](./theme/theme-diff/README.md) · [internals](./theme/theme-diff/docs/internals.md) · [示例页](./docs/diff-demo.md)                            |
 | `theme/theme-iframe/`                 | 主题包，也是「整页交给一个框」这一族唯一的**外层套壳**：判四把 frontmatter 键，命中就把那一页换成一个通用框；`lib/` 里另住着三条 API 层共用的跨 iframe 约定与配置期工厂         | 构建包（同上，`src/` 里只有入口那一份；`lib/` 免编译）    | [README](./theme/theme-iframe/README.md) · [internals](./theme/theme-iframe/docs/internals.md) · [协议](./theme/theme-iframe/docs/iframe-protocol.md) |
 | `theme/theme-stoplight/`              | 主题包：md 的 frontmatter 写 `oas3: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/stoplight-view` 页面，Elements 在那份文档里渲染 API 文档 | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-stoplight/README.md) · [internals](./theme/theme-stoplight/docs/internals.md)                                                  |
@@ -140,10 +140,11 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
   行为见 [docs/markmap-demo.md](./docs/markmap-demo.md)，用法见
   [theme/theme-markmap/README.md](./theme/theme-markmap/README.md)；实现见
   `theme/theme-markmap/`（入口与 loader 在 `src/`，层与组件在 `theme/`、`components/`）
-- **关系图主题**（`.dbml` 触发、渲染位置、正文里附哪些导出）：
+- **关系图主题**（`.dbml` 触发、渲染位置、正文里附哪些导出、那些导出由谁生成）：
   行为见 [docs/erd-demo.dbml](./docs/erd-demo.dbml)，用法见
-  [theme/theme-erd/README.md](./theme/theme-erd/README.md)；实现（入口与 loader 在 `src/`，
-  层与组件在 `theme/`、`components/`，`@dbml/core` 实测到的形状与两页模板里写死的那套约定）在同包
+  [theme/theme-erd/README.md](./theme/theme-erd/README.md)；实现（入口、清单判据与 loader 在
+  `src/`，层与组件在 `theme/`、`components/`，`@dbml/core` 实测到的形状与导出模板插拔在实现上的
+  三个约束）在同包
   [docs/internals.md](./theme/theme-erd/docs/internals.md)
 - **差异视图主题**（frontmatter 触发、对比的是哪一次改动、没有可对比的历史时怎么办）：
   行为见 [docs/diff-demo.md](./docs/diff-demo.md)，用法见

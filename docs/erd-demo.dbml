@@ -2,7 +2,7 @@
 id: erd-demo
 sidebar_position: 9
 title: 数据库关系图示例
-description: '一份 .dbml 文件：上方渲染关系图，正文附上六种格式的导出。'
+description: '一份 .dbml 文件：上方渲染关系图，正文附上几种格式的导出。'
 ---
 
 Project erd_demo {

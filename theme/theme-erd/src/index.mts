@@ -1,7 +1,10 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { Plugin } from '@docusaurus/types';
+import type { LoadContext, Plugin } from '@docusaurus/types';
+
+import { normalizeExports, planExports } from './options.mts';
+import type { ErdThemeOptions } from './types.mts';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
@@ -32,7 +35,33 @@ function includeDbmlInMdxRules(config: WebpackConfig): void {
   }
 }
 
-export default function theme(): Plugin {
+/**
+官方给插件 options 留的校验格。
+
+本包不引 Joi（家族里没有一个包引它），判据写在 `src/options.mts` 的纯函数里，这里是
+那格的一个薄壳；构造期 {@link theme} 还会再走一遍同样的判据 —— 站点按包名声明主题时，
+两条路径都可能拿到声明原值。返回值里的 `exports` 各项已归一化，路径仍留给构造期按站点根解析。
+*/
+export function validateOptions({
+  options,
+}: {
+  options: unknown;
+}): ErdThemeOptions {
+  const declared = (options ?? {}) as ErdThemeOptions;
+
+  return declared.exports === undefined
+    ? {}
+    : { exports: normalizeExports(declared.exports) };
+}
+
+export default function theme(
+  context: LoadContext,
+  options: ErdThemeOptions = {},
+): Plugin {
+  // 模板页那几格要装载哪些生成器，在这里一次算完（站点没写就是空清单，本包不随带模板），
+  // 往下只递纯数据：webpack 会把 loader 的 options 序列化进配置，函数过不去。
+  const exports = planExports(options, { siteDir: context.siteDir });
+
   return {
     name: '@show-docs/docusaurus-theme-erd',
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
@@ -71,6 +100,8 @@ export default function theme(): Plugin {
               // （`.mjs`），不是源码名 —— 上面的 `thisDir` 就是 `dist/`。
               test: DBML,
               loader: resolve(thisDir, './loader/dbml-loader.mjs'),
+              // 纯数据：`exports` 里每一项的 `module` 已是绝对路径，loader 只管装载
+              options: { exports },
             },
             {
               // 官方那条 babel 规则排除整个 node_modules、只放行 `docusaurus*.js`，本包从

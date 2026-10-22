@@ -120,6 +120,8 @@ export default [
     // Docusaurus 的入口**按契约**只读 default 导出：主题组件、插件入口、页面、
     // 配置文件。改成命名导出不会报错，只会静默不生效 —— 这条在这里不是风格问题。
     // webpack loader 同理：Webpack 取的就是模块导出的那一个函数。
+    // 站点侧的导出模板（`erd/*.mjs`）也一样：装载它的 loader 取的是那份 module 的
+    // `default`，改成命名导出会在构建期才报「没有默认导出一个函数」。
     // Playwright 的配置也是同一类：加载器只认 default 导出的那个配置对象。
     files: [
       'src/**',
@@ -131,7 +133,14 @@ export default [
       'theme/*/src/index.mts',
       'theme/*/src/loader/**',
       'theme/*/theme/**',
+      'erd/*.mjs',
     ],
+    rules: { 'import-x/no-default-export': 0 },
+  },
+  {
+    // 夹具里的 default 导出就是被测的那份契约（外接生成器模块要求默认导出一个函数），
+    // 换成命名导出会让用例测的东西不再是站点真正写进配置的那一种。
+    files: ['test/fixtures/**'],
     rules: { 'import-x/no-default-export': 0 },
   },
   {

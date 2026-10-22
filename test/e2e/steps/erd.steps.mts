@@ -34,16 +34,10 @@ Then('关系图落在正文上方', async ({ page }) => {
   expect(chartBox!.y + chartBox!.height).toBeLessThanOrEqual(articleBox!.y);
 });
 
-// 六个导出块由 loader 生成 `<Tabs>` / `<TabItem>`，不是六个平铺的代码块。
-Then('导出区有六个页签', async ({ page }) => {
-  const labels = [
-    'DBML',
-    'MySQL',
-    'PostgreSQL',
-    'JSON',
-    'JSON Schema',
-    'Spring Data JPA',
-  ];
+// 页签 = `@dbml/core` 那四个固定格式 + 站点在 `docusaurus.config.mjs` 里配的那一条模板页；
+// 这一格由 loader 生成 `<Tabs>` / `<TabItem>`，不是平铺的代码块。
+Then('导出区有固定四个格式加站点那一条模板页', async ({ page }) => {
+  const labels = ['DBML', 'MySQL', 'PostgreSQL', 'JSON', '表清单'];
 
   await expect(page.getByRole('tab')).toHaveCount(labels.length);
 
@@ -55,13 +49,14 @@ Then('导出区有六个页签', async ({ page }) => {
   }
 });
 
-When('我点开 Spring Data JPA 那一页签', async ({ page }) => {
-  await page.getByRole('tab', { name: 'Spring Data JPA' }).click();
+When('我点开「表清单」那一页签', async ({ page }) => {
+  await page.getByRole('tab', { name: '表清单' }).click();
 });
 
-Then('面板里是生成的 Java 代码', async ({ page }) => {
+// 面板里那两行是站点自己那份 `erd/table-names.mjs` 算出来的，本包不参与内容。
+Then('面板里是站点那份生成器落出来的表清单', async ({ page }) => {
   await expect(
     page.locator('[role="tabpanel"]:visible'),
-    'Spring Data JPA 页签里不是生成的实体类',
-  ).toContainText('@Entity');
+    '「表清单」页签里不是站点那份生成器的产出',
+  ).toContainText('users：4 列');
 });

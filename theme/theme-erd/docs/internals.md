@@ -1,23 +1,22 @@
 # theme-erd 维护者文档
 
-这份写的是**改这个包之前要知道的事**：内部组成、`@dbml/core` 实测到的形状、两种导出模板里
-写死的那套约定，以及这一层最容易踩的两处。使用者要看的（怎么触发、页面上有什么、有哪些局限）
+这份写的是**改这个包之前要知道的事**：内部组成、`@dbml/core` 实测到的形状、导出模板插拔在
+实现上的三个约束，以及这一层最容易踩的两处。使用者要看的（怎么触发、页面上有什么、有哪些局限）
 在 [`README.md`](../README.md)，这里不重复。
 
 ## 组成
 
-| 文件                            | 编译吗              | 职责                                                                                        |
-| ------------------------------- | ------------------- | ------------------------------------------------------------------------------------------- |
-| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：给出层目录、把这条 loader 挂到 `.dbml` 上、交出本包的 babel 规则                      |
-| `src/loader/dbml-loader.mts`    | ✅                  | `.dbml` 原文 → MDX：摘掉头部 frontmatter、解析成模型、拼出六个页签与两张说明表格            |
-| `src/loader/dbml2schema.mts`    | ✅                  | 其中一页：JSON Schema（每张表一份，字段名转驼峰，`format` 按类型与常见字段名给）            |
-| `src/loader/dbml2jpa.mts`       | ✅                  | 其中一页：Spring Data JPA（实体 / repository / service / 定时任务四份，一套写死的映射约定） |
-| `src/types.mts`                 | ✅（只出类型）      | 把 `@dbml/core` 归一化模型补齐成能用的类型（见下）                                          |
-| `erdiagram.d.ts`                | ❌（随包发的声明）  | `erdiagram` 那份包缺的类型声明                                                              |
-| `theme/DocItem/index.tsx`       | ❌ 站点编译         | 本层那一格：`content.dbml_json` 命中就把关系图摆在 `DocItem` 前面                           |
-| `components/erd-chart.tsx`      | ❌ 站点编译         | 浏览器侧：把模型交给 `erdiagram` 画关系图，初始化后缩放到能看见全部表节点                   |
-| `components/error-boundary.tsx` | ❌ 站点编译         | 初始化失败时那一条提示（三条视图层各有一份，见「跨包副本」）                                |
-| `components/hack-style.tsx`     | ❌ 站点编译         | 那一格正文容器需要的样式补丁（同上，三份逐字相同）                                          |
+| 文件                            | 编译吗              | 职责                                                                                       |
+| ------------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
+| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：校验插件选项、算出这一页要装载哪些生成器、给出层目录、把 loader 挂到 `.dbml` 上      |
+| `src/options.mts`               | ✅                  | 配置期判据（纯函数）：清单的形状检查、`module` 三种写法的解析                              |
+| `src/loader/dbml-loader.mts`    | ✅                  | `.dbml` 原文 → MDX：摘掉头部 frontmatter、解析成模型、装载每一条生成器、拼出页签与两张表格 |
+| `src/types.mts`                 | ✅（只出类型）      | 把 `@dbml/core` 归一化模型补齐成能用的类型（见下），以及生成器契约那三型                   |
+| `erdiagram.d.ts`                | ❌（随包发的声明）  | `erdiagram` 那份包缺的类型声明                                                             |
+| `theme/DocItem/index.tsx`       | ❌ 站点编译         | 本层那一格：`content.dbml_json` 命中就把关系图摆在 `DocItem` 前面                          |
+| `components/erd-chart.tsx`      | ❌ 站点编译         | 浏览器侧：把模型交给 `erdiagram` 画关系图，初始化后缩放到能看见全部表节点                  |
+| `components/error-boundary.tsx` | ❌ 站点编译         | 初始化失败时那一条提示（三条视图层各有一份，见「跨包副本」）                               |
+| `components/hack-style.tsx`     | ❌ 站点编译         | 那一格正文容器需要的样式补丁（同上，三份逐字相同）                                         |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -30,29 +29,28 @@
   形状；而 webpack 的 loader 回调只认 `Error`，要收成一句能定位的话得本包自己拼。
   这条现状由 `test/theme-erd.test.mts` 钉着。
 - 字段类型是**整串**带参数的：`varchar(32)` 的 `type_name` 就是 `varchar(32)`，
-  `args` 另有 `32`。`dbml2jpa` 用 `args` 生成 `length = 32`，别处按 `type_name` 判类型时
-  不要把参数当成了一个独立类型。
+  `args` 另有 `32`。写模板时把参数当成一个独立类型（`varchar(32)` ≠ `varchar`）是最常见的错，
+  要长度就取 `args`。
 - 归一化模型的声明漏了 `type.args`（导出的 JSON 里一直带着），那几张表又都是纯数字索引签名，
   `Object.values()` 认不出形状。这两格都补在 `src/types.mts` 里，取集合时按那几个别名断言一次。
 - 只有枚举、没有表的文件也能导出：`mysql` 那一份是空串，页签里就是一段空代码。
 
-## 两页模板里写死的约定
+## 导出模板是可插拔的：三处要知道的 mechanics
 
-`dbml2schema` 与 `dbml2jpa` 生成的是**项目模板级**的产物，不是通用映射，判据都在这两份文件里：
+本包不随带任何模板：清单从哪来、生成器要默认导出一个函数这些写法在
+[`README.md` 的「配置」](../README.md#配置)，这里只记实现这一层的三个约束。
 
-- `id` 与 `create_time` 当成所有表共有的基类字段，两处都跳过（`BaseEntity` 已有）。
-  跳过判据认的是**字段名**，改名（`createdAt`）就不跳了。
-- Java 类型只认 `integer` / `date` / `time` / `timestamp` / `bool` / `organization_type`
-  这几种写法，其余一律 `String`。
-- JSON Schema 的 `format`：类型那一半认 `date` / `timestamp` / `bool`；字段名那一半认
-  `batch_id` / `serial_number` / `user_id` / `org_id` / `area_id` / `duration`，
-  剩下的是「`_id` 结尾算 `objectId`、`_url` 结尾算 `file-url`」两条兜底。
-  字段名那一半在前，所以一张表里真有一个表示时长的 `duration` 字段时，它拿到的
-  `format` 是 `duration` 而不是别的。
-- `record_date` / `record_time` 这两颗名字决定 repository、service、定时任务各生成哪一套方法。
-- 实体继承 `BaseEntity` / `BaseJpaService`，包名写死成 `com.example.demo.*`
-  （模板级起点，不追求覆盖所有 DBML 类型；换项目要跟着改的就是这几行）。
-- JSON Schema 里那个 `$schema` 指向的是一个外部站点上的表格式定义，站点自己的 schema 没有这一格。
+- **生成器契约只有一个默认导出**。loader 拿 `import(pathToFileURL(module).href)` 的结果，
+  只认 `.default`；不是函数就报一句「没有默认导出一个函数」，并点名是哪一条页签。站点配的每一条
+  都走这同一条路径，没有旁路。
+- **写进 webpack 配置的 loader options 只能是纯数据**。webpack 会把 options 序列化进配置，
+  函数过不去，所以清单里传的是**模块路径字符串**，装载动作留在构建期的 loader 里做。路径在
+  配置期就算成绝对路径（`src/options.mts` 的 `resolveExportModule`：绝对路径原样用、
+  `./` 与 `../` 相对**站点根**、其余按包名走 Node 的解析，站点装什么包就能引什么）。
+  解析不出来的包名在配置期就红，不等构建期。
+- **缓存键要自己补**。`this.cacheable()` 认的是 `.dbml` 文件本身，不认动态 `import()` 进来的
+  模块；所以 loader 对每一条清单项都调一次 `this.addDependency(spec.module)`，改生成器才会让
+  那一页失效重算。这条由 `test/theme-erd.test.mts` 里「每一项生成器都登记成缓存依赖」钉着。
 
 ## 代码块页签为什么写成组件
 
@@ -63,8 +61,9 @@
 ## 用例与红线
 
 - 构建期判据：`test/theme-erd.test.mts` —— 夹具是真 DBML 原文（含站点那份 `docs/erd-demo.dbml`），
-  交给 `@dbml/core` 解析成模型再喂给被测函数；`src/loader/` 三份挂在覆盖率红线上
-  （`vitest.config.mts` 的 `coverage.include`）。
-- 页面上那张图与六个页签：`test/e2e/features/erd.feature`。
+  交给 `@dbml/core` 解析成模型再喂给被测函数；外接生成器的夹具在 `test/fixtures/erd-generators/`，
+  走的是站点真会用的那一条装载路径；站点自己那一份示例模板 `erd/table-names.mjs` 也在测试里真跑一遍。
+  `src/options.mts` 与 `src/loader/**` 挂在覆盖率红线上（`vitest.config.mts` 的 `coverage.include`）。
+- 页面上那张图与那一串页签：`test/e2e/features/erd.feature`。
 - 跨包副本：`test/view-layer-copies.test.mts` 钉住 `hack-style.tsx` 三份逐字相同、
   `error-boundary.tsx` 与 `theme/DocItem/index.tsx` 只允许差在本层自己的名字与说法上。
