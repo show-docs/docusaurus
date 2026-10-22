@@ -20,7 +20,7 @@ import {
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
 
 /**
-一份文件在它自己 git 历史里的最近一次改动。仓库外、或还没有「上一次改动」时 `undefined`。
+一份文件的上一个版本与磁盘上此刻这一份之间的改动。仓库外、或没有上一个版本时 `undefined`。
 仓库相对路径向 git 问（理由见 `repoPathFromRoot`），它同时是视图上方显示的那一个名字。
 */
 function buildCommitData(target: string): DiffData | undefined {
@@ -156,7 +156,7 @@ export default function loader(
 
     if (!data) {
       skip(
-        `${spec.value} 没有可对比的上一次改动（不在 git 仓库里，或只提交过一次），这一页不渲染差异视图`,
+        `${spec.value} 没有可对比的上一个版本（不在 git 仓库里，或这份文件提交过一次之后没有再改动），这一页不渲染差异视图`,
       );
       return;
     }

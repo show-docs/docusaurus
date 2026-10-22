@@ -24,8 +24,8 @@ import { mkdtempReal } from './helpers.mts';
 /**
 ## theme-diff 的两段判据
 
-这一层的产物是「最近一次提交的差异」，判据全在构建期：frontmatter 那把键怎么读、要读哪一份
-文件、git 里那一次改动怎么落成一份数据。这一段没有浏览器参与，`pnpm build` 全绿也证明不了它
+这一层的产物是「上一个版本 → 此刻这一份」的差异，判据全在构建期：frontmatter 那把键怎么读、要读
+哪一份文件、git 里那一次改动怎么落成一份数据。这一段没有浏览器参与，`pnpm build` 全绿也证明不了它
 算得对 —— 只有单测能量；页面上那块视图对不对，由 `test/e2e/features/diff.feature` 钉。
 
 git 那两组用例走**真实的 git**：临时目录里 `git init` 真提交几次，夹具造的仓库形状就是这一层
@@ -67,6 +67,15 @@ function runLoader(resourcePath: string): LoaderRun {
 
   loader.call(context as never, MDX_SOURCE);
   return result;
+}
+
+/** 取出产物末尾那条 `export const diff`，按 `DiffData` 读回来。 */
+function exportedDiff(output: string | null): DiffData {
+  const raw = /export const diff = (.*);\n$/.exec(output ?? '')?.[1];
+
+  expect(raw, '产物末尾该有一条 `export const diff`').toBeDefined();
+
+  return JSON.parse(raw!) as DiffData;
 }
 
 /** 带 frontmatter 的 md 源文件，落在 `docs/a.md`；`diff:` 那把键由用例给。 */
@@ -146,6 +155,20 @@ const repo = (options: Parameters<typeof makeRepo>[0]): string => {
   return root;
 };
 
+/** 把仓库里此刻的内容提交一句 `message`：夹具用它把「工作区干净」这一形状造出来。 */
+function commitAll(dir: string, message: string): void {
+  git(dir, ['add', '-A']);
+  git(dir, [
+    '-c',
+    'user.name=fixture',
+    '-c',
+    'user.email=fixture@example.com',
+    'commit',
+    '-m',
+    message,
+  ]);
+}
+
 afterAll(() => {
   for (const dir of tempDirs) {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -187,7 +210,7 @@ describe('frontmatter 那把键的读法', () => {
   });
 });
 
-describe('git 里那一次改动落成一份数据', () => {
+describe('git 里的上一个版本与此刻这一份落成一份数据', () => {
   /** git 在 Windows 上把地址打成正斜杠，比较前先归一到同一口径。 */
   const samePath = (a: string): string => a.replaceAll('\\', '/');
 
@@ -223,9 +246,63 @@ describe('git 里那一次改动落成一份数据', () => {
     expect(last?.diff).toContain('docs/a.md');
   });
 
-  it('只提交过一次：没有可对比的上一次', () => {
+  it('工作区里还有未提交的改动：改动落在右边，左边是这份文件上一次被提交的那一版', () => {
+    const root = repo({
+      files: { 'docs/a.md': '第一版\n' },
+      changes: [{ message: 'second', write: { 'docs/a.md': '第二版\n' } }],
+    });
+    fs.writeFileSync(
+      path.join(root, 'docs/a.md'),
+      '第二版\n还没提交的一行\n',
+      'utf8',
+    );
+
+    const last = readLastChange('docs/a.md', root);
+    expect(last?.old).toContain('第二版');
+    expect(last?.old, '上一个版本里不该有那行没提交的内容').not.toContain(
+      '还没提交的一行',
+    );
+    expect(last?.diff).toContain('还没提交的一行');
+  });
+
+  it('只提交过一次、之后又改了：左边就是那一次提交里的内容', () => {
+    const root = repo({ files: { 'docs/a.md': '唯一一版\n' } });
+    fs.writeFileSync(
+      path.join(root, 'docs/a.md'),
+      '唯一一版\n改了的一行\n',
+      'utf8',
+    );
+
+    const last = readLastChange('docs/a.md', root);
+    expect(last?.old).toContain('唯一一版');
+    expect(last?.diff).toContain('改了的一行');
+  });
+
+  it('还没提交过的文件：历史里没有它的上一个版本', () => {
+    const root = repo({ files: { 'keep.md': '占位\n' } });
+    writeFiles(root, { 'docs/new.md': '全新的一份\n' });
+
+    expect(readLastChange('docs/new.md', root)).toBeUndefined();
+  });
+
+  it('只提交过一次且没有再改：没有可对比的上一次', () => {
     const root = repo({ files: { 'docs/a.md': '唯一一版\n' } });
     expect(readLastChange('docs/a.md', root)).toBeUndefined();
+  });
+
+  it('上一次提交删掉了它、这一版又加回来（还 staged）：这一版没有左边那一份', () => {
+    // `git diff HEAD` 认索引里的新的一份，`--name-status` 因此给 `A` —— 与「提交里加回来」
+    // 那一条走的是不同的分支：那一条比的是两个提交，这一条比的是提交与工作区。
+    const root = repo({
+      files: { 'docs/a.md': '第一版\n', 'keep.md': '占位\n' },
+      changes: [{ message: 'remove', remove: ['docs/a.md'] }],
+    });
+    writeFiles(root, { 'docs/a.md': '重新加回来、还没提交\n' });
+    git(root, ['add', '-A']);
+
+    const last = readLastChange('docs/a.md', root);
+    expect(last?.old).toBe('');
+    expect(last?.diff).toContain('重新加回来、还没提交');
   });
 
   it('改名之后还能顺着旧名拿到上一版内容', () => {
@@ -262,30 +339,35 @@ describe('git 里那一次改动落成一份数据', () => {
 
 describe('md loader 的四种落点', () => {
   it('命中时把差异追加成一条导出', () => {
-    // 两次提交给出「上一次改动」，工作区里再把 frontmatter 写上（不必提交：判据从磁盘读，
-    // 而 git 只看那两个提交）。
-    const root = repo({
-      files: { 'docs/a.md': '第一版\n' },
-      changes: [{ message: 'second', write: { 'docs/a.md': '第二版\n' } }],
-    });
+    // 两次提交、提交完就收工：工作区干净时右边就是这份文件最后一次被提交的结果，
+    // 比的是它自己那两次提交之间的差异。
+    const root = repo({ files: { 'docs/a.md': '第一版\n' } });
     const file = writeMd(root, 'diff: true');
+    commitAll(root, 'second');
 
     const run = runLoader(file);
     expect(run.error).toBeNull();
     expect(run.warnings).toEqual([]);
     expect(run.output?.startsWith(MDX_SOURCE)).toBe(true);
 
-    const exported = /export const diff = (.*);\n$/.exec(run.output ?? '')?.[1];
-    expect(exported, '产物末尾该有一条 `export const diff`').toBeDefined();
-    const data = JSON.parse(exported!) as {
-      fileName: string;
-      diff: string;
-      old: string;
-    };
+    const data = exportedDiff(run.output);
     // 仓库相对路径用正斜杠，与视图上方那一行显示的同一个名字
     expect(data.fileName).toBe('docs/a.md');
     expect(data.old).toContain('第一版');
-    expect(data.diff).toContain('第二版');
+    expect(data.diff).toContain('正文一行');
+  });
+
+  it('工作区里还有未提交的改动：导出的右边就是磁盘上此刻这一份', () => {
+    // 同一份夹具，frontmatter 这次不提交：判据与差异都读到磁盘上这一份，未提交的那段就在右边。
+    const root = repo({
+      files: { 'docs/a.md': '第一版\n' },
+      changes: [{ message: 'second', write: { 'docs/a.md': '第二版\n' } }],
+    });
+    const file = writeMd(root, 'diff: true');
+
+    const data = exportedDiff(runLoader(file).output);
+    expect(data.old).toContain('第二版');
+    expect(data.diff).toContain('正文一行');
   });
 
   it('没写这把键：原样交回，什么都不追加', () => {
@@ -312,7 +394,7 @@ describe('md loader 的四种落点', () => {
     const run = runLoader(file);
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.warnings).toHaveLength(1);
-    expect(run.warnings[0]).toContain('没有可对比的上一次改动');
+    expect(run.warnings[0]).toContain('没有可对比的上一个版本');
   });
 
   it('git 自己出问题（仓库里一个提交都还没有）：只让这一页少一块视图', () => {

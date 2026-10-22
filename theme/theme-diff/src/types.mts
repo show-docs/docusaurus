@@ -1,8 +1,8 @@
 /** `md-diff-loader` 追加到 md 编译结果里的那份数据，键名与 `export const diff` 一致。 */
 export interface DiffData {
   /**
-  这份差异从哪儿来：`commit` 是同一份文件在 git 里的最近一次改动，`files` 是磁盘上两份文件
-  互相对照。视图上方那一行的说法跟着它走。
+  这份差异从哪儿来：`commit` 是同一份文件的上一个版本与磁盘上此刻这一份之间的改动，`files` 是
+  磁盘上两份文件互相对照。视图上方那一行的说法跟着它走。
   */
   source: 'commit' | 'files';
   /**
@@ -10,15 +10,15 @@ export interface DiffData {
   */
   caption: string;
   /**
-  左边那一份（改动之前）的文件名，也是语法高亮取后缀的那一个。两份文件对照时它是 `old` 那一份，
+  左边那一份（上一个版本）的文件名，也是语法高亮取后缀的那一个。两份文件对照时它是 `old` 那一份，
   右边那一份的名字在 `git diff` 原文的头部里。
   */
   fileName: string;
   /** `git diff` 的原文：`diff --git` 头部加各段 hunk，交给 `DiffFile` 解析 */
   diff: string;
   /**
-  左边那一份的内容，用于补全视图里未变化的上下文：`commit` 是上一次改动之前那份，
-  `files` 就是 `old` 那一个键给的那一份。
+  左边那一份的内容，用于补全视图里未变化的上下文：`commit` 是上一个版本那一份（工作区干净时取
+  它前一次提交里的内容），`files` 就是 `old` 那一个键给的那一份。
   */
   old: string;
 }

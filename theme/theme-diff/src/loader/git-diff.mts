@@ -37,10 +37,111 @@ export function repoPathFromRoot(target: string): string {
 }
 
 export interface LastChange {
-  /** `git diff` 原文 */
+  /** `git diff` 原文：左边是上一个版本，右边是磁盘上此刻这一份 */
   diff: string;
-  /** 改动之前那份内容；文件在这一次才出现时是空串 */
+  /** 上一个版本那份内容；这份文件才出现、还没有上一个版本可读时是空串 */
   old: string;
+}
+
+/** 一次 `git diff` 的产出：差异原文，加上 `--name-status` 那两格。 */
+interface Change {
+  diff: string;
+  /** 改动类型（`M`、`A`、`R100` 这种）；`--name-status` 没输出时它就没有这一格 */
+  type: string | undefined;
+  /** 重命名那条给的旧名；不是重命名就没有这一格 */
+  oldName: string | undefined;
+}
+
+/**
+一次对比的两端，写成参数数组里那一段：`['--follow', 上一个, 'HEAD']` 比历史两个提交，
+`['HEAD']` 让 git 拿那次提交比工作区。差异与状态各问一次。
+
+`--name-status` 在重命名那条给的是旧名；新增（`A`）没有旧版本可读，所以类型先拿出来，
+由调用方决定去哪里读左边那一份。
+*/
+function changeBetween(
+  revs: string[],
+  pathFromRoot: string,
+  repoRoot: string,
+): Change {
+  const [type, oldName] = git(
+    ['diff', '-M', '--name-status', ...revs, '--', pathFromRoot],
+    repoRoot,
+  ).split('\t', 2);
+
+  return {
+    diff: git(['diff', '-M', ...revs, '--', pathFromRoot], repoRoot),
+    type,
+    oldName,
+  };
+}
+
+/**
+取「这份文件的上一个版本 → 现在这一份」那一次改动。**右边恒是磁盘上此刻这一份**：工作区里还有
+未提交的改动时，那些改动就出现在右边，左边是这份文件上一次被提交的那一版；工作区干净时，此刻
+这一份就是它最后一次被提交的结果，于是上一个版本往这份文件自己的历史里再退一次。
+
+历史那一条用 `--follow`，是为了改名之后还能顺着旧名找到上一个版本；工作区那一条不比历史，
+用不上它。没有上一个版本可读时返回 `undefined`：这份文件一次都没提交过，或者只提交过一次
+且提交之后没有再改。
+*/
+export function readLastChange(
+  pathFromRoot: string,
+  repoRoot: string,
+): LastChange | undefined {
+  const commits = git(
+    ['log', '--format=%H', '--follow', '-n', '2', '--', pathFromRoot],
+    repoRoot,
+  )
+    .split('\n')
+    .filter(Boolean);
+
+  // 一次都没提交过：磁盘这一份不在历史里，没有上一个版本可对比
+  if (commits.length === 0) {
+    return undefined;
+  }
+
+  const worktree = changeBetween(['HEAD'], pathFromRoot, repoRoot);
+
+  // 有输出就是工作区相对这份文件上一次被提交的那一版还有改动。带 rev 的这种比法只退 0，
+  // 退 1 是 `--no-index` 那一条的事（见 `readFilesChange`），这里不用管退出码。
+  // `HEAD:<路径>` 取到的正是这份文件最后一次被提交的内容 —— 后面的提交没动过它时，
+  // 它在 `HEAD` 里就是那一份。
+  if (worktree.diff) {
+    return {
+      diff: worktree.diff,
+      old: worktree.type?.startsWith('A')
+        ? ''
+        : git(['show', `HEAD:${pathFromRoot}`], repoRoot),
+    };
+  }
+
+  const prevHash = commits.at(-1);
+
+  // 少于两个提交时，列表里最后一条就是唯一的那一次；工作区又和它一致，就没有上一个版本可对比
+  if (!prevHash || commits.length < 2) {
+    return undefined;
+  }
+
+  // 工作区干净，比的就是这份文件自己那两次提交之间的差异；能取到两次提交，这两版在这条路径上
+  // 就必然不同（`git log` 只登记改动过它的那一次），差异不会是空串。
+  const last = changeBetween(
+    ['--follow', prevHash, 'HEAD'],
+    pathFromRoot,
+    repoRoot,
+  );
+
+  if (last.type?.startsWith('A')) {
+    return { diff: last.diff, old: '' };
+  }
+
+  const prevPath =
+    last.type?.startsWith('R') && last.oldName ? last.oldName : pathFromRoot;
+
+  return {
+    diff: last.diff,
+    old: git(['show', `${prevHash}:${prevPath}`], repoRoot),
+  };
 }
 
 /**
@@ -75,59 +176,4 @@ export function readFilesChange(
 
     return diff;
   }
-}
-
-/**
-取「这份文件最近一次改动」：先找出动过它的最后两个提交，再对比这两者之间的差异。
-用 `--follow` 是为了改名之后还能顺着旧名找到上一次；没有两个提交（只提交过一次、
-或工作区里还没提交）就没有可对比的上一次，返回 `undefined`。
-*/
-export function readLastChange(
-  pathFromRoot: string,
-  repoRoot: string,
-): LastChange | undefined {
-  const commits = git(
-    ['log', '--format=%H', '--follow', '-n', '2', '--', pathFromRoot],
-    repoRoot,
-  )
-    .split('\n')
-    .filter(Boolean);
-
-  const prevHash = commits.at(-1);
-
-  // 少于两个提交时，列表里最后一条就是唯一的那一次，没有可对比的上一个版本
-  if (!prevHash || commits.length < 2) {
-    return undefined;
-  }
-
-  // 能取到两个提交，这两个版本在这条路径上就必然不同（`git log` 只登记改动过它的那一次），
-  // 对比结果不会是空串。
-  const diff = git(
-    ['diff', '-M', '--follow', prevHash, 'HEAD', '--', pathFromRoot],
-    repoRoot,
-  );
-
-  // 这一次改动里这份文件原来叫什么：`--name-status` 在重命名那条给的是旧名。
-  // 新增（`A`）没有旧版本可读，其余都按当前名取。
-  const [type, oldName] = git(
-    [
-      'diff',
-      '-M',
-      '--follow',
-      '--name-status',
-      prevHash,
-      'HEAD',
-      '--',
-      pathFromRoot,
-    ],
-    repoRoot,
-  ).split('\t', 2);
-
-  if (type?.startsWith('A')) {
-    return { diff, old: '' };
-  }
-
-  const prevPath = type?.startsWith('R') && oldName ? oldName : pathFromRoot;
-
-  return { diff, old: git(['show', `${prevHash}:${prevPath}`], repoRoot) };
 }
