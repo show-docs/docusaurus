@@ -323,22 +323,38 @@ describe('md loader 的四种落点', () => {
     const run = runLoader(file);
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.warnings).toHaveLength(1);
-    expect(run.warnings[0]).toContain('读取');
-    expect(run.warnings[0]).toContain('git 历史失败');
+    expect(run.warnings[0]).toContain('向 git 取');
+    expect(run.warnings[0]).toContain('差异失败');
   });
 });
 
 describe('值的形状：一份文件还是两份文件', () => {
-  it('方括号里正好两份就是两份对照，引号与逗号后的空白都吃得下', () => {
-    expect(splitDiffValue('[a.md, b.md]')).toEqual({
+  it('花括号里正好 `old` 与 `new` 两个键就是两份对照，引号与空白都吃得下', () => {
+    expect(splitDiffValue('{old: a.md, new: b.md}')).toEqual({
       kind: 'pair',
-      from: 'a.md',
-      to: 'b.md',
+      old: 'a.md',
+      new: 'b.md',
     });
-    expect(splitDiffValue('["./a.md",\t\'./b.md\']')).toEqual({
+    expect(splitDiffValue('{"old":\t\'./a.md\', \'new\': "./b.md"}')).toEqual({
       kind: 'pair',
-      from: './a.md',
-      to: './b.md',
+      old: './a.md',
+      new: './b.md',
+    });
+  });
+
+  it('两条的先后不重要：角色是键名定的', () => {
+    expect(splitDiffValue('{new: b.md, old: a.md}')).toEqual({
+      kind: 'pair',
+      old: 'a.md',
+      new: 'b.md',
+    });
+  });
+
+  it('值里带冒号（绝对地址的盘符）不被切成两段', () => {
+    expect(splitDiffValue('{old: C:/tmp/a.md, new: b.md}')).toEqual({
+      kind: 'pair',
+      old: 'C:/tmp/a.md',
+      new: 'b.md',
     });
   });
 
@@ -350,9 +366,15 @@ describe('值的形状：一份文件还是两份文件', () => {
     });
   });
 
-  it('方括号里的项数不是二就点名，不猜前两份', () => {
-    // 猜成「取前两份」会把 `diff: [a, b, c]` 静默比成 a 与 b，页面看着正常、比的不是作者要的
-    for (const value of ['[]', '[a.md]', '[a.md, ]', '[a.md, b.md, c.md]']) {
+  it('凑不出正好这两个键就点名，不猜作者要比什么', () => {
+    // 缺一个键就退回去猜另一份，比静默少比一份更难查；多出来的键同样是「作者没说要比谁」
+    for (const value of [
+      '{}',
+      '{old: a.md}',
+      '{old: a.md, new: }',
+      '{old: a.md, new: b.md, extra: c.md}',
+      '{a.md, b.md}',
+    ]) {
       expect(splitDiffValue(value), value).toEqual({ kind: 'invalid', value });
     }
   });
@@ -436,7 +458,7 @@ describe('md loader 的两份文件落点', () => {
     // 这份 md 不在任何 git 仓库里：对照那一种不需要仓库
     const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-page-'));
     tempDirs.push(dir);
-    const run = runLoader(pairPage(dir, 'diff: [x.txt, y.txt]'));
+    const run = runLoader(pairPage(dir, 'diff: {old: x.txt, new: y.txt}'));
 
     expect(run.error).toBeNull();
     expect(run.warnings).toEqual([]);
@@ -451,24 +473,40 @@ describe('md loader 的两份文件落点', () => {
     expect(data.diff).toContain('+第二行');
   });
 
-  it('缺一份：告警点名是哪一边，正文照常', () => {
-    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-missing-'));
+  it('先写 `new` 也一样：左右两格由键名定，不由写法先后定', () => {
+    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-order-'));
     tempDirs.push(dir);
-    const file = pairPage(dir, 'diff: [x.txt, y.txt]');
-    fs.rmSync(path.join(dir, 'docs', 'y.txt'));
-    const run = runLoader(file);
+    const run = runLoader(pairPage(dir, 'diff: {new: y.txt, old: x.txt}'));
+    const exported = /export const diff = (.*);\n$/.exec(run.output ?? '')?.[1];
+    expect(exported, '产物末尾该有一条 `export const diff`').toBeDefined();
+    expect((JSON.parse(exported!) as DiffData).caption).toBe('x.txt → y.txt');
+  });
 
-    expect(run.output).toBe(MDX_SOURCE);
-    expect(run.warnings).toHaveLength(1);
-    expect(run.warnings[0]).toContain('新那一份不存在');
-    expect(run.warnings[0]).toContain(path.join('docs', 'y.txt'));
+  it('缺一份：告警点名是哪一个键，正文照常', () => {
+    for (const [key, victim, word] of [
+      ['new', 'y.txt', 'new（改动之后）'],
+      ['old', 'x.txt', 'old（改动之前）'],
+    ] as const) {
+      const dir = mkdtempReal(
+        path.join(os.tmpdir(), `diff-pair-missing-${key}-`),
+      );
+      tempDirs.push(dir);
+      const file = pairPage(dir, 'diff: {old: x.txt, new: y.txt}');
+      fs.rmSync(path.join(dir, 'docs', victim));
+      const run = runLoader(file);
+
+      expect(run.output).toBe(MDX_SOURCE);
+      expect(run.warnings).toHaveLength(1);
+      expect(run.warnings[0]).toContain(`${word} 那一份不存在`);
+      expect(run.warnings[0]).toContain(path.join('docs', victim));
+    }
   });
 
   it('两份一模一样：告警说没有差别', () => {
     const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-same-'));
     tempDirs.push(dir);
-    const file = pairPage(dir, 'diff: [x.txt, y.txt]');
-    // 把右边那份写成与左边同一份内容
+    const file = pairPage(dir, 'diff: {old: x.txt, new: y.txt}');
+    // 把 `new` 那一份写成与 `old` 同一份内容
     fs.copyFileSync(
       path.join(dir, 'docs', 'x.txt'),
       path.join(dir, 'docs', 'y.txt'),
@@ -480,13 +518,13 @@ describe('md loader 的两份文件落点', () => {
     expect(run.warnings[0]).toContain('没有差别');
   });
 
-  it('方括号里写成一份：告警说正好两份，不去猜作者要比什么', () => {
+  it('只写了一份：告警说正好那两个键，不去猜作者要比什么', () => {
     const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-shape-'));
     tempDirs.push(dir);
-    const run = runLoader(pairPage(dir, 'diff: [x.txt]'));
+    const run = runLoader(pairPage(dir, 'diff: {old: x.txt}'));
 
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.warnings).toHaveLength(1);
-    expect(run.warnings[0]).toContain('要正好两份');
+    expect(run.warnings[0]).toContain('要正好这两个键');
   });
 });

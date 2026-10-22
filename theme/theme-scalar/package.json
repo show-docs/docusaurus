@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-scalar",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Md 的 frontmatter 写 scalar: <URL> 时把该页整页换成一个 iframe，框里用 Scalar 渲染那份 API 文档",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/theme/theme-scalar",

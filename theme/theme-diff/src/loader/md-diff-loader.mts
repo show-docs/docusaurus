@@ -44,23 +44,24 @@ function buildCommitData(target: string): DiffData | undefined {
 }
 
 /**
-两份磁盘文件互相对照（`diff: [旧, 新]`）：地址相对这份 md 所在目录，两边都不必在 git 仓库里。
+两份磁盘文件互相对照（`diff: {old: 旧, new: 新}`）：地址相对这份 md 所在目录，两边都不必在 git 仓库里。
 
-左边那一份的内容从磁盘读，用来补全视图里未变化的上下文；显示与交给 git 的都是那个相对写法，
-所以视图上方那一行与实际比的那两份是同一个来源。写法按 git 的口径换成正斜杠（`relative()` 在
-Windows 上给反斜杠，而反斜杠在 pathspec 里是转义符，子目录那一份会读不到）。
+左边是 `old` 那一份、右边是 `new` 那一份，角色由键名定，跟两条写的先后无关。`old` 的内容从磁盘读，
+用来补全视图里未变化的上下文；显示与交给 git 的都是那个相对写法，所以视图上方那一行与实际比的
+那两份是同一个来源。写法按 git 的口径换成正斜杠（`relative()` 在 Windows 上给反斜杠，而反斜杠在
+pathspec 里是转义符，子目录那一份会读不到）。
 没有差别时 `readFilesChange` 给 `undefined`。
 */
 function buildFilesData(
   baseDir: string,
-  fromTarget: string,
-  toTarget: string,
+  oldTarget: string,
+  newTarget: string,
 ): DiffData | undefined {
   const spec = (target: string): string =>
     relative(baseDir, target).replaceAll('\\', '/');
-  const fromSpec = spec(fromTarget);
-  const toSpec = spec(toTarget);
-  const diff = readFilesChange(fromSpec, toSpec, baseDir);
+  const oldSpec = spec(oldTarget);
+  const newSpec = spec(newTarget);
+  const diff = readFilesChange(oldSpec, newSpec, baseDir);
 
   if (diff === undefined) {
     return undefined;
@@ -68,10 +69,10 @@ function buildFilesData(
 
   return {
     source: 'files',
-    caption: `${fromSpec} → ${toSpec}`,
-    fileName: fromSpec,
+    caption: `${oldSpec} → ${newSpec}`,
+    fileName: oldSpec,
     diff,
-    old: fs.readFileSync(fromTarget, 'utf8'),
+    old: fs.readFileSync(oldTarget, 'utf8'),
   };
 }
 
@@ -106,7 +107,7 @@ export default function loader(
 
   if (spec.kind === 'invalid') {
     skip(
-      `frontmatter 的 diff 写成 [a, b] 时要正好两份，这一页不渲染差异视图：${value}`,
+      `frontmatter 的 diff 写成 {old: 旧, new: 新} 时要正好这两个键，这一页不渲染差异视图：${value}`,
     );
     return;
   }
@@ -116,24 +117,24 @@ export default function loader(
 
   try {
     if (spec.kind === 'pair') {
-      const sides = ['旧', '新'] as const;
-      const targets = [
-        resolve(baseDir, spec.from),
-        resolve(baseDir, spec.to),
-      ] as const;
-      const missing = targets.findIndex((target) => !fs.existsSync(target));
+      const oldTarget = resolve(baseDir, spec.old);
+      const newTarget = resolve(baseDir, spec.new);
+      const missing = [
+        { word: 'old（改动之前）', target: oldTarget },
+        { word: 'new（改动之后）', target: newTarget },
+      ].find((side) => !fs.existsSync(side.target));
 
-      if (missing !== -1) {
+      if (missing) {
         skip(
-          `frontmatter 的 diff 写成两份，${sides[missing]}那一份不存在，这一页不渲染差异视图：${targets[missing]}`,
+          `frontmatter 的 diff 里 ${missing.word} 那一份不存在，这一页不渲染差异视图：${missing.target}`,
         );
         return;
       }
 
-      const pair = buildFilesData(baseDir, targets[0], targets[1]);
+      const pair = buildFilesData(baseDir, oldTarget, newTarget);
 
       if (!pair) {
-        skip(`${spec.from} 与 ${spec.to} 没有差别，这一页不渲染差异视图`);
+        skip(`${spec.old} 与 ${spec.new} 没有差别，这一页不渲染差异视图`);
         return;
       }
 
@@ -162,11 +163,11 @@ export default function loader(
 
     callback(null, `${source}\nexport const diff = ${JSON.stringify(data)};\n`);
   } catch (error) {
-    // git 本身出问题（仓库损坏、git 不在 PATH）只让这一页少一块视图，不让整站构建失败。
-    // 抛出来的是 Error（`execFileSync` 与下面的读取都是），这里只是把 `catch` 到的 unknown
-    // 取回一句可读的消息。
+    // git 本身出问题（仓库损坏、git 不在 PATH、那两份里有一份 git 读不到）只让这一页少一块视图，
+    // 不让整站构建失败。抛出来的是 Error（`execFileSync` 与下面的读取都是），这里只是把 `catch`
+    // 到的 unknown 取回一句可读的消息。
     skip(
-      `读取 ${value} 的 git 历史失败，这一页不渲染差异视图：${(error as Error).message}`,
+      `向 git 取 ${value} 的差异失败，这一页不渲染差异视图：${(error as Error).message}`,
     );
   }
 }

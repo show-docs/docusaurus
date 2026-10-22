@@ -6,11 +6,11 @@ export interface DiffData {
   */
   source: 'commit' | 'files';
   /**
-  视图上方显示的那一个名字：一份文件时就是仓库相对路径，两份文件时是 `旧 → 新`。
+  视图上方显示的那一个名字：一份文件时就是仓库相对路径，两份文件时是 `old → new`。
   */
   caption: string;
   /**
-  左边那一份（改动之前）的文件名，也是语法高亮取后缀的那一个。两份文件对照时它是 `旧` 那一份，
+  左边那一份（改动之前）的文件名，也是语法高亮取后缀的那一个。两份文件对照时它是 `old` 那一份，
   右边那一份的名字在 `git diff` 原文的头部里。
   */
   fileName: string;
@@ -18,7 +18,7 @@ export interface DiffData {
   diff: string;
   /**
   左边那一份的内容，用于补全视图里未变化的上下文：`commit` 是上一次改动之前那份，
-  `files` 就是方括号里 `旧` 那一份。
+  `files` 就是 `old` 那一个键给的那一份。
   */
   old: string;
 }

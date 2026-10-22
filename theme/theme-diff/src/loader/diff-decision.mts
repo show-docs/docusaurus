@@ -34,15 +34,18 @@ export function resolveDiffTarget(value: string, resourcePath: string): string {
 `diff:` 那个值落成的形状。两种都用，第三条是写了但写坏了：
 
 - `single`：一份文件，比它在 git 里的最近一次改动（`true` 就是本文自己）；
-- `pair`：`[旧, 新]`，两份磁盘文件互相对照，不经过 git 历史；
-- `invalid`：方括号里的项数不是两份。
+- `pair`：`{old: 旧, new: 新}`，两份磁盘文件互相对照，不经过 git 历史；
+- `invalid`：花括号里凑不出正好 `old` 与 `new` 两个键。
 */
 export type DiffSpec =
   | { kind: 'single'; value: string }
-  | { kind: 'pair'; from: string; to: string }
+  | { kind: 'pair'; old: string; new: string }
   | { kind: 'invalid'; value: string };
 
-const PAIR = /^\[(.*)\]$/s;
+const PAIR = /^\{(.*)\}$/s;
+
+/** 一项 `键: 值`；只切第一个冒号，值里再带冒号（Windows 的盘符写法）都不受影响。 */
+const ENTRY = /^([^:]+):(.*)$/s;
 
 /** 去掉一项外面配对的那对引号，与 `readDiffValue` 对整行值做的是同一件事。 */
 function unquote(item: string): string {
@@ -52,10 +55,12 @@ function unquote(item: string): string {
 }
 
 /**
-把值分成「一份文件」与「两份文件」两种形状。逗号两边空白随意，两项都可以加引号。
+把值分成「一份文件」与「两份文件」两种形状。两份那种是 YAML 的流式映射：
+`diff: {old: a.md, new: b.md}`，**键名定角色**，所以两条写的先后无所谓，`new` 那一份
+总是落在视图右边。逗号两边空白随意，键与值都可以加引号。
 
-方括号里的项数不是二就当写坏了 —— 猜成「取前两份」会把 `diff: [a, b, c]` 静默变成 a 与 b
-的对照，页面看着正常、比的不是作者要的那两份。
+凑不出正好这两个键就当写坏了 —— 缺一个就退回去猜另一份，比静默少比一份更难查；
+多一个键也不认（`{old, new, extra}` 里 `extra` 是谁、该比哪两份，作者自己都没说清）。
 */
 export function splitDiffValue(value: string): DiffSpec {
   const inside = PAIR.exec(value)?.[1];
@@ -64,18 +69,28 @@ export function splitDiffValue(value: string): DiffSpec {
     return { kind: 'single', value };
   }
 
-  const items = inside
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((item) => unquote(item));
+  const entries = new Map<string, string>();
 
-  if (items.length !== 2) {
-    return { kind: 'invalid', value };
+  for (const raw of inside.split(',')) {
+    const item = raw.trim();
+
+    if (!item) {
+      continue;
+    }
+
+    const entry = ENTRY.exec(item);
+
+    if (!entry) {
+      return { kind: 'invalid', value };
+    }
+
+    entries.set(unquote(entry[1]!.trim()), unquote(entry[2]!.trim()));
   }
 
-  // 上一条已经钉死「正好两项」，这里只是把下标读法收成一份元组类型
-  const [from, to] = items as [string, string];
+  const old = entries.get('old');
+  const newer = entries.get('new');
 
-  return { kind: 'pair', from, to };
+  return !old || !newer || entries.size !== 2
+    ? { kind: 'invalid', value }
+    : { kind: 'pair', old, new: newer };
 }
