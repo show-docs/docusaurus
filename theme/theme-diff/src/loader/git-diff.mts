@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { basename, dirname } from 'node:path';
 
 /**
 一次 git 调用的输出（去掉首尾空白）。用参数数组而不是拼命令串：路径里带空格或
@@ -15,6 +16,24 @@ export function findRepoRoot(cwd: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+这份文件在仓库里的相对路径（`docs/a.md` 这种），**向 git 自己问**：`--show-prefix` 以文件
+所在目录为 cwd，返回的那一段就是 git 认的 pathspec 前缀，正斜杠、带尾斜杠，仓库根上为空串。
+
+为什么不用 `relative(repoRoot, target)`：`repoRoot` 出自 git，`target` 出自 webpack 的
+`resourcePath`，两者对**同一个目录**可以给出两种写法。Windows 上 8.3 短名是这条缝的典型
+—— 普通 `fs.realpathSync` 不展开短名（`C:\Users\RUNNER~1\…`），git 恒展开成长名
+（`C:\Users\runneradmin\…`），逐段比对时第二个段就分叉，`relative()` 于是算出一条
+`../../../../../RUNNER~1/…` 的地址，git 随即判定「outside repository」，这一页的差异视图
+静默变成一句告警。构建从短名目录起手（`cd C:\PROFIL~1\site`、或检出落在短名 TEMP 里）
+的用户会真撞上这一条，不只是测试夹具。
+
+把 cwd 交给 git、由它报前缀，两种写法之间的字符串比较就从代码里消失了。
+*/
+export function repoPathFromRoot(target: string): string {
+  return `${git(['rev-parse', '--show-prefix'], dirname(target))}${basename(target)}`;
 }
 
 export interface LastChange {

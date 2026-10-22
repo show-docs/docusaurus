@@ -73,10 +73,18 @@ macOS 的 `os.tmpdir()` 是 `/var/folders/…`，真实路径是 `/private/var/f
 夹具若持有未归一的原路径，「文件存在」的 issuer（realpath 成功）与「文件不存在」的
 issuer（realpath 抛错、退回 `resolve`）会落进两个命名空间，层归属判定在 macOS 上
 全判错（`/var/…` 前缀永远匹配不上 `/private/var/…` 的层）。
-在入口归一一次，后续所有拼接天然同口径；Linux/Windows 上 tmpdir 无符号链接，是恒等变换。
+在入口归一一次，后续所有拼接天然同口径；Linux 上 tmpdir 无符号链接，是恒等变换。
+
+Windows 上要用 `realpathSync.native`而不是普通版：普通版不展开 8.3 短名，而 GitHub 的
+windows runner 把 `%TEMP%` 就给成短名形式（`C:\Users\RUNNER~1\AppData\Local\Temp`，账户目录
+`runneradmin` 有短名别名），普通 realpath 于是**保住**那个短名。git 走的是自己的那一套，
+恒展开成长名（实测同一个目录：`realpathSync` 给 `PROBE-~1`、`realpathSync.native` 与
+`git rev-parse --show-toplevel` 都给 `probe-83-longfoldername`）。开发机
+（`C:\Users\Eric`，无空格、无短名别名）看不出差别，只有 CI 上会红 —— 而 `theme-diff` 那两组
+用例把夹具路径与 git 的输出直接比，两边必须同一种写法。
 */
 export function mkdtempReal(prefix: string): string {
-  return fs.realpathSync(fs.mkdtempSync(prefix));
+  return fs.realpathSync.native(fs.mkdtempSync(prefix));
 }
 
 /**

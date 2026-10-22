@@ -12,6 +12,7 @@ import {
 import {
   findRepoRoot,
   readLastChange,
+  repoPathFromRoot,
 } from '../theme/theme-diff/src/loader/git-diff.mts';
 import loader from '../theme/theme-diff/src/loader/md-diff-loader.mts';
 
@@ -195,6 +196,16 @@ describe('git 里那一次改动落成一份数据', () => {
     const outside = mkdtempReal(path.join(os.tmpdir(), 'diff-loader-norepo-'));
     tempDirs.push(outside);
     expect(findRepoRoot(outside)).toBeUndefined();
+  });
+
+  it('仓库相对路径向 git 问：子目录带前缀，仓库根上就只剩文件名', () => {
+    const root = repo({
+      files: { 'docs/a.md': '第一版\n', 'keep.md': '占位\n' },
+    });
+    // `--show-prefix` 带尾斜杠、仓库根上为空串，两种形状都要走到：拼出来的名字与 git
+    // 自己的 pathspec 同一个口径，`git log -- <name>` 才不会被判成「outside repository」。
+    expect(repoPathFromRoot(path.join(root, 'docs', 'a.md'))).toBe('docs/a.md');
+    expect(repoPathFromRoot(path.join(root, 'keep.md'))).toBe('keep.md');
   });
 
   it('改过两次的文件：给出这次差异与改动之前那份内容', () => {

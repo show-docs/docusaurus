@@ -1,18 +1,18 @@
 import fs from 'node:fs';
-import { dirname, relative } from 'node:path';
+import { dirname } from 'node:path';
 
 import type { LoaderContext } from 'webpack';
 
 import type { DiffData, LoaderContextExtras } from '../types.mts';
 
 import { readDiffValue, resolveDiffTarget } from './diff-decision.mts';
-import { findRepoRoot, readLastChange } from './git-diff.mts';
+import { findRepoRoot, readLastChange, repoPathFromRoot } from './git-diff.mts';
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
 
 /**
 差异数据；仓库外、或这份文件还没有「上一次改动」时返回 `undefined`。
-路径按 git 的口径换成反斜杠为正斜杠，仓库相对路径也是视图上方显示的那一行。
+仓库相对路径直接向 git 问（理由见 `repoPathFromRoot`），它同时是视图上方显示的那一行。
 */
 function buildDiffData(target: string): DiffData | undefined {
   const repoRoot = findRepoRoot(dirname(target));
@@ -21,7 +21,7 @@ function buildDiffData(target: string): DiffData | undefined {
     return undefined;
   }
 
-  const fileName = relative(repoRoot, target).replaceAll('\\', '/');
+  const fileName = repoPathFromRoot(target);
   const lastChange = readLastChange(fileName, repoRoot);
 
   return lastChange && { fileName, ...lastChange };
