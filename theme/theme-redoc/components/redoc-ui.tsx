@@ -41,12 +41,17 @@ function LocationMirror(props: Pick<Props, 'onRouteChange'>): null {
 // `disableTelemetry`：`redoc` 的依赖里挂着 `@redocly/redoc-opentelemetry`，默认会把文档标题
 // 之类的用量报出去。本仓的示例页全在本地（`/openapi-redoc.yaml`），也不该往第三方发东西。
 //
+// `hideDownloadButtons`：Redoc 把「Download OpenAPI description」那一格排在正文最前面，链接指向
+// 它取 spec 用的那个地址 —— 本层没传 `downloadUrls`，`redoc@3.0.1` 自己从 `specUrl` 推出这一条
+// （改之前实测框内正文第一格就是 `data-testid="panel-download-openapi-description"`）。那条地址是
+// 站点 `static/` 里的那份 yaml，直接给出去只是让人绕开这一页去抓原始文件。
+//
 // `options` 里**没有** `scrollYOffset`：Redoc 渲染时调用那个函数，把返回值写成容器上的
 // `--navbar-height` 与 `--navbar-stack-height`，左栏高度、sticky 停靠位、滚过去的
 // `scroll-margin-top` 全从这两条取值；不给就按 0 算（`redoc` 里那一格是
 // `Math.max(fn?.() ?? 0, 0)`）。本组件只跑在框内那份文档上，那份文档没有 navbar，
 // 量出来本来也是 0，于是连量都省了。高度链的口径在包 `docs/internals.md` 的「高度」一节。
-const options = { disableTelemetry: true } as const;
+const options = { disableTelemetry: true, hideDownloadButtons: true } as const;
 
 // 数组写成模块级的常量：`StyleSheetManager` 按 props 认这张样式表，每次渲染换一个新数组就
 // 等于换一张表，Redoc 的规则会被重新插一遍。

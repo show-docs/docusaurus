@@ -43,8 +43,8 @@ scalar: /openapi.yaml
 
 本包没有插件选项。Scalar 的渲染参数集中在
 [`components/scalar-ui.tsx`](./components/scalar-ui.tsx)：界面语言为简体中文
-（`localization.locale: 'zh-cn'`），并关闭了 Test Request、Ask AI、暗色切换等入口。语言值要使用
-Scalar 内置的小写连字符 id（例如 `zh-cn`，不是 `zh-CN`）。
+（`localization.locale: 'zh-cn'`），并关闭了 Test Request、Ask AI、暗色切换、正文顶上那一格
+下载等入口。语言值要使用 Scalar 内置的小写连字符 id（例如 `zh-cn`，不是 `zh-CN`）。
 
 ## 渲染方式
 

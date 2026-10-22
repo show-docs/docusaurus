@@ -252,7 +252,7 @@ Then('Scalar 那颗「问 AI」的按钮不出现', async ({ page }) => {
 
 收它的理由不是「本地和线上长得不一样」，是**它真的会把请求发出去**：那一格读的是这份文档自己的
 `servers`，任何人点一下就从站点的页面上朝那个地址发一条请求。这一层摆的是给别人看的接口文档，
-凭据与 CORS 都不在本层的承诺里，所以按配置收掉；代码示例与那份文档的下载不受影响（见上面那句
+凭据与 CORS 都不在本层的承诺里，所以按配置收掉；代码示例那一格不受影响（见上面那句
 「Scalar 代码块里的复制按钮还在」与包 `docs/internals.md` 的「收掉的几处」）。
 
 按文案认。厂商那一格 `hideTestRequestButton` 的默认值是 `false`（`@scalar/types@0.24.0`，类型注释
@@ -266,6 +266,31 @@ Then('Scalar 那颗「试调用」的按钮不出现', async ({ page }) => {
       .locator('button')
       .filter({ hasText: /test request|测试请求/i }),
     '框里出现了 Scalar 那颗「Test Request」的按钮（`hideTestRequestButton` 不是 true）',
+  ).toHaveCount(0);
+});
+
+/**
+正文顶上那一格「下载 OpenAPI 文档」（JSON 与 YAML 各一颗按钮）不出现。
+
+收它的理由与「试调用」同一类：这一层摆的是给别人看的文档，原始文件不在本层要递出去的东西里
+（那份 yaml 的地址本来就在框内那条 `src` 上，想要的人绕不开）。厂商的渲染条件写在
+`blocks/scalar-info-block/components/DownloadLink.vue`：取值是 `yaml` / `json` / `both` 才出那两颗，
+`direct` 还要有 spec 地址，其余整格不生成 —— 所以这一句按 **DOM 数量**判，不按可见性判。
+改之前实测这一格是 1 个 `.download-container` 加 2 个 `.download-button`
+（无障碍标签走 locale，简体是「下载 OpenAPI 文档（JSON）」）。
+
+厂商另有一条同名的旧写法 `hideDownloadButton: true`：它现在只算兼容，会换算成
+`documentDownloadType: 'none'`，同时往控制台补一句 `[DEPRECATED]`，本层用新那条。
+*/
+Then('Scalar 那两颗下载按钮不出现', async ({ page }) => {
+  await expect(
+    frameDoc(page).locator('.download-container, .download-button'),
+    '框里出现了 Scalar 那一格下载（`documentDownloadType` 不是 none）',
+  ).toHaveCount(0);
+
+  await expect(
+    frameDoc(page).locator('[aria-label*="OpenAPI"]'),
+    '框里还剩一颗按无障碍标签认得出的下载按钮',
   ).toHaveCount(0);
 });
 

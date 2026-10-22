@@ -25,6 +25,7 @@ Feature: theme-scalar
     And Scalar 那条署名不出现，左栏那一格还在
     And Scalar 那颗「问 AI」的按钮不出现
     And Scalar 那颗「试调用」的按钮不出现
+    And Scalar 那两颗下载按钮不出现
     And 左栏底部那一颗换成了 API client，不是 MCP 安装入口
     And Scalar 那条开发者工具栏不出现
     And Scalar 那颗「生成 SDK」的按钮不出现

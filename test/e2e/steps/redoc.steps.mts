@@ -253,7 +253,7 @@ Then('Redoc 那条署名不出现，同一格里的收起侧栏还在', async ({
 Redoc 在每个章节标题右边摆一整格操作按钮：「Copy」（把这一节的文档复制成 YAML 给大模型的那一颗）
 加一个「More actions」下拉（Open in Claude / ChatGPT 两项在里面）。本层整格收掉 ——
 代码块里那几颗「复制到剪贴板」不在这格里面，碰不到（口径与理由见包 `docs/internals.md`
-的「收掉的三处 Redoc 自己的东西」一节）。
+的「收掉的四处 Redoc 自己的东西」一节）。
 这一格是 `display: none` 收的，元素仍在 DOM 里，所以判据走可见性；先钉「DOM 里认得出这一格」
 再钉「一格都不显眼」，免得选择器哪天匹配不上就静默通过。
 */
@@ -268,6 +268,29 @@ Then('章节标题旁那一整格操作按钮不出现', async ({ page }) => {
     root(page).locator('[data-testid="page-actions"]:visible'),
     '章节标题旁那一整格操作按钮还看得见',
   ).toHaveCount(0);
+});
+
+/**
+Redoc 那一格「Download OpenAPI description」不出现。
+
+与上面三条不同，这一处**走的是配置**（`redoc-ui.tsx` 里 `options.hideDownloadButtons: true`），
+元素根本不在 DOM 里，所以判据按数量。本层没有传 `downloadUrls`，而 `redoc@3.0.1` 会拿它取 spec 的
+那个地址自己补一条 —— 关掉之前实测框内右栏第一格就是
+`[data-testid="panel-download-openapi-description"]`，里面一条链接指向 `/openapi-redoc.yaml`。
+
+第二句是给第一句当对照：那一格没了之后，右栏第一格换成了 Servers。万一厂商哪天改了 testid，
+第一句会静默通过，这一句不会。
+*/
+Then('Redoc 那份 spec 的下载那一格不出现', async ({ page }) => {
+  await expect(
+    root(page).locator('[data-testid="panel-download-openapi-description"]'),
+    'Redoc 那一格下载还在（`hideDownloadButtons` 不是 true）',
+  ).toHaveCount(0);
+
+  await expect(
+    root(page).locator('[data-testid^="panel-"]').first(),
+    'Redoc 正文的第一格不是 Servers，上一句可能是选择器失效造成的假绿',
+  ).toHaveAttribute('data-testid', 'panel-servers');
 });
 
 /**

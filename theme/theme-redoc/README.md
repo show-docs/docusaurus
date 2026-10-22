@@ -42,7 +42,9 @@ redoc: /openapi.yaml
 ## 配置
 
 本包没有插件选项。Redoc 的渲染参数集中在
-[`components/redoc-ui.tsx`](./components/redoc-ui.tsx)，当前开启 `disableTelemetry: true`。
+[`components/redoc-ui.tsx`](./components/redoc-ui.tsx)，当前开启 `disableTelemetry: true`（不把用量
+报出去）与 `hideDownloadButtons: true`（正文最前面那一格「Download OpenAPI description」不生成，
+链接指向的就是本站那份 yaml）。
 
 ## 渲染方式
 

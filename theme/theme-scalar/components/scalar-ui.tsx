@@ -42,7 +42,13 @@ export function ScalarUI(props: Props) {
       // 挂载那一刻给一个明确的布尔，不给 `undefined`（那条退到操作系统偏好）。
       // 运行时那一格由外层送，见 `scalar-color-mode.ts` 与 theme-iframe 那份框内工厂。
       darkMode: isDarkColorModeAtLoad(),
-      // 把上面那格从「初始值」升成「就这一格，别的不看」：只给 `darkMode` 时，厂商那条优先级链
+      // 正文顶上那一格「下载 OpenAPI 文档」的两颗按钮（JSON 与 YAML 各一颗，厂商那份
+      // `DownloadLink` 按这个取值决定摆不摆：`yaml` / `json` / `both` 才渲染，`direct` 要有 spec 地址，
+      // 其余整格不生成）。这是一份文档站点，别人要拿原始文件有的是办法（地址就在框内那条 `src` 上），
+      // 不必由本层递到手上。厂商那条同名的旧写法 `hideDownloadButton: true` 现在只算兼容：它会把这一格
+      // 改成 `none`，同时往控制台补一句 `[DEPRECATED]`。
+      documentDownloadType: 'none',
+      // 把 `darkMode` 从「初始值」升成「就这一格，别的不看」：只给 `darkMode` 时，厂商那条优先级链
       // 让同源 `localStorage` 里的 `colorMode` 压得过它（框内这一页与站点同源，那个 key 谁都读得到）。
       // 钉成挂载那一刻从本份文档 `<html data-theme>` 读到的值，站点仍是唯一驱动。链的完整形状、
       // 以及「页面开着时换操作系统主题会把钉住的那格重落一遍」那一格窄缝，记在包 `docs/internals.md` 的
@@ -56,7 +62,7 @@ export function ScalarUI(props: Props) {
       // 每条接口右上角那颗「Test Request」：它真的把请求发出去，读的是文档里那条 server 地址。这是一份
       // **文档**站点，凭据与 CORS 都不在这一层的承诺里，所以收掉（厂商那一路：这颗与正文的鉴权选择器同源，
       // `Content.vue` 的注释写的是 "tied to `hideTestRequestButton`"）。看的那一路不收：实测代码示例选择器
-      // 与下载都还在（那颗「生成 SDK」是另一件事，厂商没有配置、只在本地地址渲染，归 `scalar-ui.css` 收）。
+      // 还在（那颗「生成 SDK」是另一件事，厂商没有配置、只在本地地址渲染，归 `scalar-ui.css` 收）。
       hideTestRequestButton: true,
       // 界面文案走厂商自带的简体中文那份。取值认的是它内置九份那种小写带连字符的 id（不是 BCP 47，
       // 写 `zh-CN` 会退回 `en`）；`zh-cn` 实测与 `en` 一样齐，不会露半句英文。换语言牵到 e2e：

@@ -23,6 +23,7 @@ Feature: theme-redoc
     And Redoc 自己那颗亮暗开关不出现
     And Redoc 那条署名不出现，同一格里的收起侧栏还在
     And 章节标题旁那一整格操作按钮不出现
+    And Redoc 那份 spec 的下载那一格不出现
     And 外层文档里没有 Redoc 的痕迹
     And 站点自己的那几处样式不被 Redoc 改写
     And 浏览器里没有运行期错误

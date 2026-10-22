@@ -38,7 +38,8 @@
    `isLocalUrl(window.location.href)`，配置里没有这一格）—— 于是 `localhost` 起站点时实测有
    3 颗、线上那份 0 颗，本地与线上两个形状，跟已经按死的开发者工具栏、Ask AI、MCP 入口是同一族。
    这一颗不只是个链接：点下去打开的是它自己那个对话框，会把这份文档上传到 scalar.com。
-   收掉的是这一颗，功能性的都留着 —— 代码示例、SDK 说明之外的下载与客户端选择器都还在。
+   收掉的是这一颗，功能性的都留着 —— 代码示例与客户端选择器都还在（正文顶上那一格下载是另一件事，
+   走配置收，见 `scalar-ui.tsx` 的 `documentDownloadType`）。
    两个类名各认一次：`.selected-client-action` 在厂商代码里只出现在那一颗身上
    （`ClientSelector.vue` 把类名递给那颗 `variant: 'card'` 的按钮），不是 Tailwind 那串。
    `!important` 在这两处都要：实测同一条规则不带它注进页面，那 3 颗照旧可见，带上才归零。 */

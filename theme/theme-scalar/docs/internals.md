@@ -157,8 +157,8 @@ Scalar 自己那颗左栏底部的亮暗开关用配置收掉：`hideDarkModeTog
 
 ## 界面文案：走厂商自带的简体那一份
 
-Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上方那排、下载那两颗、接口标题旁那颗
-「测试请求」…）不写在组件里，取自它自己那份本地化表。本层按配置交一格：
+Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上方那排；本层收掉的下载那两颗与接口标题旁
+那颗「测试请求」，字也出自同一份表）不写在组件里，取自它自己那份本地化表。本层按配置交一格：
 `localization: { locale: 'zh-cn' }`（`scalar-ui.tsx`）。
 
 三件实测过的事：
@@ -240,7 +240,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
 
 ## 收掉的几处 Scalar 自己的东西
 
-七处。口径是：**厂商自己塞的品牌位、跟站点重复的开关、那几件只在本地冒出来的东西收掉；给写文档
+八处。口径是：**厂商自己塞的品牌位、跟站点重复的开关、那几件只在本地冒出来的东西收掉；给写文档
 和部署这一页的人用的功能收掉，给读文档的人用的不收**。
 
 - **那颗亮暗开关**：配置收的（`hideDarkModeToggle: true`），不渲染，DOM 里没有，所以 e2e 那句
@@ -255,9 +255,19 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   就从站点的页面上朝那个地址发一条请求，而这一层摆的是一份给别人看的接口文档，凭据与 CORS 都不在
   本层的承诺里。厂商那一路的判据还说明它连累了别的格子：正文里的鉴权选择器与它同源（`Content.vue`
   的 `showAuthSelector` 那句注释写的是 "tied to `hideTestRequestButton`"），所以这一格收掉的是
-  「从这一页发请求」整条路。**不收的是看的能力**：填参数、代码示例、下载那份文档照旧。
-  e2e 那句按文案认（那颗按钮的文案取自本地化表里的 `content.testRequest: "Test Request"`，
+  「从这一页发请求」整条路。**不收的是看的能力**：填参数、代码示例照旧。
+  e2e 那句按文案认（那颗按钮的文案取自本地化表里的 `operation.testRequest: "Test Request"`，
   没有 `data-testid`）。
+- **正文顶上那一格「下载 OpenAPI 文档」**：配置收的（`documentDownloadType: 'none'`）。厂商那份
+  `DownloadLink` 按这一格取值决定摆不摆（`yaml` / `json` / `both` 才渲染，`direct` 要有 spec 地址，
+  其余整格不生成）。上面那条口径说「给读文档的人用的不收」，这一格是个边界：那两颗递的是**原始文件**，
+  不是看文档的能力，而文件本身对读的人并没有藏起来 —— 地址就在框内那条 `src` 上，浏览器直接打开就能存。
+  这一层只是不再把它做成一颗按钮递到手边。
+  走 `documentDownloadType` 而不是同名的旧写法 `hideDownloadButton: true`，是因为后者在
+  `@scalar/types@0.24.0` 里已标 deprecated：它会把这一格换算成 `none`（行为一样），同时往控制台
+  补一句 `[DEPRECATED]`。**收之前的实测**：`/scalar-demo` 框里 1 颗 `.download-container`、2 颗
+  `.download-button`（JSON 与 YAML 各一颗）；收之后两处都 0 颗。e2e 那句按这两条类名加一条
+  `[aria-label*="OpenAPI"]` 判，后者兜的是哪天那颗换成不带这串类名的按钮。
 - **左栏底部那两颗「Generate MCP」/「Connect MCP」**：配置收的（`mcp: { disabled: true }`）。
   厂商那一格（`sidebarCta`）按 `mcp.disabled` 优先 —— 钉成 disabled 就直接退回 API client 那颗
   入口；不设时按「本机地址摆 explore、线上摆 client」走，本地与线上又是两个形状。这一层不卖
@@ -277,7 +287,9 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   `display: none !important` 收掉整格。走 CSS 而不是配置是因为配置里**没有这一格**：查过
   `@scalar/types@0.24.0` 那份 `api-reference-configuration` 的 schema，`hide*` 一共七条
   （`hideDarkModeToggle`、`hideDownloadButton`、`hideSearch`、`hideModels`、`hideModelNames`、
-  `hideClientButton`、`hideTestRequestButton`），管署名与推广位的一条都没有。
+  `hideClientButton`、`hideTestRequestButton`），管署名与推广位的一条都没有。那七条是这一族的名字，
+  与上面「收掉几处」的处数无关；而且 `hideDownloadButton` 这一条本层没有用 —— 它已标 deprecated，
+  下载那一格走的是 `documentDownloadType`。
   选择器认的是**它是什么**（装着指向 `https://scalar.com/?utm_source=powered-by` 那条链接的
   `aside` 直接子格），不是 Tailwind 那串 `flex flex-col gap-3 px-3 pb-3` —— 换个版本类名就重排。
   收的是那一整格，但**左栏整格不收**：`e2e` 里配了一句「左栏那一格还在」。
@@ -362,12 +374,13 @@ src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` �
   同时钉住框内 → 外层那条消息）；左栏 `<aside>` 上沿贴 0、下沿贴满那份文档的底；它那颗亮暗开关
   不在（0 颗 `aria-label*="Set "`）、那条开发者工具栏也不在（0 颗 `.api-reference-toolbar`）、
   那颗「Ask AI」也不在（0 颗文案为「Ask AI」的按钮）、那颗「Test Request」也不在（0 颗文案含
-  Test Request 的按钮），左栏底部那一颗是 `a.open-api-client-button`（1 颗）而不是 MCP 那两颗
+  Test Request 的按钮）、正文顶上那一格下载也不在（0 颗 `.download-container` 与 `.download-button`，
+  再补一条 0 颗 `aria-label*="OpenAPI"` 兜类名哪天换掉），左栏底部那一颗是 `a.open-api-client-button`（1 颗）而不是 MCP 那两颗
   （0 颗带 MCP 字样的按钮或链接）、接口标题旁那颗 `createOrder` 徽标在，
   署名那一格 `display: none` 而左栏整格还在、那 3 颗「生成 SDK」也各是 `display: none`
   （先钉两种形状在 DOM 里认得出来，再判看不见）；17 颗代码块复制
   按钮都还在（按 `Copy` 与「复制」两种文案一起认，见「界面文案」）；界面是简体的（实测左栏那排是
-  「简介」「打开搜索」「下载 OpenAPI 文档」）；全程没有运行期错误。
+  「简介」「打开搜索」「复制默认值」）；全程没有运行期错误。
 - 深链：整页加载 `/scalar-demo#tag/orders/POST/orders`，托管侧回 200，框里把那条接口摆出来
   （直达那一份清单钉到 `新建订单` 为止，原因见「正文按需挂载」一节）。
 - 亮暗：操作系统按深色打开这一页，站点仍是亮色、框内 `<body>` 上也是 `light-mode`（这一格现在由

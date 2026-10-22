@@ -22,9 +22,10 @@
    左栏正好铺满整屏；外层文档页里那一格的尺寸在 theme-iframe 那份共用的
    `components/api-frame.css`，两边各管各的文档。 */
 
-/* 收掉的三处 Redoc 自己的东西。全是 `display: none`：元素仍留在 DOM 里，所以 e2e 那几句
-   按可见性判、不按数量判。为什么不走配置、为什么署名只收自己那一格，见包 `docs/internals.md` 的
-   「收掉的三处 Redoc 自己的东西」一节。 */
+/* Redoc 自己那四处里走 CSS 的三处，全是 `display: none`：元素仍留在 DOM 里，所以 e2e 那几句
+   按可见性判、不按数量判。第四处（正文最前面那一格下载）走的是配置，见 `redoc-ui.tsx`。
+   为什么这三条不走配置、为什么署名只收自己那一格，见包 `docs/internals.md` 的
+   「收掉的四处 Redoc 自己的东西」一节。 */
 
 .redoc-root [data-testid='color-mode-switcher'] {
   display: none;
@@ -34,7 +35,7 @@
    那条链接的 `span`），不是 styled-components 那个 `HUGFg` 类名 —— 换个版本就重排。
    只收这个 `span`，不收它所在的那一整格：同一格里还并着「收起侧栏」那颗按钮
    （`Sidebar/SidebarActions`），整格收掉会把它一起带走。口径见包 `docs/internals.md`
-   的「收掉的三处 Redoc 自己的东西」一节。 */
+   的「收掉的四处 Redoc 自己的东西」一节。 */
 
 .redoc-root .menu-content > div > span:has(a[href^='https://redocly.com/']) {
   display: none;
@@ -46,7 +47,7 @@
    为什么不走配置：`navigation.actions` 这一格在 `@redocly/config` 的 schema 里确实有
    （`items` 的枚举含 `copy`、`hide` 是个布尔），redoc 的 `options` 类型也收，但 `redoc@3.0.1`
    的实现不读它 —— 实测两发都没让这一格有任何变化。口径与依据见包 `docs/internals.md`
-   的「收掉的三处 Redoc 自己的东西」一节。 */
+   的「收掉的四处 Redoc 自己的东西」一节。 */
 
 .redoc-root [data-testid='page-actions'] {
   display: none;

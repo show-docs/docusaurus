@@ -201,9 +201,9 @@ Redoc 写的那个 `dark` 类 —— 类名在、配色却是站点这一头的�
 最后一句把站点自己那几处样式在**暗色下**也照「两个页面各算一遍 computed style
 比相等」量一次（含 `<html>` 上的 `color-scheme`，实测与主页同值）。
 
-## 收掉的三处 Redoc 自己的东西
+## 收掉的四处 Redoc 自己的东西
 
-本包的 CSS 收掉三处，全在 `components/redoc-ui.css`（生效在框内那份文档），全是 `display: none`
+其中**三处走 CSS**，全在 `components/redoc-ui.css`（生效在框内那份文档），全是 `display: none`
 （元素仍留在 DOM 里，所以 e2e 那几句按可见性判、不按数量判）：
 
 - **左栏底部那颗亮暗切换按钮** —— `[data-testid='color-mode-switcher']`。配色改由外层送进来的
@@ -240,6 +240,15 @@ Redoc 写的那个 `dark` 类 —— 类名在、配色却是站点这一头的�
 判据在 `test/e2e/features/redoc.feature` 第一条用例里：「Redoc 那条署名不出现，同一格里的收起侧栏还在」
 与「章节标题旁那一整格操作按钮不出现」，另加「Redoc 代码块里的复制按钮还在」—— 最后一句是给上一句当对照，
 证明收掉的是那一格，不是所有叫「复制」的东西。
+
+**第四处走的是配置，不是 CSS：正文最前面那一格「Download OpenAPI description」。**
+`redoc-ui.tsx` 里 `options.hideDownloadButtons: true` 一条就够 —— 这一格在 `redoc@3.0.1` 里读得到：
+选项归一化那一格写的是 `hideDownloadButtons: k1(t.hideDownloadButtons, !1)`，概览与页头那两处拼章节
+时都按它分岔（`!a && i?.length && l.push(wCe(i))`）。本层没传 `downloadUrls`，而它自己会拿取 spec 的
+那个地址补一条（`{url: new URL(specUrl, document.baseURI).href}`），于是关着的时候框内正文那一栏的
+第一格就是 `[data-testid="panel-download-openapi-description"]`，里面一条链接指向
+`/openapi-redoc.yaml`；关掉之后整格不生成，那一格的位置换成 `panel-servers`。判据因此按**数量**写，
+不按可见性写，另配一句「正文第一格是 Servers」当对照，免得 testid 哪天改了名变成假绿。
 
 ## 高度：外层给框定高，框内不给 Redoc 定高
 
@@ -332,8 +341,9 @@ iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2
   那一段跟着换**（这一句同时钉住框内 → 外层那条 postMessage）；那张运行期样式表在框里（实测 427 条
   样式规则，本层不再改写它的选择器：裸 `button` 还是 `button`、`:where(.redoc-root)` 前缀 0 条）；
   左栏占满框内那份文档的整屏、`.redoc-root` 不是滚动容器；
-  它那颗自己的亮暗按钮、Redocly 那条署名、章节标题旁那一整格操作按钮都看不见，而同一格里的
-  「收起侧栏」与代码块里那几颗复制按钮都还在；全程没有运行期错误。
+  它那颗自己的亮暗按钮、Redocly 那条署名、章节标题旁那一整格操作按钮都看不见（CSS 收的，元素还在
+  DOM 里），而同一格里的「收起侧栏」与代码块里那几颗复制按钮都还在；正文最前面那一格下载在 DOM 里
+  就归零（配置收的，同一句钉住正文第一格是 `panel-servers`）；全程没有运行期错误。
 - 深链：整页加载 `/redoc-demo#/orders/createorder`，托管侧回 200，框里把那条接口摆出来
   （正文清单是直达那一份：`列出订单`、`新建订单`），上面那几步（换成 iframe、容器不留白、框占满
   navbar 以下那一屏）同样成立。
