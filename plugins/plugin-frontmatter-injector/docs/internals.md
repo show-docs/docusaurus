@@ -5,15 +5,17 @@
 
 ## 组成
 
-三个文件，`src/` 下：
+四个文件，`src/` 下：
 
-| 文件           | 职责                                                             |
-| -------------- | ---------------------------------------------------------------- |
-| `rules.mts`    | 规则表与「最近」的判定：`defaultRules` / `applyRules` / `tagsOf` |
-| `git-info.mts` | 读 git：仓库根、HEAD、最近动过的文件、每份文件的提交时刻         |
-| `index.mts`    | 包装 `parseFrontMatter` 与插件接线（`loadContent()`）            |
+| 文件            | 职责                                                                |
+| --------------- | ------------------------------------------------------------------- |
+| `rules.mts`     | 规则表、「最近」的判定与 `tags` 的合并：`defaultRules` / `applyRules` / `tagsOf` / `mergeTags` |
+| `docs-scope.mts`| 地盘：文档插件的 `path` / `include` / `exclude` 折成一个 `covers()` |
+| `git-info.mts`  | 读 git：仓库根、HEAD、最近动过的文件、每份文件的提交时刻            |
+| `index.mts`     | 包装 `parseFrontMatter` 与插件接线（`loadContent()`）               |
 
-切三份是因为 git 那一侧能独立测（真仓库），规则表是纯函数，接线要假解析器 —— 三种夹具互不相干。
+切四份是因为 git 那一侧能独立测（真仓库），规则表是纯函数，地盘是「一堆 glob 的边角」，
+接线要假解析器 —— 几种夹具互不相干。
 对外只丢规则与 git 那几样纯函数，接线细节不外露。
 
 **类型不自己画。** 解析器的入参与结果一律从官方取：`ParseFrontMatter` 直接 import，
@@ -116,16 +118,50 @@ git log -1 --follow --format=%ct -- <path>         # 最后一次是什么时候
 - **只看 `HEAD` 那条历史。** 工作区里未提交的改动不算「最近动过」—— 站点产物要能复现，
   拿工作区当判据就成了「谁本地改一下谁就变新」。
 
-## 规则表的两条语义
+## 规则表的三条语义
 
 - **只补不覆盖**：键已经在了就不碰、算值那一步也不跑。理由是「规则表」不该变成「谁来都能改
   站点写过的东西」。
-- **函数不拿原值**：上一条决定了键不存在才会算，所以函数签名里没有 `current`。要按原文推值就
+- **`tags` 是唯一的例外**：那一把键是并集语义 —— 页面自己写的几条与站点标签、`git-new` /
+  `git-update` 说的是不同的事，谁让位都会丢信息。所以它走 `mergeTags()`：去重、排序
+  （排序是为了「同一个组合只有一种写法」，否则页面里换个顺序也会被当成改动），
+  写进 frontmatter 的一定是数组；页面写了别的形状（数字、带对象的数组）就原样交回 ——
+  那是页面的事，本插件不替它改类型。
+  实现上要留神一处：合并前后一模一样时**不能算「补过」**，否则包装层会以为变了、白换一个对象。
+- **函数不拿原值**：上一条决定了键不存在才会算，所以函数签名里没有 `current`（`tags` 那条例外
+  由 `applyRules()` 自己取旧值，函数仍然只负责「算出注入的那一份」）。要按原文推值就
   自己去问 `context`（`filePath`、此刻的 frontmatter、站点那几条标签、打开的那个仓库都在里面）。
   返回 `undefined` = 不表态，那一格不写 —— 否则 frontmatter 上会多出一格 `key: undefined`
   （`Object.keys` 数得着、`JSON.stringify` 看不见）。
 - **算值可以是异步的**：`applyRules` 收 Promise。git 那条路本质上是异步的（真的 subprocess），
   硬写成同步会把「读不了 git 就少两个标签」变成「读不了 git 就抛」。
+
+## 地盘：为什么是「转述」
+
+页面这个概念由 `@docusaurus/plugin-content-docs` 定义（`docs.path` / `docs.include` /
+`docs.exclude`），而这三格通常写在站点自己的预设里 —— 本插件在插件选项里拿不到别人实例化后的
+选项（`initializedPlugins` 只有实例，`options` 不外露，且 `loadContent()` 是 `Promise.all()`
+一起跑的）。所以口径是：**站点把这三格再写一遍给本插件**。本仓的做法是把清单提成
+`docusaurus.config.mjs` 顶部的 `DOCS_INCLUDE` / `DOCS_EXCLUDE` 两个常量，两处引同一份，
+不让它漂。
+
+匹配交给 `@docusaurus/utils` 的 `createAbsoluteFilePathMatcher`（`Globby` 底下的 micromatch），
+不是自己写一遍。两个踩过的点：
+
+1. **口径必须与 `Globby` 同源。** `Globby` 收 `**/*.md` 时 `docs/intro.md` 是收的；纯
+   `micromatch.isMatch('docs/intro.md', '**/*.md')` 在 `dot:false` 下是不收的（第一段不许以
+   点开头，而 `docs` 匹配到的那一段要求「后面还有一层」）。差一格，两边就错开。
+2. **`include` / `exclude` 是「相对内容根」的 glob**，所以 `build/**` 只管得到内容根下第一层，
+   包目录里的 `<pkg>/build/**` 照样收得进来 —— 得写成 `**/build/**`。本仓的 exclude 原来就是
+   `build/**`，这一版一并改了（文档插件那边同样受益：那些产物里的 `README.md` 副本本来会被当成
+   页面）。
+
+`exclude` 不兜官方缺省（`**/_*` / `**/__tests__`）：那几条是「扫描时顺手跳过」，不是「这些文件
+不归文档插件管」，本插件没有「反正它也不扫」的前提可用。`include` 兜官方的缺省值
+（`**/*.{md,mdx}`）：站点没转述时至少「md 才算页面」这条还在。
+
+判据落在两层：包装层先问一次（`hit` 为空就原样交回，连 git 都不问），`applyRules()` 里再问一次
+（它是对外导出的纯函数，自己也得站得住）。
 
 ## 已知限制
 
@@ -152,6 +188,9 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本插
 5. `pnpm build` 之后读一眼产物：`.docusaurus/docusaurus-plugin-content-docs/default/*.json` 的
    `frontMatter` 里 `tags` 带上了 `git-new` / `git-update`（数量应该接近站点里有历史的那批页），
    `build/assets/js/*.js` 里能找到 `tags:[\"文档\"]` 这一类的编译产物 —— 两侧同源才算真的注进去了。
+6. 地盘那条判据从产物回读最省事：产物里出现过的每一份 md/mdx 都带着 `tags`，而**站点里不存在
+   的**文件（`demo/README.md`、`test/README.md`、`node_modules` 下那些 `README.md` 副本）不该
+   出现在产物里；`.dbml` 那种非 md 页面没有 `tags` 是对的（`defaultRules` 只看后缀）。
 
 第 5 条是唯一「从产物回读」的判据，也是唯一能证伪「注入只在 MDX 那边生效、侧边栏没跟上」
 的那条分支的判据 —— 两条路读的是同一个函数，但它们不是同一次调用（第 1、3 条讲的就是

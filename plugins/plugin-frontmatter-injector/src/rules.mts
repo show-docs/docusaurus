@@ -1,3 +1,4 @@
+import type { Scope } from './docs-scope.mts';
 import type { Repo } from './git-info.mts';
 import { repoPath, timesOf } from './git-info.mts';
 
@@ -22,6 +23,11 @@ export interface RuleContext {
   tags: readonly string[];
   /** 打开的那个仓库；站点不在 git 里就是 `undefined` */
   repo: Repo | undefined;
+  /**
+   文档插件的地盘。`undefined` = 不限（不带这条判据）。地盘之外的文件不算「管得到」，
+   与 `match` 不中同一条路：连算值那一步都不跑。
+  */
+  scope?: Scope | undefined;
 }
 
 /**
@@ -83,6 +89,51 @@ export function tagsOf({ filePath, tags, repo }: RuleContext): string[] {
   return result;
 }
 
+/**
+ 页面自己写的那份 `tags` 与算出来那份合起来：先去重、再排序。
+
+ 这一把键与别的键不一样 —— 别的键是「站点写过了就让位」，而标签是**并列**的：页面自己那几条
+ 与 `git-new` / `git-update` 说的是不同的事，谁让位都会丢信息。排序不是整洁癖：同一个标签组合
+ 在产物里只有一种写法，diff 与快照才稳得住，否则「页面里换一下顺序」也会被当成改动。
+
+ 写进 frontmatter 的一定是数组：页面写了 `tags: blog`（单个字符串）也照样收成 `['blog']`；
+ 写了别的形状（数字、对象）就原样交回 —— 那是页面的事，本插件不替它改类型。
+*/
+export function mergeTags(
+  owned: unknown,
+  injected: readonly string[],
+): readonly string[] | unknown {
+  const list = Array.isArray(owned) ? owned : [owned];
+
+  return list.every((tag): tag is string => typeof tag === 'string') ? [...new Set([...list, ...injected])].toSorted((a, b) =>
+    a.localeCompare(b),
+  ) : owned;
+}
+
+/** 唯一一把「已有的与算出来的合起来」的键 */
+export const MERGE_KEY = 'tags';
+
+/** 合并前后一不一样：`next` 是并集的数组，`owned` 是页面原来那一格 */
+function isSameTags(next: unknown, owned: unknown): boolean {
+  if (!Array.isArray(next)) {
+    return true;
+  }
+
+  const before = Array.isArray(owned) ? owned : [owned];
+
+  return (
+    before.length === next.length &&
+    before.every((tag: unknown, index) => tag === next[index])
+  );
+}
+
+/** 算出来的值按「一串标签」读：不是数组的当没有（规则表写错了不该顺手清空页面的标签） */
+function asTags(value: unknown): readonly string[] {
+  return Array.isArray(value)
+    ? value.filter((tag): tag is string => typeof tag === 'string')
+    : [];
+}
+
 /** 本仓的缺省规则表：给每一页 md/mdx 的 `tags` 补上上面那几个 */
 export const defaultRules: FrontMatterRule[] = [
   {
@@ -107,18 +158,27 @@ export function normalizePath(filePath: string): string {
 /**
  按规则表给一份 frontmatter 补值，**就地**改传进来的那个对象，返回补进去的键。
 
- 只补不覆盖：键已经在了就原样留着，算值那一步也不跑 —— 否则规则表就成了「谁来都能改站点
- 写过的东西」。用 `Object.hasOwn` 而不是 `in`，原型链上的名字（`constructor`）不该算
- 「这一页写过了」。
+ 两件不变的事与一件例外：
 
- 值一律按 Promise 收：算值那一步可能要问 git，而问 git 是异步的（见 `./index.mts`）。
+ - 没有的键都算「要补」，算出来是 `undefined` 就是「这份文件不表态」，那一格不写；
+ - 值一律按 Promise 收：算值那一步可能要问 git，而问 git 是异步的（见 `./index.mts`）；
+ - **例外是 `tags`**：它本来就是并集的语义，页面写的与 git 判的是并列的几件事，谁也不该让位。
+   所以这一格当成「已有的与算出来的合起来」处理（见 {@link mergeTags}）。
+   其余每个键仍是「站点写过了就让位」—— 不然规则表就成了「谁来都能改站点写过的东西」。
+
+ 键在不在用 `Object.hasOwn` 判，不用 `in`：原型链上的名字（`constructor`）不该算「这一页写过了」。
 */
 export async function applyRules(
-  { filePath, frontMatter, tags, repo }: RuleContext,
+  { filePath, frontMatter, tags, repo, scope }: RuleContext,
   rules: FrontMatterRule[],
 ): Promise<string[]> {
+  // 地盘之外的文件连一条规则都不跑：那些文件在站点里根本不成为页面
+  if (scope && !scope.covers(filePath)) {
+    return [];
+  }
+
   const injected: string[] = [];
-  const context = { filePath, frontMatter, tags, repo };
+  const context: RuleContext = { filePath, frontMatter, tags, repo, scope };
 
   for (const rule of rules) {
     if (!matches(rule.match, filePath)) {
@@ -126,9 +186,14 @@ export async function applyRules(
     }
 
     for (const [key, make] of Object.entries(rule.frontMatter)) {
-      if (Object.hasOwn(frontMatter, key)) {
+      const has = Object.hasOwn(frontMatter, key);
+
+      // 只有可合并那把键在「已经有了」的情况下还要往下走，其余的一律让位、算值那一步也不跑
+      if (has && key !== MERGE_KEY) {
         continue;
       }
+
+      const owned: unknown = has ? frontMatter[key] : undefined;
 
       const value =
         typeof make === 'function' ? await (make(context) as unknown) : make;
@@ -139,8 +204,15 @@ export async function applyRules(
         continue;
       }
 
+      // 合并出来的与原来一模一样就不算补过：包装层靠这个判断「要不要换个对象交回去」
+      const next = has ? mergeTags(owned, asTags(value)) : value;
+
+      if (has && isSameTags(next, owned)) {
+        continue;
+      }
+
       // eslint-disable-next-line no-param-reassign -- 入参就是被 apply 的那份 frontmatter
-      frontMatter[key] = value;
+      frontMatter[key] = next;
       injected.push(key);
     }
   }

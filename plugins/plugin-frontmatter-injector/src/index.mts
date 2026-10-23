@@ -1,5 +1,7 @@
 import type { LoadContext, ParseFrontMatter, Plugin } from '@docusaurus/types';
 
+import type { DocsScope, Scope } from './docs-scope.mts';
+import { createScope, docsContentPath } from './docs-scope.mts';
 import type { Repo } from './git-info.mts';
 import { findRepoRoot, openRepo } from './git-info.mts';
 import type { FrontMatterRule } from './rules.mts';
@@ -12,11 +14,14 @@ import {
 } from './rules.mts';
 
 export type { FrontMatterRule, RuleContext } from './rules.mts';
+export type { DocsScope, Scope } from './docs-scope.mts';
 export type { GitTimes, Repo } from './git-info.mts';
+export { createScope, DEFAULT_INCLUDE, docsContentPath } from './docs-scope.mts';
 export {
   applyRules,
   defaultRules,
   isRecent,
+  mergeTags,
   NEW_TAG,
   RECENT_COMMITS,
   RECENT_DAYS,
@@ -40,8 +45,15 @@ export const WRAPPED = Symbol.for(PLUGIN_NAME);
 export interface FrontMatterInjectorOptions {
   /** 规则表；不传用 `defaultRules`（给 md/mdx 补 `tags`），传 `[]` 等于本插件什么都不做 */
   rules?: FrontMatterRule[];
-  /** 站点自己的标签：跟着注入一起写进 `tags`（`git-new` / `git-update` 由 git 判） */
+  /** 站点自己的标签：跟着注入一起并进 `tags`（`git-new` / `git-update` 由 git 判） */
   tags?: readonly string[];
+  /**
+   文档插件扫哪些文件（`docs.path` / `docs.include` / `docs.exclude`）。站点把那份选项写在预设里
+   时插件拿不到，只能由站点转述过来；不传 = 只管 `<siteDir>/docs` 整棵。
+
+   地盘之外的文件一个标签都不补 —— 「页面」这个概念由文档插件定义，注入跟着它走。
+  */
+  docs?: DocsScope;
 }
 
 /**
@@ -58,6 +70,14 @@ export function openRepoFrom(cwd: string): Repo | undefined {
 }
 
 /**
+ 地盘：`covers` 用的根是内容根的绝对路径。`from` 传站点根（或仓库根，两者只差一层软链），
+ 与 docs 插件自己算 `contentPath` 的口径一致 —— 都是「站点根 + `docs.path`」。
+*/
+export function scopeOf(from: string, docs: DocsScope = {}): Scope {
+  return createScope(docsContentPath(from, docs), docs);
+}
+
+/**
  包装：注入叠在 `base` 的结果上，不覆盖它。
 
  `base` 先跑（站点自己接 CMS 的那份照旧生效）。入参形状是官方 `ParseFrontMatter` 定的
@@ -70,6 +90,7 @@ export function wrapParseFrontMatter(
   rules: FrontMatterRule[],
   tags: readonly string[],
   repo: () => Repo | undefined,
+  scope?: Scope,
 ): ParseFrontMatter {
   if ((base as { [WRAPPED]?: true })[WRAPPED] === true) {
     return base;
@@ -80,9 +101,11 @@ export function wrapParseFrontMatter(
       const parsed = await base(params);
       const { frontMatter } = parsed;
       const filePath = normalizePath(params.filePath);
-      const hit = isPlainObject(frontMatter)
-        ? rules.filter((rule) => matches(rule.match, filePath))
-        : [];
+      // 地盘之外的文件在站点里不是页面（mdx-loader 也会路过它们），一条规则都不跑
+      const hit =
+        isPlainObject(frontMatter) && (scope?.covers(filePath) ?? true)
+          ? rules.filter((rule) => matches(rule.match, filePath))
+          : [];
 
       // 不是普通对象、或没有一条规则管得到这份文件：连 git 都不问，原样交回（引用也不换）
       if (hit.length === 0) {
@@ -92,7 +115,7 @@ export function wrapParseFrontMatter(
       // 在拷贝上补：既不动 base 的返回值，下游按引用比较也看得见「变了」。`content` 一个字都不碰
       const next = { ...frontMatter };
       const injected = await applyRules(
-        { filePath, frontMatter: next, tags, repo: repo() },
+        { filePath, frontMatter: next, tags, repo: repo(), scope },
         hit,
       );
 
@@ -114,9 +137,12 @@ export function wrapParseFrontMatter(
 */
 export default function frontMatterInjectorPlugin(
   context: LoadContext,
-  { rules = defaultRules, tags = [] }: FrontMatterInjectorOptions = {},
+  { rules = defaultRules, tags = [], docs }: FrontMatterInjectorOptions = {},
 ): Plugin {
   const { markdown } = context.siteConfig;
+  // 地盘在构造函数里定下来就够：`docs.path` / `include` / `exclude` 是站点配置的一部分，
+  // 改它们等于重启（dev 下 `reloadSite()` 会带着新配置重新实例化本插件）
+  const scope = scopeOf(context.siteDir, docs);
 
   // 插件实例级：`reloadSite()` 重跑的是插件各阶段，那次整仓读不必跟着重来
   let cached: { repo: Repo | undefined } | undefined;
@@ -144,6 +170,7 @@ export default function frontMatterInjectorPlugin(
 
         return cached.repo;
       },
+      scope,
     );
   };
 

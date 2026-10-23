@@ -7,14 +7,20 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
 
+import { DEFAULT_INCLUDE } from '../plugins/plugin-frontmatter-injector/src/docs-scope.mts';
+
 import frontMatterInjectorPlugin, {
   applyRules,
+  createScope,
   defaultRules,
+  docsContentPath,
   findRepoRoot,
+  mergeTags,
   NEW_TAG,
   noTimes,
   openRepo,
   repoPath,
+  scopeOf,
   tagsOf,
   timesOf,
   UPDATE_TAG,
@@ -27,10 +33,11 @@ import frontMatterInjectorPlugin, {
 import { mkdtempReal } from './helpers.mts';
 
 /**
-## plugin-frontmatter-injector 的三段判据
+## plugin-frontmatter-injector 的四段判据
 
-这一包只做一件事：给 md 的 frontmatter 补 `tags`。判据分三层 —— 规则表怎么算（纯函数）、
-git 那份「最近」怎么读（真 git）、包装层与插件接线（假解析器）。
+这一包只做一件事：给 md 的 frontmatter 补 `tags`。判据分四层 —— 规则表怎么算（纯函数）、
+地盘由文档插件的 `include` / `exclude` 怎么收窄、git 那份「最近」怎么读（真 git）、
+包装层与插件接线（假解析器）。
 
 git 那一组走**真实的 git**（临时仓库真提交几次，提交时刻自己给），不 mock `execFileSync`：
 这一层最容易坏的地方恰恰是「参数怎么拼、`git log` 的输出长什么样」。
@@ -201,6 +208,201 @@ describe('applyRules：只补不覆盖', () => {
     ]);
 
     expect(frontMatter.tags).toEqual(['异步']);
+  });
+
+  it('tags 是例外：已有的与算出来的合并，不是整格让位', async () => {
+    const frontMatter: Record<string, unknown> = { tags: ['页面'] };
+
+    expect(
+      await applyRules(context(frontMatter), [
+        rule('.md', { tags: () => ['注入', '页面'] }),
+      ]),
+    ).toEqual(['tags']);
+    // 去重后排序
+    expect(frontMatter.tags).toEqual(['注入', '页面']);
+  });
+
+  it('页面写了单个字符串也收成数组，与注入的并起来', async () => {
+    const frontMatter: Record<string, unknown> = { tags: 'blog' };
+
+    await applyRules(context(frontMatter), [rule('.md', { tags: ['注入'] })]);
+
+    expect(frontMatter.tags).toEqual(['blog', '注入']);
+  });
+
+  it('页面写了别的形状（数字、带对象的数组）就原样交回，不替它改类型', async () => {
+    for (const owned of [42, [{ label: 'a' }], null]) {
+      const frontMatter: Record<string, unknown> = { tags: owned };
+
+      expect(
+        await applyRules(context(frontMatter), [
+          rule('.md', { tags: () => ['注入'] }),
+        ]),
+      ).toEqual([]);
+      expect(frontMatter.tags).toBe(owned);
+    }
+  });
+
+  it('合并结果与原来一模一样时不算补过（包装层靠这个决定换不换对象）', async () => {
+    const frontMatter: Record<string, unknown> = { tags: ['a', 'b'] };
+
+    expect(
+      await applyRules(context(frontMatter), [
+        rule('.md', {
+          tags: () => ['a'],
+          // 这一格是新的，整条规则因此仍算「补过」
+          draft: true,
+        }),
+      ]),
+    ).toEqual(['draft']);
+    expect(frontMatter.tags).toEqual(['a', 'b']);
+  });
+
+  it('算出来那一串里非字符串的项丢掉（规则表写错不该污染 tags）', async () => {
+    const frontMatter: Record<string, unknown> = { tags: ['页面'] };
+
+    await applyRules(context(frontMatter), [
+      rule('.md', { tags: () => ['注入', 42] }),
+    ]);
+
+    expect(frontMatter.tags).toEqual(['注入', '页面']);
+  });
+
+  it('算出来的 tags 不是数组：当没有，页面那几条原样留着', async () => {
+    const frontMatter: Record<string, unknown> = { tags: ['页面'] };
+
+    expect(
+      await applyRules(context(frontMatter), [
+        rule('.md', { tags: () => 'x' }),
+      ]),
+    ).toEqual([]);
+    expect(frontMatter.tags).toEqual(['页面']);
+  });
+});
+
+describe('mergeTags：去重、排序、形状判据', () => {
+  it('并起来去重后排序', () => {
+    expect(mergeTags(['b', 'a'], ['a', 'c'])).toEqual(['a', 'b', 'c']);
+  });
+
+  it('单个字符串当作只有一条', () => {
+    expect(mergeTags('blog', ['注入'])).toEqual(['blog', '注入']);
+  });
+
+  it('带非字符串的数组原样交回（不替页面改类型）', () => {
+    const owned = ['a', 1];
+
+    expect(mergeTags(owned, ['注入'])).toBe(owned);
+  });
+
+  it('什么都没有的时候就是注入那一份', () => {
+    expect(mergeTags([], ['注入'])).toEqual(['注入']);
+  });
+});
+
+describe('地盘：只对文档插件扫得到的那批文件动手', () => {
+  const root = '/site';
+
+  /** 站点里真实的那一份：内容根是仓库根，按包点名收 */
+  const scope = createScope(root, {
+    include: [
+      'docs/**/*.md',
+      'plugins/*/README.md',
+      'plugins/*/docs/**/*.md',
+      'theme/*/docs/**/*.{md,dbml}',
+    ],
+    exclude: ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'],
+  });
+
+  it('内容根默认是 `<站点根>/docs`，`path` 换成别的就跟着换', () => {
+    expect(docsContentPath('/site', {})).toBe('/site/docs');
+    expect(docsContentPath('/site', { path: '.' })).toBe('/site');
+    expect(docsContentPath('/site', { path: 'content/docs' })).toBe(
+      '/site/content/docs',
+    );
+  });
+
+  it('include 收的才收：站外那几份 README 与包内 docs 不进站点', () => {
+    for (const [path, expected] of [
+      ['docs/intro.md', true],
+      ['plugins/a/README.md', true],
+      ['plugins/a/docs/internals.md', true],
+      ['theme/a/docs/demo.dbml', true],
+      ['README.md', false],
+      ['demo/README.md', false],
+      ['src/theme/README.md', false],
+      // 那一批的 include 明写 `.md`：`plugins/*/docs/**` 下没有 `.mdx` 这一格
+      ['plugins/a/docs/internals.mdx', false],
+    ] as const) {
+      expect(scope.covers(`${root}/${path}`), path).toBe(expected);
+    }
+  });
+
+  it('exclude 挡掉的才不收：装出来的依赖与产物目录，连包里的 build 也算', () => {
+    for (const path of [
+      'node_modules/a/README.md',
+      'a/node_modules/x/README.md',
+      'build/docs/a.md',
+      'plugins/a/build/README.md',
+      '.docusaurus/a.md',
+    ]) {
+      expect(scope.covers(`${root}/${path}`), path).toBe(false);
+    }
+  });
+
+  it('内容根之外的路径一律不收（官方匹配器只认自己那棵根，先自己判）', () => {
+    expect(scope.covers('/elsewhere/docs/a.md')).toBe(false);
+    // mdx-loader 递进来的那种假绝对路径：不是站内路径，也就不是页面
+    expect(scope.covers('webpack:///./docs/a.md')).toBe(false);
+  });
+
+  it('相对内容根的路径也认；Windows 分隔符先归一', () => {
+    expect(scope.covers('docs/a.md')).toBe(true);
+    expect(scope.covers(String.raw`docs\a.md`)).toBe(true);
+    expect(scope.covers(String.raw`/site\docs\a.md`)).toBe(true);
+  });
+
+  it('没转述 include 时按官方缺省收 md/mdx，`exclude` 不兜默认', () => {
+    expect(DEFAULT_INCLUDE).toEqual(['**/*.{md,mdx}']);
+    const bare = createScope(`${root}/docs`);
+
+    // 不转述 include 时按官方的缺省口径收（`**/*.{md,mdx}`）
+    expect(bare.covers(`${root}/docs/a.md`)).toBe(true);
+    expect(bare.covers(`${root}/docs/sub/a.mdx`)).toBe(true);
+    expect(bare.covers(`${root}/docs/sub/a.dbml`)).toBe(false);
+    expect(bare.covers(`${root}/plugins/a/README.md`)).toBe(false);
+  });
+
+  it('scopeOf 拿站点根与 docs.path 拼内容根，与文档插件自己算的口径一致', () => {
+    expect(scopeOf(root, { path: '.' }).contentPath).toBe('/site');
+    expect(scopeOf(root, {}).contentPath).toBe('/site/docs');
+  });
+
+  it('地盘之外的文件连一条规则都不跑（算值那一步不跑、git 也不问）', async () => {
+    const frontMatter: Record<string, unknown> = {};
+    let asked = false;
+
+    expect(
+      await applyRules(
+        {
+          filePath: '/site/README.md',
+          frontMatter,
+          tags: [],
+          repo: undefined,
+          scope,
+        },
+        [
+          rule('.md', {
+            tags: () => {
+              asked = true;
+              return ['不该来'];
+            },
+          }),
+        ],
+      ),
+    ).toEqual([]);
+    expect(frontMatter).toEqual({});
+    expect(asked).toBe(false);
   });
 });
 
@@ -382,6 +584,9 @@ describe('git 那一侧（真 git 仓库）', () => {
 });
 
 describe('wrapParseFrontMatter：包装而非覆盖', () => {
+  /** 站点形状的那份地盘：内容根是整棵站点，只收 `docs/` 下的 md */
+  const docsOnly = () => createScope('/site', { include: ['docs/**/*.md'] });
+
   it('注入叠在 base 的结果上：base 先跑，站点自己改写的那几格还在', async () => {
     const base = async () => ({
       frontMatter: { title: 'base 改过' },
@@ -448,11 +653,54 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
         asked = true;
         return undefined;
       },
+      docsOnly(),
     );
 
     expect(await wrapped2(params())).toBe(parsed);
     expect(await frontMatterOf(wrapped)).toMatchObject({ title: DOC });
     expect(asked).toBe(false);
+  });
+
+  it('文档插件地盘之外的文件原样交回：一条规则不跑，git 也不问', async () => {
+    let asked = false;
+    const parsed = { frontMatter: { title: 'a' }, content: '正文' };
+    const wrapped = wrapParseFrontMatter(
+      async () => parsed,
+      [rule('.md', { draft: true })],
+      [],
+      () => {
+        asked = true;
+        return undefined;
+      },
+      docsOnly(),
+    );
+
+    // 同一份 md，但不在文档插件扫的那批里
+    expect(await wrapped(params('/site/README.md'))).toBe(parsed);
+    expect(asked).toBe(false);
+    // 地盘之内的照旧补上
+    expect(await frontMatterOf(wrapped, '/site/docs/a.md')).toMatchObject({
+      draft: true,
+    });
+  });
+
+  it('地盘那一步与 applyRules 那一步各判一次，谁单独在场都挡得住', async () => {
+    const frontMatter: Record<string, unknown> = {};
+
+    // 只给 applyRules 地盘：包装层放行，规则表那层自己挡
+    expect(
+      await applyRules(
+        {
+          filePath: '/site/README.md',
+          frontMatter,
+          tags: [],
+          repo: undefined,
+          scope: docsOnly(),
+        },
+        [rule('.md', { draft: true })],
+      ),
+    ).toEqual([]);
+    expect(frontMatter).toEqual({});
   });
 
   it('Windows 路径先归一再比规则，正则那条规则也吃得到', async () => {
@@ -490,7 +738,7 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
 });
 
 describe('defaultRules：只补 tags 一把键', () => {
-  it('md/mdx 都吃得到，页面自己写了 tags 那份不碰', async () => {
+  it('md/mdx 都吃得到', async () => {
     const repo = fakeRepo();
 
     expect(
@@ -500,12 +748,21 @@ describe('defaultRules：只补 tags 一把键', () => {
       path: DOC,
       tags: ['站点', NEW_TAG, UPDATE_TAG],
     });
+  });
+
+  it('页面自己写了 tags：与注入的那几条合并（去重、排序），不是整格让位', async () => {
+    const repo = fakeRepo();
 
     expect(
       await frontMatterOf(
-        wrap(fakeParse({ tags: ['站点自己写的'] }), { repo }),
+        wrap(fakeParse({ tags: ['站点自己写的', UPDATE_TAG] }), {
+          repo,
+          tags: ['站点'],
+        }),
       ),
-    ).toMatchObject({ tags: ['站点自己写的'] });
+    ).toMatchObject({
+      tags: [NEW_TAG, UPDATE_TAG, '站点', '站点自己写的'],
+    });
   });
 
   it('不替主题层补它们自己的键', async () => {
@@ -536,6 +793,16 @@ describe('defaultRules：只补 tags 一把键', () => {
 });
 
 describe('plugin-frontmatter-injector 插件接线', () => {
+  /**
+   接线那几层拿的是真站点根：`DOC` 那份 `/site/docs/intro.md` 在磁盘上不存在，而地盘是按
+   `siteDir + docs.path` 拼出来的 —— 所以 `docs.path` 指到测试文件所在的目录，`DOC` 也就落在
+   地盘之内。这一格同时钉住「内容根跟着 `docs.path` 走」，不必为了测接线造一个假站点。
+  */
+  const DOCS_PATH = '__fixtures__/docs';
+
+  /** 「站点不在 git 里」那条用例的临时内容根（相对临时站点根） */
+  const outDocs = 'docs';
+
   /** 站点配置里共享的那份 `markdown`：除了解析器，还住着兄弟键 */
   const createMarkdown = (
     parseFrontMatter: ParseFrontMatterLike = fakeParse(),
@@ -549,22 +816,24 @@ describe('plugin-frontmatter-injector 插件接线', () => {
     options: Parameters<typeof frontMatterInjectorPlugin>[1] = undefined,
     markdown = createMarkdown(),
   ) {
-    const context = { siteConfig: { markdown } } as unknown as Parameters<
+    const context = { siteDir: path.dirname(DOC), siteConfig: { markdown } } as unknown as Parameters<
       typeof frontMatterInjectorPlugin
     >[0];
 
     return {
       markdown,
-      plugin:
-        options === undefined
-          ? frontMatterInjectorPlugin(context)
-          : frontMatterInjectorPlugin(context, options),
+      plugin: frontMatterInjectorPlugin(context, {
+        docs: { path: DOCS_PATH },
+        ...options,
+      }),
     };
   }
 
   /** 站点的两条消费路径读到的都是同一个属性，这里只造一次调用 */
   async function parseFrontMatter(markdown: ReturnType<typeof createMarkdown>) {
-    const { frontMatter } = await markdown.parseFrontMatter(params());
+    const { frontMatter } = await markdown.parseFrontMatter(
+      params(path.join(path.dirname(DOC), DOCS_PATH, 'intro.md')),
+    );
 
     return frontMatter;
   }
@@ -589,16 +858,26 @@ describe('plugin-frontmatter-injector 插件接线', () => {
   it('站点不在 git 里时也能装上：没有 git 那一半，构建照走', async () => {
     const cwd = process.cwd();
     const outside = mkdtempReal(path.join(os.tmpdir(), 'outside-repo-'));
+    // 站点根挪到临时目录：`siteDir + docs.path` 因此也落在仓库之外
+    const markdown = createMarkdown();
 
     try {
       process.chdir(outside);
-      const { plugin, markdown } = loadPlugin({ tags: ['站点'] });
+      const plugin = frontMatterInjectorPlugin(
+        {
+          siteDir: outside,
+          siteConfig: { markdown },
+        } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0],
+        { tags: ['站点'], docs: { path: outDocs } },
+      );
 
       plugin.loadContent?.();
 
-      expect(await parseFrontMatter(markdown)).toMatchObject({
-        tags: ['站点'],
-      });
+      const { frontMatter } = await markdown.parseFrontMatter(
+        params(path.join(outside, outDocs, 'intro.md')),
+      );
+
+      expect(frontMatter).toMatchObject({ tags: ['站点'] });
     } finally {
       process.chdir(cwd);
       fs.rmSync(outside, { recursive: true, force: true });
@@ -672,6 +951,39 @@ describe('plugin-frontmatter-injector 插件接线', () => {
     expect(await parseFrontMatter(markdown)).toMatchObject({ title: DOC });
   });
 
+  it('选件：只给 `tags` 时内容根是 `<站点根>/docs`，别处的文件一个标签都不补', async () => {
+    const markdown = createMarkdown();
+    const context = {
+      siteDir: path.dirname(DOC),
+      siteConfig: { markdown },
+    } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0];
+
+    frontMatterInjectorPlugin(context, { tags: ['站点'] }).loadContent?.();
+
+    // 这个路径不在 `<站点根>/docs` 里（它在 `__fixtures__/docs`）
+    const { frontMatter } = await markdown.parseFrontMatter(
+      params(path.join(path.dirname(DOC), DOCS_PATH, 'intro.md')),
+    );
+
+    expect(Object.hasOwn(frontMatter, 'tags')).toBe(false);
+  });
+
+  it('选件：整个选项都不传时也一样（内容根跟着 docs 那份缺省走）', async () => {
+    const markdown = createMarkdown();
+    const context = {
+      siteDir: path.dirname(DOC),
+      siteConfig: { markdown },
+    } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0];
+
+    expect(() => frontMatterInjectorPlugin(context).loadContent?.()).not.toThrow();
+
+    const { frontMatter } = await markdown.parseFrontMatter(
+      params(path.join(path.dirname(DOC), DOCS_PATH, 'intro.md')),
+    );
+
+    expect(Object.hasOwn(frontMatter, 'tags')).toBe(false);
+  });
+
   it('选件：构造插件时不读 git（那一次读留到第一次问历史）', () => {
     const base = fakeParse();
     const { markdown } = loadPlugin(undefined, createMarkdown(base));
@@ -681,14 +993,17 @@ describe('plugin-frontmatter-injector 插件接线', () => {
 
   it('站点没写 parseFrontMatter（官方填进来的默认值）时照样包得住', async () => {
     const markdown = createMarkdown(DEFAULT_PARSE_FRONT_MATTER);
-    const context = { siteConfig: { markdown } } as unknown as Parameters<
-      typeof frontMatterInjectorPlugin
-    >[0];
+    const context = {
+      siteDir: path.dirname(DOC),
+      siteConfig: { markdown },
+    } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0];
 
-    frontMatterInjectorPlugin(context).loadContent?.();
+    frontMatterInjectorPlugin(context, {
+      docs: { path: DOCS_PATH },
+    }).loadContent?.();
 
     const result = await markdown.parseFrontMatter({
-      ...params(),
+      ...params(path.join(path.dirname(DOC), DOCS_PATH, 'intro.md')),
       fileContent: '---\ntitle: 原文\n---\n\n# 标题 {#custom}\n',
     });
 

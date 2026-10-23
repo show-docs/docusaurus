@@ -19,7 +19,14 @@ pnpm add @show-docs/docusaurus-plugin-frontmatter-injector
 // docusaurus.config.mjs
 export default {
   plugins: [
-    ['@show-docs/docusaurus-plugin-frontmatter-injector', { tags: ['文档'] }]
+    [
+      '@show-docs/docusaurus-plugin-frontmatter-injector',
+      {
+        tags: ['文档'],
+        // 文档插件扫哪些文件：这两格是**转述**，见下面「地盘」
+        docs: { path: '.', include: ['docs/**/*.md'], exclude: ['**/node_modules/**'] }
+      }
+    ]
   ]
 };
 ```
@@ -33,9 +40,32 @@ export default {
 | `git-update` | 这份文件**最近动过**                                     |
 
 「最近」有两个口径，落在哪个都算：commit 在 **7 天内**，或者在全仓**最后 5 个 commit** 里。
-页面自己写了 `tags`，这一格整格按页面写的算（只补不覆盖）。
+
+**页面自己写了 `tags` 时是合并，不是让位。** 页面那几条与站点标签、`git-new` / `git-update` 是
+并列的几件事，所以并成一份：去重、排序（同一个标签组合在产物里只有一种写法，diff 才稳得住）。
+页面写成单个字符串（`tags: blog`）也收成数组；写成别的形状（数字、带对象的数组）就原样交回 ——
+那是页面的事，本插件不替它改类型。其它键仍是「站点写过了就让位」。
 
 `rules` 传 `[]` 等于本插件什么都不做（连 `parseFrontMatter` 都不替换）。
+
+## 地盘：跟着文档插件走
+
+`docs` 那三格对应 `@docusaurus/plugin-content-docs` 的 `path` / `include` / `exclude`：
+
+| 字段      | 缺省              | 说明                                             |
+| --------- | ----------------- | ------------------------------------------------ |
+| `path`    | `'docs'`          | 内容根，相对站点根                               |
+| `include` | `['**/*.{md,mdx}']` | 收哪些文件，相对内容根（与 docs 插件缺省同值） |
+| `exclude` | `[]`              | 挡掉哪些，相对内容根                             |
+
+**为什么是「转述」。** 站点常把 `docs` 选项写在自己的一个预设里（本仓就是 classic 预设里那一份），
+本插件在手上拿不到 —— 所以由站点把这三格再写一遍。抄两遍会漂，本仓的做法是把清单提成
+`docusaurus.config.mjs` 顶部的常量，两处引同一份。
+
+本地盘之外的文件**一个标签都不补**（`git-new` / `git-update` 也不会出现）：页面这个概念由文档
+插件定义，注入跟着它走。匹配器用的是同一个 `@docusaurus/utils` 的
+`createAbsoluteFilePathMatcher`，与 `Globby` 扫文件时同一套 micromatch 口径 —— 自己写一遍的话，
+「`**/*.md` 收不收 `docs/intro.md`」这种一格之差就会让两边错开。
 
 ## 规则表
 
@@ -49,8 +79,8 @@ export default {
 
 三条口径定了这套东西的行为：
 
-- **只补不覆盖。** 某个键已经在了，规则就不碰它，算值那一步也不会跑。页面自己写下的
-  `tags: [blog]` 永远赢。
+- **只补不覆盖，`tags` 除外。** 某个键已经在了，规则就不碰它，算值那一步也不会跑；
+  唯一的例外是 `tags` —— 那一格是并集，页面写的与注入的合起来（见上面「合并」那一段）。
 - **只管自己的键。** 规则表补的是**配置里的**那几格，不去猜别的包怎么读它自己的命名空间
   （同一把键不同层可能各有各的写法，替它补值等于替它改判定口径）。
 - **函数不拿原值。** 键不存在才会算，所以函数拿到的是「文件在哪、此刻的 frontmatter 长什么样、
@@ -59,9 +89,10 @@ export default {
 
 ## 导出
 
-一个默认导出（插件本身）外加规则表那几样纯函数：`defaultRules`、`applyRules`、
-`wrapParseFrontMatter`、`tagsOf`、`isRecent`，以及 git 那一侧的 `findRepoRoot`、`openRepo`、
-`repoPath`、`timesOf`（用例在 `test/frontmatter-injector.test.mts`）。
+一个默认导出（插件本身）外加规则表那几样纯函数：`defaultRules`、`applyRules`、`mergeTags`、
+`wrapParseFrontMatter`、`tagsOf`、`isRecent`，地盘那一侧的 `createScope`、`docsContentPath`、
+`scopeOf`、`DEFAULT_INCLUDE`，以及 git 那一侧的 `findRepoRoot`、`openRepo`、`repoPath`、`timesOf`
+（用例在 `test/frontmatter-injector.test.mts`）。
 
 解析器的类型直接用 `@docusaurus/types` 的 `ParseFrontMatter`，本包不另画一份。`applyRules`
 就地补、返回补进去的键名 —— 需要知道补了什么的场景是「排查」与「前端要不要重新渲染」。
