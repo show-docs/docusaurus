@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
+
 import frontMatterInjectorPlugin, {
   applyRules,
   defaultRules,
@@ -9,6 +11,32 @@ import frontMatterInjectorPlugin, {
 } from '../plugins/plugin-frontmatter-injector/src/index.mts';
 
 const DOC = '/site/docs/intro.md';
+
+/**
+调用方的入参就是官方 `ParseFrontMatter` 那一份：`defaultParseFrontMatter` 是必填的格子
+（mdx-loader 与 `parseMarkdownFile()` 都会带）。用例里统一从这里拿，省得每条都写一遍。
+*/
+const params = (filePath = DOC) => ({
+  filePath,
+  fileContent: '',
+  defaultParseFrontMatter: DEFAULT_PARSE_FRONT_MATTER,
+});
+
+type Params = ReturnType<typeof params>;
+
+/** 夹具只要「能吃下官方入参、吐出 frontmatter 与正文」这一条 */
+type ParseFrontMatterLike = (params: Params) => Promise<{
+  frontMatter: Record<string, unknown>;
+  content: string;
+}>;
+
+/** 假的解析器：文件路径当标题，够用例判「注入叠在哪一层」；传 `base` 就是「站点写过的那份」 */
+const fakeParse =
+  (base?: Record<string, unknown>) =>
+  async ({ filePath }: Params) => ({
+    frontMatter: { title: DOC, ...base, path: filePath },
+    content: '正文',
+  });
 
 /** 每条用例自己那份规则表：断言不跟着 `defaultRules` 改 */
 const rule = (
@@ -21,34 +49,25 @@ async function frontMatterOf(
   parse: ReturnType<typeof wrapParseFrontMatter>,
   path = DOC,
 ) {
-  const { frontMatter } = await parse({ filePath: path, fileContent: '' });
+  const { frontMatter } = await parse(params(path));
 
   return frontMatter;
 }
 
-/** 假的解析器：文件路径当标题，够用例判「注入叠在哪一层」；传 `base` 就是「站点写过的那份」 */
-const fakeParse =
-  (base?: Record<string, unknown>) =>
-  async ({ filePath }: { filePath: string }) => ({
-    frontMatter: { title: DOC, ...base, path: filePath },
-    content: '正文',
-  });
-
 describe('applyRules：只补不覆盖', () => {
-  it('地盘命中时把缺的那几格补上，并报出补了哪些', () => {
+  it('地盘命中时把缺的那几格补上', () => {
     const frontMatter = { title: 'a' };
-    const touched = applyRules({ filePath: DOC, frontMatter }, [
+    applyRules({ filePath: DOC, frontMatter }, [
       rule('.md', { draft: true, custom: 'x' }),
     ]);
 
     expect(frontMatter).toEqual({ title: 'a', draft: true, custom: 'x' });
-    expect(touched).toEqual(['draft', 'custom']);
   });
 
   it('已经有了的键一个都不动，算值那一步也不跑', () => {
     const frontMatter = { title: '站点写的' };
     let called = false;
-    const touched = applyRules({ filePath: DOC, frontMatter }, [
+    applyRules({ filePath: DOC, frontMatter }, [
       rule('.md', {
         title: () => {
           called = true;
@@ -59,18 +78,16 @@ describe('applyRules：只补不覆盖', () => {
 
     expect(frontMatter.title).toBe('站点写的');
     expect(called).toBe(false);
-    expect(touched).toEqual([]);
   });
 
   it('值写成 undefined 也算「已经有了」，不再补', () => {
     const frontMatter: Record<string, unknown> = { markmap: undefined };
-    const touched = applyRules({ filePath: DOC, frontMatter }, [
+    applyRules({ filePath: DOC, frontMatter }, [
       rule('.md', { markmap: true }),
     ]);
 
     expect(Object.hasOwn(frontMatter, 'markmap')).toBe(true);
     expect(frontMatter.markmap).toBeUndefined();
-    expect(touched).toEqual([]);
   });
 
   it('原型链上的名字挡不住注入（用 hasOwn 判，不用 in）', () => {
@@ -84,24 +101,23 @@ describe('applyRules：只补不覆盖', () => {
 
   it('地盘没命中的规则整条跳过；字符串按后缀比，正则原样', () => {
     const frontMatter: Record<string, unknown> = {};
-    const touched = applyRules({ filePath: '/site/blog/a.md', frontMatter }, [
+    applyRules({ filePath: '/site/blog/a.md', frontMatter }, [
       rule(/\/docs\//, { draft: true }),
       rule('.md.bak', { draft: true }),
       rule('.md', { testing: true }),
     ]);
 
     expect(frontMatter).toEqual({ testing: true });
-    expect(touched).toEqual(['testing']);
   });
 
-  it('算值那一步返回 undefined：不写键、不计入改动', () => {
+  it('算值那一步返回 undefined：不写键', () => {
     const frontMatter: Record<string, unknown> = { title: 'a' };
-    const touched = applyRules({ filePath: DOC, frontMatter }, [
+    applyRules({ filePath: DOC, frontMatter }, [
       rule('.md', { draft: () => undefined, custom: 'x' }),
     ]);
 
     expect(Object.hasOwn(frontMatter, 'draft')).toBe(false);
-    expect(touched).toEqual(['custom']);
+    expect(frontMatter).toEqual({ title: 'a', custom: 'x' });
   });
 
   it('算值那一步拿得到文件路径与此刻的 frontmatter', () => {
@@ -119,7 +135,7 @@ describe('applyRules：只补不覆盖', () => {
 
 describe('wrapParseFrontMatter：包装而非覆盖', () => {
   const call = (parse: ReturnType<typeof wrapParseFrontMatter>) =>
-    parse({ filePath: DOC, fileContent: '' });
+    parse(params());
 
   it('注入叠在 base 的结果上：base 先跑，站点自己改写的那几格还在', async () => {
     const base = async () => ({
@@ -149,7 +165,7 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
     expect(parsed.frontMatter).toEqual({ title: 'a' });
   });
 
-  it('一条都没补上时把 base 那份原样交回（frontmatter 还是同一个对象）', async () => {
+  it('一条都没补上时内容一格不少，base 那份也不被改动', async () => {
     const parsed = { frontMatter: { title: 'a' }, content: '正文' };
     const wrapped = wrapParseFrontMatter(
       async () => parsed,
@@ -158,7 +174,9 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
 
     const result = await call(wrapped);
 
-    expect(result.frontMatter).toBe(parsed.frontMatter);
+    expect(result.frontMatter).toEqual(parsed.frontMatter);
+    expect(result.content).toBe('正文');
+    expect(parsed.frontMatter).toEqual({ title: 'a' });
   });
 
   it('frontMatter 不是普通对象时原样交回，不去改别人的返回值', async () => {
@@ -235,16 +253,17 @@ describe('defaultRules：只有 testing 一条', () => {
   it('管不到非 md 文件', () => {
     const frontMatter: Record<string, unknown> = {};
 
-    expect(
-      applyRules({ filePath: '/site/docs/a.dbml', frontMatter }, defaultRules),
-    ).toEqual([]);
+    applyRules({ filePath: '/site/docs/a.dbml', frontMatter }, defaultRules);
+
     expect(frontMatter).toEqual({});
   });
 });
 
 describe('plugin-frontmatter-injector 插件接线', () => {
   /** 站点配置里共享的那份 `markdown`：除了解析器，还住着兄弟键 */
-  const createMarkdown = (parseFrontMatter: unknown = fakeParse()) => ({
+  const createMarkdown = (
+    parseFrontMatter: ParseFrontMatterLike = fakeParse(),
+  ) => ({
     parseFrontMatter,
     preprocessor: (params: { fileContent: string }) => params.fileContent,
     format: 'mdx',
@@ -274,15 +293,8 @@ describe('plugin-frontmatter-injector 插件接线', () => {
   }
 
   /** 站点的两条消费路径读到的都是同一个属性，这里只造一次调用 */
-  async function parseFrontMatter(markdown: {
-    parseFrontMatter: unknown;
-  }): Promise<Record<string, unknown>> {
-    const { frontMatter } = await (
-      markdown.parseFrontMatter as (params: {
-        filePath: string;
-        fileContent: string;
-      }) => Promise<{ frontMatter: Record<string, unknown> }>
-    )({ filePath: DOC, fileContent: '' });
+  async function parseFrontMatter(markdown: ReturnType<typeof createMarkdown>) {
+    const { frontMatter } = await markdown.parseFrontMatter(params());
 
     return frontMatter;
   }
@@ -370,24 +382,15 @@ describe('plugin-frontmatter-injector 插件接线', () => {
   });
 
   it('站点没写 parseFrontMatter（官方填进来的默认值）时照样包得住', async () => {
-    const { DEFAULT_PARSE_FRONT_MATTER } = await import('@docusaurus/utils');
     const markdown = createMarkdown(DEFAULT_PARSE_FRONT_MATTER);
     const context = { siteConfig: { markdown } } as unknown as Parameters<
       typeof frontMatterInjectorPlugin
     >[0];
     frontMatterInjectorPlugin(context).loadContent?.();
 
-    const fileContent = '---\ntitle: 原文\n---\n\n# 标题 {#custom}\n';
-    const result = await (
-      markdown.parseFrontMatter as (params: {
-        filePath: string;
-        fileContent: string;
-        defaultParseFrontMatter: unknown;
-      }) => Promise<{ frontMatter: Record<string, unknown>; content: string }>
-    )({
-      filePath: DOC,
-      fileContent,
-      defaultParseFrontMatter: DEFAULT_PARSE_FRONT_MATTER,
+    const result = await markdown.parseFrontMatter({
+      ...params(),
+      fileContent: '---\ntitle: 原文\n---\n\n# 标题 {#custom}\n',
     });
 
     // 真的走了 yaml 解析：原来那格在、注入那格也补上，且正文（含没转义的 `{#custom}`）原样

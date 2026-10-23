@@ -5,15 +5,23 @@
 
 ## 组成
 
-只有一个文件：`src/index.mts`（约 190 行，含注释）。
+只有一个文件：`src/index.mts`（约 180 行，含注释）。
 
 | 那一块                            | 职责                                                       |
 | --------------------------------- | ---------------------------------------------------------- |
 | `FrontMatterRule` / `RuleContext` | 规则表的形状（`match` 管哪些文件，`frontMatter` 补哪几格） |
 | `defaultRules`                    | 本仓的缺省规则表，纯数据                                   |
-| `applyRules()`                    | 纯函数：路径匹配 + 只补不覆盖，就地补、返回改了哪几格      |
+| `applyRules()`                    | 纯函数：路径匹配 + 只补不覆盖，就地补                      |
 | `wrapParseFrontMatter()`          | 纯函数：把注入包在某个解析器外面，带幂等记号               |
 | 默认导出（插件）                  | 接线：`loadContent()` 里包一次，`contentLoaded()` 兜底     |
+
+**类型不自己画。** 解析器的入参与结果一律从官方取：`ParseFrontMatter` 直接 import，
+结果那格写成 `Awaited<ReturnType<ParseFrontMatter>>`（本地名 `Parsed`）。先前那份
+「只取用得到的两格」的本地复刻有两个毛病：`defaultParseFrontMatter` 被抹平之后，接线处只能
+`as unknown as` / `as never` 硬转；官方给 `ParseFrontMatterResult` 加一格（比如往结果里塞
+元信息）时，包装层会拿着新结果按旧形状往外走。现在留白的只有一处：包进来的是
+「`RuleContext` 里那份 frontmatter」而不是整个结果 —— 因为规则表只写 `frontMatter`，正文
+不该出现在它的视野里，包装层原样透传剩下的格子。
 
 一次实跑 `/simplify` 的结论是「按职责切文件」在这个尺寸上是纯开销：`inject.mts` 与 `wrap.mts`
 只有一个调用方，`types.mts` 里的类型一份注释都没被引用，而「文件在哪个目录」这条导航成本是
@@ -64,7 +72,8 @@ frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
 3. **别覆盖，要包装。** 站点自己可能在 `markdown.parseFrontMatter` 里接 CMS。后跑的插件直接赋值
    = 把先跑的那份整个吞掉，而且不报错。`wrapParseFrontMatter()` 的语义是「`base` 先跑，
    注入叠在结果上」，于是三份（官方的、站点的、本包的）能叠成一条链。
-4. **参数必须原样透传。** mdx-loader 每次调用都会带 `defaultParseFrontMatter`，而站点可能根本
+4. **参数必须原样透传。** 入参的类型就是官方 `ParseFrontMatter` 那一份，
+   `defaultParseFrontMatter` 是其中的必填格子（mdx-loader 每次调用都会带），而站点可能根本
    没在配置里写 `parseFrontMatter`（那时 `siteConfig.markdown.parseFrontMatter` 是官方填进去的
    默认值，未必等于 loader 手上那份）。抓闭包里的那份、或替调用方兜一个默认值，都会让「两处
    版本错位」变成两份不同的 frontmatter —— 前端一份、侧边栏一份，查起来极贵。
@@ -79,7 +88,7 @@ frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
   站点写过的东西」。
 - **函数不拿原值**：上一条决定了键不存在才会算，所以函数签名里没有 `current`。要按原文推值就
   自己去问 `context`（`filePath` 与此刻的 frontmatter 都在里面）。返回 `undefined` = 不表态，
-  那一格不写、也不计入改动 —— 否则 frontmatter 上会多出一格 `key: undefined`
+  那一格不写 —— 否则 frontmatter 上会多出一格 `key: undefined`
   （`Object.keys` 数得着、`JSON.stringify` 看不见）。
 
 ## 已知限制

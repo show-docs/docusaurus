@@ -1,4 +1,7 @@
-import type { LoadContext, Plugin } from '@docusaurus/types';
+import type { LoadContext, ParseFrontMatter, Plugin } from '@docusaurus/types';
+
+/** 官方 `parseFrontMatter` 的解析结果 */
+type Parsed = Awaited<ReturnType<ParseFrontMatter>>;
 
 /**
 一条注入规则：`match` 管哪些文件，`frontMatter` 要给它们补哪几格。
@@ -20,19 +23,8 @@ export interface RuleContext {
   /** 文件绝对路径，正斜杠 */
   filePath: string;
   /** 解析器给的那份 frontmatter */
-  frontMatter: Record<string, unknown>;
+  frontMatter: Parsed['frontMatter'];
 }
-
-/** 官方 `markdown.parseFrontMatter` 的形状（只取本包用得到的那两格） */
-interface ParseFrontMatterResult {
-  frontMatter: Record<string, unknown>;
-  content: string;
-}
-
-type ParseFrontMatter = (params: {
-  filePath: string;
-  fileContent: string;
-}) => Promise<ParseFrontMatterResult>;
 
 const PLUGIN_NAME = '@show-docs/docusaurus-plugin-frontmatter-injector';
 
@@ -48,7 +40,7 @@ export const defaultRules: FrontMatterRule[] = [
 ];
 
 /** 只有普通对象才「能往里写」：`parseFrontMatter` 是站点可插的，返回数组/`null` 都不奇怪 */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+function isPlainObject(value: unknown): value is Parsed['frontMatter'] {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -58,7 +50,7 @@ function normalizePath(filePath: string): string {
 }
 
 /**
-按规则表给一份 frontmatter 补值，**就地**改传进来的那个对象，返回改了哪几格。
+按规则表给一份 frontmatter 补值，**就地**改传进来的那个对象。
 
 只补不覆盖：键已经在了就原样留着，算值那一步也不跑 —— 否则规则表就成了「谁来都能改
 站点写过的东西」。用 `Object.hasOwn` 而不是 `in`，原型链上的名字（`constructor`）不该
@@ -67,9 +59,7 @@ function normalizePath(filePath: string): string {
 export function applyRules(
   { filePath, frontMatter }: RuleContext,
   rules: FrontMatterRule[],
-): string[] {
-  const touched: string[] = [];
-
+): void {
   for (const rule of rules) {
     const hit =
       rule.match instanceof RegExp
@@ -88,7 +78,7 @@ export function applyRules(
       const value =
         typeof make === 'function' ? make({ filePath, frontMatter }) : make;
 
-      // 算出来是 `undefined` 就当这条规则对这份文件不表态：不写键，也不计入改动 ——
+      // 算出来是 `undefined` 就当这条规则对这份文件不表态：不写键 ——
       // 否则 frontmatter 上会多出一格 `key: undefined`，`Object.keys` 数得着、
       // `JSON.stringify` 又看不见，最难查的那类。
       if (value === undefined) {
@@ -97,19 +87,17 @@ export function applyRules(
 
       // eslint-disable-next-line no-param-reassign -- 入参就是被 apply 的那份 frontmatter
       frontMatter[key] = value;
-      touched.push(key);
     }
   }
-
-  return touched;
 }
 
 /**
 把注入套在 `base` 外面，返回一个新函数。
 
 **包装，不是覆盖**：`base` 先跑（站点自己接 CMS 的那份照旧生效），注入叠在它的结果上。
-**参数原样透传**：不去碰 `defaultParseFrontMatter`，抓闭包里那份会让「两处版本错位」
-变成两份 frontmatter —— 前端一份、侧边栏一份。
+**参数原样透传**：入参的形状是官方 `ParseFrontMatter` 定的（含 `defaultParseFrontMatter`），
+不去碰它、也不抓闭包里那份 —— 抓了会让「两处版本错位」变成两份 frontmatter。
+**不看结果长什么样**：写进去的值合不合规矩是消费方 schema 的事（见 README「使用约束」）。
 
 `reloadSite()` 会把插件重跑一遍，同一份解析器套两层意味着每条规则被算两次，所以带记号：
 见到记号直接交回同一个函数。
@@ -123,23 +111,24 @@ export function wrapParseFrontMatter(
   }
 
   const wrapped: ParseFrontMatter = async (params) => {
-    const { frontMatter, content } = await base(params);
+    const parsed = await base(params);
+    const { frontMatter } = parsed;
 
     // 不是普通对象时原样交回：那种时候往里写不是「注入」，是把别人的返回值改坏
     if (!isPlainObject(frontMatter)) {
-      return { frontMatter, content };
+      return parsed;
     }
 
-    // 换一份新的：下游按引用比较时不至于以为「什么都没变」。`content` 一个字都不碰 ——
-    // 注入的是元数据，正文是用户写的页面。
+    // 在拷贝上补：既不动 base 的返回值，下游按引用比较也看得见「变了」。`content` 一个字
+    // 都不碰 —— 注入的是元数据，正文是用户写的页面。
     const next = { ...frontMatter };
 
-    const hit = applyRules(
+    applyRules(
       { filePath: normalizePath(params.filePath), frontMatter: next },
       rules,
     );
 
-    return { frontMatter: hit.length > 0 ? next : frontMatter, content };
+    return { ...parsed, frontMatter: next };
   };
 
   return Object.assign(wrapped, { [WRAPPED]: true as const });
@@ -170,6 +159,9 @@ export default function frontMatterInjectorPlugin(
   时机必须是 `loadContent()`，不能晚到 `contentLoaded()`：docs 插件在它**自己的**
   `loadContent()` 里就把 `parseFrontMatter` 解构走了，之后再换属性只是换了一份没人用的。
   `reloadSite()` 兜底会重跑这一阶段，幂等记号在 `wrapParseFrontMatter` 里。
+
+  赋值不做类型体操：`markdown` 是本站点配置那一份，`parseFrontMatter` 就是官方的
+  `ParseFrontMatter`（校验期 Joi `default()` 已经把它填成函数）。
   */
   const install = () => {
     // 空规则表 = 本插件自己关掉：连 `parseFrontMatter` 都不该被替换
@@ -178,15 +170,15 @@ export default function frontMatterInjectorPlugin(
     }
 
     markdown.parseFrontMatter = wrapParseFrontMatter(
-      markdown.parseFrontMatter as unknown as ParseFrontMatter,
+      markdown.parseFrontMatter,
       rules,
-    ) as never;
+    );
   };
 
   return {
     name: PLUGIN_NAME,
     loadContent: install,
-    // 插件被单独 reload（`reloadSite()`）时只会重跑这一阶段
+    // 插件被单独 reload（`reloadSite()`）时会重跑这一阶段
     contentLoaded: install,
   };
 }

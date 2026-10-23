@@ -53,12 +53,16 @@ export default {
 - **只管自己的键。** 规则表补的是**配置里的**那几格，不去猜别的包怎么读它自己的命名空间
   （同一把键不同层可能各有各的写法，替它补值等于替它改判定口径）。
 - **函数不拿原值。** 键不存在才会算，所以函数拿到的是「文件在哪、此刻的 frontmatter 长什么样」，
-  返回 `undefined` 表示「这份文件我不表态」，那一格不写、也不计入改动。
+  返回 `undefined` 表示「这份文件我不表态」，那一格不写。
 
 ## 导出
 
 一个默认导出（插件本身）加三样东西：`defaultRules`、`applyRules`、`wrapParseFrontMatter`
 （后两样是纯函数，规则表与接线各测一次，用例在 `test/frontmatter-injector.test.mts`）。
+
+解析器的类型直接用 `@docusaurus/types` 的 `ParseFrontMatter`，本包不另画一份：`wrapParseFrontMatter`
+的签名与官方一致，接到 `markdown.parseFrontMatter` 上不需要强转。`applyRules` 就地补、
+不返回改动清单 —— 需要知道补了什么的场景是「排查」，那是规则表里 `name` 的活。
 
 ## 使用约束
 
