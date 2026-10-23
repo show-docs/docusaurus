@@ -4,10 +4,7 @@ import { createApiFrameView } from '@show-docs/docusaurus-theme-iframe/lib/index
 // `components/api-frame.css` 里，四条层共用；本包不再有只属于自己的那条外层规则，
 // 所以这里不 import 任何外层 CSS（本包的 CSS 由下面那份 `stoplight-ui.tsx` 带进 bundle）。
 
-import {
-  COLOR_MODE_ATTRIBUTE,
-  StoplightUI,
-} from '../../components/stoplight-ui.tsx';
+import { COLOR_MODE_ATTRIBUTE } from '../../components/stoplight-ui.tsx';
 
 /**
 Elements 这一层的框内页面（这一页整体的形状、以及它为什么不套 `Layout/Provider`，
@@ -20,9 +17,16 @@ Elements 这一层的框内页面（这一页整体的形状、以及它为什�
   所以「报回外层」这一句只能由 `StoplightUI` 自己来说 —— 与 `theme-redoc` 实测到的同一格。
 */
 const StoplightPage = createApiFrameView({
+  // 渲染器按需装载：`@stoplight/elements` 那份 1.9 MB 上下只跟着这一条 `import()` 走。
+  // `COLOR_MODE_ATTRIBUTE` 仍从上面那条静态 import 拿：它只是一个字符串，而样式表那格的
+  // 产出地址（`asset/resource` 的默认导出）也被那条 `configureWebpack` 规则钉住，不随本文件
+  // 进哪条 chunk 而变。
+  loadView: () =>
+    import('../../components/stoplight-ui.tsx').then(({ StoplightUI }) => ({
+      default: StoplightUI,
+    })),
   modeAttribute: COLOR_MODE_ATTRIBUTE,
   namespace: '@show-docs/docusaurus-theme-stoplight',
-  view: StoplightUI,
 });
 
 export default StoplightPage;

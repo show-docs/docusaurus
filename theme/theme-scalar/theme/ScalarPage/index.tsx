@@ -1,7 +1,6 @@
 import { createApiFrameView } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 
 import { applyScalarColorMode } from '../../components/scalar-color-mode.ts';
-import { ScalarUI } from '../../components/scalar-ui.tsx';
 
 /**
 Scalar 这一层的框内页面（这一页整体的形状、以及它为什么不套 `Layout/Provider`，
@@ -14,9 +13,14 @@ Scalar 这一层的框内页面（这一页整体的形状、以及它为什么�
   这一句由 `onSidebarClick` 报（它换接口走的是 `history.pushState`，不触发 `hashchange`）。
 */
 const ScalarPage = createApiFrameView({
+  // 渲染器按需装载：`@scalar/api-reference`（连 Vue）与它那份样式表只跟着这一条 `import()`
+  // 走，不在这条路由的静态图里 —— 那是它不进「整站必下载」那一串的唯一办法。
+  loadView: () =>
+    import('../../components/scalar-ui.tsx').then(({ ScalarUI }) => ({
+      default: ScalarUI,
+    })),
   namespace: '@show-docs/docusaurus-theme-scalar',
   onMode: applyScalarColorMode,
-  view: ScalarUI,
 });
 
 export default ScalarPage;

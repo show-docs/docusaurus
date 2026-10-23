@@ -5,7 +5,13 @@ import type { ComponentType, ReactNode } from 'react';
 
 import { ErrorBoundary } from '../../components/error-boundary.tsx';
 import { HackStyle } from '../../components/hack-style.tsx';
-import type { MarkmapData } from '../../src/types.mts';
+
+// 渲染那一半数据的形状（`md-markmap-loader` 在编译结果里追加的 `export const markmap`）。
+// 产地与逐格说明见 `src/types.mts`。
+// 不从 `src/types.mts` 引：`theme/` 是本层静态的那一半，每份文档页都要求值到这一句，而那份源码
+// 连着 `markmap-lib` 的类型 —— `import type` 只免掉求值、免不掉打包器把它当成一条依赖。
+// 导图自己的代码因此只跟着 `markmap.tsx` 那条动态 import 走。
+type MarkmapData = never;
 
 const MindChart = lazy(() =>
   import('../../components/markmap.tsx').then(({ MindChart: View }) => ({

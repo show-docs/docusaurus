@@ -115,6 +115,8 @@ describe('视图层三份副本的同步护栏', () => {
   const docItemVariation = [
     // 本层那份数据类型（`src/types.mts` 里各包自己的那个）
     /^import type \{ \w+ \} from '\.\.\/\.\.\/src\/types\.mts';$/,
+    // 本层那份数据类型的本地声明（各包 `src/types.mts` 是产地，这里只留名字）
+    /^type \w+ = never;$/,
     // 懒加载的那块视图：组件名与组件文件名
     /^const \w+ = lazy\(\(\) =>$/,
     /^ {2}import\('\.\.\/\.\.\/components\/[\w-]+\.tsx'\)\.then\(\(\{ \w+: View \}\) => \(\{$/,

@@ -6,8 +6,10 @@
 
 各家差异只剩两格，都由调用方给：
 
-- `view`：这一层真正渲染文档的那份接线（各包 `components/` 里那份 UI），形状恒为 `url` +
-  `onRouteChange`。
+- `loadView`：这一层真正渲染文档的那份接线（各包 `components/` 里那份 UI），形状恒为 `url` +
+  `onRouteChange`。交的是**动态 import 的函数**、不是组件本身 —— 渲染器（`redoc` /
+  `@stoplight/elements` / `@scalar/api-reference`）因此只落在框内那条路由自己的 chunk 里，
+  不在这条路由的静态图里。
 - 亮暗落到这一份文档的方式：`modeAttribute`（Redoc / Elements 写成 `<html>` 上一条属性）或
   `onMode`（Scalar 换 `<body>` 上互斥的两个类名）。两格互斥，形状就是 `useInnerFrameSync`
   那一条，本层不另设一套。
@@ -28,6 +30,7 @@ localStorage 与它自己的路由，全关在这份文档里，站点的文档�
 而渲染器在没有 DOM 的地方一跑就炸。各包 UI 组件因此不需要自己再挡一遍。
 */
 
+import { lazy, Suspense } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 
 import useIsBrowser from '@docusaurus/useIsBrowser';
@@ -55,10 +58,17 @@ type WithoutMessages<T> = T extends InnerFrameSyncOptions
   : never;
 
 export type ApiFrameViewConfig = WithoutMessages<InnerFrameSyncOptions> & {
+  /**
+  这一层渲染文档的那份接线（各包 `components/` 里那份 UI 组件），**按需交出来**。
+
+  给函数而不是组件，是为了让渲染器只落在自己那条 chunk 里：`() => import('…')` 交给
+  `React.lazy()` 之后，这份接线的 import 不会被求值进框内那条路由的静态图里，`redoc` /
+  `@stoplight/elements` / `@scalar/api-reference` 那一坨就跟着各自那条 chunk 走。写成
+  `view: SomeUI` 会把它求值回组件，等于绕回静态 import —— 那是这一格要避开的东西。
+  */
+  loadView: () => Promise<{ default: ComponentType<ApiFrameViewProps> }>;
   /** 本层的包名：注册表里那一条的键，同时是三条 postMessage 的命名空间。 */
   namespace: string;
-  /** 这一层渲染文档的那份接线（各包 `components/` 里那份 UI 组件）。 */
-  view: ComponentType<ApiFrameViewProps>;
 };
 
 /**
@@ -69,7 +79,7 @@ export type ApiFrameViewConfig = WithoutMessages<InnerFrameSyncOptions> & {
 别人直接打开它时，渲染器自己那份「加载失败」摆在正文区，观感反而更像坏了。
 */
 export function createApiFrameView(config: ApiFrameViewConfig): ComponentType {
-  const { namespace, view: View, ...syncOptions } = config;
+  const { loadView, namespace, ...syncOptions } = config;
 
   const entry = apiFrameByNamespace(namespace);
   if (entry === undefined || entry.kind !== 'internal') {
@@ -78,6 +88,7 @@ export function createApiFrameView(config: ApiFrameViewConfig): ComponentType {
 
   const messages = apiFrameMessages(namespace);
   const reportRouteToParent = createRouteReporter(messages);
+  const View = lazy(loadView);
 
   return function ApiFrameView(): ReactNode {
     const isBrowser = useIsBrowser();
@@ -95,7 +106,9 @@ export function createApiFrameView(config: ApiFrameViewConfig): ComponentType {
     );
 
     return url === undefined ? null : (
-      <View onRouteChange={reportRouteToParent} url={url} />
+      <Suspense fallback={null}>
+        <View onRouteChange={reportRouteToParent} url={url} />
+      </Suspense>
     );
   };
 }

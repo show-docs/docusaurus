@@ -5,7 +5,13 @@ import type { ComponentType, ReactNode } from 'react';
 
 import { ErrorBoundary } from '../../components/error-boundary.tsx';
 import { HackStyle } from '../../components/hack-style.tsx';
-import type { DbmlModel } from '../../src/types.mts';
+
+// 渲染那一半数据的形状（`dbml-loader` 在编译期用 `@dbml/core` 解析 `.dbml` 的结果）。
+// 产地与逐格说明见 `src/types.mts`。
+// 不从 `src/types.mts` 引：`theme/` 是本层静态的那一半，每份文档页都要求值到这一句，而那份源码
+// 连着 `@dbml/core` 的类型 —— `import type` 只免掉求值、免不掉打包器把它当成一条依赖。
+// 关系图自己的代码因此只跟着 `erd-chart.tsx` 那条动态 import 走。
+type DbmlModel = never;
 
 const ErdChart = lazy(() =>
   import('../../components/erd-chart.tsx').then(({ ErdChart: View }) => ({

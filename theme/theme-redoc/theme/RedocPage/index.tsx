@@ -1,7 +1,6 @@
 import { createApiFrameView } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 
 import { COLOR_MODE_ATTRIBUTE } from '../../components/redoc-color-mode.ts';
-import { RedocUI } from '../../components/redoc-ui.tsx';
 
 /**
 Redoc 这一层的框内页面（这一页整体的形状、以及它为什么不套 `Layout/Provider`，
@@ -16,8 +15,12 @@ Redoc 这一层的框内页面（这一页整体的形状、以及它为什么�
 */
 const RedocPage = createApiFrameView({
   modeAttribute: COLOR_MODE_ATTRIBUTE,
+  // 渲染器按需装载：`redoc` 那份 2 MB 上下只跟着这一条 `import()` 走。
+  loadView: () =>
+    import('../../components/redoc-ui.tsx').then(({ RedocUI }) => ({
+      default: RedocUI,
+    })),
   namespace: '@show-docs/docusaurus-theme-redoc',
-  view: RedocUI,
 });
 
 export default RedocPage;
