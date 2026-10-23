@@ -5,28 +5,21 @@
 
 ## 组成
 
-只有一个文件：`src/index.mts`（约 180 行，含注释）。
+三个文件，`src/` 下：
 
-| 那一块                            | 职责                                                       |
-| --------------------------------- | ---------------------------------------------------------- |
-| `FrontMatterRule` / `RuleContext` | 规则表的形状（`match` 管哪些文件，`frontMatter` 补哪几格） |
-| `defaultRules`                    | 本仓的缺省规则表，纯数据                                   |
-| `applyRules()`                    | 纯函数：路径匹配 + 只补不覆盖，就地补                      |
-| `wrapParseFrontMatter()`          | 纯函数：把注入包在某个解析器外面，带幂等记号               |
-| 默认导出（插件）                  | 接线：`loadContent()` 里包一次，`contentLoaded()` 兜底     |
+| 文件           | 职责                                                             |
+| -------------- | ---------------------------------------------------------------- |
+| `rules.mts`    | 规则表与「最近」的判定：`defaultRules` / `applyRules` / `tagsOf` |
+| `git-info.mts` | 读 git：仓库根、HEAD、最近动过的文件、每份文件的提交时刻         |
+| `index.mts`    | 包装 `parseFrontMatter` 与插件接线（`loadContent()`）            |
+
+切三份是因为 git 那一侧能独立测（真仓库），规则表是纯函数，接线要假解析器 —— 三种夹具互不相干。
+对外只丢规则与 git 那几样纯函数，接线细节不外露。
 
 **类型不自己画。** 解析器的入参与结果一律从官方取：`ParseFrontMatter` 直接 import，
-结果那格写成 `Awaited<ReturnType<ParseFrontMatter>>`（本地名 `Parsed`）。先前那份
-「只取用得到的两格」的本地复刻有两个毛病：`defaultParseFrontMatter` 被抹平之后，接线处只能
-`as unknown as` / `as never` 硬转；官方给 `ParseFrontMatterResult` 加一格（比如往结果里塞
-元信息）时，包装层会拿着新结果按旧形状往外走。现在留白的只有一处：包进来的是
-「`RuleContext` 里那份 frontmatter」而不是整个结果 —— 因为规则表只写 `frontMatter`，正文
-不该出现在它的视野里，包装层原样透传剩下的格子。
-
-一次实跑 `/simplify` 的结论是「按职责切文件」在这个尺寸上是纯开销：`inject.mts` 与 `wrap.mts`
-只有一个调用方，`types.mts` 里的类型一份注释都没被引用，而「文件在哪个目录」这条导航成本是
-每个读者都要付的。收成一个文件后，模块边界只剩「导出 / 不导出」这一层，对外只丢
-`defaultRules`、`applyRules`、`wrapParseFrontMatter` 三样（其余是内部实现）。
+结果那格写成 `Awaited<ReturnType<ParseFrontMatter>>`。留白的只有一处：包进来的是
+「`RuleContext` 里那份 frontmatter」而不是整个结果 —— 规则表只写 `frontMatter`，正文不该
+出现在它的视野里，包装层原样透传剩下的格子。
 
 源码在 `src/`，`dist/` 是编译产物（`rootDir` = `src/`），改完源码要 `pnpm build:core`。
 
@@ -82,14 +75,57 @@ frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
    `install()` 的原因。同一份解析器被套两次，每条规则就算两次，所以包装层带一个
    `Symbol.for(...)` 记号，见到记号直接交回同一个函数，不会套第二层。
 
+## git 那一侧：一次读，之后查表
+
+「最近」要按文件判，而每份文件判一次就是一个 subprocess —— 几百页 md 就是几百次 `git`，
+这才是慢的来源。做法是**分层缓存**：
+
+1. **整仓读一次**（`openRepo()`，`loadContent()` 现取现包那一下）。两次 `git log`，两条口径各一次：
+
+   | 命令                                                        | 给什么                                  |
+   | ----------------------------------------------------------- | --------------------------------------- |
+   | `git log --max-count=5 --format=%x01%ct --name-only`        | HEAD 的时刻 + 最后 5 个提交改过哪些文件 |
+   | `git log --since='7 days ago' --format=%x01%ct --name-only` | 窗口内的全部提交改过哪些文件            |
+
+   两条都**不带 `--max-count` 混用**：带上就成了「最后 5 个里还落在窗内的」，两条口径会被悄悄
+   并成一条（实测：`--since` + `--max-count` 会把 21 天前那次提交筛掉）。
+
+2. **逐文件读、读过就记**（`timesOf()`）。只在文件真的被问到时才花这两下，而且**按文件缓存**：
+   同一份文件第二次问（`reloadSite()`、或 docs 插件与 mdx-loader 各问一次）不再走 git。
+
+### 每份文件的那两个时刻
+
+```
+git log --follow --format= --name-only -- <path>   # 数这份文件被提交过几次
+git log -1 --follow --format=%ct -- <path>         # 最后一次是什么时候
+```
+
+- `--format=` 把提交头清空，只留文件名那一行；重命名那一步会吐两行（新名在前、旧名在后），
+  所以先按 `repoPath()` 把「等于这条路径」的那一行留下 —— 不留就把一次提交数成两次。
+- **只提交过一次**的那份文件，`created` 与 `updated` 是同一刻，于是「新建」与「最近更新」
+  同时成立（刚建的文件本来也就刚动过）。
+- 一条历史都没有（没提交过、或压根不在这个仓库里）时两个时刻都是 `undefined`：不猜。
+
+### 边界
+
+- **读不到就不读。** `findRepoRoot()` 用 `spawnSync` 问 `git rev-parse`：git 退出 128（不在仓库里、
+  仓库坏了）与「git 不在 PATH」都只是 `undefined`，注入退回「只有配置里那份标签」。这条构建不该
+  因为一份 README 少两个标签而失败。
+- **仓库根要解析软链。** `/tmp` 在 macOS 上是 `/private/tmp` 的软链；Docusaurus 给的 `filePath`
+  与 `git rev-parse` 给的那条不在同一套写法上时，「这条路径在不在这个仓库里」就判错了。
+- **只看 `HEAD` 那条历史。** 工作区里未提交的改动不算「最近动过」—— 站点产物要能复现，
+  拿工作区当判据就成了「谁本地改一下谁就变新」。
+
 ## 规则表的两条语义
 
 - **只补不覆盖**：键已经在了就不碰、算值那一步也不跑。理由是「规则表」不该变成「谁来都能改
   站点写过的东西」。
 - **函数不拿原值**：上一条决定了键不存在才会算，所以函数签名里没有 `current`。要按原文推值就
-  自己去问 `context`（`filePath` 与此刻的 frontmatter 都在里面）。返回 `undefined` = 不表态，
-  那一格不写 —— 否则 frontmatter 上会多出一格 `key: undefined`
+  自己去问 `context`（`filePath`、此刻的 frontmatter、站点那几条标签、打开的那个仓库都在里面）。
+  返回 `undefined` = 不表态，那一格不写 —— 否则 frontmatter 上会多出一格 `key: undefined`
   （`Object.keys` 数得着、`JSON.stringify` 看不见）。
+- **算值可以是异步的**：`applyRules` 收 Promise。git 那条路本质上是异步的（真的 subprocess），
+  硬写成同步会把「读不了 git 就少两个标签」变成「读不了 git 就抛」。
 
 ## 已知限制
 
@@ -114,8 +150,8 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本插
 4. `pnpm test`（`test/frontmatter-injector.test.mts` 里有一条用例真的调
    `@docusaurus/utils` 的 `DEFAULT_PARSE_FRONT_MATTER`，第 1、2 条漂了它会红）；
 5. `pnpm build` 之后读一眼产物：`.docusaurus/docusaurus-plugin-content-docs/default/*.json` 的
-   `frontMatter` 里有注入的键（缺省规则下是 `testing`），`build/assets/js/*.js` 里能找到
-   `testing:!0`。
+   `frontMatter` 里 `tags` 带上了 `git-new` / `git-update`（数量应该接近站点里有历史的那批页），
+   `build/assets/js/*.js` 里能找到 `tags:[\"文档\"]` 这一类的编译产物 —— 两侧同源才算真的注进去了。
 
 第 5 条是唯一「从产物回读」的判据，也是唯一能证伪「注入只在 MDX 那边生效、侧边栏没跟上」
 的那条分支的判据 —— 两条路读的是同一个函数，但它们不是同一次调用（第 1、3 条讲的就是

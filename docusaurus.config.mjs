@@ -14,17 +14,16 @@ const config = {
   },
 
   plugins: [
-    // frontmatter 注入：按配置给每一页 md 注入 `testing: true`（页面自己写了就按页面的算）。
+    // frontmatter 注入：给每一页 md 的 `tags` 补上站点标签与 git 判出来的那两个
+    //（`git-new` 只有一次提交且就在最近，`git-update` 最近动过；「最近」= 7 天内，或全仓最后 5 个提交）。
     // 注入的是元数据，走官方 `markdown.parseFrontMatter` 那条路径，侧边栏与 MDX 产物会一起变。
     // 它**包装**站点已有的解析器而不是替换（站点自己那份可能正接在 CMS 上），且接线在
-    // `loadContent()` 里（早于 docs 插件把它读走），所以这一格放在哪都不影响结果；
-    // 写在最前面只是读起来像「先有规则、后有条目」。口径见包内 `docs/internals.md`。
+    // `loadContent()` 里（早于 docs 插件把它读走）。git 那一侧只整仓读一次，之后按文件查缓存，
+    // 读不到 git 就只剩这里给的标签。口径见包内 `docs/internals.md`。
     [
       '@show-docs/docusaurus-plugin-frontmatter-injector',
       {
-        rules: [
-          { name: 'testing', match: '.md', frontMatter: { testing: true } },
-        ],
+        tags: ['文档'],
       },
     ],
     // 链式覆盖：新增 `@theme-prev/X` 系列 specifier，不改 `@theme-original` 官方语义。
