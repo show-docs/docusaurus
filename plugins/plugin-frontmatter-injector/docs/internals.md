@@ -5,13 +5,13 @@
 
 ## 组成
 
-| 文件             | 职责                                                     |
-| ---------------- | -------------------------------------------------------- |
-| `src/index.mts`  | 插件入口：`contentLoaded` 里包装站点那份 `parseFrontMatter` |
-| `src/rules.mts`  | 自带那份规则表（`defaultRules`），纯数据                 |
-| `src/inject.mts` | 纯函数：路径匹配 / 补值 / 套在解析结果上                 |
-| `src/wrap.mts`   | 纯函数：把注入包在某个解析器外面，带幂等记号             |
-| `src/types.mts`  | 公共类型                                                 |
+| 文件             | 职责                                                                                    |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| `src/index.mts`  | 插件入口：`loadContent` 里包装站点那份 `parseFrontMatter`（`contentLoaded` 兜底、幂等） |
+| `src/rules.mts`  | 自带那份规则表（`defaultRules`），纯数据                                                |
+| `src/inject.mts` | 纯函数：路径匹配 / 补值 / 套在解析结果上                                                |
+| `src/wrap.mts`   | 纯函数：把注入包在某个解析器外面，带幂等记号                                            |
+| `src/types.mts`  | 公共类型                                                                                |
 
 源码在 `src/`，`dist/` 是编译产物（`rootDir` = `src/`），改完源码要 `pnpm build:core`。
 
@@ -19,40 +19,52 @@
 
 frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
 
-| 消费方                                | 什么时候读 | 从哪读                              |
-| ------------------------------------- | ---------- | ----------------------------------- |
-| docs / blog 插件（`contentLoaded`）   | 产出侧边栏、`slug`、`draft` 标记 | `markdown.parseFrontMatter`         |
-| `@docusaurus/mdx-loader`（每个 md）   | 生成 `export const frontMatter = {…}` | 同一个 `markdownConfig.parseFrontMatter` |
-| 浏览器                                | `props.content.frontMatter.xxx` | mdx-loader 的产物                   |
+| 消费方                              | 什么时候读                            | 从哪读                                   |
+| ----------------------------------- | ------------------------------------- | ---------------------------------------- |
+| docs / blog 插件（`loadContent`）   | 产出侧边栏、`slug`、`draft` 标记      | `markdown.parseFrontMatter`              |
+| `@docusaurus/mdx-loader`（每个 md） | 生成 `export const frontMatter = {…}` | 同一个 `markdownConfig.parseFrontMatter` |
+| 浏览器                              | `props.content.frontMatter.xxx`       | mdx-loader 的产物                        |
 
 关键事实：**mdx-loader 不自己解析 yaml**，它调的是 `options.markdownConfig.parseFrontMatter`，
 而这个 `markdownConfig` 在 docs 插件里就是 `context.siteConfig.markdown` **本身**（同一个对象引用，
 不是拷贝）。于是四条路线的取舍是：
 
-| 路线                                        | 能做到                                   | 代价                                                                     |
-| ------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ |
-| 换掉 `markdown.parseFrontMatter`（本包）    | 元数据与 MDX 产物同时变                  | 接管站点级单例，必须自己维护「谁包谁」与幂等                             |
-| `markdown.preprocessor`                     | 改 yaml 文本本身，后续一切自然生效       | 它是 `markdown` 的配置项，**插件在 init 阶段改已经太晚**；且全局无过滤    |
-| `enforce: 'post'` 的 webpack loader         | 给 MDX 产物多加一个命名导出              | 改不了 `frontMatter`（同名导出会 `Duplicate declaration`），只能开旁路通道 |
-| 直接改磁盘上的 md                           | 最直观                                   | 构建有副作用、dev 模式反复重编译、CI 上脏工作区                          |
+| 路线                                     | 能做到                             | 代价                                                                       |
+| ---------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------- |
+| 换掉 `markdown.parseFrontMatter`（本包） | 元数据与 MDX 产物同时变            | 接管站点级单例，必须自己维护「谁包谁」与幂等                               |
+| `markdown.preprocessor`                  | 改 yaml 文本本身，后续一切自然生效 | 它是 `markdown` 的配置项，**插件在 init 阶段改已经太晚**；且全局无过滤     |
+| `enforce: 'post'` 的 webpack loader      | 给 MDX 产物多加一个命名导出        | 改不了 `frontMatter`（同名导出会 `Duplicate declaration`），只能开旁路通道 |
+| 直接改磁盘上的 md                        | 最直观                             | 构建有副作用、dev 模式反复重编译、CI 上脏工作区                            |
 
 本包选第一条。第二条留给「要让 markdown 之外的工具也看见」的场景，那条不是插件能封装的。
 
-## 四个坑
+## 五个坑
 
-1. **`siteConfig.markdown` 是插件之间的共享可变对象。** `initPlugins()` 用 `Promise.all()`
-   把所有插件一起起跑，构造函数里「读到什么」取决于谁先跑完。所以**接线放在 `contentLoaded`**：
-   那一阶段所有插件都已初始化完，此时取到的 `parseFrontMatter` 是别人写完的那一份。
-2. **别覆盖，要包装。** 站点自己可能在 `markdown.parseFrontMatter` 里接 CMS。后跑的插件直接赋值
+1. **接线必须早于 docs 插件的 `loadContent()`，所以只能放在 `loadContent()`。** 这一条是
+   实测踩出来的：`executeAllPluginsContentLoading()` 用 `Promise.all()` 把**所有插件**的
+   `loadContent()` 一起跑，而 `@docusaurus/plugin-content-docs` 的 `loadContent()` 第一件事就是
+   `const { parseFrontMatter } = context.siteConfig.markdown` —— 它读下来的是**函数引用**，
+   此后站点配置上那个属性再被换掉，docs 手上那份还是旧的。于是把接线放在 `contentLoaded()`
+   （更晚一整个阶段）会得到一个很像 bug 的现象：mdx-loader 读的是属性、拿到新的那份，所以
+   MDX 产物里有注入；侧边栏 / `slug` / `draft` 走的是 docs 手上那份，完全没有 —— 「配置写了
+   却不生效」。
+   放在 `loadContent()` 里就对了：`MarkdownConfigSchema` 的 `parseFrontMatter` 是 Joi
+   `function().default(...)`，`validateConfig()` 跑在插件实例化之前，所以进 `loadContent()`
+   时那一格一定已经是函数，包装它不会覆盖掉官方默认值。
+2. **`siteConfig.markdown` 是插件之间的共享可变对象。** 构造函数里「读到什么」取决于谁先跑完
+   （`initPlugins()` 也是 `Promise.all()`），所以接线不在构造函数里做，而在 `loadContent()` 里
+   现取现包：那时别的插件的构造函数都跑完了，包到的是别人写完的那一份。
+3. **别覆盖，要包装。** 站点自己可能在 `markdown.parseFrontMatter` 里接 CMS。后跑的插件直接赋值
    = 把先跑的那份整个吞掉，而且不报错。`wrapParseFrontMatter()` 的语义是「`base` 先跑，
    注入叠在结果上」，于是三份（官方的、站点的、本包的）能叠成一条链。
-3. **参数必须原样透传。** mdx-loader 每次调用都会带 `defaultParseFrontMatter`，而站点可能根本
+4. **参数必须原样透传。** mdx-loader 每次调用都会带 `defaultParseFrontMatter`，而站点可能根本
    没在配置里写 `parseFrontMatter`（那时 `siteConfig.markdown.parseFrontMatter` 是官方填进去的
    默认值，未必等于 loader 手上那份）。抓闭包里的那份、或替调用方兜一个默认值，都会让「两处
    版本错位」变成两份不同的 frontmatter —— 前端一份、侧边栏一份，查起来极贵。
-4. **`reloadSite()` 会重跑插件。** dev 模式下改 `docusaurus.config.mjs` 就是这样重来的。同一份
-   解析器被套两次，每条规则就算两次。所以包装层带一个 `Symbol.for(...)` 记号，见到记号直接
-   交回同一个函数，不会套第二层。
+5. **`reloadSite()` 会重跑插件。** dev 模式下改 `docusaurus.config.mjs` 就是这样重来的：
+   `reloadPlugin()` 只重跑 `contentLoaded()`，其余阶段不重跑 —— 这就是入口两处都调同一个
+   `install()` 的原因。同一份解析器被套两次，每条规则就算两次，所以包装层带一个
+   `Symbol.for(...)` 记号，见到记号直接交回同一个函数，不会套第二层。
 
 ## 规则表的两条语义
 
@@ -76,14 +88,19 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本插
 **时序**结论，不是承诺。升 core 之前/之后跑一遍：
 
 1. `node_modules/@docusaurus/core/lib/server/plugins/plugins.js` 里
-   `executePluginContentLoading()` 仍在 `loadContent()` **之后**调 `contentLoaded()`；
+   `executePluginContentLoading()` 仍是「先 `loadContent()`、后 `contentLoaded()`」，且
+   `executeAllPluginsContentLoading()` 仍用 `Promise.all()` 把各插件的 `loadContent()` 一起跑；
 2. `node_modules/@docusaurus/mdx-loader/lib/loader.js` 里 `loadMDX()` 仍读
    `options.markdownConfig.parseFrontMatter`（而不是自己 import 一份）；
-3. `@docusaurus/plugin-content-docs` 仍从 `context.siteConfig.markdown` 解构 `parseFrontMatter`；
+3. `@docusaurus/plugin-content-docs` 的 `doProcessDocMetadata()` 仍在 `loadContent()` 里就
+   `const { parseFrontMatter } = context.siteConfig.markdown`（**早于**本插件的 `contentLoaded`），
+   且 `MarkdownConfigSchema` 的 `parseFrontMatter` 仍是带默认值的 Joi `function()`；
 4. `pnpm test`（`test/frontmatter-injector.test.mts` 里有一条用例真的调
    `@docusaurus/utils` 的 `DEFAULT_PARSE_FRONT_MATTER`，第 1、2 条漂了它会红）；
 5. `pnpm build` 之后读一眼产物：`.docusaurus/docusaurus-plugin-content-docs/default/*.json` 的
-   `frontMatter` 里有注入的键，`build/assets/js/*.js` 里能找到 `markmap:{enabled:!1}`。
+   `frontMatter` 里有注入的键（缺省规则下是 `testing`），`build/assets/js/*.js` 里能找到
+   `testing:!0`。
 
-第 5 条是唯一「从产物回读」的判据，也是唯一能证伪「注入只在侧边栏生效、MDX 那边没跟上」的
-那条分支的判据 —— 两条路读的是同一个函数，但它们不是同一次调用。
+第 5 条是唯一「从产物回读」的判据，也是唯一能证伪「注入只在 MDX 那边生效、侧边栏没跟上」
+的那条分支的判据 —— 两条路读的是同一个函数，但它们不是同一次调用（第 1、3 条讲的就是
+这两次调用的先后）。

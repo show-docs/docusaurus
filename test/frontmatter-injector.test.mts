@@ -135,6 +135,16 @@ describe('applyRules：只补不覆盖', () => {
     expect(result.changed).toEqual([]);
   });
 
+  it('算值那一步返回 undefined：不写键、不计入改动', () => {
+    const frontMatter: Record<string, unknown> = { title: 'a' };
+    const result = applyRules({ filePath: DOC, frontMatter }, [
+      rule('.md', { draft: () => undefined, custom: 'x' }),
+    ]);
+
+    expect(Object.hasOwn(frontMatter, 'draft')).toBe(false);
+    expect(result).toEqual({ changed: [DOC], changes: { [DOC]: ['custom'] } });
+  });
+
   it('算值那一步拿得到文件路径与此刻的 frontmatter', () => {
     const frontMatter: Record<string, unknown> = { title: 'a' };
     applyRules({ filePath: DOC, frontMatter }, [
@@ -249,55 +259,50 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
 
   it('包装不丢 base 的异常：抛就抛出去', async () => {
     const boom: ParseFrontMatter = () => Promise.reject(new Error('yaml 坏了'));
-    const wrapped = wrapParseFrontMatter(boom, defaultRules);
+    const wrapped = wrapParseFrontMatter(boom, [
+      rule('.md', { testing: true }),
+    ]);
 
     await expect(callParse(wrapped)).rejects.toThrow('yaml 坏了');
   });
 });
 
-describe('defaultRules：本仓那几把键的缺省值', () => {
-  it('markmap 写成 true 时补成对象，写成路径时标为开了，没写就不补', () => {
-    const injected = (frontMatter: Record<string, unknown>) =>
-      injectFrontMatter(
-        { frontMatter, content: '' },
-        { filePath: DOC, rules: defaultRules },
-      ).frontMatter;
+describe('defaultRules：只有 testing 一条', () => {
+  const injected = (frontMatter: Record<string, unknown>, filePath = DOC) =>
+    injectFrontMatter(
+      { frontMatter, content: '' },
+      { filePath, rules: defaultRules },
+    ).frontMatter;
 
-    expect(injected({})).toMatchObject({ markmap: { enabled: false } });
-    expect(injected({ markmap: true }).markmap).toBe(true);
-    expect(injected({ markmap: '/other.md' }).markmap).toBe('/other.md');
+  it('每一页 md 都补上 testing: true，页面自己写的那一份不碰', () => {
+    expect(injected({})).toEqual({ testing: true });
+    expect(injected({ testing: false })).toEqual({ testing: false });
+    expect(injected({ testing: 'yaml 里写歪了' })).toEqual({
+      testing: 'yaml 里写歪了',
+    });
   });
 
-  it('diff 没写时补 false，写了三种写法都原样留着', () => {
-    const injected = (frontMatter: Record<string, unknown>) =>
-      injectFrontMatter(
-        { frontMatter, content: '' },
-        { filePath: DOC, rules: defaultRules },
-      ).frontMatter;
+  it('不替主题层补它们自己的键：markmap / diff / iframe 一个都不出现', () => {
+    // 那几把键的缺省由各层自己兜，注入往它们身上写等于替人家改判定口径
+    const { frontMatter } = injectFrontMatter(
+      { frontMatter: {}, content: '' },
+      { filePath: DOC, rules: defaultRules },
+    );
 
-    expect(injected({}).diff).toBe(false);
-    expect(injected({ diff: true }).diff).toBe(true);
-    expect(injected({ diff: 'a/b.md' }).diff).toBe('a/b.md');
-  });
-
-  it('iframe 没写就不补：这一格的下游要读 .src，补个空壳等于给它一个坏值', () => {
-    const injected = (frontMatter: Record<string, unknown>) =>
-      injectFrontMatter(
-        { frontMatter, content: '' },
-        { filePath: DOC, rules: defaultRules },
-      ).frontMatter;
-
-    expect(injected({}).iframe).toBeUndefined();
-    expect(Object.hasOwn(injected({}), 'iframe')).toBe(false);
+    for (const key of [
+      'markmap',
+      'diff',
+      'iframe',
+      'oas3',
+      'redoc',
+      'scalar',
+    ]) {
+      expect(Object.hasOwn(frontMatter, key)).toBe(false);
+    }
   });
 
   it('管不到非 md 文件', () => {
-    const result = injectFrontMatter(
-      { frontMatter: {}, content: '' },
-      { filePath: '/site/docs/a.dbml', rules: defaultRules },
-    );
-
-    expect(result.frontMatter).toEqual({});
+    expect(injected({}, '/site/docs/a.dbml')).toEqual({});
   });
 });
 
@@ -314,7 +319,9 @@ describe('plugin-frontmatter-injector 插件接线', () => {
   第二个参数，那条路也要走到。
   */
   function loadPlugin(
-    options: Parameters<typeof frontMatterInjectorPlugin>[1] = undefined as never,
+    options: Parameters<
+      typeof frontMatterInjectorPlugin
+    >[1] = undefined as never,
     markdown: Record<string, unknown> = createMarkdown(),
   ) {
     const context = { siteConfig: { markdown } } as unknown as Parameters<
@@ -340,43 +347,54 @@ describe('plugin-frontmatter-injector 插件接线', () => {
     expect(plugin.getThemePath).toBeUndefined();
   });
 
-  it('contentLoaded 之后站点那份解析器被包住：原来那格还在，新那格补上', async () => {
+  it('loadContent 之后站点那份解析器被包住：原来那格还在，注入那格补上', async () => {
     const { plugin, markdown } = loadPlugin();
-    plugin.contentLoaded?.({} as never);
+    plugin.loadContent?.();
 
     const result = await callParse(
       markdown.parseFrontMatter as ParseFrontMatter,
     );
 
     expect(result.frontMatter.title).toBe(DOC);
-    // 默认规则只管 md 里那几把键，`title` 没被碰
-    expect(Object.hasOwn(result.frontMatter, 'diff')).toBe(true);
+    expect(result.frontMatter.testing).toBe(true);
   });
 
-  it('构造函数本身不碰站点配置：接线全在 contentLoaded，那时别人才写完', () => {
+  it('接线落在读走解析器之前：模拟 docs 插件与 mdx-loader 两条路都吃得到', async () => {
+    // `@docusaurus/plugin-content-docs` 在**它自己的** `loadContent()` 里就把
+    // `siteConfig.markdown.parseFrontMatter` 解构走了（拿到的是函数引用，之后再换属性
+    // 它也不看），而 mdx-loader 是编译每个 md 时才读属性 —— 两条路不是同一次调用，
+    // 接线必须早于前者的那一次。
+    const { plugin, markdown } = loadPlugin();
+    plugin.loadContent?.();
+
+    // 站在 docs 插件那一侧：它在自己的 `loadContent()` 里读到的属性
+    const docsRead = markdown.parseFrontMatter as ParseFrontMatter;
+    // 站在 mdx-loader 那一侧：它编译时才读属性
+    const loaderReads = markdown.parseFrontMatter as ParseFrontMatter;
+
+    const viaDocs = await callParse(docsRead);
+    const viaLoader = await callParse(loaderReads);
+
+    expect(viaDocs.frontMatter.testing).toBe(true);
+    expect(viaLoader.frontMatter.testing).toBe(true);
+  });
+
+  it('构造函数本身不碰站点配置：那时别的插件可能还没跑完', () => {
     const { markdown } = loadPlugin();
 
     expect(markdown.parseFrontMatter).toBe(fakeParse);
   });
 
-  it('reloadSite() 重跑一遍 contentLoaded 不会套第二层', async () => {
+  it('两个阶段都调也不会套第二层（reloadSite 只重跑 contentLoaded）', () => {
     const { plugin, markdown } = loadPlugin();
-    plugin.contentLoaded?.({} as never);
+    plugin.loadContent?.();
     const once = markdown.parseFrontMatter;
     plugin.contentLoaded?.({} as never);
 
     expect(markdown.parseFrontMatter).toBe(once);
   });
 
-  it('选件：rules 传空数组时一个字节都不改', () => {
-    const { plugin, markdown } = loadPlugin({ rules: [] });
-
-    // 早退：连 `parseFrontMatter` 都不该被替换
-    expect(() => plugin.contentLoaded?.({} as never)).not.toThrow();
-    expect(markdown.parseFrontMatter).toBe(fakeParse);
-  });
-
-  it('选件：不传 rules 时用 defaultRules（三把键都补上）', async () => {
+  it('只重跑 contentLoaded（reloadSite 那条路）时也包得上', async () => {
     const { plugin, markdown } = loadPlugin();
     plugin.contentLoaded?.({} as never);
 
@@ -384,15 +402,36 @@ describe('plugin-frontmatter-injector 插件接线', () => {
       markdown.parseFrontMatter as ParseFrontMatter,
     );
 
-    expect(frontMatter.diff).toBe(false);
-    expect(frontMatter.markmap).toEqual({ enabled: false });
+    expect(frontMatter.testing).toBe(true);
+  });
+
+  it('选件：rules 传空数组时一个字节都不改', () => {
+    const { plugin, markdown } = loadPlugin({ rules: [] });
+
+    // 早退：连 `parseFrontMatter` 都不该被替换
+    expect(() => plugin.loadContent?.()).not.toThrow();
+    expect(() => plugin.contentLoaded?.({} as never)).not.toThrow();
+    expect(markdown.parseFrontMatter).toBe(fakeParse);
+  });
+
+  it('选件：不传 rules 时用 defaultRules（只补 testing）', async () => {
+    const { plugin, markdown } = loadPlugin();
+    plugin.loadContent?.();
+
+    const { frontMatter } = await callParse(
+      markdown.parseFrontMatter as ParseFrontMatter,
+    );
+
+    expect(frontMatter.testing).toBe(true);
+    expect(Object.hasOwn(frontMatter, 'diff')).toBe(false);
+    expect(Object.hasOwn(frontMatter, 'markmap')).toBe(false);
   });
 
   it('选件：自定义规则表说了算', async () => {
     const { plugin, markdown } = loadPlugin({
       rules: [rule('.md', { title: '被规则改掉' })],
     });
-    plugin.contentLoaded?.({} as never);
+    plugin.loadContent?.();
 
     const result = await callParse(
       markdown.parseFrontMatter as ParseFrontMatter,
@@ -409,7 +448,7 @@ describe('plugin-frontmatter-injector 插件接线', () => {
       // 官方 `configValidation` 就是这么填的：一个 `fileContent → {frontMatter, content}` 的函数
       createMarkdown(DEFAULT_PARSE_FRONT_MATTER),
     );
-    plugin.contentLoaded?.({} as never);
+    plugin.loadContent?.();
 
     const result = await (markdown.parseFrontMatter as ParseFrontMatter)({
       filePath: DOC,
@@ -417,9 +456,9 @@ describe('plugin-frontmatter-injector 插件接线', () => {
       defaultParseFrontMatter: DEFAULT_PARSE_FRONT_MATTER,
     });
 
-    // 真的走了 yaml 解析：原来那格在，注入那几格也补上了
+    // 真的走了 yaml 解析：原来那格在，注入那格也补上了
     expect(result.frontMatter.title).toBe('原文');
-    expect(result.frontMatter.diff).toBe(false);
+    expect(result.frontMatter.testing).toBe(true);
     expect(result.content.trim()).toBe('# 标题');
   });
 });
