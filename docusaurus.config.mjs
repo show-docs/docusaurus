@@ -14,6 +14,12 @@ const config = {
   },
 
   plugins: [
+    // frontmatter 注入：按规则表给 md 补默认值（本仓那五把键的前置判据），注入的是元数据，
+    // 会走完官方 `markdown.parseFrontMatter` 那条路径落进 MDX 产物。
+    // 它**包装**站点已有的那一个而不是替换（站点自己写的那份可能正接在 CMS 上），
+    // 所以这一格放在哪都不影响结果；写在最前面只是读起来像「先有规则、后有条目」。
+    // 路线取舍与实测记录见包内 `docs/internals.md`。
+    '@show-docs/docusaurus-plugin-frontmatter-injector',
     // 链式覆盖：新增 `@theme-prev/X` 系列 specifier，不改 `@theme-original` 官方语义。
     // 不需要配置清单：这个数组的顺序就是层栈顺序。语义、推导与「改完源码要 `pnpm build:core`」
     // 的编译口径，记在 `plugins/plugin-prev-layer-resolver/README.md`。
