@@ -107,50 +107,58 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本插
 
 ## 与站点的其它 markdown 手段怎么共存（谁先谁后）
 
-一句话：**`markdown.parseFrontMatter` 这一格是安全的，`markdown.preprocessor` 那一格不安全，
-而后果正好落在「中文标题」上。**
+一句话：**本插件只给 `markdown.parseFrontMatter` 换值，`markdown` 这个对象本身没换、兄弟键
+一个没动，所以 `preprocessor` / `remarkPlugins` / `format` 都照旧跑。** 唯一会咬人的是
+「整体替换 `siteConfig.markdown`」那种写法 —— 那是另一件事，见后面「设计禁区」。
 
-### 一、`markdown.preprocessor` 会被整个绕过（这条最要紧）
+### 一、现状：只动一格，且是包装
 
-`preprocessor` 不在 `siteConfig.markdown` 里被 docs 插件解构走，它是靠
-`options.markdownConfig`（= 上面那个共享对象）在 **mdx-loader 编译时**才读的
-（`mdx-loader/lib/preprocessor.js`）。也就是说：**谁动了 `siteConfig.markdown` 这个对象的
-引用/属性，谁就顺手动到了 `preprocessor`。**
+本插件对 `siteConfig.markdown` 只有一句写操作（`src/index.mts`）：
 
-而 `preprocessor` 默认干的那件事，`parseFrontMatter` 替代不了：
+```js
+markdown.parseFrontMatter = wrapParseFrontMatter(
+  markdown.parseFrontMatter,
+  rules
+);
+```
+
+于是：
+
+| 配置项                                         | 现在                                                               |
+| ---------------------------------------------- | ------------------------------------------------------------------ |
+| `parseFrontMatter`                             | 包了一层；站点自己那份（接 CMS / 自己解 yaml）先跑，注入叠在结果上 |
+| `preprocessor`                                 | 没被读写，引用不变，mdx-loader 照旧在编译时调它                    |
+| `beforeDefaultRemarkPlugins` / `remarkPlugins` | 没被碰；拿到的是**注入后**的 `vfile.data.frontMatter`              |
+| `format` / `renderer` / 其它                   | 没被碰                                                             |
+
+`pnpm test` 里两条用例钉住这半边：`preprocessor` / `format` 的**引用**不变；注入只改
+`frontMatter`，`content`（含没转义的 `{#custom}`）原样交回。
+
+住这条线边上的一句话值得记：注入发生在解析之后、编译之前，所以正文侧的插件看到的是注入后
+那份 `frontMatter`。谁想在 remark 链里读「这个文件原本写了什么」，对被注入的键会读不到。
+
+### 二、设计禁区：不要整体替换 `siteConfig.markdown`
+
+这是「别这么写」的说明，不是「现在有问题」。原因在于它是个**共享可变对象**：docs 插件在
+自己的 `loadContent()` 里解构走 `parseFrontMatter`，mdx-loader 则在**编译时**才读
+`preprocessor` / `format`。谁把 `markdown` 整个换掉（`siteConfig.markdown = {...}`），或者
+给 `preprocessor` 赋一份自己的实现，就等于把这些键从链路上摘了下来 —— 而且**不报错**。
+
+`preprocessor` 默认干的那件事，`parseFrontMatter` 替代不了：
 
 ```text
 escapeMarkdownHeadingIds()   ## 中文标题 {#custom}  →  ## 中文标题 \{#custom}
 MDX v2 的 acorn 不认识裸 `{#custom}`，靠这一步先转义
 ```
 
-实测（`format=mdx`，不跑 preprocessor）：
+实测（`format=mdx`，把 `preprocessor` 摘掉）：
 
 | 正文                    | 不跑 preprocessor          | 跑了 preprocessor |
 | ----------------------- | -------------------------- | ----------------- |
 | `## 中文标题 {#custom}` | acorn 报错，**整页打不开** | 正常，锚点保留    |
 
-于是结论分两半：
-
-- **本插件现在这条路（只在 `loadContent()` 里给 `parseFrontMatter` 赋值）是无害的**：
-  它没换 `markdown` 对象、没碰任何兄弟键，`preprocessor` 照跑。
-- **想「更早」就不行了**：`siteConfig.markdown` 是 `loadContext()` 里
-  `{...initialSiteConfig}` 摊出来的新对象，任何在**插件构造器**里做的接线都还可能早于
-  `loadContent()`，但只要同步做了别的事（比如整体换掉 `markdown`、或在构造器里读了一份
-  `preprocessor` 快照），就会把 `preprocessor` 从链路上摘掉 —— 而且**不报错**，只是某一天
-  所有带 `{#id}` 的中文标题页一起白屏。所以「接管越早越好」不是免费的结论，
-  `loadContent()` 已经是这条路上最保守的位置。
-
-### 二、`beforeDefaultRemarkPlugins` / `remarkPlugins`：两条路互不相干
-
-| 消费项                       | 读它的是                                                         | 与本插件的关系                                                                                                       |
-| ---------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `beforeDefaultRemarkPlugins` | mdx-loader 的 `processor.js`，**排在 `remark-frontmatter` 之前** | 拿到的是 `vfile.data.frontMatter`，即**注入之后**那份（YAML 还是原文，所以「想看文件真写了什么」在这条链上反而不准） |
-| `remarkPlugins`              | 同一处，**排在 `remark-frontmatter` 之后**                       | 同上，也是注入之后那份                                                                                               |
-
-两个都是 `content`（正文）侧的插件，本插件只碰 `frontMatter`（元数据侧），所以**不会互相
-覆盖，也不会互相吞掉**；顺序上本插件的注入发生在整个 remark 链之前（`parseFrontMatter`
-是编译的输入，不是链上的一环）。
+所以「为了抢在别人前面而接管整个 `markdown`」不是免费的：症状是某天所有带 `{#id}` 的中文
+标题页一起白屏，日志里什么都没有。`loadContent()` 里只赋值一格，已经是这条路上最保守的位置。
 
 ### 三、`markdown.parseFrontMatter` 自己的先后
 
