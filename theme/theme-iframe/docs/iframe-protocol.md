@@ -72,7 +72,7 @@
 
 - 没装的层不再像以前那样照样命中、渲染出一个指向不存在路由的框（浏览器里 `…-view` 回 404
   一片空白），而是那一格落空，交回普通文档页。实测：注释掉 `plugins` 里 scalar 那一条重建，
-  `build/scalar-demo/index.html` 里 `<iframe>` 数从 1 变 0，写了四把键的夹具页换成 redoc 框。
+  `build/theme/theme-scalar/docs/scalar-demo/index.html` 里 `<iframe>` 数从 1 变 0，写了四把键的夹具页换成 redoc 框。
 - 落空从「坏框」（肉眼可见）变成「页面看起来正常但键没生效」（看不见），所以分发把每一次落空
   的原因收进 `warnings`（键写了但层没装 / 被覆盖清单排除 / 覆盖里写了注册表认不出的命名空间 /
   覆盖挂在认不出是本层的槽位上；**页面级那几条带页面地址** —— 去重按文本判等，不带地址的话
@@ -93,7 +93,7 @@
 这一格有三道门禁钉着：分支语义（默认、覆盖、过滤、每一条 `warnings`）由
 `test/api-frame-entries.test.mts` 在单测里钉（纯函数，不需要浏览器）；`lib/` 七份文件的每个分支
 都在覆盖率红线上（见 `vitest.config.mts` 的 `coverage.include`，浏览器那两份靠 jsdom，
-见 [`test/frame-sync.test.mts`](../../../test/frame-sync.test.mts)）；而「浏览器侧 `plugins`
+见 `test/frame-sync.test.mts`）；而「浏览器侧 `plugins`
 原样保留包名、插件选项到得了浏览器」是 Docusaurus 的**实现细节而非公开承诺**，由
 `demo/scripts/verify-chain.mts` 第 3 节对真实生成的 `.docusaurus/docusaurus.config.mjs` 钉 ——
 升级后序列化形状变了会判红，而不是静默退化成「什么都没装」。
@@ -218,15 +218,15 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
 ## 状态：三条层都从这一份走，浏览器里实测过
 
 `pnpm build`、`pnpm verify:chain` 与 `pnpm test:e2e` 都绿。这一层的行为由那三个包的用例间接钉住，
-判据分别在 [`test/e2e/features/redoc.feature`](../../../test/e2e/features/redoc.feature)、
-[`test/e2e/features/stoplight.feature`](../../../test/e2e/features/stoplight.feature) 与
-[`test/e2e/features/scalar.feature`](../../../test/e2e/features/scalar.feature)；三条层共用的
+判据分别在 `test/e2e/features/redoc.feature`、
+`test/e2e/features/stoplight.feature` 与
+`test/e2e/features/scalar.feature`；三条层共用的
 那几句（切暗色、做记号、比对翻色前后、容器让位、框占满那一屏）住在
-[`test/e2e/steps/common.steps.mts`](../../../test/e2e/steps/common.steps.mts)，量框内那份文档的那几个
-辅助函数在 [`test/e2e/helpers.mts`](../../../test/e2e/helpers.mts)。
+`test/e2e/steps/common.steps.mts`，量框内那份文档的那几个
+辅助函数在 `test/e2e/helpers.mts`。
 
 这一族自己那份源码另有单测**直接**钉着（分发、注册表、配置期工厂、消息形状、两条 hook），
-每个文件钉哪一面、以及覆盖率红线量哪几份，都记在 [`test/README.md`](../../../test/README.md)。
+每个文件钉哪一面、以及覆盖率红线量哪几份，都记在 `test/README.md`。
 
 ## 局限
 

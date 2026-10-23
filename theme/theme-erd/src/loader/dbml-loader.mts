@@ -181,10 +181,6 @@ async function createMdx(
   );
 
   return [
-    '---',
-    'hide_title: true',
-    '---',
-    '',
     "import Tabs from '@theme/Tabs';",
     "import TabItem from '@theme/TabItem';",
     '',

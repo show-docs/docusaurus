@@ -55,12 +55,12 @@
 ## 代码块页签为什么写成组件
 
 `createTabs()` 直接吐 `<Tabs>` / `<TabItem>`：代码块上的 `tab="X"` 那类元数据在 Docusaurus 3
-不再生成页签。`hide_title: true` 那一段是本包自己写的 frontmatter，站点那份（标题、说明、
-侧栏名）留在文件头上给 Docusaurus 读，DBML 解析器只收 `---` 块之后的部分。
+不再生成页签。这一层不往产物里写 frontmatter：站点那份（标题、说明、侧栏名）留在文件头上给
+Docusaurus 读，DBML 解析器只收 `---` 块之后的部分 —— 所以那一页的 `<h1>` 与别的文档页同一个来源。
 
 ## 用例与红线
 
-- 构建期判据：`test/theme-erd.test.mts` —— 夹具是真 DBML 原文（含站点那份 `docs/erd-demo.dbml`），
+- 构建期判据：`test/theme-erd.test.mts` —— 夹具是真 DBML 原文（含站点那份 `theme/theme-erd/docs/erd-demo.dbml`），
   交给 `@dbml/core` 解析成模型再喂给被测函数；外接生成器的夹具在 `test/fixtures/erd-generators/`，
   走的是站点真会用的那一条装载路径；站点自己那一份示例模板 `erd/table-names.mjs` 也在测试里真跑一遍。
   `src/options.mts` 与 `src/loader/**` 挂在覆盖率红线上（`vitest.config.mts` 的 `coverage.include`）。

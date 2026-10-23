@@ -149,6 +149,6 @@ frontmatter 之后的原文。这两件在构建期就有了：生成器只在�
 
 - [维护者文档](./docs/internals.md)：组成、`@dbml/core` 实测到的形状、导出模板插拔在实现上的
   三个约束。
-- [数据库关系图示例](../../docs/erd-demo.dbml) 与站点那份示例模板
-  [`erd/table-names.mjs`](../../erd/table-names.mjs)。
+- [数据库关系图示例](./docs/erd-demo.dbml) 与站点那份示例模板
+  `erd/table-names.mjs`。
 - [DBML 语法](https://dbml.dbdiagram.io/docs/)。

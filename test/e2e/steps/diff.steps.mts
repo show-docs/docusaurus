@@ -76,14 +76,16 @@ Then('这一页没有差异视图', async ({ page }) => {
 */
 Given('我打开两份文件对照示例页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/diff-pair-demo');
+  await page.goto('/theme/theme-diff/docs/diff-pair-demo');
 });
 
 Then('说明行写明比的是哪两份文件', async ({ page }) => {
   await expect(
     diffBlock(page).locator('code'),
     '说明行没写明比的是哪两份文件',
-  ).toHaveText('../static/openapi-redoc.yaml → ../static/openapi-scalar.yaml');
+  ).toHaveText(
+    '../../../static/openapi-redoc.yaml → ../../../static/openapi-scalar.yaml',
+  );
 });
 
 Then('对照这一页的视图里列出改动的行', async ({ page }) => {

@@ -65,5 +65,5 @@ DOM、也不读 frontmatter，命不中（正文没有图片）时等于透明�
 ## 相关文档
 
 - [维护者文档](./docs/internals.md)：组成、挂与不挂的两处判据、第三方样式表要补的那两处。
-- [图片查看器示例](../../docs/viewer-demo.md)。
+- [图片查看器示例](./docs/viewer-demo.md)。
 - [viewerjs 文档](https://fengyuanchen.github.io/viewerjs/)。

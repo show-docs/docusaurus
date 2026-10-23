@@ -29,7 +29,7 @@ redoc: /openapi-redoc.yaml
   框内那份文档自己的 `<html data-redoc-mode>` 上（下一条）。口径与依据记在
   `theme/theme-redoc/docs/internals.md` 的「样式」一节（站点文档源只收 `docs/`，链接出去只会是死链）。
 - **点进接口后的地址也能分享**：这一层的渲染虽然挪进了框里，能发给别人的地址**还是这一页自己的**
-  —— `/redoc-demo#/orders/createorder`。地址栏里 `#` 那一段由框里那份文档报给外层（Redoc 的路由
+  —— `/theme/theme-redoc/docs/redoc-demo#/orders/createorder`。地址栏里 `#` 那一段由框里那份文档报给外层（Redoc 的路由
   走 `history.pushState`，`hashchange` 收不到），整页加载一条深链时反过来由框里向外层要一次再写进
   自己的地址；写外层地址用的是替换，所以框里换一条接口不会在浏览器历史里多出一格。
   hash 段不参与取文件，浏览器请求的还是这一页那份 html，`pnpm serve` 回 **HTTP 200**。
@@ -41,7 +41,7 @@ redoc: /openapi-redoc.yaml
   自己 `<html>` 上。框内那份文档因此不套站点的任何外壳与 provider，也不读那份 localStorage。
 - **滚动条长在框里**：外层那一页不滚（框占满 navbar 以下那一屏），框内那一份文档自己滚，
   所以这一页没有「正文跟着页面滚」那种观感；键盘要先落到框里才能用方向键。
-- 组件只在浏览器端渲染（SSR 阶段返回 `null`），所以 `build/redoc-demo/index.html` 里除了那个 iframe
+- 组件只在浏览器端渲染（SSR 阶段返回 `null`），所以 `build/theme/theme-redoc/docs/redoc-demo/index.html` 里除了那个 iframe
   标签之外是空的，框内那份 html 也一样；要看结果得 `pnpm build && pnpm serve`。
 - 命中的是文档页，站点的侧栏仍然在那一列里（框只占正文那一格）。要连侧栏一起让位，用 `iframe:` 那一层。
 

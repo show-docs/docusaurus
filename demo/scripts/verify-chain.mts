@@ -58,7 +58,10 @@ for (const l of layers) console.log(' '.repeat(3) + rel(l.owner));
 const CHAIN = ['src/theme', 'theme-c', 'theme-b', 'theme-a'];
 const pages = [
   { chain: true, file: 'build/index.html' },
-  { chain: false, file: 'build/markmap-demo/index.html' },
+  {
+    chain: false,
+    file: 'build/theme/theme-markmap/docs/markmap-demo/index.html',
+  },
 ].filter(({ file }) => fs.existsSync(path.join(root, file)));
 
 if (pages.length === 0) {

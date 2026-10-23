@@ -106,4 +106,4 @@ iframe: https://example.com/handbook/
 
 - [维护者文档](./docs/internals.md)：包内组成、编译方式、新增一条 API 层的步骤。
 - [跨 iframe 协议](./docs/iframe-protocol.md)：地址与亮暗同步的消息形状、两侧的监听。
-- [iframe 示例](../../docs/iframe-demo.md)。
+- [iframe 示例](./docs/iframe-demo.md)。

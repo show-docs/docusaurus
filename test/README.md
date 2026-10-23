@@ -109,7 +109,7 @@ CI 把全量覆盖率红线钉在 **100%**，增量同样 100 —— 新增代�
 - `theme-markmap`：`src/loader/` 与上面两层是同一类构建期判据，眼下还没有对应的单测文件。
 - `theme-copy-button`：`src/index.mts` 同样是插件接线（那条 babel 规则由
   `view-layer-copies.test.mts` 钉，包本身在 `plugin.test.mts` 的分包三件套里点名），按钮、图标与
-  提示条全在浏览器侧，只有开页面才看得见。示例页 `docs/copy-button-demo.md` 与主页那张卡片由
+  提示条全在浏览器侧，只有开页面才看得见。示例页 `theme/theme-copy-button/docs/copy-button-demo.md` 与主页那张卡片由
   `plugin.test.mts` 那条「每个主题包有一份示例页」的判据和 `home.feature` 钉；「点一下真的把地址
   放进剪贴板」这一步要浏览器给剪贴板权限，眼下没有用例钉住。
 

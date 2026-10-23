@@ -60,3 +60,13 @@ Then('面板里是站点那份生成器落出来的表清单', async ({ page }) 
     '「表清单」页签里不是站点那份生成器的产出',
   ).toContainText('users：4 列');
 });
+
+/**
+这一层不藏标题：`.dbml` 页的 `<h1>` 与别的文档页同一个来源 —— 文件头上那份 `title:`。
+loader 曾经往产物里多写一段 `hide_title: true`，把这一格按掉了（现在没有那一段了）。
+*/
+Then('那一页的标题照常渲染成页头的 h1', async ({ page }) => {
+  await expect(page.locator('article h1').first()).toHaveText(
+    '数据库关系图示例',
+  );
+});

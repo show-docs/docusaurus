@@ -49,7 +49,7 @@
 ## 用例
 
 页面上那一格只有开浏览器才看得见，本包没有构建期判据，所以不进覆盖率红线
-（口径见 [`test/README.md`](../../../test/README.md) 的「覆盖率」一节）：
+（口径见 `test/README.md` 的「覆盖率」一节）：
 
 - `test/e2e/features/viewer.feature`：点开第一张图、工具条那颗「下一张」、Esc 收起、
   换页时上一份查看器随换页销毁。

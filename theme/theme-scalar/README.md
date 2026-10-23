@@ -42,7 +42,7 @@ scalar: /openapi.yaml
 ## 配置
 
 本包没有插件选项。Scalar 的渲染参数集中在
-[`components/scalar-ui.tsx`](./components/scalar-ui.tsx)：界面语言为简体中文
+`components/scalar-ui.tsx`：界面语言为简体中文
 （`localization.locale: 'zh-cn'`），并关闭了 Test Request、Ask AI、暗色切换、正文顶上那一格
 下载等入口。语言值要使用 Scalar 内置的小写连字符 id（例如 `zh-cn`，不是 `zh-CN`）。
 
@@ -55,7 +55,7 @@ scalar: /openapi.yaml
 
 ## 路由与深链
 
-- 可分享的地址是外层文档页：`/scalar-demo#tag/orders/POST/orders`。hash 不参与请求文件，整页
+- 可分享的地址是外层文档页：`/theme/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`。hash 不参与请求文件，整页
   加载返回 200。
 - hash 段由框内与框外的消息双向同步；Scalar 的格式是 `#tag/<tag>/<METHOD>/<path>`，`#` 后面没有
   前导斜杠。
@@ -78,4 +78,4 @@ scalar: /openapi.yaml
 
 - [维护者文档](./docs/internals.md)：样式、宽度、界面文案与实测记录。
 - [跨 iframe 协议](../theme-iframe/docs/iframe-protocol.md)：地址与亮暗同步的消息形状。
-- [Scalar 示例](../../docs/scalar-demo.md)。
+- [Scalar 示例](./docs/scalar-demo.md)。

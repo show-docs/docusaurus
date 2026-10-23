@@ -123,10 +123,12 @@ export default [
     // 站点侧的导出模板（`erd/*.mjs`）也一样：装载它的 loader 取的是那份 module 的
     // `default`，改成命名导出会在构建期才报「没有默认导出一个函数」。
     // Playwright 的配置也是同一类：加载器只认 default 导出的那个配置对象。
+    // `sidebars.mts` 同理 —— 它由 `sidebarPath` 交给同一套配置加载器，只认那份默认导出。
     files: [
       'src/**',
       '*.config.mjs',
       'playwright.config.mts',
+      'sidebars.mts',
       'plugins/*/src/index.mts',
       'demo/*/index.mts',
       'demo/*/theme/**',

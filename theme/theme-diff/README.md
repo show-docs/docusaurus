@@ -94,6 +94,6 @@ diff: true
 ## 相关文档
 
 - [维护者文档](./docs/internals.md)：组成、`git` 那几步、取不到差异时的几种落点。
-- [差异视图示例](../../docs/diff-demo.md)（一份文件的上一个版本 → 此刻这一份）。
-- [两份文件对照示例](../../docs/diff-pair-demo.md)（`diff: {old: 旧, new: 新}`）。
+- [差异视图示例](./docs/diff-demo.md)（一份文件的上一个版本 → 此刻这一份）。
+- [两份文件对照示例](./docs/diff-pair-demo.md)（`diff: {old: 旧, new: 新}`）。
 - [git-diff-view 文档](https://mrwangjusttodo.github.io/git-diff-view)。

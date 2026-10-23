@@ -30,7 +30,7 @@ import type { DbmlModel, ErdExport } from '../theme/theme-erd/src/types.mts';
 
 /** 站点上那份示例页，也是这一层每天真实吃进去的那一份输入。 */
 const demoDbml = fs.readFileSync(
-  new URL('../docs/erd-demo.dbml', import.meta.url),
+  new URL('../theme/theme-erd/docs/erd-demo.dbml', import.meta.url),
   'utf8',
 );
 
@@ -187,8 +187,10 @@ describe('一份 .dbml 编译成 MDX', () => {
       spec('table-names', '表清单', 'text', siteExample),
     ]);
 
-    // 站点自己的标题、侧栏名留给 Docusaurus 读，这一层另起一段只带 `hide_title`
-    expect(output.startsWith('---\nhide_title: true\n---')).toBe(true);
+    // 站点自己的标题、说明、侧栏名留在文件头上给 Docusaurus 读，这一层不再往产物里写第二段
+    // frontmatter —— 于是那一页的 `<h1>` 就是那份 `title:`，跟别的文档页同一个样子。
+    expect(output.startsWith('---')).toBe(false);
+    expect(output).not.toContain('hide_title');
     expect(output).not.toContain('sidebar_position');
 
     for (const value of [

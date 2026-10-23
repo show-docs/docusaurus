@@ -368,14 +368,29 @@ describe('构建脚本与 CI 护栏', () => {
       '站点根写了 "type": "module" 会让 require.resolveWeak 复发',
     ).toBeUndefined();
 
-    // 去掉根的 `type` 后，ESM 只能靠扩展名声明：配置是 `.mjs`。
-    // 侧栏不再需要 `sidebars.mjs`：docs 插件拿不到 `sidebarPath` 时按 docs 目录自动生成，
-    // 因此这里反过来钉住「配置里不再指回 sidebars」—— 指回去就等于把删掉的文件又请回来。
+    // 去掉根的 `type` 后，ESM 只能靠扩展名声明：配置是 `.mjs`、侧栏是 `.mts`。
+    // 站点的内容根是仓库根 —— 每个包的 `README.md` 就是它在站点里的顶层页，包 `docs/` 里那几页
+    // 是它的子页。哪一格对应哪个包因此写在 `sidebars.mts` 里，那份文件只扫目录、不抄包清单：
+    // 抄一份清单，新增一个包就要回来改第二处（这条口径和主页那张卡片列表是同一个道理）。
     const config = fs.readFileSync(
       path.join(siteDir, 'docusaurus.config.mjs'),
       'utf8',
     );
-    expect(config).not.toContain('sidebars');
+    expect(config, 'docs 的内容根应是仓库根').toContain("path: '.'");
+    expect(config, '侧栏按包给，配置要点名那份侧栏文件').toContain(
+      "sidebarPath: './sidebars.mts'",
+    );
+    const sidebars = fs.readFileSync(
+      path.join(siteDir, 'sidebars.mts'),
+      'utf8',
+    );
+    expect(sidebars, 'sidebars.mts 应靠扫目录得到包清单').toContain(
+      '.readdirSync(',
+    );
+    expect(
+      sidebars,
+      'sidebars.mts 不该出现手写的包路径：清单一旦写死，新增包就会漏进站点',
+    ).not.toMatch(/['"`]theme\/theme-/);
 
     // 主页是 `docs/intro.md`：配置把 docs 的路由前缀挪到根，那份 frontmatter 用 `slug: /` 落到 `/`。
     // 站点侧因此不再有页面层目录 —— 再放一个 `src/pages/index.jsx` 就是和它争同一格，
@@ -393,10 +408,11 @@ describe('构建脚本与 CI 护栏', () => {
     ).toContain('slug: /');
   });
 
-  it('每个主题包有一份 docs/*-demo.{md,dbml}，主页的卡片列表由侧边栏自动给', () => {
+  it('每个主题包在自己包里有一份 docs/*-demo.{md,dbml}，站点的 docs/ 只剩主页', () => {
     // 口径：`theme/<name>` 那一层的触发键要有一个页面演示它，命名固定为
-    // `docs/<name 去掉 theme- 前缀>-demo.{md,dbml}`。新增主题包却没写示例页时这条用例变红
-    // —— 光看 plugins 数组不知道那一层命中时长什么样。
+    // `theme/<name>/docs/<name 去掉 theme- 前缀>-demo.{md,dbml}` —— 示例页跟着包走，
+    // 于是它在站点里的地址就是这个文件路径（`/theme/theme-erd/docs/erd-demo`）。
+    // 新增主题包却没写示例页时这条用例变红 —— 光看 plugins 数组不知道那一层命中时长什么样。
     const themeNames = fs
       .readdirSync(path.join(siteDir, 'theme'))
       .filter((name) => name.startsWith('theme-'));
@@ -408,28 +424,39 @@ describe('构建脚本与 CI 护栏', () => {
     const intro = fs.readFileSync(path.join(siteDir, 'docs/intro.md'), 'utf8');
 
     // 主页只写 `<DocCardList />`（不接 items）：卡片就是这一页在侧边栏里的兄弟项，
-    // 而侧边栏由 docs 插件按 `docs/` 目录自动生成，所以清单不该在文档里抄第二份。
+    // 而那份根级清单由 `sidebars.mts` 扫目录得到，所以清单不该在文档里抄第二份。
     expect(intro).toContain('<DocCardList />');
     expect(
       intro,
       '主页的卡片列表交给侧边栏自动生成，手写 items 等于把清单抄第二份',
     ).not.toContain('items=');
 
+    // 站点的 `docs/` 只剩主页那一份：示例页与维护者文档都跟着包走了，
+    // 再往这里放一份就是把它从包里搬回站点、顶层页与子页那棵树跟着散架。
+    expect(
+      fs.readdirSync(path.join(siteDir, 'docs')),
+      '站点的 docs/ 应只剩主页 intro.md',
+    ).toEqual(['intro.md']);
+
     for (const name of themeNames) {
-      const base = path.join(siteDir, 'docs', demoOf(name));
+      const base = path.join(siteDir, 'theme', name, 'docs', demoOf(name));
       const file = [`${base}.md`, `${base}.dbml`].find((candidate) =>
         fs.existsSync(candidate),
       );
       expect(
         file,
-        `${name} 缺示例页 docs/${demoOf(name)}.md 或 ${demoOf(name)}.dbml`,
+        `${name} 缺示例页 theme/${name}/docs/${demoOf(name)}.md 或 ${demoOf(name)}.dbml`,
       ).toBeDefined();
-      // 卡片上那行说明取自 frontmatter 的 `description:`（DocCard 用它作兜底），
-      // 没写就只剩一个标题卡片。
+      // 这一页 frontmatter 的 `description:` 是它在包那一格里（侧边栏子项）的说明来源。
       expect(
         fs.readFileSync(file!, 'utf8').slice(0, 400),
-        `docs/${path.basename(file!)} 的 frontmatter 要有 description:，主页卡片才有说明`,
+        `theme/${name}/docs/${path.basename(file!)} 的 frontmatter 要有 description:`,
       ).toContain('description:');
+      // 顶层页是这个包的 README：没有它，这一格在站点里就没有落点。
+      expect(
+        fs.existsSync(path.join(siteDir, 'theme', name, 'README.md')),
+        `${name} 缺 README.md：它在站点里的顶层页就是这份文档`,
+      ).toBe(true);
     }
   });
 

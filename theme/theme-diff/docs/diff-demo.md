@@ -3,13 +3,14 @@ id: diff-demo
 sidebar_position: 11
 title: 差异视图示例
 description: 'frontmatter 写 diff，正文最上方渲染这份文件上一个版本与此刻这一份的差异视图。'
-diff: intro.md
+diff: ../../../docs/intro.md
 ---
 
 # 差异视图示例
 
-这一页的 frontmatter 写的是 `diff: intro.md`，所以上方那块视图对比的是主页 `docs/intro.md`
-的上一个版本与现在这一份 —— 指向别的文件也可以，路径相对这份 md 所在的目录算。
+这一页的 frontmatter 写的是 `diff: ../../../docs/intro.md`，所以上方那块视图对比的是主页
+`docs/intro.md` 的上一个版本与现在这一份 —— 指向别的文件也可以，路径相对这份 md 所在的目录算
+（视图上方显示的那一个名字是仓库相对路径，不是这里写的那一串 `../`）。
 
 写 `diff: true` 就是对比本文自己。
 

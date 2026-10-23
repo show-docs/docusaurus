@@ -16,12 +16,12 @@ const anyFrame = (page: Page): Locator => page.locator('iframe');
 
 Given('我打开四把键同写的演示页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/frame-precedence-scalar');
+  await page.goto('/theme/theme-iframe/docs/frame-precedence-scalar');
 });
 
 Given('我打开不写 scalar 的三把键演示页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/frame-precedence-redoc');
+  await page.goto('/theme/theme-iframe/docs/frame-precedence-redoc');
 });
 
 Then('这一页只摆一个框，而且是 scalar 那一个', async ({ page }) => {

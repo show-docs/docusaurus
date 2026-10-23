@@ -18,7 +18,7 @@
 
 产物侧能看到的是这一层进了链、`components/api-frame.css` 编译进了站点样式；页面里真的嵌出
 外部站点只能在浏览器看（`pnpm build && pnpm serve`）。浏览器里的实测记在仓库根的 e2e
-（`test/e2e/features/iframe.feature`，跑法见 [`test/README.md`](../../../test/README.md)）。
+（`test/e2e/features/iframe.feature`，跑法见 `test/README.md`）。
 
 包名挂 `@show-docs/`，与仓库其它包同一域，所以列进 `test/plugin.test.mts` 那条分包用例的目录清单
 只差改清单本身。
@@ -101,7 +101,7 @@ README 的「构建包的编译口径」。
 - 改 `theme/` 与 `components/` 不用先编译，`pnpm start` 直接生效；改注册表也一样（两边都是
   源码），改入口才要 `pnpm build:core`。这些未编译的源码归仓库根 `tsconfig.json` 检查，
   所以 `pnpm lint:type` 就是它们的门：`@theme-prev/DocItem` 的类型产地在解析器包里
-  [`types/theme-specifiers.d.ts`](../../../plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts)，
+  `types/theme-specifiers.d.ts`，
   `@docusaurus/router` 那几条靠仓库根那份 `module-aliases.d.ts`；
   `@theme-prev/X` 的语义见
   [plugin-prev-layer-resolver 的 README](../../../plugins/plugin-prev-layer-resolver/README.md)。

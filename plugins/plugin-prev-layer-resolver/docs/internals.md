@@ -205,7 +205,7 @@ theme-fallback 的位置以**官方同一基准**推导（core 的 `lib/webpack/
 
 ```
 build/index.html               正文里：src/theme > theme-c > theme-b > theme-a
-build/markmap-demo/index.html  整页没有任何包裹标记
+build/theme/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 ```
 
 `build/index.html` 就是主页：站点没有单独的首页组件，`docs/intro.md` 以 `slug: /` 落在根。
@@ -300,5 +300,5 @@ build/markmap-demo/index.html  整页没有任何包裹标记
 （`pnpm build` / `pnpm test` 已内置）。
 
 `@theme-prev/*` 是运行时动态别名，类型声明见本包的
-[`../types/theme-specifiers.d.ts`](../types/theme-specifiers.d.ts)（连同官方那两个别名一起，理由见本文件的
+`../types/theme-specifiers.d.ts`（连同官方那两个别名一起，理由见本文件的
 「类型声明」一节）；删掉那份文件，`pnpm typecheck` 与 `pnpm lint:type` 都会红。

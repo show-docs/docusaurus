@@ -25,7 +25,7 @@
 
 ```bash
 pnpm build          # 先构建（含 build:core 与静态站点）
-pnpm verify:chain   # 读真实 build 产物（主页 `build/index.html` 与示例页 `build/markmap-demo/index.html`），验证每一层都被保留
+pnpm verify:chain   # 读真实 build 产物（主页 `build/index.html` 与示例页 `build/theme/theme-markmap/docs/markmap-demo/index.html`），验证每一层都被保留
 ```
 
 从上面那两份真实渲染产物里回读那条链：

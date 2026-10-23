@@ -74,5 +74,5 @@ markmap: true
 
 ## 相关文档
 
-- [思维导图示例](../../docs/markmap-demo.md)。
+- [思维导图示例](./docs/markmap-demo.md)。
 - [markmap 文档](https://markmap.js.org/)。

@@ -167,8 +167,9 @@ export const layerFrame = (page: Page, layer: ThemeLayer): Locator =>
 export const layerFrameDoc = (page: Page, layer: ThemeLayer): FrameLocator =>
   layerFrame(page, layer).contentFrame();
 
-/** 某一层的示例页：整页交给框那一条文档页 `/{层名}-demo`。 */
-export const layerDemoUrl = (layer: ThemeLayer): string => `/${layer}-demo`;
+/** 某一层的示例页（现在是本包 `docs/` 下的子页）：整页交给框那一条文档页。 */
+export const layerDemoUrl = (layer: ThemeLayer): string =>
+  `/theme/theme-${layer}/docs/${layer}-demo`;
 
 /** 某一层框内那条独立页面（本包那条插件路由）：`/{层名}-view`，不带参数就是「缺 spec」那一格。 */
 export const layerViewUrl = (layer: ThemeLayer): string => `/${layer}-view`;
@@ -189,10 +190,16 @@ export const layerFrameSrc = (layer: ThemeLayer): string =>
 后两句匹配成别的句子。
 */
 export const viewLayers = [
-  { step: '我打开 markmap 示例页', demo: '/markmap-demo' },
-  { step: '我打开 ERD 示例页', demo: '/erd-demo' },
-  { step: '我打开差异视图示例页', demo: '/diff-demo' },
-  { step: '我打开图片查看器示例页', demo: '/viewer-demo' },
+  {
+    step: '我打开 markmap 示例页',
+    demo: '/theme/theme-markmap/docs/markmap-demo',
+  },
+  { step: '我打开 ERD 示例页', demo: '/theme/theme-erd/docs/erd-demo' },
+  { step: '我打开差异视图示例页', demo: '/theme/theme-diff/docs/diff-demo' },
+  {
+    step: '我打开图片查看器示例页',
+    demo: '/theme/theme-viewer/docs/viewer-demo',
+  },
 ] as const;
 
 /**

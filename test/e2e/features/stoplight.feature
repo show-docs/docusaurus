@@ -27,7 +27,7 @@ Feature: theme-stoplight
     And 站点自己的那几处样式不被 Elements 改写
     And 浏览器里没有运行期错误
 
-  # 能发给别人的是**外层**那条地址：`/stoplight-demo#/operations/createOrder`。hash 段不参与
+  # 能发给别人的是**外层**那条地址：`/theme/theme-stoplight/docs/stoplight-demo#/operations/createOrder`。hash 段不参与
   # 取文件，浏览器请求的还是这一页自己的那份 html，所以整页加载它回 200；页面起来之后那一段由
   # 框里那句 ready 换进框内那份文档（为什么不能靠外层在 iframe 的 load 事件上推，见
   # theme/theme-iframe/docs/iframe-protocol.md 的「对齐是两侧各推一次的」一节）。Elements 认 `operationId` 原样（大小写不变），与 Redoc 那段小写不同。

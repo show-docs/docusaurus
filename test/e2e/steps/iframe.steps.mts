@@ -16,13 +16,15 @@ const frameSrc = (page: Page): Promise<string> =>
 
 Given('我打开 iframe 示例页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/iframe-demo');
+  await page.goto('/theme/theme-iframe/docs/iframe-demo');
 });
 
 // 句子里不写 `?path=`：playwright-bdd 把步骤文本当 Cucumber 表达式解析，`?` 在那里是量词。
 Given('我打开 iframe 示例页并带上 path 参数', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/iframe-demo?path=/markmap-demo');
+  await page.goto(
+    '/theme/theme-iframe/docs/iframe-demo?path=/theme/theme-markmap/docs/markmap-demo',
+  );
 });
 
 Then('页面上有一个 iframe', async ({ page }) => {
@@ -38,7 +40,7 @@ Then('框的无障碍标题用的是页面自己的标题', async ({ page }) => 
   ).toHaveAttribute('title', 'iframe 示例');
 });
 
-// `docs/iframe-demo.md` 的 frontmatter 现在写的是 `iframe: /404`：值以 `/` 开头，
+// `theme/theme-iframe/docs/iframe-demo.md` 的 frontmatter 现在写的是 `iframe: /404`：值以 `/` 开头，
 // 按当前站点 origin 补成绝对地址，所以嵌进来的是本站自己那页 —— 离线也能看。
 Then('它指向本站 404 那一页', async ({ page }) => {
   const src = await frameSrc(page);
@@ -112,7 +114,7 @@ Then('本页 markdown 的正文一行都不剩', async ({ page }) => {
 
 Then('它指向本站的 markmap 示例页', async ({ page }) => {
   const src = await frameSrc(page);
-  expect(new URL(src).pathname).toBe('/markmap-demo');
+  expect(new URL(src).pathname).toBe('/theme/theme-markmap/docs/markmap-demo');
   expect(new URL(src).origin).toBe(new URL(page.url()).origin);
 });
 

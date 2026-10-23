@@ -11,12 +11,14 @@ configDependencies:
 # 两份 `@types/react` 因此把 `@docusaurus/plugin-content-docs` 与 `@docusaurus/theme-common` 各裂成
 # 两份物理副本。副本多一个就出这种事：站点的 `ColorModeProvider` 用了一份 `theme-common`，
 # `theme-stoplight` 那层里 `useColorMode` 读的是另一份，两个 `createContext` 对不上，
-# `pnpm build` 静态渲染 `/stoplight-demo` 直接抛 `ReactContextError`（构建全绿才会露出来的一格）。
+# `pnpm build` 静态渲染 `/theme/theme-stoplight/docs/stoplight-demo` 直接抛 `ReactContextError`
+# （构建全绿才会露出来的一格）。
 # 钉到根上那一条版本线，peer 分组就只剩一种，图里只留一份副本。
 #
 # 这条不是预防性的整齐癖，是接进 `theme-scalar` 时才露出来的：`@scalar/api-reference` 那一串依赖
 # 把 peer 分组重新洗了一遍，洗完之后 `theme-stoplight` 独自在另一份副本里。实测（清掉 webpack
-# 持久缓存重建）：去掉这一格 override，`/stoplight-demo` 就回到上面那个 `ReactContextError`；
+# 持久缓存重建）：去掉这一格 override，`/theme/theme-stoplight/docs/stoplight-demo` 就回到上面
+# 那个 `ReactContextError`；
 # 加回来，五个用 `theme-common` 的工作区包全部软链到同一份，构建全绿。
 overrides:
   '@types/react': ~18.3.31

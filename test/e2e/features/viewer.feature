@@ -19,6 +19,7 @@ Feature: theme-viewer
     When 我点开第一张图片
     Then 查看器打开，标题用的是这张图的说明
     When 我按 Esc 关掉查看器
-    And 我从侧栏翻到思维导图示例页
+    And 我从侧栏点开 theme-markmap 那一格
+    And 再点开它的思维导图示例页
     Then 这一页没有图片查看器
     And 浏览器里没有运行期错误

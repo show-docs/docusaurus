@@ -97,12 +97,28 @@ Then('查看器收起', async ({ page }) => {
   await expect(viewer(page)).not.toBeVisible({ timeout: 5000 });
 });
 
-When('我从侧栏翻到思维导图示例页', async ({ page }) => {
+/**
+换页走的是真点击，不是 `page.goto`：这一层自己销毁查看器、再在新页重接，只有客户端路由才走到那段。
+
+侧栏里**别的包那一格只露出顶层页那一条链接**（收着的 category 不渲染子项，实测），所以到示例页要两跳：
+先点开那一格，它的子项才会出现在侧栏里。
+*/
+When('我从侧栏点开 theme-markmap 那一格', async ({ page }) => {
   await page
-    .locator(`.theme-doc-sidebar-menu a[href="/markmap-demo"]`)
+    .locator('.theme-doc-sidebar-menu a[href="/theme/theme-markmap/"]')
     .first()
     .click();
-  await expect(page).toHaveURL(/\/markmap-demo$/);
+  await expect(page).toHaveURL(/\/theme\/theme-markmap\/$/);
+});
+
+When('再点开它的思维导图示例页', async ({ page }) => {
+  await page
+    .locator(
+      '.theme-doc-sidebar-menu a[href="/theme/theme-markmap/docs/markmap-demo"]',
+    )
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/theme\/theme-markmap\/docs\/markmap-demo$/);
 });
 
 Then('这一页没有图片查看器', async ({ page }) => {

@@ -75,10 +75,27 @@ const config = {
       ({
         // 站点没有单独的首页组件：`docs/intro.md` 就是主页（`slug: /` 落在这里）。
         // `routeBasePath: '/'` 把 docs 的前缀挪到根，于是没有「页面层」去和主题层争同一格。
-        // docs 默认只收 `.md` / `.mdx`；`.dbml` 是 theme-erd 的文档源，得写进 include。
+        //
+        // 内容根是整个仓库，不是 `docs/`：每个包的 `README.md` 就是它在站点里的顶层页
+        //（Docusaurus 认 `README.md` 是所在目录的索引页，所以地址是 `/theme/theme-scalar/`），
+        // 这个包 `docs/` 目录里的那几页 —— 示例页与维护者文档 —— 是它的子页。
+        // include 因此按包点名，而不是 `**/*.md`：站点根下那些只给仓库读者看的说明
+        //（根 README、`demo/README.md`、`src/theme/README.md`、`test/README.md`）不进站点。
+        // 每一格对应哪个包、顺序怎么来，见 `sidebars.mts`（扫目录得到，没有手抄的清单）。
         docs: {
           routeBasePath: '/',
-          include: ['**/*.{md,mdx,dbml}'],
+          path: '.',
+          sidebarPath: './sidebars.mts',
+          include: [
+            'docs/**/*.md',
+            'plugins/*/README.md',
+            'plugins/*/docs/**/*.md',
+            'theme/*/README.md',
+            'theme/*/docs/**/*.{md,dbml}',
+          ],
+          // 内容根挪到仓库根之后要挡掉的两类东西：装出来的依赖与产物里那些 `README.md` 副本
+          //（它们不是文档源，收进来只会变成一堆重名页）。
+          exclude: ['**/node_modules/**', 'build/**', '.docusaurus/**'],
         },
         blog: false,
         // 站点自己那份样式表：眼下只有主页那条四层链最外层 `[SITE]` 那道彩色虚线
