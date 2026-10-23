@@ -104,3 +104,72 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本插
 第 5 条是唯一「从产物回读」的判据，也是唯一能证伪「注入只在 MDX 那边生效、侧边栏没跟上」
 的那条分支的判据 —— 两条路读的是同一个函数，但它们不是同一次调用（第 1、3 条讲的就是
 这两次调用的先后）。
+
+## 与站点的其它 markdown 手段怎么共存（谁先谁后）
+
+一句话：**`markdown.parseFrontMatter` 这一格是安全的，`markdown.preprocessor` 那一格不安全，
+而后果正好落在「中文标题」上。**
+
+### 一、`markdown.preprocessor` 会被整个绕过（这条最要紧）
+
+`preprocessor` 不在 `siteConfig.markdown` 里被 docs 插件解构走，它是靠
+`options.markdownConfig`（= 上面那个共享对象）在 **mdx-loader 编译时**才读的
+（`mdx-loader/lib/preprocessor.js`）。也就是说：**谁动了 `siteConfig.markdown` 这个对象的
+引用/属性，谁就顺手动到了 `preprocessor`。**
+
+而 `preprocessor` 默认干的那件事，`parseFrontMatter` 替代不了：
+
+```text
+escapeMarkdownHeadingIds()   ## 中文标题 {#custom}  →  ## 中文标题 \{#custom}
+MDX v2 的 acorn 不认识裸 `{#custom}`，靠这一步先转义
+```
+
+实测（`format=mdx`，不跑 preprocessor）：
+
+| 正文                    | 不跑 preprocessor          | 跑了 preprocessor |
+| ----------------------- | -------------------------- | ----------------- |
+| `## 中文标题 {#custom}` | acorn 报错，**整页打不开** | 正常，锚点保留    |
+
+于是结论分两半：
+
+- **本插件现在这条路（只在 `loadContent()` 里给 `parseFrontMatter` 赋值）是无害的**：
+  它没换 `markdown` 对象、没碰任何兄弟键，`preprocessor` 照跑。
+- **想「更早」就不行了**：`siteConfig.markdown` 是 `loadContext()` 里
+  `{...initialSiteConfig}` 摊出来的新对象，任何在**插件构造器**里做的接线都还可能早于
+  `loadContent()`，但只要同步做了别的事（比如整体换掉 `markdown`、或在构造器里读了一份
+  `preprocessor` 快照），就会把 `preprocessor` 从链路上摘掉 —— 而且**不报错**，只是某一天
+  所有带 `{#id}` 的中文标题页一起白屏。所以「接管越早越好」不是免费的结论，
+  `loadContent()` 已经是这条路上最保守的位置。
+
+### 二、`beforeDefaultRemarkPlugins` / `remarkPlugins`：两条路互不相干
+
+| 消费项                       | 读它的是                                                         | 与本插件的关系                                                                                                       |
+| ---------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `beforeDefaultRemarkPlugins` | mdx-loader 的 `processor.js`，**排在 `remark-frontmatter` 之前** | 拿到的是 `vfile.data.frontMatter`，即**注入之后**那份（YAML 还是原文，所以「想看文件真写了什么」在这条链上反而不准） |
+| `remarkPlugins`              | 同一处，**排在 `remark-frontmatter` 之后**                       | 同上，也是注入之后那份                                                                                               |
+
+两个都是 `content`（正文）侧的插件，本插件只碰 `frontMatter`（元数据侧），所以**不会互相
+覆盖，也不会互相吞掉**；顺序上本插件的注入发生在整个 remark 链之前（`parseFrontMatter`
+是编译的输入，不是链上的一环）。
+
+### 三、`markdown.parseFrontMatter` 自己的先后
+
+| 顺序 | 谁                                          | 说明                                                                                                                                                                               |
+| ---- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | 站点在 `docusaurus.config.mjs` 里写的那一份 | 可能是「接 CMS / 自己读一份」，`validateConfig()` 跑在插件实例化之前，它是底                                                                                                       |
+| 2    | 本插件                                      | `loadContent()` 里**包住**当前那一份，不替换                                                                                                                                       |
+| 3    | 之后的插件                                  | 如果它**直接赋值**（不包），会把 1、2 一起吞掉 —— `plugins` 数组里谁靠前，谁就先包，本仓这份写在最前就是这个理由；但这是约定，不是护栏                                             |
+| 4    | 消费方                                      | docs 插件在**它自己的** `loadContent()` 里解构一次（`const { parseFrontMatter } = ...`），之后换属性它不看；mdx-loader 是编译时才读属性。这就是接线不能晚于 `loadContent()` 的原因 |
+
+`defaultParseFrontMatter` 参数原样透传，所以站点那份拿到的一定是官方 `DEFAULT_PARSE_FRONT_MATTER`，
+不会出现「两处版本错位、两份 frontmatter」。
+
+### 四、两条「不在本插件事上」但会撞车的路
+
+- **`markdown.format`**：插件在 `loadContent()` 里写 `siteConfig.markdown`，而
+  `mdx-loader` 是拿 `siteConfig.markdown` **引用**的，所以这一步对那些在编译期读
+  `markdown.format` 的东西也是「说到就到」的。这也是为什么「空规则表」要早退：
+  `rules: []` 时连一个字节都不碰 `siteConfig.markdown`。
+- **站点在 `markdown.parseFrontMatter` 里顺手改正文**：本插件保留 `base` 返回的 `content`，
+  一个字都不碰，所以那种改法不会被冲掉 —— 但反过来，想让注入的键「也出现在 yaml 文本里」
+  （markdown 之外的工具也看得见），只能走 `markdown.preprocessor`，那不是插件能封装的。

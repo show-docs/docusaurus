@@ -462,3 +462,49 @@ describe('plugin-frontmatter-injector 插件接线', () => {
     expect(result.content.trim()).toBe('# 标题');
   });
 });
+
+describe('与站点其它 markdown 手段共存（口径见 docs/internals.md）', () => {
+  /** 站点配置里那份 `markdown`：除了解析器，还住着兄弟键 */
+  const createSiteMarkdown = () => ({
+    parseFrontMatter: fakeParse,
+    preprocessor: (params: { fileContent: string }) => params.fileContent,
+    format: 'mdx',
+  });
+
+  it('只给 parseFrontMatter 赋值：兄弟键（preprocessor / format）连引用都不换', () => {
+    const markdown = createSiteMarkdown();
+    const { preprocessor } = markdown;
+    const context = { siteConfig: { markdown } } as unknown as Parameters<
+      typeof frontMatterInjectorPlugin
+    >[0];
+
+    frontMatterInjectorPlugin(context).loadContent?.();
+
+    // preprocessor 被整份换掉/摘掉，就是「中文标题 {#id}」那批页一起白屏的成因
+    expect(markdown.preprocessor).toBe(preprocessor);
+    expect(markdown.format).toBe('mdx');
+  });
+
+  it('注入只改元数据：content 原样交回，yaml 文本里的东西一个字没动', async () => {
+    const { DEFAULT_PARSE_FRONT_MATTER } = await import('@docusaurus/utils');
+    const markdown = {
+      parseFrontMatter: DEFAULT_PARSE_FRONT_MATTER,
+      preprocessor: (params: { fileContent: string }) => params.fileContent,
+    };
+    const context = { siteConfig: { markdown } } as unknown as Parameters<
+      typeof frontMatterInjectorPlugin
+    >[0];
+    frontMatterInjectorPlugin(context).loadContent?.();
+
+    const fileContent = '---\ntesting: false\n---\n\n# 标题 {#custom}\n';
+    const result = await (markdown.parseFrontMatter as ParseFrontMatter)({
+      filePath: DOC,
+      fileContent,
+      defaultParseFrontMatter: DEFAULT_PARSE_FRONT_MATTER,
+    });
+
+    // 页面自己写的 false 赢，且正文（含没转义的 `{#custom}`）原样
+    expect(result.frontMatter.testing).toBe(false);
+    expect(result.content).toContain('{#custom}');
+  });
+});
