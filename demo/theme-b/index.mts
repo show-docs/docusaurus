@@ -18,8 +18,9 @@ export default function themeB(): Plugin {
     getTypeScriptThemePath() {
       return path.resolve(thisDir, './theme');
     },
+    // 本层那道彩色虚线：样式表交给站点的样式表管线，只在主页那张卡片列表外面出现
     getClientModules() {
-      return [];
+      return [path.resolve(thisDir, './styles/demo-b.css')];
     },
   };
 }

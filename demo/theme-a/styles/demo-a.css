@@ -1,0 +1,14 @@
+/* theme-a 那一层的边界：主页卡片列表外面那三道彩色虚线里最靠里的一道。
+   样式表跟着本包走（由入口的 `getClientModules()` 交给站点），因为「哪一层是什么颜色」
+   是本层自己的事，三层各写各的，改颜色不必跨包。 */
+.demo-layer-a {
+  margin: 0.5rem;
+  border: 2px dashed #e5484d;
+  padding: 0.75rem;
+}
+
+/* 角标与本层的边框同色，一眼看得出 `[A]` 圈的是哪一道 */
+.demo-layer-a > .mark {
+  color: #e5484d;
+  font-weight: 700;
+}

@@ -12,7 +12,7 @@ export default function DocCardListB(
   props: Record<string, unknown>,
 ): ReactNode {
   return (
-    <div data-theme-wrapper="theme-b">
+    <div className="demo-layer-b" data-theme-wrapper="theme-b">
       <span className="mark">[B]</span>
       <PrevDocCardList {...props} />
     </div>

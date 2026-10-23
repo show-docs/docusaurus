@@ -1,0 +1,17 @@
+/* 站点自己的样式表：由 `docusaurus.config.mjs` 里 preset-classic 的 `theme.customCss` 点名收进
+   站点的样式表管线（这一版 Docusaurus 没有「见到 `src/css/custom.css` 就自动加载」的约定）。
+   眼下这一格里只有主页那条链最外层的一道边界 —— 里面三层各自带着自己的样式表，
+   见 `demo/README.md`。 */
+
+/* 链的最外层（`src/theme`）：蓝 C、绿 B、红 A 之外的那一道橙色虚线 */
+.demo-layer-site {
+  margin: 0.5rem;
+  border: 2px dashed #e8590c;
+  padding: 0.75rem;
+}
+
+/* 角标与本层的边框同色，一眼看得出 `[SITE]` 圈的是哪一道 */
+.demo-layer-site > .mark {
+  color: #e8590c;
+  font-weight: 700;
+}

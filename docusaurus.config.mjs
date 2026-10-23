@@ -81,6 +81,11 @@ const config = {
           include: ['**/*.{md,mdx,dbml}'],
         },
         blog: false,
+        // 站点自己那份样式表：眼下只有主页那条四层链最外层 `[SITE]` 那道彩色虚线
+        //（`src/css/custom.css` 没有自动生效的约定，必须由这里点名，路径按站点根算）。
+        theme: {
+          customCss: './src/css/custom.css',
+        },
       }),
     ],
   ],
@@ -89,27 +94,10 @@ const config = {
     navbar: { title: 'Theme Override Test', items: [] },
     footer: {
       style: 'dark',
-      // 三条 API 层的示例页 + 那五条非 API 页，各占一列，用来验「整页交给框」时页脚该收掉
-      links: [
-        {
-          title: 'API 渲染器',
-          items: [
-            { label: 'Scalar', to: '/scalar-demo' },
-            { label: 'Redoc', to: '/redoc-demo' },
-            { label: 'Stoplight', to: '/stoplight-demo' },
-          ],
-        },
-        {
-          title: '其他',
-          items: [
-            { label: '思维导图', to: '/markmap-demo' },
-            { label: '数据库关系图', to: '/erd-demo' },
-            { label: '图片查看器', to: '/viewer-demo' },
-            { label: '差异视图', to: '/diff-demo' },
-            { label: '外部页面（iframe）', to: '/iframe-demo' },
-          ],
-        },
-      ],
+      // 页脚不摆链接：示例页的入口只有主页那张卡片列表一处（清单由侧边栏自动给，
+      // 见 docs/intro.md），页脚再抄一份就是第二处要跟着新增页面改的地方。
+      // 这一格留着 `copyright` 两件事才成立：页脚整块还在（`test/e2e` 那两条
+      // 「这一页有/没有站点的页脚」判的是它收没收起），以及页脚复制按钮那层有地方挂。
       copyright:
         'Theme Override Test —— 本页脚由站点 themeConfig.footer 配置。',
     },

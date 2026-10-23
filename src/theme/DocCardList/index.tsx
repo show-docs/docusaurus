@@ -18,7 +18,7 @@ export default function SiteDocCardList(
   props: Record<string, unknown>,
 ): ReactNode {
   return (
-    <div data-site-wrapper="src/theme">
+    <div className="demo-layer-site" data-site-wrapper="src/theme">
       <span className="mark">[SITE]</span>
       <PrevDocCardList {...props} />
     </div>

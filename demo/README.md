@@ -15,8 +15,11 @@
 
 三个主题包各有 `package.json`（见 `pnpm-workspace.yaml`），站点按**包名**加载。
 
-每个主题插件只导出 `getThemePath()` 等标准钩子，Docusaurus 的 babel 直接编译 `.mts` / `.tsx`，
-不需要自己的构建产物。
+每个主题插件只导出 `getThemePath()` 与 `getClientModules()` 这两个标准钩子，Docusaurus 的 babel
+直接编译 `.mts` / `.tsx`，不需要自己的构建产物。`getClientModules()` 交出去的是本包
+`styles/` 里那一道彩色虚线（A 红、B 绿、C 蓝，角标同色）：主页那张卡片列表外面因此套着三道
+看得见的边界，从外到内是 C、B、A。站点层 `src/theme` 是套在这三道外面的第四道（橙色），
+样式在站点的 `src/css/custom.css`，见 [`src/theme/README.md`](../src/theme/README.md)。
 
 ## 验证链
 
