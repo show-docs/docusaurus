@@ -6,7 +6,7 @@ Feature: 主页
   Scenario: 卡片列表通向每个主题的示例页
     Given 我打开主页
     Then 卡片列表被套进四层主题的链里
-    And 链里有八张分别指向 markmap、iframe、stoplight、redoc、scalar、erd、viewer、diff 示例页的卡片
+    And 链里有九张分别指向 markmap、iframe、stoplight、redoc、scalar、erd、viewer、diff、copy-button 示例页的卡片
     And 卡片上那行说明取自示例页 frontmatter 的 description
     When 我点开指向 markmap 示例页的那张卡片
     Then 我落在 markmap 示例页上

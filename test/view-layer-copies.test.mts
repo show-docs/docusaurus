@@ -150,17 +150,18 @@ describe('各包重复的 webpack 与 loader 接线', () => {
     '              use: [utils.getJSLoader({ isServer })],',
   ].join('\n');
 
-  it('五个带源码层的包，补的那条 babel 规则逐字相同', () => {
+  it('六个带源码层的包，补的那条 babel 规则逐字相同', () => {
     for (const pkg of [
       'theme-iframe',
       'theme-markmap',
       'theme-erd',
       'theme-diff',
       'theme-viewer',
+      'theme-copy-button',
     ]) {
       expect(
         read(pkg, 'src/index.mts'),
-        `${pkg} 的 src/index.mts 里那条 babel 规则与另外几个包不一样（改一处要改五处）`,
+        `${pkg} 的 src/index.mts 里那条 babel 规则与另外几个包不一样（改一处要改六处）`,
       ).toContain(babelRule);
     }
   });

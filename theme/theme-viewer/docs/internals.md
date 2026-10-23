@@ -54,4 +54,4 @@
 - `test/e2e/features/viewer.feature`：点开第一张图、工具条那颗「下一张」、Esc 收起、
   换页时上一份查看器随换页销毁。
 - `test/plugin.test.mts` 的分包三件套：层目录、样式表与本包清单。
-- `test/view-layer-copies.test.mts`：五个主题包入口里那条只覆盖本包的 babel 规则形状一致。
+- `test/view-layer-copies.test.mts`：六个主题包入口里那条只覆盖本包的 babel 规则形状一致。

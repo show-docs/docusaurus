@@ -1,0 +1,67 @@
+/* 页脚那一格右侧的复制按钮。图标 `gg-copy` 是一份纯 CSS 画的形状（不请求图标字体，
+   也不带图片）：颜色取 `currentColor`，所以它跟着页脚文字自己深浅。
+   写法是摊平的（`.gg-copy::before` 而不是嵌套），站点的样式表管线不必为它补插件。 */
+
+.gg-copy {
+  display: inline-block;
+  position: relative;
+  transform: scale(var(--ggs, 1));
+  box-sizing: border-box;
+  margin-top: -4px;
+  margin-left: -5px;
+  border: 2px solid;
+  width: 14px;
+  height: 18px;
+}
+
+.gg-copy::after,
+.gg-copy::before {
+  display: block;
+  position: absolute;
+  box-sizing: border-box;
+  content: '';
+}
+
+.gg-copy::before {
+  right: -6px;
+  bottom: -6px;
+  box-shadow: inset -4px -4px 0 -2px;
+  background:
+    linear-gradient(to left, currentColor 5px, transparent 0) no-repeat right
+      top/5px 2px,
+    linear-gradient(to left, currentColor 5px, transparent 0) no-repeat left
+      bottom/ 2px 5px;
+  width: 14px;
+  height: 18px;
+}
+
+.gg-copy::after {
+  top: 2px;
+  left: 2px;
+  box-shadow:
+    0 4px 0,
+    0 8px 0;
+  background: currentColor;
+  width: 6px;
+  height: 2px;
+}
+
+/* 这是页脚文案里的一颗按钮：去掉浏览器给 `<button>` 的那圈默认外观，让它只剩图标本身。 */
+.footer-copy-btn {
+  float: right;
+  cursor: pointer;
+  margin-left: 2em;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.footer-copy-btn:hover {
+  opacity: 0.5;
+}
+
+.footer-copy-btn:active .gg-copy {
+  transform: scale(0.9);
+}

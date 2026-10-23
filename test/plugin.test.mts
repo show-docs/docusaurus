@@ -469,6 +469,7 @@ describe('构建脚本与 CI 护栏', () => {
       'theme/theme-redoc',
       'theme/theme-scalar',
       'theme/theme-viewer',
+      'theme/theme-copy-button',
     ];
     const names: string[] = [];
     for (const dir of subpackages) {

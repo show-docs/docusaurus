@@ -60,6 +60,10 @@ const config = {
     // `DocItem/Content`（其余各层覆盖的是 `DocItem`），放在最里面，`@theme-prev` 那一步
     // 落到官方那份实现，正文一个字都不改。
     '@show-docs/docusaurus-theme-viewer',
+    // 页脚复制按钮：它覆盖的是 `Footer/Copyright`（上面几层覆盖的是 `DocItem` /
+    // `DocItem/Content`），谁都不争同一格，放在层栈最外面。判据不是 frontmatter，
+    // 而是站点有没有写 `themeConfig.footer.copyright`。
+    '@show-docs/docusaurus-theme-copy-button',
   ],
 
   presets: [

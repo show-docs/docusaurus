@@ -63,10 +63,11 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 | `theme/theme-redoc/`                  | 主题包：md 的 frontmatter 写 `redoc: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/redoc-view` 页面，Redoc 在那份文档里渲染 API 文档                    | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-redoc/README.md) · [internals](./theme/theme-redoc/docs/internals.md)                                                                            |
 | `theme/theme-scalar/`                 | 主题包：md 的 frontmatter 写 `scalar: <URL>` 时整页换成一个 iframe（外层那格由 theme-iframe 承接），框里是本包自己那条 `/scalar-view` 页面，Scalar 在那份文档里渲染 API 文档                 | 构建包（同上，`src/` 里只有入口那一份，且是调工厂的一次） | [README](./theme/theme-scalar/README.md) · [internals](./theme/theme-scalar/docs/internals.md)                                                                          |
 | `theme/theme-viewer/`                 | 主题包：文档正文里有图片时，那些图片交给查看器 —— 点开放大、原尺寸、重置、前后切换；没有图片的页面这一层等于透明                                                                             | 构建包（同上，`src/` 里只有入口那一份）                   | [README](./theme/theme-viewer/README.md) · [internals](./theme/theme-viewer/docs/internals.md) · [示例页](./docs/viewer-demo.md)                                        |
+| `theme/theme-copy-button/`            | 主题包：页脚那一格右边加一颗按钮，点一下把当前页地址写进剪贴板；站点没写 `themeConfig.footer.copyright` 时那一格本来就没有，这一层等于不存在                                                 | 构建包（同上，`src/` 里只有入口那一份）                   | [README](./theme/theme-copy-button/README.md) · [示例页](./docs/copy-button-demo.md)                                                                                    |
 | `demo/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                                                                                                                        | 免编译（没有 `src/`：入口与层都是源码，站点直接吃）       | [README](./demo/README.md)                                                                                                                                              |
 
-九个构建包都是 `tsc` 编译包：Node 侧要跑的源码 `.mts` 在包内 `src/`，产物在包内 `dist/`，
-`dist/index.mjs` 就是包出口（`exports`）—— 所以 `pnpm build:core` 是「编译这九个包」，
+十个构建包都是 `tsc` 编译包：Node 侧要跑的源码 `.mts` 在包内 `src/`，产物在包内 `dist/`，
+`dist/index.mjs` 就是包出口（`exports`）—— 所以 `pnpm build:core` 是「编译这十个包」，
 `pnpm start` / `pnpm build` / `pnpm test` 都已经把它内置在前面。
 
 主题包的**主题层与组件不进这份编译**：`theme/*/theme/**` 与 `theme/*/components/**` 是未编译的
