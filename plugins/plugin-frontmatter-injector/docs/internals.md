@@ -5,13 +5,20 @@
 
 ## 组成
 
-| 文件             | 职责                                                                                    |
-| ---------------- | --------------------------------------------------------------------------------------- |
-| `src/index.mts`  | 插件入口：`loadContent` 里包装站点那份 `parseFrontMatter`（`contentLoaded` 兜底、幂等） |
-| `src/rules.mts`  | 自带那份规则表（`defaultRules`），纯数据                                                |
-| `src/inject.mts` | 纯函数：路径匹配 / 补值 / 套在解析结果上                                                |
-| `src/wrap.mts`   | 纯函数：把注入包在某个解析器外面，带幂等记号                                            |
-| `src/types.mts`  | 公共类型                                                                                |
+只有一个文件：`src/index.mts`（约 190 行，含注释）。
+
+| 那一块                            | 职责                                                       |
+| --------------------------------- | ---------------------------------------------------------- |
+| `FrontMatterRule` / `RuleContext` | 规则表的形状（`match` 管哪些文件，`frontMatter` 补哪几格） |
+| `defaultRules`                    | 本仓的缺省规则表，纯数据                                   |
+| `applyRules()`                    | 纯函数：路径匹配 + 只补不覆盖，就地补、返回改了哪几格      |
+| `wrapParseFrontMatter()`          | 纯函数：把注入包在某个解析器外面，带幂等记号               |
+| 默认导出（插件）                  | 接线：`loadContent()` 里包一次，`contentLoaded()` 兜底     |
+
+一次实跑 `/simplify` 的结论是「按职责切文件」在这个尺寸上是纯开销：`inject.mts` 与 `wrap.mts`
+只有一个调用方，`types.mts` 里的类型一份注释都没被引用，而「文件在哪个目录」这条导航成本是
+每个读者都要付的。收成一个文件后，模块边界只剩「导出 / 不导出」这一层，对外只丢
+`defaultRules`、`applyRules`、`wrapParseFrontMatter` 三样（其余是内部实现）。
 
 源码在 `src/`，`dist/` 是编译产物（`rootDir` = `src/`），改完源码要 `pnpm build:core`。
 

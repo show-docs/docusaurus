@@ -29,7 +29,7 @@ export default defineConfig({
       provider: 'istanbul',
       reporter: ['lcov', 'json-summary'],
       reportsDirectory: './coverage',
-      // 红线盖住四处：核心解析器的纯逻辑、frontmatter 注入的规则表与包装层、theme-iframe 那条框的 `lib/`（配置期的注册表 /
+      // 红线盖住四处：核心解析器的纯逻辑、frontmatter 注入那份单文件（规则表 / 包装层 / 接线）、theme-iframe 那条框的 `lib/`（配置期的注册表 /
       // 分发 / 入口工厂，浏览器侧的消息形状与两条同步 hook），与两条**构建期判据**
       //（`theme-diff`：frontmatter 那把键与 git 里那一次改动；`theme-erd`：一份 `.dbml`
       // 落成各格式导出，加上配置期那份 `exports` 清单判据）。

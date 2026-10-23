@@ -55,6 +55,11 @@ export default {
 - **函数不拿原值。** 键不存在才会算，所以函数拿到的是「文件在哪、此刻的 frontmatter 长什么样」，
   返回 `undefined` 表示「这份文件我不表态」，那一格不写、也不计入改动。
 
+## 导出
+
+一个默认导出（插件本身）加三样东西：`defaultRules`、`applyRules`、`wrapParseFrontMatter`
+（后两样是纯函数，规则表与接线各测一次，用例在 `test/frontmatter-injector.test.mts`）。
+
 ## 使用约束
 
 - **只对「元数据」负责。** 正文一个字都不动。要改 yaml 文本本身（让 markdown 之外的工具也看见），
