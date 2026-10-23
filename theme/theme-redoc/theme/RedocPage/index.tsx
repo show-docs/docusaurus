@@ -1,14 +1,15 @@
 import { createApiFrameView } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 
 import { COLOR_MODE_ATTRIBUTE } from '../../components/redoc-color-mode.ts';
-import { RedocUI } from '../../components/redoc-ui.tsx';
 
 /**
 Redoc 这一层的框内页面（这一页整体的形状、以及它为什么不套 `Layout/Provider`，
-都记在 theme-iframe 那份工厂的头上）。这里只交 Redoc 自己的两格差异：
+都记在 theme-iframe 那份工厂的头上）。这里只交 Redoc 自己的三格差异：
 
 - **亮暗落法**：写成这一份文档 `<html>` 上的 `data-redoc-mode` 属性，Redoc 那套暗色表挂在
   这条属性上（`redoc-color-mode.ts`）。
+- **渲染接线按需取**：交给工厂的是 `loadView` 而不是 `RedocUI` 本身，`redoc` 与
+  `styled-components` 因此只在真渲染这一页时才下载。理由与代价见框内工厂那段文件头。
 - **路由**：这一份文档里只有 Redoc 一个消费者，`#` 段归它用（`redoc-ui.tsx` 外面那层
   `HashRouter`）。框里点一条接口走的是 `history.pushState`，它**不触发** `hashchange`，
   所以「报回外层」这一句只能由 `RedocUI` 自己来说 —— 见 `redoc-ui.tsx` 里 `LocationMirror`
@@ -17,7 +18,8 @@ Redoc 这一层的框内页面（这一页整体的形状、以及它为什么�
 const RedocPage = createApiFrameView({
   modeAttribute: COLOR_MODE_ATTRIBUTE,
   namespace: '@show-docs/docusaurus-theme-redoc',
-  view: RedocUI,
+  loadView: () =>
+    import('../../components/redoc-ui.tsx').then(({ RedocUI }) => RedocUI),
 });
 
 export default RedocPage;

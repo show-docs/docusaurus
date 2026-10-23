@@ -11,7 +11,7 @@
 | 文件                              | 编译吗              | 职责                                                                                                                                                                                                                                                                                   |
 | --------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.mts`                   | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/scalar-view` 的注册与 Plugin 形状；本包的 webpack 差异只有一件事——按住 Scalar 那条动态 `import` 的构建告警（`configureWebpack` 里的 `ignoreWarnings`，见「随这一层多出来的构建告警」） |
-| `theme/ScalarPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`ScalarUI`、亮暗的落法（这里交 `onMode`，不是属性名）                                                                                                                                          |
+| `theme/ScalarPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`ScalarUI`（`loadView` 按需取，见「首屏不下载渲染器」）、亮暗的落法（这里交 `onMode`，不是属性名）                                                                                             |
 | —— 外层那一格                     | ——                  | **本包没有外层 CSS**：框定高占满 navbar 以下那一屏、正文容器去掉内边距与最大宽度，四条层共用 theme-iframe 那份 `components/api-frame.css`（站点那侧的版式不动，见「宽度」一节）；`scalar-frame` 只剩类名，用来认「这一格是哪一层赢的」                                                 |
 | `components/scalar-ui.tsx`        | ❌ 站点编译         | 浏览器端 `createApiReference(元素, 配置)` 挂上去，卸载时 `destroy()`；两头的地址各走一条路（框内 → 外层听 `onSidebarClick`，外层 → 框内把 `hashchange` 转成 `popstate`）                                                                                                               |
 | `components/scalar-color-mode.ts` | ❌ 站点编译         | 亮暗落地的两个小函数：挂载那一刻交给 Scalar 的布尔、收到外层送的值就换 `<body>` 上那两个类名                                                                                                                                                                                           |
@@ -204,6 +204,22 @@ Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上�
 高度那一条与三层同形（`height: calc(100vh - var(--ifm-navbar-height))`），滚动条长在框内那份文档
 上，本层不给 Scalar 那一格定高。判据两句：外层「框占满 navbar 以下那一屏」，框内
 「Scalar 左栏贴满那一份文档的一屏」（实测 `<aside>` 的 `top: 0`、`bottom = innerHeight`）。
+
+## 首屏不下载渲染器
+
+`@scalar/api-reference` 那一整套（Vue 运行时、主题、九个语言包）只在框内这一页**起来之后**才下载：
+`theme/ScalarPage/index.tsx` 交给框内工厂的是 `loadView: () => import('../../components/scalar-ui.tsx')`，
+不是 `ScalarUI` 本身。实测（`pnpm build` 之后按 chunk 依赖图算）：
+
+- `/scalar-view` 首屏 **0.39 MB**（主 chunk 一份，与本层无关的那部分）
+- 起来之后按需下载 **3.65 MB**（97 个 chunk）
+
+改之前同一个页面要 **4.02 MB**：整棵依赖图都挂在路由 chunk 的同步分支上，进这一页得先下完。
+`scalar-ui.css` 与厂商那份 `style.css` 也跟着走进按需那一路 —— 前者随 `scalar-ui.tsx`，后者是它的
+静态 import（那一条全站一次的性质不变，见「样式」一节，只是不再压在这一页的首屏上）。
+
+框里那一下会先空着：那条 `import()` 在 effect 里，不是 `React.lazy`，所以没有 `Suspense` 兜底。
+理由与三家的共同口径记在 theme-iframe 的 `docs/iframe-protocol.md`「首屏不下载渲染器」一节。
 
 ## 正文按需挂载
 

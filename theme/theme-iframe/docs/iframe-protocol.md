@@ -34,7 +34,7 @@
 | `lib/api-frame-registry.ts` | ❌ 站点编译 | 注册表：四条形同的条目（命名空间、frontmatter 键、类名、路由名……），纯数据、零 import，配置期与浏览器期引同一份                                                                                                                                                                                                                                               |
 | `lib/api-frame-entries.ts`  | ❌ 站点编译 | 判定清单的分发 `resolveFrameDistribution(plugins, frontMatter, pagePath)`：装了的层参与判定，注册表顺序为默认，插件选项 `themeConfig.apiFrame.order` 可覆盖顺序与子集；落空原因进 `warnings`（页面级那几条带页面地址），同在这份里的 `warnFrameDistribution()` 把它们去重后打到控制台（开发模式由 `DocItem` 调）；两边都不引 React，单测与 `DocItem` 引同一份 |
 | `lib/api-frame-messages.ts` | ❌ 站点编译 | 按命名空间造那三条消息的名字，带缓存（同一命名空间每次拿到同一个对象）                                                                                                                                                                                                                                                                                        |
-| `lib/api-frame-view.tsx`    | ❌ 站点编译 | 框内那份**页面工厂** `createApiFrameView()`：三条 API 层的 `theme/XxxPage` 各调它一次，交「包名 + 渲染接线那个组件 + 亮暗的落法（`modeAttribute` 或 `onMode`）」。注册表守卫、从地址取 spec、`useInnerFrameSync`、`ready` 那一句、报回外层全在这一份里；单测 `test/api-frame-view.test.mts`                                                                   |
+| `lib/api-frame-view.tsx`    | ❌ 站点编译 | 框内那份**页面工厂** `createApiFrameView()`：三条 API 层的 `theme/XxxPage` 各调它一次，交「包名 + 渲染接线（静态 `view`，或按需取的 `loadView`）+ 亮暗的落法（`modeAttribute` 或 `onMode`）」。注册表守卫、从地址取 spec、`useInnerFrameSync`、`ready` 那一句、报回外层全在这一份里；单测 `test/api-frame-view.test.mts`                                      |
 | `lib/api-frame-theme.mts`   | ❌ 配置期   | 入口工厂：三条 API 层的 `src/index.mts` 调它拿 Plugin 形状（挂层目录、注册框内路由、接各自的 webpack 差异）；`.mts` 按上游 lint preset 标 Node 环境                                                                                                                                                                                                           |
 | `lib/frame-messages.ts`     | ❌ 站点编译 | 约定与形状：iframe 地址怎么拼（框内那条 `frameViewSrc` / `specUrlFromSearch`、`iframe:` 那条 `externalFrameURL`）、三条消息怎么造怎么认（**纯函数，不引 React、不引 DOM**）                                                                                                                                                                                   |
 | `lib/frame-sync.ts`         | ❌ 站点编译 | 两侧的消息循环：`useOuterFrameSync`（外层那份文档里）、`useInnerFrameSync` 与 `createRouteReporter`（框内那份文档里），加两边都过的来源校验 `isTrustedMessage`（引 DOM 类型的只有这一份，注册表那条配置期链路碰不到 `Window`）                                                                                                                                |
@@ -186,6 +186,34 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
 代价要记一句：直接打开 `/redoc-view?src=…`、`/stoplight-view?src=…` 或 `/scalar-view?src=…`
 时没有外层送值，那一份文档的模式格是空的（Scalar 那一层落到挂载那一刻读到的那份内联属性上），
 也就是亮色。那三条地址本来也不该发给别人。
+
+## 首屏不下载渲染器
+
+三条 API 层的渲染器（Scalar 那一整套 Vue、Redoc + styled-components、Elements + 它的 polyfill）
+各带几 MB 依赖。它们**只在框内那一页看起来之前**下载：`theme/XxxPage/index.tsx` 交给工厂的是
+`loadView: () => import('../../components/xxx-ui.tsx')` 而不是组件本身，静态 import 一条都留在
+本包 `components/` 里。
+
+产物的形状（`pnpm build` 之后按 chunk 依赖图量的；「首屏」= 入口 chunk 的同步依赖闭包 + 主 chunk）：
+
+| 框内页面          | 首屏    | 起来之后按需下载              |
+| ----------------- | ------- | ----------------------------- |
+| `/scalar-view`    | 0.39 MB | 3.65 MB                       |
+| `/redoc-view`     | 0.39 MB | 2.02 MB                       |
+| `/stoplight-view` | 0.39 MB | 合在入口 chunk 里（见下一段） |
+
+改之前 `/scalar-demo` 那一页首屏是 **4.02 MB**：Scalar 整棵依赖图（97 个 chunk）都挂在路由
+chunk 的同步分支上，进这一页就要先下完它们。现在它们跟着 `loadView` 那条 `import()` 走。
+
+Elements 那一份是 webpack 自己合进来的：它的模块被静态 require 住了（`n(60186)` 那种），
+于是 SplitChunks 把 Elements 主体（1.82 MB）与这份入口并进同一个 chunk，`import()` 拿到的只是
+同一个 chunk 里的另一个模块 —— 所以在产物里它是「首屏」而不是「按需」。要真拆开得让
+`stoplight-ui.tsx` 的依赖边界更彻底（它现在把 `API` 与 `COLOR_MODE_ATTRIBUTE` 放在同一份文件里），
+那是下一步的事；这条入口本身没变重（7.5 KB）。
+
+代价是一条：框里那一下先空着。走的是 effect 里那条 `import()` 而不是 `React.lazy`，所以没有
+`Suspense` 兜底可言（`DocItem` 那几层用 `lazy` 是因为它们挂在服务端也要渲染的文档树上；框内这一页
+本来就不在服务端渲染）。取不到时只往控制台留一句，这一页的正文留空，不往外抛。
 
 ## 尺寸与样式表
 

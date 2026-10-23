@@ -49,6 +49,13 @@ function fakeView(): {
   return { seen, View };
 }
 
+/** 放干当前这一轮微任务与宏任务队列：effect 里那条 `Promise` 的 `then` 排在它们后面。 */
+function flush(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 const mounted: Array<() => void> = [];
 
 function renderPage(page: ComponentType): HTMLElement {
@@ -229,6 +236,101 @@ describe('工厂产出的那一页：渲染到哪一格为止', () => {
     expect(posted.map((entry) => entry.data)).toEqual([
       apiFrameMessages(REDOC).ready(),
     ]);
+  });
+});
+
+describe('渲染接线可以到时再取（`loadView`）', () => {
+  it('还没取到之前什么都不渲染', () => {
+    const { seen, View } = fakeView();
+    setSearch('?src=%2Fopenapi.yaml');
+
+    const container = renderPage(
+      createApiFrameView({
+        loadView: () => Promise.resolve(View),
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+
+    expect(container.textContent).toBe('');
+    expect(seen).toHaveLength(0);
+  });
+
+  it('取到之后把地址与「报回外层」交给它', async () => {
+    const { seen, View } = fakeView();
+    setSearch('?src=%2Fopenapi.yaml');
+    const loadView = vi.fn(() => Promise.resolve(View));
+
+    const container = renderPage(
+      createApiFrameView({
+        loadView,
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+
+    // 那条 effect 里的 `then` 要等微任务队列才轮到；`act` 把这一轮和随之而来的重渲染一起收掉。
+    // （`import()` 那种真动态取法在 jsdom 里落不到那一轮，所以这里量的是 `loadView` 这一格本身。）
+    await act(async () => {
+      await flush();
+    });
+
+    expect(loadView).toHaveBeenCalledTimes(1);
+    expect(seen[0]?.url).toBe('http://localhost:3000/openapi.yaml');
+    expect(container.textContent).toBe(
+      'spec:http://localhost:3000/openapi.yaml',
+    );
+  });
+
+  it('还没取到就被卸载时，那一份回来也不再setState（换页期间不往旧树上写）', async () => {
+    const { seen, View } = fakeView();
+    setSearch('?src=%2Fopenapi.yaml');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const container = renderPage(
+      createApiFrameView({
+        loadView: () => Promise.resolve(View),
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+    // 卸载发生在 effect 之后、那条 promise 的 `then` 之前：`stopped` 那一格就是为这一段设的。
+    // 要把容器交回 `renderPage` 记下的那份卸载函数（它手里才有那棵树的 root）。
+    for (const unmount of mounted.splice(0)) {
+      unmount();
+    }
+    await act(async () => {
+      await flush();
+    });
+
+    expect(container.isConnected).toBe(false);
+    expect(seen).toHaveLength(0);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('取不到就把原因交给控制台，这一页的正文留空、不往外抛', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    setSearch('?src=%2Fopenapi.yaml');
+
+    const container = renderPage(
+      createApiFrameView({
+        loadView: () => Promise.reject(new Error('chunk 没了')),
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+
+    await act(async () => {
+      await flush();
+    });
+
+    expect(container.textContent).toBe('');
+    expect(warn).toHaveBeenCalledWith(
+      '[theme-iframe] 框内渲染器加载失败：',
+      expect.any(Error),
+    );
+    warn.mockRestore();
   });
 });
 

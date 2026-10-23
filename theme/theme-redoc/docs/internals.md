@@ -11,7 +11,7 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 | 文件                             | 编译吗              | 职责                                                                                                                                                                                                                  |
 | -------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/redoc-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它（补 `worker_threads` 空模块，见下） |
-| `theme/RedocPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`RedocUI`、亮暗的属性名                                                                                                       |
+| `theme/RedocPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`RedocUI`（`loadView` 按需取，见「首屏不下载渲染器」）、亮暗的属性名                                                          |
 | —— 外层那一格                    | ——                  | **本包没有外层 CSS**：框的尺寸与正文容器让位由 theme-iframe 那份共用的 `components/api-frame.css` 管（见「高度」一节）；`redoc-frame` 只剩类名，用来认「这一格是哪一层赢的」                                          |
 | `components/redoc-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `RedocStandalone`（只收地址那一种入参），外面套 `HashRouter` 与 `StyleSheetManager`；`LocationMirror` 把路由变化报给外层                                                                                 |
 | `components/redoc-color-mode.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的编译中间件：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到 `<html data-redoc-mode="dark">` 上（见「亮暗模式」一节）                                                                       |
@@ -37,6 +37,22 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 | 样式表         | 站点的产物 CSS                                                                              | 站点的产物 CSS + Redoc 运行期那张表                |
 | 亮暗模式       | 站点的 `<html data-theme>`，开关在这                                                        | 自己 `<html>` 上的 `data-redoc-mode`，值由外层送来 |
 | 能分享的地址   | 有，`#` 那一段代表当前那条接口                                                              | 有，但那是「直接打开框里那一页」，见下面「深链」   |
+
+## 首屏不下载渲染器
+
+`redoc` 与 `styled-components` 只在框内这一页**起来之后**才下载：`theme/RedocPage/index.tsx` 交给
+框内工厂的是 `loadView: () => import('../../components/redoc-ui.tsx')`。实测（`pnpm build` 之后按
+chunk 依赖图算）：
+
+- `/redoc-view` 首屏 **0.39 MB**
+- 起来之后按需下载 **2.02 MB**（`redoc` 那一份）
+
+`redoc-ui.css` 随 `redoc-ui.tsx` 一起进按需那一路。本层此前就不在首屏上带 Redoc（`redoc` 的入口在
+Docusaurus 那条路由里本来就是异步的），这一改动的是**什么时候开始下**：从「路由一进就下」变成
+「框内那页起来、真渲染时再下」。
+
+框里那一下会先空着：那条 `import()` 在 effect 里，不是 `React.lazy`，所以没有 `Suspense` 兜底。
+共同口径记在 theme-iframe 的 `docs/iframe-protocol.md`「首屏不下载渲染器」一节。
 
 ## 为什么要换一份文档
 

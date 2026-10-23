@@ -11,7 +11,7 @@
 | 文件                            | 编译吗              | 职责                                                                                                                                                                                                                                                                    |
 | ------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/stoplight-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它，干两件事（把 Elements 那份 css 拆成独立产物 + 补浏览器 bundle 缺的 Node 侧依赖） |
-| `theme/StoplightPage/index.tsx` | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`StoplightUI`、亮暗的属性名；本包的 CSS 由 `stoplight-ui.tsx` 那一句 import 带进 bundle                                                                                         |
+| `theme/StoplightPage/index.tsx` | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`StoplightUI`（`loadView` 按需取，见「首屏不下载渲染器」）、亮暗的属性名；本包的 CSS 跟着 `stoplight-ui.tsx` 走（产物上仍与入口同一个 chunk，见「首屏不下载渲染器」）           |
 | `components/stoplight-ui.tsx`   | ❌ 站点编译         | 浏览器端渲染 `API`（只收地址那一种入参），外面套 `HashRouter`；`LocationMirror` 把路由变化报给外层；那条 `<link>` 挂 Elements 的样式表                                                                                                                                  |
 | `components/stoplight-ui.css`   | ❌ 站点编译         | 生效在框内那一页：给 `.stoplight-root` 定高、把站点主题加在 Elements 子树上的几处默认样式还原、收掉署名与那颗发送按钮、滚动条配色沿用站点                                                                                                                               |
 | `tsconfig.build.json`           | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                  |
@@ -115,6 +115,20 @@ pnpm 把它装在 `.pnpm/@stoplight+elements@…\/node_modules/` 下面也一样
 
 `styles.min.css` 里没有 `url()`、没有 `@import`、没有 data URI（实测各 0 处），所以不经 css-loader
 也不丢东西 —— 这是这一格能这么拆的前提，Elements 升版若引入 `url()`，得改回 css-loader 那一路。
+
+## 首屏不下载渲染器
+
+`theme/StoplightPage/index.tsx` 交给框内工厂的也是 `loadView: () => import('../../components/stoplight-ui.tsx')`，
+本包的 CSS（含那条被 `asset/resource` 单独发出去的 Elements 样式表）因此不再是入口的静态依赖。
+
+**但产物里 Elements 那一份没被拆出来**，实测记在这儿：`stoplight-ui.tsx` 里 `API` 与
+`COLOR_MODE_ATTRIBUTE` 在同一份文件上，`StoplightPage` 需要后者，于是 webpack 把这一份模块连同它的
+静态 `require` 一起并进了入口 chunk（1.82 MB 的 Elements 主体落在同一个 chunk 里，`import()` 拿到的
+只是同一个 chunk 里的另一个模块）。入口本身只有 7.5 KB，`satisfies` 那一侧的接法是对的 ——
+要真把这 1.82 MB 挪出首屏，得把那个常量摘到一份不引 Elements 的浅文件里，那是下一步的事。
+
+框里那一下会先空着：那条 `import()` 在 effect 里，不是 `React.lazy`，所以没有 `Suspense` 兜底。
+共同口径记在 theme-iframe 的 `docs/iframe-protocol.md`「首屏不下载渲染器」一节。
 
 ## 浏览器 bundle 要补的那几格 Node 侧依赖
 
