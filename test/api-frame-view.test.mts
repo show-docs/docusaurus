@@ -39,21 +39,29 @@ type Posted = Array<{ data: unknown; target: string }>;
 /**
 假到刚好够工厂用：它只把 `url` 与 `onRouteChange` 这两格交给渲染接线，别的都不读。
 
-`loadView` 那一格是工厂要的形状（函数交回 `{ default }`），`lazy` 因此能拿到它；`load` 的
-调用次数就是「渲染器被真的求值了几次」—— 服务端那一遍与地址缺参 / 坏参那几格都该是 0。
+`loadView` 那一格是工厂要的形状（交回组件本身，工厂自己决定什么时候取）；`load` 的调用次数
+就是「渲染器被真的问了几次」—— 服务端那一遍与地址缺参 / 坏参那几格都该是 0。
 */
 function fakeView(): {
   load: ReturnType<typeof vi.fn>;
+  loadView: () => Promise<ComponentType<ApiFrameViewProps>>;
   seen: ApiFrameViewProps[];
-  loadView: () => Promise<{ default: ComponentType<ApiFrameViewProps> }>;
+  View: ComponentType<ApiFrameViewProps>;
 } {
   const seen: ApiFrameViewProps[] = [];
   function View({ onRouteChange, url }: ApiFrameViewProps): ReactNode {
     seen.push({ onRouteChange, url });
     return createElement('div', {}, `spec:${url}`);
   }
-  const load = vi.fn(() => Promise.resolve({ default: View }));
-  return { load, loadView: load, seen };
+  const load = vi.fn(() => Promise.resolve(View));
+  return { load, loadView: load, seen, View };
+}
+
+/** 放干当前这一轮微任务与宏任务队列：effect 里那条 `Promise` 的 `then` 排在它们后面。 */
+function flush(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
 }
 
 const mounted: Array<() => void> = [];
@@ -197,47 +205,15 @@ describe('工厂产出的那一页：渲染到哪一格为止', () => {
       }),
     );
 
-    // 渲染器那一半走 `lazy()`，先等它那条 promise 落定（下面那条用例单独量这一步）。
+    // 渲染接线在 effect 之后才取到（`loadView` 那一路），要等这一轮的微任务。
     await act(async () => {
-      await Promise.resolve();
+      await flush();
     });
 
     expect(seen[0]?.url).toBe('http://localhost:3000/openapi.yaml');
     expect(container.textContent).toBe(
       'spec:http://localhost:3000/openapi.yaml',
     );
-  });
-
-  /**
-  渲染器那一半是按需交出来的（`loadView` 交回一份动态 import）：工厂必须让 `React.lazy()`
-  去求值它，而不是自己先求值一次 —— 那一步就是「这份接线在不在静态图里」的分界。
-  */
-  it('渲染接线由 `lazy()` 求值：接上之前一个字都不画，接上之后照常渲染', async () => {
-    const { load, loadView, seen } = fakeView();
-    setSearch('?src=%2Fopenapi.yaml');
-
-    const container = renderPage(
-      createApiFrameView({
-        modeAttribute: 'data-redoc-mode',
-        namespace: REDOC,
-        loadView,
-      }),
-    );
-
-    // 第一次渲染时那份接线还没回来（`Suspense` 的 `fallback` 是 `null`）。
-    expect(load).toHaveBeenCalledTimes(1);
-    expect(container.textContent).toBe('');
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(container.textContent).toBe(
-      'spec:http://localhost:3000/openapi.yaml',
-    );
-    expect(seen).toHaveLength(1);
-    // 只问一次：`lazy` 记的是同一条 promise，重渲染不会把渲染器重新拉一遍。
-    expect(load).toHaveBeenCalledTimes(1);
   });
 
   it('报回外层用的是本层命名空间那条 route 消息', async () => {
@@ -253,7 +229,7 @@ describe('工厂产出的那一页：渲染到哪一格为止', () => {
       }),
     );
     await act(async () => {
-      await Promise.resolve();
+      await flush();
     });
     posted.length = 0;
     seen[0]?.onRouteChange('#/orders/createorder');
@@ -278,6 +254,78 @@ describe('工厂产出的那一页：渲染到哪一格为止', () => {
     expect(posted.map((entry) => entry.data)).toEqual([
       apiFrameMessages(REDOC).ready(),
     ]);
+  });
+});
+
+describe('渲染接线还没轮到取的那几格', () => {
+  /**
+  这一层收的是取法（`loadView`），不是组件：取不取、什么时候取，由工厂决定。下面几格钉住
+  「不该取的时候一次都没问」—— 那正是渲染器不进首屏全部证据。
+  */
+  it('服务端那一遍、地址缺参、地址坏参时，一次都没去取', async () => {
+    stubIsBrowser.value = false;
+    const server = fakeView();
+    setSearch('?src=%2Fopenapi.yaml');
+    renderPage(
+      createApiFrameView({
+        loadView: server.loadView,
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+
+    stubIsBrowser.value = true;
+    const missing = fakeView();
+    setSearch('');
+    renderPage(
+      createApiFrameView({
+        loadView: missing.loadView,
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+
+    const bad = fakeView();
+    setSearch('?src=javascript%3Aalert(1)');
+    renderPage(
+      createApiFrameView({
+        loadView: bad.loadView,
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+
+    await act(async () => {
+      await flush();
+    });
+
+    expect(server.load).not.toHaveBeenCalled();
+    expect(missing.load).not.toHaveBeenCalled();
+    expect(bad.load).not.toHaveBeenCalled();
+  });
+
+  it('取法只问一次：重渲染不会把同一份渲染器再拉一遍', async () => {
+    const { load, loadView, seen } = fakeView();
+    setSearch('?src=%2Fopenapi.yaml');
+
+    const page = createApiFrameView({
+      loadView,
+      modeAttribute: 'data-redoc-mode',
+      namespace: REDOC,
+    });
+    renderPage(page);
+
+    await act(async () => {
+      await flush();
+    });
+    // 换一次亮暗，让这一页重渲染一遍。
+    dispatchMessage(apiFrameMessages(REDOC).mode('dark'));
+    await act(async () => {
+      await flush();
+    });
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(seen[0]?.url).toBe('http://localhost:3000/openapi.yaml');
   });
 });
 
