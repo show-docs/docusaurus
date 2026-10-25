@@ -58,6 +58,54 @@
 也不由本包编译，而是 jiti（Docusaurus 的配置加载器）在配置期直接吃这份源码。口径的产地在仓库根
 README 的「构建包的编译口径」。
 
+## 视图层为什么不用注册表
+
+这一族也有过一次「要不要收进一张表」的提案（把「命中后渲染什么」从各层的 `lazy()` 换成 `lib/`
+里一份 `view-registry.ts`）。结论是不做，理由留在下面 —— 免得下次又有人重新推一遍。
+
+`lib/` 里两张表长得像、命不一样，别顺手把它们合成一族：
+
+- `lib/api-frame-registry.ts` 是**真的注册表**：几条 API 层同形（一条 = 命名空间 + 一把
+  frontmatter 键 + 一条框内路由），站点还真的会挑 —— `themeConfig.apiFrame.order` 能换判定顺序
+  与子集（见 [`iframe-protocol.md`](./iframe-protocol.md) 的「注册表与分发」）。
+- 三条视图层（`theme-markmap` / `theme-erd` / `theme-diff`）**没有**这张表，也**不要**加。每层
+  只有自己那一份 `theme/DocItem/index.tsx`：一句 `lazy(() => import('…/components/x.tsx'))`、
+  一把 `data` 键、两句文案；壳与接线全在 `lib/view-layer-shell.tsx` 那一份里。这些键名、组件名
+  与说法都不需要被谁枚举出来。
+
+不做的理由，按「换表能拿到什么」逐条算：
+
+- **体积**：五层 `DocItem` 壳加上各自的 `lazy` / `Suspense` 全摘出去，上限也只占 `main.js` 的
+  2%~5%，还要多付请求。这档的价值本来就不在数字。
+- **「改一处要看三处」**：壳收进 `lib/` 之后这条已经不成问题 —— 三层只剩「交哪把键、交哪个
+  组件、交哪段说法」，换成表不过是「一个 import 换成表里一行」，重复没减少、只是搬了家；
+  护栏也没少：`test/view-layer-copies.test.mts` 钉的正是「结构逐行相同、只许差在允许的那几格」。
+- **清单可读**：表能让人打开一个文件看到「这个站点装了哪几层视图」，但站点 `plugins` 里本来
+  就写着三条包名 —— 多出来的那一份不是新信息，是第二份要跟着改的清单。
+- **前置需求**：「按站点开关某一层视图」目前不存在。等真有人要这个再谈升级 —— 那才是选编译期
+  表的理由。
+
+代价那头反而是真的：表里每格 `load` 得指向别的包里的组件文件。写相对路径（从 `lib/` 往上三级
+到 `theme-markmap`）在工作区里能跑，装成 npm 包之后 `@show-docs/docusaurus-theme-iframe` 目录里
+没有 `../theme-markmap/`，`import()` 在**运行期**抛 `Module not found`。写成包 specifier
+`import('…/docusaurus-theme-markmap/components/markmap.tsx')` 则要三个视图包各自把
+`components/*` 加进 `exports`，再反过来让 `theme-iframe` 依赖它们 —— 而它们本来就依赖
+`theme-iframe`（babel 认领判据与 iframe 那层），**这会成环**。绕开环依赖只剩两条：视图文件搬进
+本包（三个包变空壳，`README` / `docs/` / `sidebars.mts` 里的路径全要改），或者表改成 build 期
+生成器（新造一处漂移源，还要再写用例钉「生成物与源码一致」）。为一个演示站，这笔账算不过来。
+
+还有一条得说清：**表跟层栈推导没有关系**。`plugin-prev-layer-resolver` 的
+`findIssuerLayerIndex` 认的是「发 `@theme-prev/*` 请求的文件的真实路径」，而那些请求永远来自
+`theme/<包>/theme/DocItem/index.tsx` —— 表里既没有 `@theme-prev` 字样、`load` 又只指向组件文件，
+判层那一格一点不变，五层 `DocItem` 壳照旧在 `main.js` 里、照旧是同步组件。反过来也成立：
+**视图层是「摆在正文上方的一格」，不是「一层一层地包」**，包不包得住下一层仍然只由各层文件的
+位置决定 —— 这份决定本来就不适合外包给一张数据表。
+
+这一族的形状因此只落在两格里：说法的形状在 `lib/view-layer-labels.ts`，壳与接线在
+`lib/view-layer-shell.tsx`；各层那份 `DocItem` 按 `test/view-layer-copies.test.mts` 的允许清单
+只许差在键名、组件名与本层说法上。**新增一条视图层 = 一个包 + 一份照抄形状的 `DocItem`**，
+不必先来这里登记 —— 没有登记表可写，这就是这一档的选择。
+
 ## 落点为什么是 `DocItem`
 
 命中时**不包**下层 `DocItem`，与 `theme-markmap` 同键不同做法（markmap 包着下层，本层替换）。
