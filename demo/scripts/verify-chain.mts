@@ -196,4 +196,52 @@ if (fs.existsSync(browserConfigFile)) {
   isOk = false;
 }
 
+// ---- 4. CSS 产物没被压缩器吃掉规则 ----
+// `future.faster.lightningCssMinimizer` 之前，CSS 走的是 cssnano 预设 + clean-css（底下都是
+// csso 5.0.5），而 csso 不认识 CSS Nesting：`@scalar/api-reference` 那份样式表里
+// `@container client-libraries-list` 下的 `.client-libraries__select{&[data-v-…]{…}}` 被整块吞掉，
+// 边界上还多出一个 `}`（括号总账 -1）。症状只在 `/scalar-view` 与 scalar-demo 上可见，
+// 构建全程零告警 —— 只有对着产物数括号才看得见，所以这条护栏钉的就是产物本身。
+//
+// 判据是「规则还在 + 括号配平」，**不钉文件大小**：换压缩器、加依赖、多一条样式都会让尺寸变。
+const CSS_DIR = path.join(root, 'build/assets/css');
+console.log('\nCSS 产物（压缩器没吃掉嵌套规则）：');
+// 名字带哈希，按前缀找：`style.<hash>.css`（含 scalar 那份、由 `isolate-renderer-css` 单独产出）
+const cssFiles = fs.existsSync(CSS_DIR)
+  ? fs.readdirSync(CSS_DIR).filter((file) => file.endsWith('.css'))
+  : [];
+if (cssFiles.length === 0) {
+  console.log('   ❌ 没有 build/assets/css/*.css（pnpm build 应当产出）');
+  isOk = false;
+}
+for (const file of cssFiles) {
+  const css = fs.readFileSync(path.join(CSS_DIR, file), 'utf8');
+  // 花括号总账：坏点时是 -1，之后所有规则跟着少一层嵌套
+  let depth = 0;
+  for (const char of css) {
+    depth += char === '{' ? 1 : char === '}' ? -1 : 0;
+  }
+  // 只有 style.<hash>.css 里那份含嵌套（`@scalar/api-reference` 的 style.css）；
+  // lightningcss 按 production browserslist 判定浏览器认嵌套，于是把 `&` **原样留着**，
+  // 所以这里按 `&` 找，不按摊平后的选择器找。
+  const needsNestingRule = file.startsWith('style.');
+  const hasSelect = css.includes('client-libraries__select');
+  const ok = depth === 0 && (!needsNestingRule || hasSelect);
+  console.log(
+    `   ${ok ? '✅' : '❌'} ${file}  ${css.length} B，括号总账 ${depth}${ 
+      needsNestingRule
+        ? `，client-libraries__select ${hasSelect ? '在' : '丢了'}`
+        : ''}`,
+  );
+  if (!ok) {
+    console.log(
+      '   → 嵌套规则被压缩器吃了：CS.minimizer 换回 csso 系（cssnano / clean-css）就会这样，',
+    );
+    console.log(
+      '      去看 docusaurus.config.mjs 的 `future.faster.lightningCssMinimizer`。',
+    );
+  }
+  isOk &&= ok;
+}
+
 process.exit(isOk ? 0 : 1);
