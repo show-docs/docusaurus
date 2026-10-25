@@ -10,15 +10,18 @@ const read = (...segments: string[]): string =>
   fs.readFileSync(path.join(siteDir, 'theme', ...segments), 'utf8');
 
 /**
-## 三条视图层里那三处「有意抄一遍」的副本
+## 三条视图层共用的那一份外壳
 
 `theme-markmap`、`theme-erd`、`theme-diff` 各把一块视图挂在正文上方，靠的是同一套外壳：
-一层 `DocItem`（命中才在正文前面插一块视图，不命中原样交给下层）、一个 `ErrorBoundary`
-（渲染失败退回可见提示）、一份 `HackStyle`（这块视图自己的样式常量）。
+一层 `DocItem`（命中才在正文前面插一块视图，不命中原样交给下层）、一个兜底
+（渲染失败退回可见提示）、一句宽度补丁（正文容器的 `max-width`）、一层那一格
+（视图 + 分隔线 + 装正文的 `.container`）。
 
-这三份**每个包各自带一份**是刻意的：包要能单独装、单独用，副本之间不该有跨包的 import 或
-新的发布单元。代价是同一份代码存在三处，改一处忘了另两处就是漂移。这里钉的就是这个代价：
-**只允许在「本层自己的名字与说法」上不同，其余逐字相同。**
+这套外壳以前是**每个包各抄一遍**：同一份代码三处，改一处忘另两处就是漂移；合成一份之后
+各包还各留着两个只管转出的文件（`components/error-boundary.tsx`、`components/hack-style.tsx`），
+仍然要三处一起改。现在整族只剩一份实现（`theme-iframe/lib/view-layer-shell.tsx` 与
+`view-layer.ts`，随包发出去），各包只留「交哪把键、交哪个组件、交哪段说法」。
+所以这里钉的从「三份逐字相同」换成了「三处引的是同一份、只差本层自己的名字与说法」。
 */
 const viewPackages = ['theme-markmap', 'theme-erd', 'theme-diff'] as const;
 
@@ -81,54 +84,89 @@ function expectSameSkeleton(
   ).toEqual([]);
 }
 
-describe('视图层三份副本的同步护栏', () => {
-  it('components/hack-style.tsx：三份逐字相同', () => {
-    const contents = viewPackages.map((pkg) =>
-      read(pkg, 'components/hack-style.tsx'),
-    );
-    contents.forEach((content, index) => {
+describe('三条视图层共用的那一份外壳', () => {
+  /** 共享实现的落点：随 `theme-iframe` 的 `lib/` 发出去（见其 `package.json` 的 `files` / exports）。 */
+  const shared = path.join('theme-iframe', 'lib');
+
+  it('共享实现那三份真的在（在 `theme-iframe/lib/` 里）', () => {
+    for (const file of [
+      'view-layer-shell.tsx',
+      'view-layer-labels.ts',
+      'view-layer.ts',
+    ]) {
       expect(
-        content,
-        `${viewPackages[index]} 的 hack-style.tsx 与 ${reference} 那份不同`,
-      ).toBe(contents[0]);
-    });
-  });
-
-  const errorBoundaryVariation = [
-    // 控制台那一行的方括号前缀用的是本包名
-    /^ {4}console\.error\('\[theme-[a-z-]+\] .*渲染失败：', error\);$/,
-    // 失败提示的标题与本层的触发键、视图名字
-    /^ {8}<Admonition title="[^"]*渲染失败" type="danger">$/,
-    /^ {10}本文[^<]*请查看浏览器控制台。$/,
-  ];
-
-  it('components/error-boundary.tsx：只有包名与本层说法可以不同', () => {
-    for (const pkg of viewPackages) {
-      expectSameSkeleton(
-        pkg,
-        path.join('components', 'error-boundary.tsx'),
-        errorBoundaryVariation,
-      );
+        fs.existsSync(path.join(siteDir, 'theme', shared, file)),
+        `theme/${path.join(shared, file)} 不在了：三条视图层引的都是这一份`,
+      ).toBe(true);
     }
   });
 
-  const docItemVariation = [
-    // 本层那份数据类型（`src/types.mts` 里各包自己的那个）
-    /^import type \{ \w+ \} from '\.\.\/\.\.\/src\/types\.mts';$/,
-    // 本层那份数据类型的本地声明（各包 `src/types.mts` 是产地，这里只留名字）
+  /**
+  每包只剩两样自己的东西：一个懒加载的 `lazy(() => import('../../components/x.tsx'))` 与一段
+  本层说法。曾经每包还各带 `components/error-boundary.tsx`、`components/hack-style.tsx`
+  两个转出文件（合一份之后连那两行都不用各写一遍），这条路堵上：文件在，就说明桥又长回来了。
+  */
+  it('各包不再留 error-boundary / hack-style 两份转出文件', () => {
+    for (const pkg of viewPackages) {
+      for (const name of ['error-boundary.tsx', 'hack-style.tsx']) {
+        const file = path.join('theme', pkg, 'components', name);
+        expect(
+          fs.existsSync(path.join(siteDir, file)),
+          `${file} 又出现了：本层的说法应当就地写在 theme/DocItem/index.tsx 里，` +
+            '兜底与那句补丁都在 lib/view-layer-shell.tsx',
+        ).toBe(false);
+      }
+    }
+  });
+
+  const shellImport =
+    "import { ViewLayerDocItem } from '@show-docs/docusaurus-theme-iframe/lib/view-layer-shell.tsx';";
+
+  const docItemVariation: RegExp[] = [
+    // 本地那份数据类型的声明（各包 `src/types.mts` 是产地，这里只留名字）
     /^type \w+ = never;$/,
     // 懒加载的那块视图：组件名与组件文件名
     /^const \w+ = lazy\(\(\) =>$/,
     /^ {2}import\('\.\.\/\.\.\/components\/[\w-]+\.tsx'\)\.then\(\(\{ \w+: View \}\) => \(\{$/,
     // frontmatter 那把键挂在 MDX 组件上的属性
     /^ {2}\w+\?: \w+;$/,
+    // 本层那个导出名
     /^export default function DocItem\w+\(props: Props\): ReactNode \{$/,
-    /^ {2}if \(!content\?\.\w+\) \{$/,
-    /^ {10}<\w+ data=\{content\.\w+\} \/>$/,
+    // 交给外壳的那把键
+    /^ {6}data=\{content\?\.\w+\}$/,
+    // 控制台前缀 = 包名
+    /^ {8}name: 'theme-[a-z-]+',$/,
+    // 失败提示的标题与正文（各层自己的说法；prettier 按行长决定正文是否折行，两种形状都认）
+    /^ {8}title: '[^']*渲染失败',$/,
+    /^ {8}description: '本文[^']*控制台。',$/,
+    /^ {10}'本文[^']*控制台。',$/,
+    // 交给外壳的那块视图：组件名
+    /^ {6}view=\{\w+\}$/,
   ];
 
-  it('theme/DocItem/index.tsx：只有键名与本层视图组件可以不同', () => {
+  it('theme/DocItem/index.tsx：三份都交给共享实现，只差键名与本层说法', () => {
     for (const pkg of viewPackages) {
+      const source = read(pkg, 'theme', 'DocItem', 'index.tsx');
+      expect(
+        source,
+        `${pkg} 的 DocItem 没引共享实现（应当是 ${shellImport}）`,
+      ).toContain(shellImport);
+
+      // 外壳那几层结构现在只该来自 lib/：本层再拼一遍就是第二份实现
+      for (const echo of [
+        '<hr />',
+        'padding-top--md',
+        'Admonition',
+        'Suspense',
+        'ErrorBoundary',
+        'hackStyle',
+      ]) {
+        expect(
+          source,
+          `${pkg} 的 DocItem 自己又写了一遍外壳里的 ${echo}`,
+        ).not.toContain(echo);
+      }
+
       expectSameSkeleton(
         pkg,
         path.join('theme', 'DocItem', 'index.tsx'),

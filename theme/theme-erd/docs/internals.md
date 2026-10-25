@@ -15,8 +15,8 @@
 | `erdiagram.d.ts`                | ❌（随包发的声明）  | `erdiagram` 那份包缺的类型声明                                                             |
 | `theme/DocItem/index.tsx`       | ❌ 站点编译         | 本层那一格：`content.dbml_json` 命中就把关系图摆在 `DocItem` 前面                          |
 | `components/erd-chart.tsx`      | ❌ 站点编译         | 浏览器侧：把模型交给 `erdiagram` 画关系图，初始化后缩放到能看见全部表节点                  |
-| `components/error-boundary.tsx` | ❌ 站点编译         | 初始化失败时那一条提示（三条视图层各有一份，见「跨包副本」）                               |
-| `components/hack-style.tsx`     | ❌ 站点编译         | 那一格正文容器需要的样式补丁（同上，三份逐字相同）                                         |
+| `components/error-boundary.tsx` | ❌ 站点编译         | 交给共享实现的本层说法（包名 + 提示文案），实现在 `theme-iframe/lib/view-layer-shell.tsx`  |
+| `components/hack-style.tsx`     | ❌ 站点编译         | 一行转出正文容器的宽度补丁，实现在 `theme-iframe/lib/view-layer.ts`                        |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -65,5 +65,8 @@ Docusaurus 读，DBML 解析器只收 `---` 块之后的部分 —— 所以那�
   走的是站点真会用的那一条装载路径；站点自己那一份示例模板 `erd/table-names.mjs` 也在测试里真跑一遍。
   `src/options.mts` 与 `src/loader/**` 挂在覆盖率红线上（`vitest.config.mts` 的 `coverage.include`）。
 - 页面上那张图与那一串页签：`test/e2e/features/erd.feature`。
-- 跨包副本：`test/view-layer-copies.test.mts` 钉住 `hack-style.tsx` 三份逐字相同、
-  `error-boundary.tsx` 与 `theme/DocItem/index.tsx` 只允许差在本层自己的名字与说法上。
+- 共用外壳：三条视图层（本包、`theme-markmap`、`theme-diff`）的兜底、视图那一格、宽度补丁与本层 `DocItem` 的
+  全部内容都只有一份实现，住在 `theme/theme-iframe/lib/view-layer-shell.tsx`，每个包只留
+  「交哪把键、交哪个组件、交哪段说法」。收在一处之前它们是每个包
+  各抄一遍的副本；`test/view-layer-copies.test.mts` 现在钉的是「三处引的是同一份」，
+  `test/view-layer-shell.test.mts` 量共享实现自己的分支。

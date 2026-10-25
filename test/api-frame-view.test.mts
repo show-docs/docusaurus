@@ -239,6 +239,26 @@ describe('工厂产出的那一页：渲染到哪一格为止', () => {
     ]);
   });
 
+  it('静态交渲染接线时「报回外层」那一句同样是工厂给的那一条', () => {
+    const posted = capturePosts();
+    const { View, seen } = fakeView();
+    setSearch('?src=%2Fopenapi.yaml');
+
+    renderPage(
+      createApiFrameView({
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+        view: View,
+      }),
+    );
+    posted.length = 0;
+    seen[0]?.onRouteChange('#/orders/createorder');
+
+    expect(posted.map((entry) => entry.data)).toEqual([
+      apiFrameMessages(REDOC).route('#/orders/createorder'),
+    ]);
+  });
+
   it('起来第一件事向外层要一次那两格', () => {
     const posted = capturePosts();
     const { loadView } = fakeView();
@@ -304,6 +324,36 @@ describe('渲染接线还没轮到取的那几格', () => {
     expect(bad.load).not.toHaveBeenCalled();
   });
 
+  /**
+  取不到渲染器时那一页只剩空白，原因交给控制台 —— 丢掉一页正文，不该整份文档一起炸。
+  同一页上另两份静置的工厂（下面那条）保证这句 `console.warn` 不会因为「没人装监听器」被吞掉。
+  */
+  it('渲染器取不到时不抛、只打一条告警', async () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockReturnValue();
+    const failure = new Error('chunk 取不到');
+    const loadView = vi.fn(() => Promise.reject(failure));
+    setSearch('?src=%2Fopenapi.yaml');
+
+    const page = renderPage(
+      createApiFrameView({
+        loadView,
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+
+    await act(async () => {
+      await flush();
+    });
+
+    expect(loadView).toHaveBeenCalledTimes(1);
+    // 框里那一格仍是空白：没有正文，也没有替身组件
+    expect(page.textContent).toBe('');
+    const warned = consoleWarn.mock.calls.map((call) => call[0]);
+    expect(warned).toContain('[theme-iframe] 框内渲染器加载失败：');
+    consoleWarn.mockRestore();
+  });
+
   it('取法只问一次：重渲染不会把同一份渲染器再拉一遍', async () => {
     const { load, loadView, seen } = fakeView();
     setSearch('?src=%2Fopenapi.yaml');
@@ -326,6 +376,102 @@ describe('渲染接线还没轮到取的那几格', () => {
 
     expect(load).toHaveBeenCalledTimes(1);
     expect(seen[0]?.url).toBe('http://localhost:3000/openapi.yaml');
+  });
+});
+
+describe('静态交渲染接线那一格（`view`）', () => {
+  it('`view` 直接渲染，不去问任何取法', () => {
+    const { load, View } = fakeView();
+    setSearch('?src=%2Fopenapi.yaml');
+
+    const container = renderPage(
+      createApiFrameView({
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+        view: View,
+      }),
+    );
+
+    // 渲染器随这一份代码一起进来，没有「先空白再补」那一段
+    expect(container.textContent).toBe(
+      'spec:http://localhost:3000/openapi.yaml',
+    );
+    expect(load).not.toHaveBeenCalled();
+  });
+});
+
+describe('取法还在飞时这一页就被卸掉', () => {
+  it('落地之后不再写状态（不会往已卸载的树上补渲染）', async () => {
+    const { promise: pending, resolve: resolveView } =
+      Promise.withResolvers<ComponentType<ApiFrameViewProps>>();
+    const loadView = vi.fn(() => pending);
+    setSearch('?src=%2Fopenapi.yaml');
+
+    const container = renderPage(
+      createApiFrameView({
+        loadView,
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+    // 把这一页卸掉：effect 的清理函数会把 `stopped` 置上
+    for (const unmount of mounted.splice(0)) {
+      unmount();
+    }
+
+    resolveView(fakeView().View);
+    await act(async () => {
+      await flush();
+    });
+
+    expect(loadView).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toBe('');
+  });
+});
+
+describe('取法交回的形状：组件本身或 `import()` 那份模块', () => {
+  /**
+  两种形状都要能落地：`import()` 那份模块（`{ default }`，三份真渲染器都是这一格）与
+  组件本身。两种都在 `useLoadedView` 那一句三元里，漏一种就是这一页白屏 —— 下面两条各钉一种。
+  */
+  it('取法交回 `{ default }`（`import()` 那份模块）时取它的默认导出', async () => {
+    const { View } = fakeView();
+    setSearch('?src=%2Fopenapi.yaml');
+
+    const container = renderPage(
+      createApiFrameView({
+        loadView: () => Promise.resolve({ default: View }),
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+    await act(async () => {
+      await flush();
+    });
+
+    expect(container.textContent).toBe(
+      'spec:http://localhost:3000/openapi.yaml',
+    );
+  });
+
+  it('取法交回组件本身时不再去读 `default`', async () => {
+    const { View } = fakeView();
+    setSearch('?src=%2Fopenapi.yaml');
+
+    const container = renderPage(
+      createApiFrameView({
+        loadView: () => Promise.resolve(View),
+        modeAttribute: 'data-redoc-mode',
+        namespace: REDOC,
+      }),
+    );
+    await act(async () => {
+      await flush();
+    });
+
+    expect(container.textContent).toBe(
+      'spec:http://localhost:3000/openapi.yaml',
+    );
   });
 });
 

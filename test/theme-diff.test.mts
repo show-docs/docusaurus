@@ -90,8 +90,15 @@ function writeMd(dir: string, diffKey: string): string {
   return file;
 }
 
+/**
+临时仓库里的每一次 `git` 都带上 `commit.gpgsign=false`：宿主的全局配置若把签名打开了，
+这些夹具提交会以 `gpg failed to sign the data` 全数失败 —— 那是环境的事，不是被测那份代码的事。
+*/
 function git(cwd: string, args: string[]): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+  return execFileSync('git', ['-c', 'commit.gpgsign=false', ...args], {
+    cwd,
+    encoding: 'utf8',
+  }).trim();
 }
 
 /** 把 `{ 仓库相对路径: 内容 }` 落到仓库里。 */

@@ -107,7 +107,7 @@ function resolvedSpecUrl(specParam: string): string | undefined {
 function useLoadedView(
   loadView: () => Promise<ViewModule>,
 ): ComponentType<ApiFrameViewProps> | null {
-  const [loaded, setLoaded] = useState<ComponentType<ApiFrameViewProps>>();
+  const [Loaded, setLoaded] = useState<ComponentType<ApiFrameViewProps>>();
 
   useEffect(() => {
     let stopped = false;
@@ -132,7 +132,7 @@ function useLoadedView(
 
   // 用 `null` 而不是 `undefined` 表示「还没取到」：渲染那一格要把它当组件用，而那条 lint 规则
   // 把「渲染期拿到的 `undefined`」当成「新造了一个组件」。取到的那个引用本身是稳定的。
-  return loaded ?? null;
+  return Loaded ?? null;
 }
 
 /**
@@ -148,12 +148,12 @@ function LoadedFrameView(
   props: ApiFrameViewProps & { loadView: () => Promise<ViewModule> },
 ): ReactNode {
   const { loadView, ...frameProps } = props;
-  const Loaded = useLoadedView(loadView);
+  const LoadedView = useLoadedView(loadView);
 
-  // `Loaded` 来自 `import()`，取到之后就是同一个引用（不是每次渲染新造一个组件，那才是这条规则
+  // `LoadedView` 来自 `import()`，取到之后就是同一个引用（不是每次渲染新造一个组件，那才是这条规则
   // 要拦的情况），所以这里按「有没有」判。
   // eslint-disable-next-line react-hooks/static-components -- 见上一句
-  return Loaded === null ? null : <Loaded {...frameProps} />;
+  return LoadedView === null ? null : <LoadedView {...frameProps} />;
 }
 
 /**

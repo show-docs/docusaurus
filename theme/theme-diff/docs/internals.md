@@ -15,8 +15,8 @@
 | `src/types.mts`                 | ✅（只出类型）      | `DiffData`（追加的那条导出的形状，带 `source` 与 `caption`）与 `LoaderContextExtras`                                                          |
 | `theme/DocItem/index.tsx`       | ❌ 站点编译         | 本层那一格：命中就把视图摆在 `DocItem` **前面**，命不中原样交回                                                                               |
 | `components/diff-view.tsx`      | ❌ 站点编译         | 浏览器侧：把 `git diff` 原文交给 `@git-diff-view/react`，配色跟站点的亮暗模式，说明行按 `source` 给两种说法                                   |
-| `components/error-boundary.tsx` | ❌ 站点编译         | 初始化失败时那一条提示（三条视图层各有一份，见「跨包副本」）                                                                                  |
-| `components/hack-style.tsx`     | ❌ 站点编译         | 那一格正文容器需要的样式补丁（同上，三份逐字相同）                                                                                            |
+| `components/error-boundary.tsx` | ❌ 站点编译         | 交给共享实现的本层说法（包名 + 提示文案），实现在 `theme-iframe/lib/view-layer-shell.tsx`                                                     |
+| `components/hack-style.tsx`     | ❌ 站点编译         | 一行转出正文容器的宽度补丁，实现在 `theme-iframe/lib/view-layer.ts`                                                                           |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -114,6 +114,8 @@ frontmatter 里的先后不影响产物。值按逗号分两项、按第一个�
 - 页面上那块视图：`test/e2e/features/diff.feature`。**不**断言具体改了哪几行 ——
   单份那种来源里右边是磁盘上此刻这一份，这一页改一行、或下一笔提交都会变。对照那两条只认两份文件名与
   「有改动行」这一格。
-- 跨包副本：`test/view-layer-copies.test.mts` 钉住 `hack-style.tsx` 三份逐字相同、
-  `error-boundary.tsx` 与 `theme/DocItem/index.tsx` 只允许差在本层自己的名字与说法上，
-  另钉两条 md loader 的 frontmatter 正则同口径、「键名 = 追加的导出名」。
+- 共用外壳：三条视图层（本包、`theme-markmap`、`theme-erd`）的兜底、视图那一格、宽度补丁与本层 `DocItem` 的
+  全部内容都只有一份实现，住在 `theme/theme-iframe/lib/view-layer-shell.tsx`，每个包只留
+  「交哪把键、交哪个组件、交哪段说法」；
+  `test/view-layer-copies.test.mts` 钉「三处引的是同一份」，`test/view-layer-shell.test.mts`
+  量共享实现自己的分支，另钉两条 md loader 的 frontmatter 正则同口径、「键名 = 追加的导出名」。

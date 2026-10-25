@@ -1,10 +1,8 @@
+import { ViewLayerDocItem } from '@show-docs/docusaurus-theme-iframe/lib/view-layer-shell.tsx';
 import DocItem from '@theme-prev/DocItem';
 
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 import type { ComponentType, ReactNode } from 'react';
-
-import { ErrorBoundary } from '../../components/error-boundary.tsx';
-import { HackStyle } from '../../components/hack-style.tsx';
 
 // 渲染那一半数据的形状（`md-markmap-loader` 在编译结果里追加的 `export const markmap`）。
 // 产地与逐格说明见 `src/types.mts`。
@@ -34,22 +32,18 @@ export default function DocItemMarkmap(props: Props): ReactNode {
   // Docusaurus 把它和其他模块导出一起挂到 MDX 组件上。
   // 导图是 DocItem 的**前一个兄弟节点**，不塞进 `content`：正文原样交给下层 DocItem，
   // 页面结构（标题、目录、面包屑、页脚导航）都不受影响。
-  if (!content?.markmap) {
-    return <DocItem {...props} />;
-  }
-
   return (
-    <>
-      <ErrorBoundary>
-        <Suspense fallback={null}>
-          <MindChart data={content.markmap} />
-        </Suspense>
-      </ErrorBoundary>
-      <hr />
-      {HackStyle}
-      <div className="container padding-top--md padding-bottom--lg fake">
-        <DocItem {...props} />
-      </div>
-    </>
+    <ViewLayerDocItem
+      data={content?.markmap}
+      labels={{
+        name: 'theme-markmap',
+        title: '导图渲染失败',
+        description:
+          '本文标记了 markmap，但导图初始化出错，请查看浏览器控制台。',
+      }}
+      view={MindChart}
+    >
+      <DocItem {...props} />
+    </ViewLayerDocItem>
   );
 }
