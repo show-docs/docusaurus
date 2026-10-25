@@ -45,7 +45,7 @@ Scalar 那份组件在自己渲染时会往 `<body>` 上写类名（亮暗那两
 | --------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | 本层放的东西    | 一个 `<iframe class="api-frame scalar-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference` |
 | Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）                                                     | 全在这里（实测那一份文档里 `.scalar-app` 3 格，布局根只有 1 格）             |
-| 样式表          | 全站那一份 css（**多出 Scalar 那 359 KB**）                                                  | 同一份 css                                                                   |
+| 样式表          | 全站那一份 css（**不再含 Scalar 那份**）                                                     | 全站那一份 + 一条 `<link>` 指向 Scalar 那份（单独一个产物，约 236 KB）       |
 | 亮暗模式        | 站点的 `<html data-theme>`，开关在这                                                         | 自己 `<body>` 上的 `dark-mode` / `light-mode`，值由外层送来                  |
 | 能分享的地址    | 有，`#` 那一段代表当前那条接口                                                               | 有，但那是「直接打开框里那一页」，见「深链」                                 |
 
@@ -68,34 +68,45 @@ postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?s
 拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`），
 拿不到就整格什么都不渲染。
 
-## 样式：那份表全站都在，拦不住 —— 但也不用拦
+## 样式：那份表只在框内那一页
 
-这一节是本层与 `theme-redoc` 最大的分野，先说结论：**iframe 拦不住静态样式表，这里靠的是 Scalar
-出厂自带的作用域前缀，实测它没有改到站点的任何一处。**
+这一节的结论分两段，前一段是本层与 `theme-redoc` 的分野，后一段是它从「全站都在」改成「只有框内有」
+的那一步。
 
-`@scalar/api-reference/style.css` 是一条静态 `import`，webpack 把它并进全站那一份
-`assets/css/styles.<hash>.css`，于是**每一页**都下载它，包括从没命中 `scalar:` 的主页。实测口径
-是同一份产物的两次构建对照：去掉那一行 import，站点那一份 css 是 82,841 字节；引上它是
-441,957 字节 —— 净增 359,116 字节，主页与 redoc、markmap 那三页都带着它。这与
-`theme-stoplight` 那一层的处境一模一样：那里 Elements 的静态表也是全站
-一份，iframe 拦不住，所以那一条层在构建期把那份文件当资源发出去、站点那一份 css 里一条 `.sl-`
-规则都没有（见 `theme-stoplight` 的维护者文档「样式」一节）。
-
-**这一层不做那一步，因为 Scalar 出厂就自己做完了。**它那份 Tailwind 编译产物里 1330 条规则的选择器
-都带 `.scalar-app:not(#\#):not(#\#):not(#\#):not(#\#)` 前缀（`important: '.scalar-app'` 那格配置），
-剩下 1116 条不带前缀的，认的全是它自己的类名（`[data-v-…]` 那种 Vue 作用域类、`.scalar-code-block …`、
-`.dark-mode` / `.light-mode`）或只是注册自定义属性（`--tw-*`、`--scalar-*`）。`.scalar-app` 那一格
-在框内那份文档里（实测 3 格），外层 0 格 —— 于是那些规则在站点页面上没有可命中的元素。
+**第一段：Scalar 出厂自带作用域前缀，改不到站点的任何一处。**它那份 Tailwind 编译产物里 1330 条规则
+的选择器都带 `.scalar-app:not(#\#):not(#\#):not(#\#):not(#\#)` 前缀（`important: '.scalar-app'`
+那格配置），剩下 1116 条不带前缀的，认的全是它自己的类名（`[data-v-…]` 那种 Vue 作用域类、
+`.scalar-code-block …`、`.dark-mode` / `.light-mode`）或只是注册自定义属性（`--tw-*`、`--scalar-*`）。
+`.scalar-app` 那一格在框内那份文档里（实测 3 格），外层 0 格 —— 于是那些规则在站点页面上没有可命中
+的元素。
 
 这一句不是推理，是**对照量出来的**：把那一行 import 注掉重新构建，与注回来之后，在 `/`、
-`/theme/theme-redoc/docs/redoc-demo`、`/theme/theme-markmap/docs/markmap-demo` 三份页面上取同一批 31 个站点选择器 × 16 条 computed 属性比 ——
-**只有 `--tw-shadow` 这一处不一样**（引上 Scalar 那份表之后 `<html>` 上是 `0 0 transparent`，
-去掉是空串），其余一字不差。那一处是 Tailwind 4 在 `@supports` 里给 `*, :before, :after` 注册
-的自定义属性默认值，没有哪条站点规则读 `--tw-*`。
+`/theme/theme-redoc/docs/redoc-demo`、`/theme/theme-markmap/docs/markmap-demo` 三份页面上取同一批
+31 个站点选择器 × 16 条 computed 属性比 —— **只有 `--tw-shadow` 这一处不一样**（引上那份表之后
+`<html>` 上是 `0 0 transparent`，去掉是空串），其余一字不差。那一处是 Tailwind 4 在 `@supports` 里给
+`*, :before, :after` 注册的自定义属性默认值，没有哪条站点规则读 `--tw-*`。
 
-代价要记一句真话：**多出来的那 359 KB 每一页都下载**，不只命中页。要收掉得让那条 import 只跟着
-框内那一路由走（Docusaurus 的 CSS 是一份全站产物，本层没有这个开关），或者按 `theme-stoplight`
-那一条层那样在构建期动手 —— 两条都比这一格的现状贵，所以先记下代价，不动手。
+**第二段：前缀让样式打不到站点，但拦不住它被每页下载。**这条 import 是静态的，webpack 会把它并进
+全站那一份 `assets/css/styles.<hash>.css`，于是每一页都带着它 —— 曾经净增 359 KB（同一份产物的两次
+构建对照：去掉那一行 82,841 字节，引上 441,957 字节）。现在这一份由 `src/index.mts` 在构建期摘成独立
+产物，与 `theme-stoplight` 用同一份实现
+（`@show-docs/docusaurus-theme-iframe/lib/isolate-renderer-css.ts`，两处踩过的坑记在
+`theme-stoplight` 的维护者文档「样式」一节），只由框内那份文档挂一条 `<link>`。
+
+于是本层要交两格：哪一份文件、拿哪个假路径去试官方那条 `.css` 规则。**文件那一条认的是解析后的真实
+路径**：`@scalar/api-reference/style.css` 是 `exports` 里的一条映射，落在 `dist/style.css` —— 认包根
+那条路径会一条都匹配不上（实测：规则插进去了，`.scalar-app` 在 `styles.css` 里一处没少）。
+
+实测产物（`pnpm build` 之后）：
+
+| 产物                                 | 字节 | 内容                                                                   |
+| ------------------------------------ | ---- | ---------------------------------------------------------------------- |
+| `build/assets/css/styles.<hash>.css` | 108K | 站点那一份：`.scalar-app` 只剩 3 处，全是本包 `scalar-ui.css` 自己写的 |
+| `build/assets/css/style.<hash>.css`  | 236K | Scalar 那一份：只在框内那份文档里被 `<link>`                           |
+
+那份产物里 Css Minimizer 会报三条 `postcss-calc` / `Unexpected '}'` 的告警（Scalar 那份表里
+`(50 - l) * infinity` 这种写法与一处原生嵌套），压缩器忽略那几条、文件照发 —— 与并把它们并进全站
+那一份时的症状一致，不是这一格带出来的。
 
 因为规则带着 `:not(#\#)` 那四段 ID 级权重，**本层想覆盖它就得写 `!important`**。实测：不带
 `!important` 的同一条规则注进页面也不生效（`scalar-ui.css` 里那两条各量过一次 —— 署名那一格、
@@ -216,7 +227,7 @@ Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上�
 
 改之前同一个页面要 **4.02 MB**：整棵依赖图都挂在路由 chunk 的同步分支上，进这一页得先下完。
 `scalar-ui.css` 与厂商那份 `style.css` 也跟着走进按需那一路 —— 前者随 `scalar-ui.tsx`，后者是它的
-静态 import（那一条全站一次的性质不变，见「样式」一节，只是不再压在这一页的首屏上）。
+构建期摘成独立产物（见「样式」一节），不再压在这一页的首屏上，也不再进全站那一份。
 
 框里那一下会先空着：那条 `import()` 在 effect 里，不是 `React.lazy`，所以没有 `Suspense` 兜底。
 理由与三家的共同口径记在 theme-iframe 的 `docs/iframe-protocol.md`「首屏不下载渲染器」一节。
@@ -407,7 +418,8 @@ src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` �
 - 框内那条地址独立打开：带 `src` 就渲染（也没有站点的 navbar），`src` 去掉就什么都不摆
   （`.scalar-app` 0 个，那句 `could not be loaded` 也不出现）。
 - 产物体积：Scalar（连 Vue）落在懒加载 chunk 里（实测 `assets/js/2386.*.js`，3.8 MB 上下），
-  主页那份 html 不引它；样式表那 359 KB 是全站一份，见「样式」。
+  主页那份 html 不引它；样式表那份也在构建期摘成独立产物（236 KB），只在框内那份文档里被
+  `<link>`，见「样式」。
 
 没实测到的：AsyncAPI / GraphQL 那两种入口没试；Scalar 的 `hideModels` 那一类配置项没有逐条验，
 本层只用了 `agent`、`darkMode`、`forceDarkModeState`、`hideDarkModeToggle`、

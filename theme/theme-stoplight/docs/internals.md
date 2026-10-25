@@ -76,43 +76,27 @@ Docusaurus 把每一个 css 导入都并进同一个 `styles` chunk（`splitChun
 
 ### 改法：别让这个文件进打包
 
-`configureWebpack()` 里给这一条路径加一条 `module.rules`，类型是 webpack 5 的
-`asset/resource` —— 文件原样发出去成为一个独立产物，`import` 拿到的是它的**地址**（一个字符串），
-由框内那份文档自己挂一条 `<link>`（`components/stoplight-ui.tsx`）。实测产物：
+`configureWebpack()` 里给这一条路径加一条 `asset/resource` 规则 —— 文件原样发出去成为一个独立产物，
+`import` 拿到的是它的**地址**（一个字符串），由框内那份文档自己挂一条 `<link>`
+（`components/stoplight-ui.tsx`）。这一格与另两条 API 层用**同一份实现**：
+`@show-docs/docusaurus-theme-iframe/lib/isolate-renderer-css.ts`（为什么非在构建期动手、两条规则
+同时命中要怎么躲、`?url` 为什么用不了，都记在那份文件头）。本包只交两格：文件正则与探测用的假路径。
 
-| 产物                                       | 字节    | 内容                                                                                                                |
-| ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------- |
-| `build/assets/css/styles.aa2e4d11.css`     | 82,518  | 站点那一份：`.sl-` 只剩 3 处，全部是本包 `stoplight-ui.css` 自己写的、带 `.stoplight-root` 前缀的规则；`Inter` 0 处 |
-| `build/assets/css/styles.min.48d2237a.css` | 272,412 | Elements 那一份：只在框内那份文档里被 `<link>`                                                                      |
-
-框内那份文档里那张表实测 2344 条规则（按 `cssRules` 计数，一条 `@media` 算一条）原样生效；
-外层那份文档里它的 `<link>` 0 条、`.stoplight-root` 0 个。这就是两条判据「外层文档里没有 Elements
-的痕迹」与「Elements 那份样式表只挂在框里」量的东西，另有「站点自己的那几处样式不被 Elements
-改写」按值比（同一批元素在 stoplight 页与主页各算一遍 computed style 比相等，不抄站点该有的值）。
-
-`?url` 行内查询**用不了**：那是 Vite / Rspack 的写法，webpack 5 没有这一条（实测：请求连规则匹配
-都没走到，先在包的 `exports` 那一步报 `./styles.min.css?url is not exported`）。这里靠规则匹配，
-不靠查询串。
-
-### 加规则之外还要把它从带 loader 的规则里摘出去
-
-两条规则同时命中同一份文件会把 loaders 和资源类型叠在一起（css 被处理两遍）。所以入口除了
-`unshift` 那条资源规则，还要遍历每一条**带 `use`** 的规则，把这份文件加进它的 `exclude`。
-
-判据不是抄官方那条 `.css` 规则的正则（版本一变就对不上），而是拿一个假的 Elements 路径
-（`/a/node_modules/@stoplight/elements/styles.min.css`）去试每一条规则 —— 真路径同样命中，
-pnpm 把它装在 `.pnpm/@stoplight+elements@…\/node_modules/` 下面也一样。官方哪天改了规则的形状，
-这一条会失配，症状是产物里少了那个独立 css 文件、样式漏回全站那一份，上面那两句判据会红。
-
-> 两处要留意，都是踩过或核过的：
+> 两个坑，都是这一轮踩过或核过的：
 >
-> - **改了 `configureWebpack()` 要 `pnpm clear` 再 `pnpm build`**：webpack 的持久化缓存不认配置函数的
->   改动（同一目录里 `configurePostCss()` 那一版就栽过：第二次构建客户端 chunk 的哈希都没变，
->   shim 根本没进产物）。
-> - **这一格改的是传进来的 `config` 本身，返回值仍然只可能是增量**。官方 `applyConfigureWebpack`
->   用 webpack-merge 拼接，数组策略是 concat，返回整体等于把 `rules` 翻倍，症状是「每个
->   `.module.css` 被 css-loader 处理两遍、第二遍拿到的是上一遍的 JS 产物」。这条与
->   `plugins/plugin-prev-layer-resolver` 里「只返回自己那一个 resolver」是同一件事。
+> - **资源规则要 `push` 到末尾，不能 `unshift` 到最前**。webpack 5 里 `rules[0]` 那条 `...`
+>   是占位符（项目内所有规则都排在它**之后**），它自己不去匹配文件 —— 插到最前面，资源规则就
+>   被它挡在门外。这件事是 `theme-stoplight` 原来自带的那份 `unshift` 实现的遗留问题：它一直没生效，
+>   只是因为 Elements 那份 css 早就没并进全站那一份（实测 `styles.<hash>.css` 里 `.sl-` 0 处），
+>   症状被别的原因遮住了。
+> - **改了 `configureWebpack()` 要 `pnpm clear` 再 `pnpm build`**：webpack 的持久化缓存不认配置
+>   函数的改动（同一目录里 `configurePostCss()` 那一版就栽过）。
+>
+> 还有一条**不是**坑：`asset/resource` 接走文件之后，`<link href={…}>` 那一格要写成
+> `String(namespace)` 或 `require()`，**不能**用默认导入 —— Docusaurus 给 `.css` 配的 `css-loader`
+> 开着 `esModule: false`，那块「模块」没有真正的 default，默认导入能过构建、产物里却是 `undefined`
+> （实测告警 `export 'default' … was not found`，`<link href={undefined}>` 什么也不加载）。
+> `theme-stoplight` 那份 `<link>` 一直是有效的，因为它的 `asset/resource` 从来没命中过。
 
 `styles.min.css` 里没有 `url()`、没有 `@import`、没有 data URI（实测各 0 处），所以不经 css-loader
 也不丢东西 —— 这是这一格能这么拆的前提，Elements 升版若引入 `url()`，得改回 css-loader 那一路。

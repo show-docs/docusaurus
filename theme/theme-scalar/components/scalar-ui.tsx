@@ -1,4 +1,11 @@
-import '@scalar/api-reference/style.css';
+// 下面那条 `require` 拿到的不是「把这文件打进 bundle」，而是**它单独那个产物的地址**（一个字符串）：
+// `src/index.mts` 给这一条路径配了 webpack 的 `asset/resource` 规则，并把它从 Docusaurus 的 css
+// 规则里摘了出去 —— 否则它会并进全站那一份 `styles.<hash>.css`（实测那是 348 KB 里的 220 KB），
+// 每个页面都 `<link>` Scalar 那套 Tailwind 工具类与配色变量。口径与另两条 API 层同一份，记在
+// `@show-docs/docusaurus-theme-iframe/lib/isolate-renderer-css.ts` 的文件头。
+
+import * as scalarStyles from '@scalar/api-reference/style.css';
+
 import './scalar-ui.css';
 
 import { createApiReference } from '@scalar/api-reference';
@@ -9,6 +16,13 @@ import type { ApiFrameViewProps as Props } from '@show-docs/docusaurus-theme-ifr
 import { useEffect, useRef } from 'react';
 
 import { isDarkColorModeAtLoad } from './scalar-color-mode.ts';
+
+// 为什么是 namespace `import` 而不是 `import x from`：Docusaurus 给 `.css` 配的 `css-loader`
+// 开着 `esModule: false`，那块「模块」没有真正的 default，只有 CommonJS 的 `module.exports` ——
+// 默认导入能过构建、产物里却读到 `undefined`（实测告警 `export 'default' … was not found`），
+// `<link href={undefined}>` 于是什么也不加载。`asset/resource` 那份规则把它接走之后，
+// `module.exports` 就是这个产物的地址；命名空间对象整个拿走正好少了这一层 interop。
+const scalarStylesUrl = String(scalarStyles);
 
 /**
 把 Scalar 挂到这一格 `<div>` 上，并把两头的地址对接起来。
@@ -106,5 +120,13 @@ export function ScalarUI(props: Props) {
 
   // 这一格只是 `createApiReference` 要的挂载宿主，不带类名：`scalar-ui.css` 里那条与 e2e
   // 那几句认的都是 Scalar 自己挂在它下面的 `.scalar-app.scalar-api-reference`。
-  return <div ref={hostRef} />;
+  //
+  // 上面那条 `import` 是 `<link>` 的地址、不是样式本身，所以要在这份文档里挂出来 ——
+  // Scalar 自己那条 `style.css` 只在框内那一页生效，理由见那条 import 上方的注释。
+  return (
+    <>
+      <link href={scalarStylesUrl} rel="stylesheet" />
+      <div ref={hostRef} />
+    </>
+  );
 }
