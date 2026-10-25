@@ -111,6 +111,12 @@ export default [
     rules: { 'unicorn/filename-case': 0 },
   },
   {
+    // 配置期的共享帮手（`lib/api-frame-theme.mts`、`lib/api-frame-source-js-rule.ts`）跑在 Node 里，
+    // 引 `node:path` 是它们的职责；浏览器那一份（`lib/index.ts`）不在这一条里。
+    files: ['theme/*/lib/api-frame-*.{mts,ts}'],
+    rules: { 'import-x/no-nodejs-modules': 0 },
+  },
+  {
     // webpack loader 的上下文（`this.async()` / `this.resourcePath` / `this.cacheable()`）
     // 就是由 Webpack 绑在 `this` 上的，官方签名不给参数对象 —— 改成别的写法就不再是 loader。
     files: ['theme/*/src/loader/**'],

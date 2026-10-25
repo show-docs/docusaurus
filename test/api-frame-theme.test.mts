@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
+import { needsSiteJsRule } from '../theme/theme-iframe/lib/api-frame-source-js-rule.ts';
 import { createApiFrameTheme } from '../theme/theme-iframe/lib/api-frame-theme.mts';
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
@@ -120,7 +121,13 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
 
   type RulesConfig = {
     ignoreWarnings?: unknown[];
-    module: { rules: Array<{ test: RegExp; use: unknown[] }> };
+    module: {
+      rules: Array<{
+        test: RegExp;
+        use: unknown[];
+        include?: (file: string) => boolean;
+      }>;
+    };
   };
 
   const webpackResultOf = (plugin: Plugin, isServer = false): RulesConfig =>
@@ -140,6 +147,23 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
       expect(rule.test.test('index.js')).toBe(false);
       expect(rule.use).toEqual([{ loader: 'js-loader:false' }]);
     }
+  });
+
+  it('那条规则的认领范围按判据来，不是包根整片', () => {
+    const rule = webpackResultOf(make('scalar')).module.rules[0]!;
+    // 工作区里（链路解析到 node_modules 之外）交给官方那条，不重复编一遍
+    expect(
+      rule.include!(
+        `${repoRoot}/theme/theme-scalar/theme/ScalarPage/index.tsx`,
+      ),
+    ).toBe(false);
+    // 同一条判据在装机之后翻过来：包里那份落在 node_modules 里，官方不认，才轮到它
+    expect(
+      needsSiteJsRule(
+        '/site/node_modules/@show-docs/docusaurus-theme-scalar',
+        '/site/node_modules/@show-docs/docusaurus-theme-scalar/theme/ScalarPage/index.tsx',
+      ),
+    ).toBe(true);
   });
 
   it('调用方自己的 configureWebpack 结果原样并入，并接在源码规则前面', () => {

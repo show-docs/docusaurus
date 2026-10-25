@@ -92,10 +92,12 @@ README 的「构建包的编译口径」。
   浏览器出口；三条 API 层的入口按全 specifier
   `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 引它（包的 `exports` 里
   `./lib/*` 是通配，`/lib` 裸路径不解析）。
-- 本包入口与那份工厂都在 `configureWebpack` 里补一条只覆盖各包根的 `.tsx?` 规则
+- 本包入口与那份工厂都在 `configureWebpack` 里补一条 `.tsx?` 规则
   （`utils.getJSLoader({ isServer })`）：官方 babel 规则排除 `node_modules`，不补的话 npm
-  安装后层源码报 `Module parse failed`。理由与代价见仓库根 README 的「构建包的编译口径」；
-  三条 API 层用本包工厂，自动带上这一条。
+  安装后层源码报 `Module parse failed`。工厂那一格的 `include` 是 `lib/api-frame-source-js-rule.ts`
+  里那条判据，不是包根那个字符串 —— 工作区里官方本来就在编这批源码，认领回来等于同一份文件跑两遍
+  babel。本包**入口**那一格仍是包根：它进 `tsc`，而 `lib/` 不在那份 `rootDir` 里、引不到判据。
+  口径见仓库根 README 的「构建包的编译口径」；三条 API 层用本包工厂，自动带上判据那一版。
 - `components/api-frame.css` 与用它的组件同目录，`theme/DocItem/index.tsx` 静态 import
   `../../components/api-frame.tsx` —— 磁盘上就是这个文件，未编译这一侧不存在「产物名改写」。
 - 改 `theme/` 与 `components/` 不用先编译，`pnpm start` 直接生效；改注册表也一样（两边都是

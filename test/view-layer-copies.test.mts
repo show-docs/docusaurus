@@ -145,8 +145,21 @@ describe('视图层三份副本的同步护栏', () => {
 上以 `Module parse failed` / 那一格视图不出现的形式现身，所以只能由源码文本层面的护栏来钉。
 */
 describe('各包重复的 webpack 与 loader 接线', () => {
-  /** 官方那条 babel 规则排除整个 `node_modules`，每个分发 `.tsx` 的主题包都要补这一条。 */
+  /**
+  官方那条 babel 规则排除整个 `node_modules`，每个分发 `.tsx` 的主题包都要补这一条。
+  `include` 是判据函数而不是包根那个字符串：工作区里官方本来就在编这些源码，不带判据就是同一份
+  文件跑两遍 babel（判据本身在 `lib/api-frame-source-js-rule.ts`，另有用例钉它）。
+
+  `theme-iframe` 自己是唯一例外：它的入口进 `tsc`，而 `lib/` 不在那份 `rootDir` 里、引不到判据，
+  所以那一条仍按包根认领 —— 见它入口里那段注释。
+  */
   const babelRule = [
+    String.raw`              test: /\.tsx?$/,`,
+    '              include: (file: string) => needsSiteJsRule(packageRoot, file),',
+    '              use: [utils.getJSLoader({ isServer })],',
+  ].join('\n');
+
+  const iframeBabelRule = [
     String.raw`              test: /\.tsx?$/,`,
     "              include: [resolve(thisDir, '..')],",
     '              use: [utils.getJSLoader({ isServer })],',
@@ -154,7 +167,6 @@ describe('各包重复的 webpack 与 loader 接线', () => {
 
   it('六个带源码层的包，补的那条 babel 规则逐字相同', () => {
     for (const pkg of [
-      'theme-iframe',
       'theme-markmap',
       'theme-erd',
       'theme-diff',
@@ -163,9 +175,14 @@ describe('各包重复的 webpack 与 loader 接线', () => {
     ]) {
       expect(
         read(pkg, 'src/index.mts'),
-        `${pkg} 的 src/index.mts 里那条 babel 规则与另外几个包不一样（改一处要改六处）`,
+        `${pkg} 的 src/index.mts 里那条 babel 规则与另外几个包不一样（改一处要改五处）`,
       ).toContain(babelRule);
     }
+
+    expect(
+      read('theme-iframe', 'src/index.mts'),
+      'theme-iframe 的 src/index.mts 里那条 babel 规则变了（它的认领范围另有一段注释说明）',
+    ).toContain(iframeBabelRule);
   });
 
   /** 两条 md 后处理 loader 认 frontmatter 起止的那一条，两边必须是一个口径。 */

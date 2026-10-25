@@ -1,10 +1,15 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { needsSiteJsRule } from '@show-docs/docusaurus-theme-iframe/lib/api-frame-source-js-rule.ts';
+
 import type { Plugin } from '@docusaurus/types';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
+
+/** 包根：那条 `.tsx?` 规则的认领范围。 */
+const packageRoot = resolve(thisDir, '..');
 
 export default function theme(): Plugin {
   return {
@@ -32,7 +37,7 @@ export default function theme(): Plugin {
               // npm 安装后的 `.tsx` 会报 `Module parse failed`。补一条只覆盖本包的规则
               //（理由与代价见 theme-iframe 的 `lib/api-frame-theme.mts` 里同一条）。
               test: /\.tsx?$/,
-              include: [resolve(thisDir, '..')],
+              include: (file: string) => needsSiteJsRule(packageRoot, file),
               use: [utils.getJSLoader({ isServer })],
             },
           ],

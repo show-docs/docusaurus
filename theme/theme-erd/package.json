@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@dbml/core": "^10.3.1",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "erdiagram": "^0.1.5",
     "markdown-table": "^3.0.4"
   },

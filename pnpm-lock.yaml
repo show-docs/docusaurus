@@ -339,6 +339,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-theme-iframe':
+        specifier: workspace:^
+        version: link:../theme-iframe
       react:
         specifier: ~18.3.1
         version: 18.3.1
@@ -357,6 +360,9 @@ importers:
       '@git-diff-view/react':
         specifier: ^0.1.8
         version: 0.1.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@show-docs/docusaurus-theme-iframe':
+        specifier: workspace:^
+        version: link:../theme-iframe
       react:
         specifier: ~18.3.1
         version: 18.3.1
@@ -372,6 +378,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-theme-iframe':
+        specifier: workspace:^
+        version: link:../theme-iframe
       erdiagram:
         specifier: ^0.1.5
         version: 0.1.5(dagre@0.8.5)
@@ -402,6 +411,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-theme-iframe':
+        specifier: workspace:^
+        version: link:../theme-iframe
       markmap-common:
         specifier: ^0.18.9
         version: 0.18.9
@@ -501,6 +513,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-theme-iframe':
+        specifier: workspace:^
+        version: link:../theme-iframe
       postcss-nesting:
         specifier: ^13.0.2
         version: 13.0.2(postcss@8.5.29)

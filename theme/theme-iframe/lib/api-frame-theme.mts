@@ -22,6 +22,7 @@ import {
   apiFrameByNamespace,
   type ApiFrameEntryInternal,
 } from './api-frame-registry.ts';
+import { needsSiteJsRule } from './api-frame-source-js-rule.ts';
 
 export type ApiFrameThemeOptions = {
   /** 包名，同时是注册表的键；表里没有这一族就直接失败。 */
@@ -74,9 +75,10 @@ export function createApiFrameTheme(
         configureWebpack?.(config, isServer, utils, content) ?? {};
       // 装进 node_modules 后官方那条 babel 规则会按 `excludeJS` 排除整个 node_modules，
       // 只给 `docusaurus*.js` 开例外 —— 本包的 .ts/.tsx 源码于是报 `Module parse failed`。
-      // 用官方给插件作者的 `getJSLoader()` 补一条只覆盖本包的规则，让「站点的 loader 编译
-      // 本包源码」在 npm 安装后也成立。工作区里链路解析到 node_modules 之外，官方规则本来
-      // 就会编译：两条规则各跑一遍 babel，产物不变，只是多一遍开销。
+      // 用官方给插件作者的 `getJSLoader()` 补一条覆盖包根的规则接上这一格。
+      //
+      // 认领范围由 `needsSiteJsRule()` 判：工作区里链路解析到 node_modules 之外，官方那条本来
+      // 就会编译它们，我们再命中一次就是白跑一遍 babel（产物不变，代价是编译时间）。
       return {
         ...callerConfig,
         module: {
@@ -85,7 +87,7 @@ export function createApiFrameTheme(
             ...(callerConfig.module?.rules ?? []),
             {
               test: /\.tsx?$/,
-              include: [packageRoot],
+              include: (file: string) => needsSiteJsRule(packageRoot, file),
               use: [utils.getJSLoader({ isServer })],
             },
           ],

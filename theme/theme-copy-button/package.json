@@ -32,6 +32,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "sonner": "^2.0.8"
   },
   "peerDependencies": {
