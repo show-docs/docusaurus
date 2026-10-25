@@ -196,20 +196,19 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
 
 产物的形状（`pnpm build` 之后按 chunk 依赖图量的；「首屏」= 入口 chunk 的同步依赖闭包 + 主 chunk）：
 
-| 框内页面          | 首屏    | 起来之后按需下载              |
-| ----------------- | ------- | ----------------------------- |
-| `/scalar-view`    | 0.39 MB | 3.65 MB                       |
-| `/redoc-view`     | 0.39 MB | 2.02 MB                       |
-| `/stoplight-view` | 0.39 MB | 合在入口 chunk 里（见下一段） |
+| 框内页面          | 首屏    | 起来之后按需下载 |
+| ----------------- | ------- | ---------------- |
+| `/scalar-view`    | 0.39 MB | 3.65 MB          |
+| `/redoc-view`     | 0.39 MB | 2.02 MB          |
+| `/stoplight-view` | 0.39 MB | 1.82 MB          |
 
 改之前 `/scalar-demo` 那一页首屏是 **4.02 MB**：Scalar 整棵依赖图（97 个 chunk）都挂在路由
 chunk 的同步分支上，进这一页就要先下完它们。现在它们跟着 `loadView` 那条 `import()` 走。
 
-Elements 那一份是 webpack 自己合进来的：它的模块被静态 require 住了（`n(60186)` 那种），
-于是 SplitChunks 把 Elements 主体（1.82 MB）与这份入口并进同一个 chunk，`import()` 拿到的只是
-同一个 chunk 里的另一个模块 —— 所以在产物里它是「首屏」而不是「按需」。要真拆开得让
-`stoplight-ui.tsx` 的依赖边界更彻底（它现在把 `API` 与 `COLOR_MODE_ATTRIBUTE` 放在同一份文件里），
-那是下一步的事；这条入口本身没变重（7.5 KB）。
+Elements 那一份拖了上一轮才拆开：它的模块曾被静态 require 住（入口那句
+`import { COLOR_MODE_ATTRIBUTE }`），于是 SplitChunks 把 Elements 主体（1.82 MB）与这份入口并进
+同一个 chunk，`import()` 拿到的只是同一个 chunk 里的另一个模块 —— 产物里那是「首屏」不是「按需」。
+把那个常量摘到一份不引 Elements 的浅文件之后，入口只剩 0.39 MB，1.82 MB 跟着 `import()` 走。
 
 代价是一条：框里那一下先空着。走的是 effect 里那条 `import()` 而不是 `React.lazy`，所以没有
 `Suspense` 兜底可言（`DocItem` 那几层用 `lazy` 是因为它们挂在服务端也要渲染的文档树上；框内这一页

@@ -18,16 +18,8 @@ import stoplightStylesUrl from '@stoplight/elements/styles.min.css';
 import { useEffect, useRef } from 'react';
 import { HashRouter, useLocation } from 'react-router-dom';
 
-/**
-框内那份文档拿来说「现在是暗色」的那条属性。
-
-本层不需要改写谁的样式：`@stoplight/elements/styles.min.css` 里那套暗色规则本来就是
-`[data-theme=dark]` 打头的（调色板那些 `--text-h` / `--bg` 写在这条属性所在的元素上，再靠继承落到
-`.sl-elements` 那一整棵子树）。把它写在**这一份文档自己的 `<html>`** 上，配色就跟着站点走 ——
-值由外层随消息送进来，落点在 theme-iframe 那份框内工厂里。`theme-redoc` 那边要多写一个
-styled-components 的中间件，是因为 Redoc 的暗色表挂在它自己按操作系统偏好写的 `:root.dark` 上。
-*/
-export const COLOR_MODE_ATTRIBUTE = 'data-theme';
+// 亮暗那条属性名住在 `stoplight-color-mode.ts`：框内那条页面也要用它，而它不该因此把
+// Elements 拖进自己的静态依赖（这一格的理由见那份文件头）。
 
 /** 包着 Elements 的那层壳，也是 `stoplight-ui.css` 那份样式的作用范围。 */
 const STOPLIGHT_ROOT_CLASS = 'stoplight-root';
