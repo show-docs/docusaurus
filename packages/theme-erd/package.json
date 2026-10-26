@@ -1,0 +1,59 @@
+{
+  "name": "@show-docs/docusaurus-theme-erd",
+  "version": "0.1.0",
+  "description": "Dbml 文件按关系图渲染，并在正文里附上各格式的导出",
+  "keywords": [],
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-erd",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
+    "directory": "packages/theme-erd"
+  },
+  "bugs": {
+    "url": "https://github.com/show-docs/docusaurus/issues"
+  },
+  "types": "dist/index.d.mts",
+  "main": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "default": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": [
+    "components",
+    "dist",
+    "theme"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@dbml/core": "^10.3.1",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
+    "erdiagram": "^0.1.5",
+    "markdown-table": "^3.0.4"
+  },
+  "peerDependencies": {
+    "@docusaurus/types": "^3.9.2",
+    "react": "~18.3.1",
+    "webpack": "^5.112.0"
+  },
+  "peerDependenciesMeta": {
+    "@docusaurus/types": {
+      "optional": true
+    },
+    "webpack": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

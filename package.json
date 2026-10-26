@@ -24,9 +24,9 @@
     "test:coverage": "pnpm build:core && vitest run --coverage",
     "test:e2e": "pnpm build && bddgen && playwright test",
     "test:watch": "vitest",
-    "typecheck": "tsc -b tsconfig.demo.json tsconfig.test.json",
+    "typecheck": "tsc -b tsconfig.tools.json tsconfig.test.json",
     "verify": "pnpm lint:type && pnpm lint:eslint && pnpm lint:version && pnpm test:coverage && pnpm verify:chain",
-    "verify:chain": "pnpm build && node demo/scripts/verify-chain.mts",
+    "verify:chain": "pnpm build && node tools/scripts/verify-chain.mts",
     "version:pin": "syncpack fix"
   },
   "dependencies": {
@@ -46,6 +46,7 @@
     "@show-docs/theme-a": "workspace:^",
     "@show-docs/theme-b": "workspace:^",
     "@show-docs/theme-c": "workspace:^",
+    "@show-docs/webpack-lazy-compilation": "workspace:^",
     "react": "~18.3.1",
     "react-dom": "~18.3.1"
   },

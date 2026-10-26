@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { apiFrameMessages } from '../theme/theme-iframe/lib/api-frame-messages.ts';
+import { apiFrameMessages } from '../packages/theme-iframe/lib/api-frame-messages.ts';
 import {
   createFrameMessages,
   externalFrameURL,
   frameViewSrc,
   specUrlFromSearch,
-} from '../theme/theme-iframe/lib/frame-messages.ts';
+} from '../packages/theme-iframe/lib/frame-messages.ts';
 
 const REDOC = '@show-docs/docusaurus-theme-redoc';
 const SCALAR = '@show-docs/docusaurus-theme-scalar';

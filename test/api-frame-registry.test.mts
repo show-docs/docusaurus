@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   apiFrameByNamespace,
   apiFrameEntriesOrdered,
-} from '../theme/theme-iframe/lib/api-frame-registry.ts';
+} from '../packages/theme-iframe/lib/api-frame-registry.ts';
 
 /** 把「internal 才有的格」按类型收窄取出来，别让 TS 在纯数据断言里碍事。 */
 const internals = () =>

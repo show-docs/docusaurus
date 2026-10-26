@@ -9,15 +9,15 @@ import {
   readDiffValue,
   resolveDiffTarget,
   splitDiffValue,
-} from '../theme/theme-diff/src/loader/diff-decision.mts';
+} from '../packages/theme-diff/src/loader/diff-decision.mts';
 import {
   findRepoRoot,
   readFilesChange,
   readLastChange,
   repoPathFromRoot,
-} from '../theme/theme-diff/src/loader/git-diff.mts';
-import loader from '../theme/theme-diff/src/loader/md-diff-loader.mts';
-import type { DiffData } from '../theme/theme-diff/src/types.mts';
+} from '../packages/theme-diff/src/loader/git-diff.mts';
+import loader from '../packages/theme-diff/src/loader/md-diff-loader.mts';
+import type { DiffData } from '../packages/theme-diff/src/types.mts';
 
 import { mkdtempReal } from './helpers.mts';
 
@@ -201,6 +201,15 @@ describe('frontmatter 那把键的读法', () => {
   it('冒号前后的空白与制表符都吃得下，键名后面紧跟内容不算值', () => {
     expect(readDiffValue('diff:\t true ')).toBe('true');
     expect(readDiffValue('diffx: true')).toBeUndefined();
+  });
+
+  it('值折行写在下面几行：认不出，等于没写这把键', () => {
+    // YAML 允许 `diff:` 空着、把 `{ }` 那两项写在缩进的后续行里，判据读的却是原文那一行。
+    // 钉住这一条是因为示例页曾这么写：视图没了、告警也没一条，从构建日志里看不出为什么。
+    // 认不出的落点是「什么都不追加」，不是「写坏了」—— 后者至少还会留一句 warning。
+    expect(
+      readDiffValue('diff:\n  {\n    old: a.md,\n    new: b.md\n  }\n'),
+    ).toBeUndefined();
   });
 
   it('`resolveDiffTarget`：`true` 指本文自己，路径相对这份 md 所在目录', () => {

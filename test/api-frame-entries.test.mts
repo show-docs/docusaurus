@@ -4,7 +4,7 @@ import {
   resolveFrameDistribution,
   warnFrameDistribution,
   type FrameDistribution,
-} from '../theme/theme-iframe/lib/api-frame-entries.ts';
+} from '../packages/theme-iframe/lib/api-frame-entries.ts';
 
 const SCALAR = '@show-docs/docusaurus-theme-scalar';
 const REDOC = '@show-docs/docusaurus-theme-redoc';
@@ -97,7 +97,7 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
     for (const entryFile of ['dist/index.mjs', 'src/index.mts']) {
       const plugins = [
         [
-          `D:/code2/test-ci/theme/theme-iframe/${entryFile}`,
+          `D:/code2/test-ci/packages/theme-iframe/${entryFile}`,
           { themeConfig: { apiFrame: { order: [REDOC] } } },
         ],
         SCALAR,

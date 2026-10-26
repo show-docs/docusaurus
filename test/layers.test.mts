@@ -22,9 +22,9 @@ const {
   resolveFallbackDir,
   resolveFromCore,
   normalizeLayerPath,
-} = await import('../plugins/plugin-prev-layer-resolver/src/layers.mts');
+} = await import('../packages/plugin-prev-layer-resolver/src/layers.mts');
 const { PluginDiscovery } =
-  await import('../plugins/plugin-prev-layer-resolver/src/plugins.mts');
+  await import('../packages/plugin-prev-layer-resolver/src/plugins.mts');
 
 /**
 造一份最小可用的假 core：只要「包根 + 锚点文件（lib/webpack/aliases/index.js）+
@@ -533,7 +533,7 @@ describe('探测函数自身的容错（外部输入 / 环境异常都不该抛�
   });
 });
 
-describe('真实安装的上游 core 未被补丁（迁自 demo/scripts/verify-chain.mts 第 0 节）', () => {
+describe('真实安装的上游 core 未被补丁（迁自 tools/scripts/verify-chain.mts 第 0 节）', () => {
   // 「无需补丁 / @theme-original 官方语义零改动」的判据：core 的两个被依赖文件里
   // 不得出现本方案的**导出名与插件 name** —— 出现即「上游被打补丁」。免 build、纯静态，
   // 随 `pnpm test` 常规运行（原来要等一次真实 build 才验到）。

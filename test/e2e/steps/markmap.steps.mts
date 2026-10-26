@@ -3,8 +3,8 @@ import { createBdd } from 'playwright-bdd';
 
 const { Then } = createBdd();
 
-// 那条四层链只属于主页：站点里只有 `docs/intro.md` 写了 `<DocCardList />`。
-// 「只在 intro 页」在浏览器里也要成立，不只在看构建产物。
+// 那条四层链只属于主页：站点里只有 `packages/README.md` 写了 `<DocCardList />`。
+// 「只在主页」在浏览器里也要成立，不只在看构建产物。
 Then('这一页不渲染卡片列表，整页没有主题包裹标记', async ({ page }) => {
   await expect(
     page.locator('[data-site-wrapper], [data-theme-wrapper]'),

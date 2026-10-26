@@ -15,7 +15,7 @@ const { Given, When, Then } = createBdd();
 /**
 ## 这一层的判据分两份文档量，口径与 `theme-redoc` 一对一
 
-命中页（`/theme/theme-stoplight/docs/stoplight-demo`）里只有一个 iframe，Elements 整个跑在框内那份文档（本包那条插件路由
+命中页（`/packages/theme-stoplight/docs/stoplight-demo`）里只有一个 iframe，Elements 整个跑在框内那份文档（本包那条插件路由
 `/stoplight-view`）上。每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有 Elements 的 DOM，也不该有它那份样式表；
@@ -29,7 +29,7 @@ const { Given, When, Then } = createBdd();
 
 Elements 的路由也走 hash，但它认 `operationId` **原样**（`createOrder` 就是 `createOrder`，
 Redoc 那边是小写的），下面的 href 按浏览器里真的那串写。href 不带路径前缀，是因为框内那份文档
-的地址里没有前缀可剥（口径记在 `theme/theme-stoplight/docs/internals.md`）。
+的地址里没有前缀可剥（口径记在 `packages/theme-stoplight/docs/internals.md`）。
 */
 const frameDoc = (page: Page): FrameLocator => layerFrameDoc(page, 'stoplight');
 
@@ -44,7 +44,7 @@ const operationIds = ['listOrders', 'createOrder', 'getOrder'];
 /**
 整页加载一条**别人转发过来的接口地址**：`#/operations/createOrder` 这段是框里点了接口之后
 送进外层地址栏的。这一条钉的是它在静态产物里也打得开，而且是 **HTTP 200** —— 页面本身是
-`build/theme/theme-stoplight/docs/stoplight-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
+`build/packages/theme-stoplight/docs/stoplight-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
 */
 Given('我直达 stoplight 那条接口的地址', async ({ page }) => {
   watchPageErrors(page);
@@ -111,7 +111,7 @@ Then('Elements 的详情面板换成那条接口，外层地址也跟着换', as
     '新建订单',
   );
   await expect(page).toHaveURL(
-    /\/theme\/theme-stoplight\/docs\/stoplight-demo#\/operations\/createOrder$/,
+    /\/packages\/theme-stoplight\/docs\/stoplight-demo#\/operations\/createOrder$/,
   );
 });
 
@@ -315,7 +315,7 @@ Elements 那套配色（`@stoplight/mosaic`）自带亮暗模式：判据是它�
 （`mosaic-theme`，默认 `light`），再往 `<html>` 上写 `data-theme` —— 和站点那条属性**同名**。
 它的暗色表就挂在 `[data-theme=dark]` 上，所以这一层不需要像 `theme-redoc` 那样改写谁的选择器：
 把站点这一头的模式随消息送进框内、写在同一条属性上就够了（本包 `theme/StoplightPage` 交给
-框内工厂 `theme/theme-iframe/lib/api-frame-view.tsx` 的那条 `modeAttribute`，
+框内工厂 `packages/theme-iframe/lib/api-frame-view.tsx` 的那条 `modeAttribute`，
 `COLOR_MODE_ATTRIBUTE` 就定义在 `stoplight-color-mode.ts`）。
 
 多出来的一格是**同名**：框内那份文档自己也有一份 `data-theme`（Docusaurus 的内联脚本按

@@ -20,10 +20,10 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 问的是包自己的那一格，跟示例页不是一码事，所以单独写。
 */
 
-/** `theme-scalar` 那一格：地址就是 `/theme/theme-scalar/`，尾巴上没有 `README`。 */
+/** `theme-scalar` 那一格：地址就是 `/packages/theme-scalar/`，尾巴上没有 `README`。 */
 Given('我打开 theme-scalar 那一格的顶层页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/theme/theme-scalar/');
+  await page.goto('/packages/theme-scalar/');
 });
 
 /**
@@ -31,7 +31,7 @@ Given('我打开 theme-scalar 那一格的顶层页', async ({ page }) => {
 不是某个手写的页面标题。
 */
 Then('这一页的正文就是这个包的 README', async ({ page }) => {
-  await expect(page).toHaveURL(/\/theme\/theme-scalar\/$/);
+  await expect(page).toHaveURL(/\/packages\/theme-scalar\/$/);
   await expect(page.locator('article h1').first()).toHaveText(
     '@show-docs/docusaurus-theme-scalar',
   );
@@ -43,9 +43,9 @@ Then('这一页的正文就是这个包的 README', async ({ page }) => {
 */
 Then('scalar 那一格的子页是示例页与维护者文档那两份', async ({ page }) => {
   // 判的是左侧那一格的子页清单：`.theme-doc-sidebar-menu` 只此一份（实测），而正文底下那条
-  // 上一页/下一页也是 `<a href="/theme/theme-scalar/docs/…">`，光按 `nav` 选会把它们数进来。
+  // 上一页/下一页也是 `<a href="/packages/theme-scalar/docs/…">`，光按 `nav` 选会把它们数进来。
   const subpages = page.locator(
-    '.theme-doc-sidebar-menu a[href^="/theme/theme-scalar/docs/"]',
+    '.theme-doc-sidebar-menu a[href^="/packages/theme-scalar/docs/"]',
   );
   await expect(
     subpages.filter({ hasText: 'Scalar 示例' }).first(),
@@ -59,20 +59,20 @@ Then('scalar 那一格的子页是示例页与维护者文档那两份', async (
 });
 
 /**
-`demo/` 下那三层假主题（theme-a/b/c）只服务于链式覆盖的夹具，不占站点的一格 ——
-`sidebars.mts` 扫的是 `plugins/` 与 `theme/`，压根没有 `demo/`。这一句钉「别忘了排除它」，
-哪天有人往清单里加上 `demo`，这里立刻红。
+`tools/` 下那三层假主题（theme-a/b/c）只服务于链式覆盖的夹具，不占站点的一格 ——
+`sidebars.mts` 扫的是 `packages/`，压根没有 `tools/`。这一句钉「别忘了排除它」，
+哪天有人往清单里加上 `tools`，这里立刻红。
 */
-Then('这一格里没有 demo 那三层假主题', async ({ page }) => {
+Then('这一格里没有 tools 那三层假主题', async ({ page }) => {
   await expect(
-    page.locator('nav a[href^="/demo"]'),
-    'demo/ 那三层不该进侧边栏',
+    page.locator('nav a[href^="/tools"]'),
+    'tools/ 那三层不该进侧边栏',
   ).toHaveCount(0);
 });
 
 /**
-子页地址那一串 == 那份文件在仓库里的路径：`/theme/theme-markmap/docs/markmap-demo` 就该是
-`theme/theme-markmap/docs/markmap-demo.md`。内容根挪到仓库根之后这件事才成立，所以它值得钉住 ——
+子页地址那一串 == 那份文件在仓库里的路径：`/packages/theme-markmap/docs/markmap-demo` 就该是
+`packages/theme-markmap/docs/markmap-demo.md`。内容根挪到仓库根之后这件事才成立，所以它值得钉住 ——
 文件名后缀按站点收的那几种（`md` / `mdx` / `dbml`）试，一个都不在就是地址与文件脱了。
 */
 Then('地址栏那一串就是这个文件在仓库里的路径', async ({ page }) => {
@@ -102,5 +102,8 @@ Then('面包屑的上一格是 theme-markmap 的 README', async ({ page }) => {
     '面包屑该是「主页 → theme-markmap 那一格」两截',
   ).toHaveCount(2);
   await expect(links.nth(0)).toHaveAttribute('href', '/');
-  await expect(links.nth(1)).toHaveAttribute('href', '/theme/theme-markmap/');
+  await expect(links.nth(1)).toHaveAttribute(
+    'href',
+    '/packages/theme-markmap/',
+  );
 });

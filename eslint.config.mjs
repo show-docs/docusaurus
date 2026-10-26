@@ -10,8 +10,7 @@ const ignores = [
   'build/**',
   'coverage/**',
   'dist/**',
-  'plugins/*/dist/**',
-  'theme/*/dist/**',
+  'packages/*/dist/**',
   '.docusaurus/**',
   '.features-gen/**',
   '.temp/**',
@@ -20,7 +19,7 @@ const ignores = [
 ];
 
 // Docusaurus 的虚拟模块 + 我们的 `@theme-prev*` specifier 族（口径产地见
-// `plugins/plugin-prev-layer-resolver/types/`）：别名在构建期才存在，磁盘上恒无文件，
+// `packages/plugin-prev-layer-resolver/types/`）：别名在构建期才存在，磁盘上恒无文件，
 // `import-x` 的 node resolver 只会判它们「解析不到」。其余原样交回它 —— 拼错的路径照旧会红。
 const VIRTUAL =
   /^@(?:theme(?:-(?:original|init|prev(?:-init|-root)?))?|generated|docusaurus)\//;
@@ -107,19 +106,19 @@ export default [
   {
     // 主题组件的目录名**就是**组件名（`@theme/Logo` 靠它拼出来），官方口径是 PascalCase；
     // 改成 kebab-case 等于改掉别名语义。
-    files: ['src/theme/**', 'demo/*/theme/**', 'theme/*/theme/**'],
+    files: ['src/theme/**', 'tools/*/theme/**', 'packages/*/theme/**'],
     rules: { 'unicorn/filename-case': 0 },
   },
   {
     // 配置期的共享帮手（`lib/api-frame-theme.mts`、`lib/api-frame-source-js-rule.ts`）跑在 Node 里，
     // 引 `node:path` 是它们的职责；浏览器那一份（`lib/index.ts`）不在这一条里。
-    files: ['theme/*/lib/api-frame-*.{mts,ts}'],
+    files: ['packages/*/lib/api-frame-*.{mts,ts}'],
     rules: { 'import-x/no-nodejs-modules': 0 },
   },
   {
     // webpack loader 的上下文（`this.async()` / `this.resourcePath` / `this.cacheable()`）
     // 就是由 Webpack 绑在 `this` 上的，官方签名不给参数对象 —— 改成别的写法就不再是 loader。
-    files: ['theme/*/src/loader/**'],
+    files: ['packages/*/src/loader/**'],
     rules: { 'unicorn/no-this-outside-of-class': 0 },
   },
   {
@@ -135,12 +134,11 @@ export default [
       '*.config.mjs',
       'playwright.config.mts',
       'sidebars.mts',
-      'plugins/*/src/index.mts',
-      'demo/*/index.mts',
-      'demo/*/theme/**',
-      'theme/*/src/index.mts',
-      'theme/*/src/loader/**',
-      'theme/*/theme/**',
+      'packages/*/src/index.mts',
+      'packages/*/src/loader/**',
+      'packages/*/theme/**',
+      'tools/*/index.mts',
+      'tools/*/theme/**',
       'erd/*.mjs',
     ],
     rules: { 'import-x/no-default-export': 0 },
@@ -154,7 +152,7 @@ export default [
   {
     // 仓库级脚本：`process.exit` 是 CLI 的退出方式；依赖允许来自 devDependencies
     // （这类工具本来就不该进运行时依赖）。
-    files: ['scripts/**', 'demo/scripts/**'],
+    files: ['scripts/**', 'tools/scripts/**'],
     rules: {
       'import-x/no-extraneous-dependencies': [
         'error',

@@ -4,14 +4,14 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { validateOptions } from '../theme/theme-erd/src/index.mts';
-import loader from '../theme/theme-erd/src/loader/dbml-loader.mts';
+import { validateOptions } from '../packages/theme-erd/src/index.mts';
+import loader from '../packages/theme-erd/src/loader/dbml-loader.mts';
 import {
   normalizeExports,
   planExports,
   resolveExportModule,
-} from '../theme/theme-erd/src/options.mts';
-import type { DbmlModel, ErdExport } from '../theme/theme-erd/src/types.mts';
+} from '../packages/theme-erd/src/options.mts';
+import type { DbmlModel, ErdExport } from '../packages/theme-erd/src/types.mts';
 
 /**
 ## theme-erd 的构建期判据
@@ -30,7 +30,7 @@ import type { DbmlModel, ErdExport } from '../theme/theme-erd/src/types.mts';
 
 /** 站点上那份示例页，也是这一层每天真实吃进去的那一份输入。 */
 const demoDbml = fs.readFileSync(
-  new URL('../theme/theme-erd/docs/erd-demo.dbml', import.meta.url),
+  new URL('../packages/theme-erd/docs/erd-demo.dbml', import.meta.url),
   'utf8',
 );
 
@@ -425,7 +425,7 @@ describe('配置清单的判据', () => {
 describe('module 的三种写法', () => {
   const siteDir = fileURLToPath(new URL('..', import.meta.url));
   const erdPackageDir = fileURLToPath(
-    new URL('../theme/theme-erd/', import.meta.url),
+    new URL('../packages/theme-erd/', import.meta.url),
   );
 
   it('绝对路径原样用', () => {

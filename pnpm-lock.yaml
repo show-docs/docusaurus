@@ -187,46 +187,49 @@ importers:
         version: 3.10.2(@algolia/client-search@5.59.0)(@docusaurus/faster@3.10.2(@docusaurus/types@3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5))(@swc/helpers@0.5.23)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(postcss@8.5.29)(svgo@3.3.5))(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(@rspack/core@1.7.12(@swc/helpers@0.5.23))(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(@types/react@18.3.31)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3)
       '@show-docs/docusaurus-plugin-frontmatter-injector':
         specifier: workspace:^
-        version: link:plugins/plugin-frontmatter-injector
+        version: link:packages/plugin-frontmatter-injector
       '@show-docs/docusaurus-plugin-prev-layer-resolver':
         specifier: workspace:^
-        version: link:plugins/plugin-prev-layer-resolver
+        version: link:packages/plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-copy-button':
         specifier: workspace:^
-        version: link:theme/theme-copy-button
+        version: link:packages/theme-copy-button
       '@show-docs/docusaurus-theme-diff':
         specifier: workspace:^
-        version: link:theme/theme-diff
+        version: link:packages/theme-diff
       '@show-docs/docusaurus-theme-erd':
         specifier: workspace:^
-        version: link:theme/theme-erd
+        version: link:packages/theme-erd
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
-        version: link:theme/theme-iframe
+        version: link:packages/theme-iframe
       '@show-docs/docusaurus-theme-markmap':
         specifier: workspace:^
-        version: link:theme/theme-markmap
+        version: link:packages/theme-markmap
       '@show-docs/docusaurus-theme-redoc':
         specifier: workspace:^
-        version: link:theme/theme-redoc
+        version: link:packages/theme-redoc
       '@show-docs/docusaurus-theme-scalar':
         specifier: workspace:^
-        version: link:theme/theme-scalar
+        version: link:packages/theme-scalar
       '@show-docs/docusaurus-theme-stoplight':
         specifier: workspace:^
-        version: link:theme/theme-stoplight
+        version: link:packages/theme-stoplight
       '@show-docs/docusaurus-theme-viewer':
         specifier: workspace:^
-        version: link:theme/theme-viewer
+        version: link:packages/theme-viewer
       '@show-docs/theme-a':
         specifier: workspace:^
-        version: link:demo/theme-a
+        version: link:tools/theme-a
       '@show-docs/theme-b':
         specifier: workspace:^
-        version: link:demo/theme-b
+        version: link:tools/theme-b
       '@show-docs/theme-c':
         specifier: workspace:^
-        version: link:demo/theme-c
+        version: link:tools/theme-c
+      '@show-docs/webpack-lazy-compilation':
+        specifier: workspace:^
+        version: link:tools/webpack-lazy-compilation
       react:
         specifier: ~18.3.1
         version: 18.3.1
@@ -307,13 +310,7 @@ importers:
         specifier: ^5.112.0
         version: 5.112.0(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
-  demo/theme-a: {}
-
-  demo/theme-b: {}
-
-  demo/theme-c: {}
-
-  plugins/plugin-frontmatter-injector:
+  packages/plugin-frontmatter-injector:
     dependencies:
       '@docusaurus/core':
         specifier: ^3.9.2
@@ -325,7 +322,7 @@ importers:
         specifier: ^3.9.2
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
 
-  plugins/plugin-prev-layer-resolver:
+  packages/plugin-prev-layer-resolver:
     dependencies:
       '@docusaurus/core':
         specifier: ^3.9.2
@@ -337,7 +334,7 @@ importers:
         specifier: ^5.112.0
         version: 5.112.0(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
-  theme/theme-copy-button:
+  packages/theme-copy-button:
     dependencies:
       '@docusaurus/types':
         specifier: ^3.9.2
@@ -352,7 +349,7 @@ importers:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
-  theme/theme-diff:
+  packages/theme-diff:
     dependencies:
       '@docusaurus/theme-common':
         specifier: ^3.9.2
@@ -373,7 +370,7 @@ importers:
         specifier: ^5.112.0
         version: 5.112.0(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
-  theme/theme-erd:
+  packages/theme-erd:
     dependencies:
       '@dbml/core':
         specifier: ^10.3.1
@@ -397,7 +394,7 @@ importers:
         specifier: ^5.112.0
         version: 5.112.0(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
-  theme/theme-iframe:
+  packages/theme-iframe:
     dependencies:
       '@docusaurus/types':
         specifier: ^3.9.2
@@ -406,7 +403,7 @@ importers:
         specifier: ~18.3.1
         version: 18.3.1
 
-  theme/theme-markmap:
+  packages/theme-markmap:
     dependencies:
       '@docusaurus/theme-common':
         specifier: ^3.9.2
@@ -436,7 +433,7 @@ importers:
         specifier: ^5.112.0
         version: 5.112.0(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
-  theme/theme-redoc:
+  packages/theme-redoc:
     dependencies:
       '@docusaurus/theme-common':
         specifier: ^3.9.2
@@ -463,7 +460,7 @@ importers:
         specifier: ^6.6.0
         version: 6.6.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
-  theme/theme-scalar:
+  packages/theme-scalar:
     dependencies:
       '@docusaurus/theme-common':
         specifier: ^3.9.2
@@ -481,7 +478,7 @@ importers:
         specifier: ~18.3.1
         version: 18.3.1
 
-  theme/theme-stoplight:
+  packages/theme-stoplight:
     dependencies:
       '@docusaurus/theme-common':
         specifier: ^3.9.2
@@ -511,7 +508,7 @@ importers:
         specifier: ^0.11.4
         version: 0.11.4
 
-  theme/theme-viewer:
+  packages/theme-viewer:
     dependencies:
       '@docusaurus/types':
         specifier: ^3.9.2
@@ -531,6 +528,14 @@ importers:
       webpack:
         specifier: ^5.112.0
         version: 5.112.0(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
+
+  tools/theme-a: {}
+
+  tools/theme-b: {}
+
+  tools/theme-c: {}
+
+  tools/webpack-lazy-compilation: {}
 
 packages:
 

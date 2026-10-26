@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PrevLayerResolverPlugin } from '../plugins/plugin-prev-layer-resolver/src/resolver.mts';
+import { PrevLayerResolverPlugin } from '../packages/plugin-prev-layer-resolver/src/resolver.mts';
 
 import {
   makeFixtureSite,

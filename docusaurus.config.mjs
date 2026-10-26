@@ -4,12 +4,12 @@
 //
 // `build/**` 前面那个 `**/` 不是多余的：micromatch 按「相对内容根」比，写成 `build/**` 只管得到
 // 根那一层，`<包>/build/**` 这种产物目录仍然收得进来。
+// 第一行是主页那份：`packages/` 这个组目录自己的 README，`slug: /` 把它落在根。
+// `packages/*/README.md` 那条管不到它 —— `*` 要占完整一段，中间没有目录可给它匹配。
 const DOCS_INCLUDE = [
-  'docs/**/*.md',
-  'plugins/*/README.md',
-  'plugins/*/docs/**/*.md',
-  'theme/*/README.md',
-  'theme/*/docs/**/*.{md,dbml}',
+  'packages/README.md',
+  'packages/*/README.md',
+  'packages/*/docs/**/*.{md,dbml}',
 ];
 
 const DOCS_EXCLUDE = ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'];
@@ -54,7 +54,7 @@ const config = {
     ],
     // 链式覆盖：新增 `@theme-prev/X` 系列 specifier，不改 `@theme-original` 官方语义。
     // 不需要配置清单：这个数组的顺序就是层栈顺序。语义、推导与「改完源码要 `pnpm build:core`」
-    // 的编译口径，记在 `plugins/plugin-prev-layer-resolver/README.md`。
+    // 的编译口径，记在 `packages/plugin-prev-layer-resolver/README.md`。
     // 下面第一项不是层（没有 `getThemePath()`），是解析器；其余各项是层。
     // eslint-disable-next-line unicorn/prefer-module -- 本文件由 Docusaurus 的配置加载器执行，`require` 在那儿真实存在（`pnpm build` 绿即为证）
     require.resolve('@show-docs/docusaurus-plugin-prev-layer-resolver'),
@@ -84,10 +84,10 @@ const config = {
     '@show-docs/docusaurus-theme-diff',
     // iframe 主题层：它是「整页交给一个框」这一族的**唯一外层套壳** —— 那份 `DocItem` 判四把键
     // （`scalar` / `redoc` / `oas3` / `iframe`），命中就把正文区换成通用框。默认顺序与启用范围在
-    // `theme/theme-iframe/lib/api-frame-registry.ts`（未安装的层不参与判定），站点可在这一项自己的
+    // `packages/theme-iframe/lib/api-frame-registry.ts`（未安装的层不参与判定），站点可在这一项自己的
     // 插件选项里覆盖 `{ themeConfig: { apiFrame: { order: [命名空间…] } } }`：顺序即优先级、
     // 列出的即启用范围。本站不配这一格 = 走注册表默认（scalar 优先），判据在 e2e 的
-    // frame-precedence 用例。口径全在 `theme/theme-iframe/docs/iframe-protocol.md`。
+    // frame-precedence 用例。口径全在 `packages/theme-iframe/docs/iframe-protocol.md`。
     '@show-docs/docusaurus-theme-iframe',
     // 下面三条 API 层各注册自己那条框内页面与渲染器差异，外层套壳与共用约定都在 theme-iframe：
     // 键分别是 `oas3` / `redoc` / `scalar`，口径分别在各包自己的 README。
@@ -104,9 +104,10 @@ const config = {
     // '@show-docs/docusaurus-theme-copy-button',
     // 开发期 webpack 加速：非 build 的客户端编译开 `lazyCompilation`（页面与依赖按需编译，
     // 首屏更快）。`configureWebpack` 不是站点配置的合法字段（配置 schema 会直接拒收），
-    // 它只能是插件生命周期方法，所以逻辑放进本地插件文件、在这里按站点根路径挂上。
+    // 它只能是插件生命周期方法，所以逻辑放进 `tools/webpack-lazy-compilation/` 那个子包、
+    // 在这里按包名挂上。
     // 这个插件没有主题目录，不参与上面的层栈推导（见 layers.mts 的过滤口径）。
-    './src/plugins/webpack-lazy-compilation.mjs',
+    '@show-docs/webpack-lazy-compilation',
   ],
 
   presets: [
@@ -116,14 +117,16 @@ const config = {
       @type {import('@docusaurus/preset-classic').Options}
       */
       ({
-        // 站点没有单独的首页组件：`docs/intro.md` 就是主页（`slug: /` 落在这里）。
+        // 站点没有单独的首页组件：`packages/README.md` 就是主页（`slug: /` 落在这里）。
         // `routeBasePath: '/'` 把 docs 的前缀挪到根，于是没有「页面层」去和主题层争同一格。
         //
-        // 内容根是整个仓库，不是 `docs/`：每个包的 `README.md` 就是它在站点里的顶层页
-        //（Docusaurus 认 `README.md` 是所在目录的索引页，所以地址是 `/theme/theme-scalar/`），
+        // 内容根是整个仓库，不是某一个 `docs/`：每个包的 `README.md` 就是它在站点里的顶层页
+        //（Docusaurus 认 `README.md` 是所在目录的索引页，所以地址是 `/packages/theme-scalar/`），
         // 这个包 `docs/` 目录里的那几页 —— 示例页与维护者文档 —— 是它的子页。
+        // 主页占的也是这一条规则的格子：`packages/README.md` 是组目录那一层的索引页，
+        // 只是被 `slug: /` 挪到了根，所以 `packages/` 这一格本身没有单独的地址。
         // include 因此按包点名，而不是 `**/*.md`：站点根下那些只给仓库读者看的说明
-        //（根 README、`demo/README.md`、`src/theme/README.md`、`test/README.md`）不进站点。
+        //（根 README、`tools/README.md`、`src/theme/README.md`、`test/README.md`）不进站点。
         // 每一格对应哪个包、顺序怎么来，见 `sidebars.mts`（扫目录得到，没有手抄的清单）。
         docs: {
           routeBasePath: '/',
@@ -168,7 +171,7 @@ const config = {
     footer: {
       style: 'dark',
       // 页脚不摆链接：示例页的入口只有主页那张卡片列表一处（清单由侧边栏自动给，
-      // 见 docs/intro.md），页脚再抄一份就是第二处要跟着新增页面改的地方。
+      // 见 packages/README.md），页脚再抄一份就是第二处要跟着新增页面改的地方。
       // 这一格留着 `copyright` 两件事才成立：页脚整块还在（`test/e2e` 那两条
       // 「这一页有/没有站点的页脚」判的是它收没收起），以及页脚复制按钮那层有地方挂。
       copyright:

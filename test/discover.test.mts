@@ -8,9 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeCore, makePluginSite } from './helpers.mts';
 
 const { PluginDiscovery } =
-  await import('../plugins/plugin-prev-layer-resolver/src/plugins.mts');
+  await import('../packages/plugin-prev-layer-resolver/src/plugins.mts');
 const { layersFromPlugins } =
-  await import('../plugins/plugin-prev-layer-resolver/src/layers.mts');
+  await import('../packages/plugin-prev-layer-resolver/src/layers.mts');
 
 // 一次插件初始化 = 一个实例，同一实例只推导一次；测试里每处新建实例 = 每次重新初始化。
 
@@ -70,7 +70,7 @@ describe('discoverPlugins：用官方函数拿回官方顺序的插件列表', (
   }, 60_000);
 
   it('推出来的层栈是本仓库的 4 层链，含被官方别名表吞掉的 theme-b', async () => {
-    // 层栈不能建在 `context.plugins` 上（不存在，写反过一次 —— 见 ../plugins/plugin-prev-layer-resolver/README.md）：
+    // 层栈不能建在 `context.plugins` 上（不存在，写反过一次 —— 见 ../packages/plugin-prev-layer-resolver/README.md）：
     // 判据走**真实推导**，拿真实 `loadContext` 的**原样返回值**喂进去也必须推出同一个结果。
     // 改回 `context.plugins` 时 theme-b 会丢（构建即 Module not found）。
     const { loadContext } = await import('@docusaurus/core/lib/server/site.js');
@@ -83,14 +83,14 @@ describe('discoverPlugins：用官方函数拿回官方顺序的插件列表', (
     }).map((l) => path.relative(siteDir, l.owner));
     expect(owners.at(-1)).toBe(path.join('src', 'theme'));
     // 用户插件主题：顺序 = plugins 数组顺序，且 theme-b 不能被跳过
-    expect(owners.filter((o) => o.startsWith('demo'))).toEqual([
-      path.join('demo', 'theme-a', 'theme'),
-      path.join('demo', 'theme-b', 'theme'),
-      path.join('demo', 'theme-c', 'theme'),
+    expect(owners.filter((o) => o.startsWith('tools'))).toEqual([
+      path.join('tools', 'theme-a', 'theme'),
+      path.join('tools', 'theme-b', 'theme'),
+      path.join('tools', 'theme-c', 'theme'),
     ]);
     // preset 主题在内层
     expect(owners.findIndex((o) => o.includes('theme-classic'))).toBeLessThan(
-      owners.indexOf(path.join('demo', 'theme-a', 'theme')),
+      owners.indexOf(path.join('tools', 'theme-a', 'theme')),
     );
   }, 120_000);
 
@@ -160,7 +160,7 @@ describe('插件构造失败：一律告警，一次构建聚合成一条', () =
 /**
 使用约束 ②「主题插件模块的整个加载期需无副作用」—— 用真实依赖钉住它的**来源**。
 
-契约（`../plugins/plugin-prev-layer-resolver/README.md` 实测表）：一次 build 里 ESM 主题插件被加载 **2 次**
+契约（`../packages/plugin-prev-layer-resolver/README.md` 实测表）：一次 build 里 ESM 主题插件被加载 **2 次**
 （官方 `initPlugins` 一次 + 我们推导层栈一次 → 两份独立模块状态），CJS 只 **1 次**（共享实例），
 但两者都**构造两次**。
 
@@ -305,7 +305,7 @@ export default { loadPluginConfigs: async () => [{ plugin, entryPath: '/fake/fro
     const selfEntry = path.resolve(
       import.meta.dirname,
       '..',
-      'plugins',
+      'packages',
       'plugin-prev-layer-resolver',
       'src',
       'plugins.mts',

@@ -15,7 +15,7 @@ const { Given, When, Then } = createBdd();
 /**
 ## 这一层的判据分两份文档量
 
-命中页（`/theme/theme-redoc/docs/redoc-demo`）里只有一个 iframe，Redoc 整个跑在框内那份文档（本包那条插件路由
+命中页（`/packages/theme-redoc/docs/redoc-demo`）里只有一个 iframe，Redoc 整个跑在框内那份文档（本包那条插件路由
 `/redoc-view`）上。所以每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有任何 Redoc 的东西（边界由浏览器给，
@@ -31,7 +31,7 @@ const { Given, When, Then } = createBdd();
 
 Redoc 的路由走 hash：左栏那些链接由它自己拼成 `#/orders/…`；`operationId` 被小写进地址
 （`createOrder` → `createorder`），下面的 href 按浏览器里真的那串写。href 不带路径前缀，
-是因为组件里 `basePath` 用的是默认值 `/`（口径记在 `theme/theme-redoc/docs/internals.md`）。
+是因为组件里 `basePath` 用的是默认值 `/`（口径记在 `packages/theme-redoc/docs/internals.md`）。
 
 每条都限定在 `.menu-content` 里：正文面板上也有指向同一个接口的锚（标签标题旁那个
 「link to orders」），不限定就会命中两处，Playwright 的严格模式直接报错。
@@ -48,7 +48,7 @@ const menuHref = (name: string): string => `#/orders/${name}`;
 /**
 整页加载一条**别人转发过来的接口地址**：`#/orders/createorder` 这段是框里点了接口之后
 由 postMessage 送进外层地址栏的。这一条用例钉的是它在静态产物里也打得开，而且是 **HTTP 200**
-—— 页面本身是 `build/theme/theme-redoc/docs/redoc-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
+—— 页面本身是 `build/packages/theme-redoc/docs/redoc-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
 （换成按路径的路由就是 404，取舍见包 README 的「已知限制」一节。）
 */
 Given('我直达 redoc 那条接口的地址', async ({ page }) => {
@@ -115,7 +115,7 @@ Then('Redoc 的详情面板换成那条接口，外层地址也跟着换', async
     '接口详情没渲染出来',
   ).toContainText(['Redoc 演示 API (1.0.0)', 'orders', '列出订单', '新建订单']);
   await expect(page).toHaveURL(
-    /\/theme\/theme-redoc\/docs\/redoc-demo#\/orders\/createorder$/,
+    /\/packages\/theme-redoc\/docs\/redoc-demo#\/orders\/createorder$/,
   );
 });
 
@@ -321,7 +321,7 @@ Redoc 自带一套亮暗模式，判据是**操作系统**的偏好（`matchMedi
 
 本层在运行期把 `:root.dark` 改挂到 `:root[data-redoc-mode="dark"]`（`redoc-color-mode.ts`），
 于是站点那个开关成为唯一的驱动。改造之后多出一格：那个开关写在**外层**文档的 `<html>` 上，
-而配色在**框内**那份文档里 —— 这一格由共享那条 postMessage 通道接（`theme/theme-iframe/lib/`：
+而配色在**框内**那份文档里 —— 这一格由共享那条 postMessage 通道接（`packages/theme-iframe/lib/`：
 外层（theme-iframe 的 `api-frame.tsx`）送、框内那份工厂（`api-frame-view.tsx`，本包 `theme/RedocPage`
 就是它造出的一页）收，收下来往自己 `<html>` 上写那条属性）。
 框内那份文档不挂站点的 `ColorModeProvider`，站点那条 `data-theme` 在这里只是加载时内联脚本

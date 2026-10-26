@@ -1,0 +1,53 @@
+{
+  "name": "@show-docs/docusaurus-plugin-prev-layer-resolver",
+  "version": "0.2.1",
+  "description": "让多个主题层层包裹同一个组件成立，且 @theme-original 官方语义零改动",
+  "license": "UNLICENSED",
+  "author": {
+    "name": "Eric Chen"
+  },
+  "keywords": [],
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/plugin-prev-layer-resolver",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
+    "directory": "packages/plugin-prev-layer-resolver"
+  },
+  "bugs": {
+    "url": "https://github.com/show-docs/docusaurus/issues"
+  },
+  "types": "dist/index.d.mts",
+  "main": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "default": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": [
+    "dist",
+    "types"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "@docusaurus/core": "^3.9.2",
+    "@docusaurus/types": "^3.9.2",
+    "webpack": "^5.112.0"
+  },
+  "peerDependenciesMeta": {
+    "webpack": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

@@ -5,14 +5,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
-import { needsSiteJsRule } from '../theme/theme-iframe/lib/api-frame-source-js-rule.ts';
-import { createApiFrameTheme } from '../theme/theme-iframe/lib/api-frame-theme.mts';
+import { needsSiteJsRule } from '../packages/theme-iframe/lib/api-frame-source-js-rule.ts';
+import { createApiFrameTheme } from '../packages/theme-iframe/lib/api-frame-theme.mts';
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
 
 /** 各包入口产物在 `dist/`、`src/` 与它是兄弟，所以拿源码路径喂工厂，`../theme` 正落在各包的 `theme/`。 */
 const entryUrlOf = (pkg: string): string =>
-  pathToFileURL(path.resolve(repoRoot, `theme/theme-${pkg}/src/index.mts`))
+  pathToFileURL(path.resolve(repoRoot, `packages/theme-${pkg}/src/index.mts`))
     .href;
 
 const contextWithBase = (baseUrl: string): LoadContext =>
@@ -54,7 +54,7 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
       const plugin = make(pkg);
       const themePath = (plugin.getThemePath as () => string)();
       expect(path.resolve(themePath)).toBe(
-        path.resolve(repoRoot, `theme/theme-${pkg}/theme`),
+        path.resolve(repoRoot, `packages/theme-${pkg}/theme`),
       );
     }
   });
@@ -103,7 +103,7 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
   it('层目录算出来不存在时当场抛，且报出实际解析到的路径', () => {
     // 指向一个不存在的包目录：../theme 落空，报错点名解析到的那格而不是留个悬空别名
     const bogus = pathToFileURL(
-      path.resolve(repoRoot, 'theme/theme-ghost/src/index.mts'),
+      path.resolve(repoRoot, 'packages/theme-ghost/src/index.mts'),
     ).href;
     expect(() =>
       createApiFrameTheme(contextWithBase('/'), {
@@ -154,7 +154,7 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
     // 工作区里（链路解析到 node_modules 之外）交给官方那条，不重复编一遍
     expect(
       rule.include!(
-        `${repoRoot}/theme/theme-scalar/theme/ScalarPage/index.tsx`,
+        `${repoRoot}/packages/theme-scalar/theme/ScalarPage/index.tsx`,
       ),
     ).toBe(false);
     // 同一条判据在装机之后翻过来：包里那份落在 node_modules 里，官方不认，才轮到它

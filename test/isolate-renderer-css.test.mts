@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isolateRendererCss } from '../theme/theme-iframe/lib/isolate-renderer-css.ts';
+import { isolateRendererCss } from '../packages/theme-iframe/lib/isolate-renderer-css.ts';
 
 type Rule = Record<string, unknown>;
 

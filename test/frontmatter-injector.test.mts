@@ -7,8 +7,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
 
-import { DEFAULT_INCLUDE } from '../plugins/plugin-frontmatter-injector/src/docs-scope.mts';
-
+import { DEFAULT_INCLUDE } from '../packages/plugin-frontmatter-injector/src/docs-scope.mts';
 import frontMatterInjectorPlugin, {
   applyRules,
   createScope,
@@ -28,7 +27,7 @@ import frontMatterInjectorPlugin, {
   type FrontMatterRule,
   type Repo,
   type RuleContext,
-} from '../plugins/plugin-frontmatter-injector/src/index.mts';
+} from '../packages/plugin-frontmatter-injector/src/index.mts';
 
 import { mkdtempReal } from './helpers.mts';
 
@@ -43,7 +42,7 @@ git 那一组走**真实的 git**（临时仓库真提交几次，提交时刻�
 这一层最容易坏的地方恰恰是「参数怎么拼、`git log` 的输出长什么样」。
 */
 
-const DOC = '/site/docs/intro.md';
+const DOC = '/site/packages/README.md';
 
 /** 调用方的入参就是官方 `ParseFrontMatter` 那一份 */
 const params = (filePath = DOC) => ({
@@ -78,9 +77,9 @@ const rule = (
 const fakeRepo = (overrides: Partial<Repo> = {}): Repo => ({
   root: '/site',
   head: 1_000_000,
-  recent: new Set(['docs/intro.md']),
+  recent: new Set(['packages/README.md']),
   times: new Map([
-    ['docs/intro.md', { created: 1_000_000, updated: 1_000_000 }],
+    ['packages/README.md', { created: 1_000_000, updated: 1_000_000 }],
   ]),
   ...overrides,
 });
@@ -301,38 +300,44 @@ describe('mergeTags：去重、排序、形状判据', () => {
 });
 
 describe('地盘：只对文档插件扫得到的那批文件动手', () => {
-  const root = '/site';
+  // 假站点根也过一遍平台的 `resolve()`：Windows 上 `'/site'` 会补出当前盘（`D:/site`），
+  // 与 `docsContentPath()` / `covers()` 里那一次 resolve 同一形状。钉的仍是那几件事
+  // （缺省 `docs`、`path` 换根、include/exclude 的认领范围），不是钉 POSIX 那一串分隔符。
+  const root = path.resolve('/site').replaceAll('\\', '/');
 
   /** 站点里真实的那一份：内容根是仓库根，按包点名收 */
   const scope = createScope(root, {
     include: [
-      'docs/**/*.md',
-      'plugins/*/README.md',
-      'plugins/*/docs/**/*.md',
-      'theme/*/docs/**/*.{md,dbml}',
+      'packages/README.md',
+      'packages/*/README.md',
+      'packages/*/docs/**/*.{md,dbml}',
     ],
     exclude: ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'],
   });
 
   it('内容根默认是 `<站点根>/docs`，`path` 换成别的就跟着换', () => {
-    expect(docsContentPath('/site', {})).toBe('/site/docs');
-    expect(docsContentPath('/site', { path: '.' })).toBe('/site');
-    expect(docsContentPath('/site', { path: 'content/docs' })).toBe(
-      '/site/content/docs',
+    expect(docsContentPath(root, {})).toBe(`${root}/docs`);
+    expect(docsContentPath(root, { path: '.' })).toBe(root);
+    expect(docsContentPath(root, { path: 'content/docs' })).toBe(
+      `${root}/content/docs`,
     );
   });
 
   it('include 收的才收：站外那几份 README 与包内 docs 不进站点', () => {
     for (const [path, expected] of [
-      ['docs/intro.md', true],
-      ['plugins/a/README.md', true],
-      ['plugins/a/docs/internals.md', true],
-      ['theme/a/docs/demo.dbml', true],
+      // 主页：组目录自己那一份，靠第一条点名收进来（`packages/*/README.md` 差一整段）
+      ['packages/README.md', true],
+      ['packages/a/README.md', true],
+      ['packages/a/docs/internals.md', true],
+      ['packages/a/docs/demo.dbml', true],
       ['README.md', false],
-      ['demo/README.md', false],
+      // 主页搬进 `packages/` 之后，顶层那个 `docs/` 不再有人收：这一格留着，钉的是「搬回来也不会
+      // 自动进站点」—— include 是点名的，不是按目录放开的。
+      ['docs/intro.md', false],
+      ['tools/README.md', false],
       ['src/theme/README.md', false],
-      // 那一批的 include 明写 `.md`：`plugins/*/docs/**` 下没有 `.mdx` 这一格
-      ['plugins/a/docs/internals.mdx', false],
+      // include 明写 `.md`/`.dbml`：`packages/*/docs/**` 下没有 `.mdx` 这一格
+      ['packages/a/docs/internals.mdx', false],
     ] as const) {
       expect(scope.covers(`${root}/${path}`), path).toBe(expected);
     }
@@ -343,7 +348,7 @@ describe('地盘：只对文档插件扫得到的那批文件动手', () => {
       'node_modules/a/README.md',
       'a/node_modules/x/README.md',
       'build/docs/a.md',
-      'plugins/a/build/README.md',
+      'packages/a/build/README.md',
       '.docusaurus/a.md',
     ]) {
       expect(scope.covers(`${root}/${path}`), path).toBe(false);
@@ -357,9 +362,11 @@ describe('地盘：只对文档插件扫得到的那批文件动手', () => {
   });
 
   it('相对内容根的路径也认；Windows 分隔符先归一', () => {
-    expect(scope.covers('docs/a.md')).toBe(true);
-    expect(scope.covers(String.raw`docs\a.md`)).toBe(true);
-    expect(scope.covers(String.raw`/site\docs\a.md`)).toBe(true);
+    // 形状照上面那份 include 取（内容根是仓库根，包内 docs 才被收）：这里钉的是
+    // 「相对内容根 / 反斜杠 / 绝对反斜杠」三种写法归一到同一判定，不是钉某一条 include。
+    expect(scope.covers('packages/a/docs/b.md')).toBe(true);
+    expect(scope.covers(String.raw`packages\a\docs\b.md`)).toBe(true);
+    expect(scope.covers(String.raw`${root}\packages\a\docs\b.md`)).toBe(true);
   });
 
   it('没转述 include 时按官方缺省收 md/mdx，`exclude` 不兜默认', () => {
@@ -370,12 +377,12 @@ describe('地盘：只对文档插件扫得到的那批文件动手', () => {
     expect(bare.covers(`${root}/docs/a.md`)).toBe(true);
     expect(bare.covers(`${root}/docs/sub/a.mdx`)).toBe(true);
     expect(bare.covers(`${root}/docs/sub/a.dbml`)).toBe(false);
-    expect(bare.covers(`${root}/plugins/a/README.md`)).toBe(false);
+    expect(bare.covers(`${root}/packages/a/README.md`)).toBe(false);
   });
 
   it('scopeOf 拿站点根与 docs.path 拼内容根，与文档插件自己算的口径一致', () => {
-    expect(scopeOf(root, { path: '.' }).contentPath).toBe('/site');
-    expect(scopeOf(root, {}).contentPath).toBe('/site/docs');
+    expect(scopeOf(root, { path: '.' }).contentPath).toBe(root);
+    expect(scopeOf(root, {}).contentPath).toBe(`${root}/docs`);
   });
 
   it('地盘之外的文件连一条规则都不跑（算值那一步不跑、git 也不问）', async () => {
@@ -422,7 +429,7 @@ describe('tags 那把键怎么算（不碰磁盘）', () => {
   it('一个 commit 就是全部历史、且落在窗口里：算新（也就算最近更新）', () => {
     const repo = fakeRepo();
 
-    expect(tagsOfFile('/site/docs/intro.md', [], repo)).toEqual([
+    expect(tagsOfFile('/site/packages/README.md', [], repo)).toEqual([
       NEW_TAG,
       UPDATE_TAG,
     ]);
@@ -431,26 +438,34 @@ describe('tags 那把键怎么算（不碰磁盘）', () => {
   it('提交过两次以上：不再算新，但还算更新', () => {
     const repo = fakeRepo({
       times: new Map([
-        ['docs/intro.md', { created: undefined, updated: 1_000_000 }],
+        ['packages/README.md', { created: undefined, updated: 1_000_000 }],
       ]),
     });
 
-    expect(tagsOfFile('/site/docs/intro.md', [], repo)).toEqual([UPDATE_TAG]);
+    expect(tagsOfFile('/site/packages/README.md', [], repo)).toEqual([
+      UPDATE_TAG,
+    ]);
   });
 
   it('窗口外的老文件：一个都不加', () => {
     const repo = fakeRepo({
       recent: new Set(),
-      times: new Map([['docs/intro.md', { created: undefined, updated: 0 }]]),
+      times: new Map([
+        ['packages/README.md', { created: undefined, updated: 0 }],
+      ]),
     });
 
-    expect(tagsOfFile('/site/docs/intro.md', [], repo)).toEqual([]);
+    expect(tagsOfFile('/site/packages/README.md', [], repo)).toEqual([]);
   });
 
   it('一次都没提交过（或不在这个仓库里）的文件：只留配置里那份', () => {
-    const repo = fakeRepo({ times: new Map([['docs/intro.md', noTimes]]) });
+    const repo = fakeRepo({
+      times: new Map([['packages/README.md', noTimes]]),
+    });
 
-    expect(tagsOfFile('/site/docs/intro.md', ['站点'], repo)).toEqual(['站点']);
+    expect(tagsOfFile('/site/packages/README.md', ['站点'], repo)).toEqual([
+      '站点',
+    ]);
     expect(tagsOfFile('/elsewhere/a.md', ['站点'], repo)).toEqual(['站点']);
   });
 });
@@ -794,7 +809,7 @@ describe('defaultRules：只补 tags 一把键', () => {
 
 describe('plugin-frontmatter-injector 插件接线', () => {
   /**
-   接线那几层拿的是真站点根：`DOC` 那份 `/site/docs/intro.md` 在磁盘上不存在，而地盘是按
+   接线那几层拿的是真站点根：`DOC` 那份 `/site/packages/README.md` 在磁盘上不存在，而地盘是按
    `siteDir + docs.path` 拼出来的 —— 所以 `docs.path` 指到测试文件所在的目录，`DOC` 也就落在
    地盘之内。这一格同时钉住「内容根跟着 `docs.path` 走」，不必为了测接线造一个假站点。
   */
@@ -816,9 +831,10 @@ describe('plugin-frontmatter-injector 插件接线', () => {
     options: Parameters<typeof frontMatterInjectorPlugin>[1] = undefined,
     markdown = createMarkdown(),
   ) {
-    const context = { siteDir: path.dirname(DOC), siteConfig: { markdown } } as unknown as Parameters<
-      typeof frontMatterInjectorPlugin
-    >[0];
+    const context = {
+      siteDir: path.dirname(DOC),
+      siteConfig: { markdown },
+    } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0];
 
     return {
       markdown,
@@ -975,7 +991,9 @@ describe('plugin-frontmatter-injector 插件接线', () => {
       siteConfig: { markdown },
     } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0];
 
-    expect(() => frontMatterInjectorPlugin(context).loadContent?.()).not.toThrow();
+    expect(() =>
+      frontMatterInjectorPlugin(context).loadContent?.(),
+    ).not.toThrow();
 
     const { frontMatter } = await markdown.parseFrontMatter(
       params(path.join(path.dirname(DOC), DOCS_PATH, 'intro.md')),

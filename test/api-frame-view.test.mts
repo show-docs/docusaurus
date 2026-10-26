@@ -5,11 +5,11 @@ import { act, createElement } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { apiFrameMessages } from '../theme/theme-iframe/lib/api-frame-messages.ts';
+import { apiFrameMessages } from '../packages/theme-iframe/lib/api-frame-messages.ts';
 import {
   createApiFrameView,
   type ApiFrameViewProps,
-} from '../theme/theme-iframe/lib/api-frame-view.tsx';
+} from '../packages/theme-iframe/lib/api-frame-view.tsx';
 
 import { stubIsBrowser } from './stubs/use-is-browser.ts';
 

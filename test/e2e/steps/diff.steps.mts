@@ -39,7 +39,7 @@ Then('视图上写明对比的是哪一份文件，改动行与段落都在', as
   await expect(
     diffBlock(page).locator('code'),
     '说明行没写明对比的是哪一份文件',
-  ).toHaveText('docs/intro.md');
+  ).toHaveText('packages/README.md');
   await expect(
     diffView(page).locator('[data-state="diff"]'),
     '差异视图里没有改动行',
@@ -76,7 +76,7 @@ Then('这一页没有差异视图', async ({ page }) => {
 */
 Given('我打开两份文件对照示例页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/theme/theme-diff/docs/diff-pair-demo');
+  await page.goto('/packages/theme-diff/docs/diff-pair-demo');
 });
 
 Then('说明行写明比的是哪两份文件', async ({ page }) => {

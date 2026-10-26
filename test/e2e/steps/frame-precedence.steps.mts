@@ -7,7 +7,7 @@ import { watchPageErrors } from '../helpers.mts';
 const { Given, Then } = createBdd();
 
 /**
-四把键同写一页时，赢的那一把由注册表顺序定（`theme/theme-iframe/lib/api-frame-registry.ts`：
+四把键同写一页时，赢的那一把由注册表顺序定（`packages/theme-iframe/lib/api-frame-registry.ts`：
 scalar → redoc → oas3 → iframe）。两份夹具页各钉一头：全写上验「第一个命中就换框」，
 拿掉 scalar 验「判定真的在逐条走」。判据都按**页面上只有一个框**来量 —— 落败的键要是
 还渲染出自己的框，数量这一句就红。
@@ -16,12 +16,12 @@ const anyFrame = (page: Page): Locator => page.locator('iframe');
 
 Given('我打开四把键同写的演示页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/theme/theme-iframe/docs/frame-precedence-scalar');
+  await page.goto('/packages/theme-iframe/docs/frame-precedence-scalar');
 });
 
 Given('我打开不写 scalar 的三把键演示页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/theme/theme-iframe/docs/frame-precedence-redoc');
+  await page.goto('/packages/theme-iframe/docs/frame-precedence-redoc');
 });
 
 Then('这一页只摆一个框，而且是 scalar 那一个', async ({ page }) => {

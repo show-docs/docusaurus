@@ -1,0 +1,54 @@
+{
+  "name": "@show-docs/docusaurus-theme-scalar",
+  "version": "0.1.1",
+  "description": "Md 的 frontmatter 写 scalar: <URL> 时把该页整页换成一个 iframe，框里用 Scalar 渲染那份 API 文档",
+  "keywords": [],
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-scalar",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
+    "directory": "packages/theme-scalar"
+  },
+  "bugs": {
+    "url": "https://github.com/show-docs/docusaurus/issues"
+  },
+  "types": "dist/index.d.mts",
+  "main": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "default": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": [
+    "components",
+    "dist",
+    "theme"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@scalar/api-reference": "^1.75.0"
+  },
+  "peerDependencies": {
+    "@docusaurus/theme-common": "^3.9.2",
+    "@docusaurus/types": "^3.9.2",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
+    "react": "~18.3.1"
+  },
+  "peerDependenciesMeta": {
+    "@docusaurus/types": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

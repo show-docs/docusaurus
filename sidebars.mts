@@ -2,12 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
-侧边栏按包给：`plugins/` 与 `theme/` 下每个有 `README.md` 的目录占一顶层格，
+侧边栏按包给：`packages/` 下每个**有 `README.md` 的目录**占一顶层格，
 那一格的顶层页就是这个包自己的 README —— Docusaurus 把 `README.md` 认作所在目录的索引页，
-所以地址是 `/theme/theme-scalar/`，不是 `/theme/theme-scalar/README`。
+所以地址是 `/packages/theme-scalar/`，不是 `/packages/theme-scalar/README`。
 它的子页是这个包 `docs/` 目录里的那些页：示例页与维护者文档都住在那儿。
 
-包清单是扫目录来的，不是手抄的：新增一个包不必回来改这里。`demo/` 那一族假主题不在此列
+`packages/README.md` 本身不在上面那一次扫描里：它是文件，不是目录（下面那两条 filter 第一条
+就把它挡掉），走的是这份清单的头一格 —— 那一份就是主页，`slug: /` 把它落在根，
+所以它不占「某个包」那一格。
+
+包清单是扫目录来的，不是手抄的：新增一个包不必回来改这里。`tools/` 那一族假主题不在此列
 （它们只用来钉那条层栈，没有面向使用者的文档）。
 
 主页的 `<DocCardList />` 不接 items，取的就是这份根级清单里的兄弟项，所以主页那张卡片列表
@@ -47,18 +51,15 @@ function readPackageDescription(dir: string): string | undefined {
   return description;
 }
 
-const packageDirs = ['plugins', 'theme']
-  .flatMap((group) =>
-    fs
-      .readdirSync(path.join(siteDir, group))
-      .map((name) => `${group}/${name}`)
-      .filter((dir) => fs.statSync(path.join(siteDir, dir)).isDirectory()),
-  )
+const packageDirs = fs
+  .readdirSync(path.join(siteDir, 'packages'))
+  .map((name) => `packages/${name}`)
+  .filter((dir) => fs.statSync(path.join(siteDir, dir)).isDirectory())
   // 有 README.md 才算有一顶层页：包都补齐了这份文档，缺它就正好在这里露出来。
   .filter((dir) => fs.existsSync(path.join(siteDir, dir, 'README.md')));
 
 export default {
-  // 第一项是主页：`slug: /` 把它落到根，所以它排在这份清单的头一格，
+  // 第一项是主页：`packages/README.md` 以 `slug: /` 落到根，所以它排在这份清单的头一格，
   // 主页那张卡片列表的头一张也是它本身。
-  docs: ['docs/intro', ...packageDirs.map((dir) => packageCategory(dir))],
+  docs: ['packages/README', ...packageDirs.map((dir) => packageCategory(dir))],
 };

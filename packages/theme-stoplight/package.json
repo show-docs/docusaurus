@@ -1,0 +1,58 @@
+{
+  "name": "@show-docs/docusaurus-theme-stoplight",
+  "version": "0.1.1",
+  "description": "Md 的 frontmatter 写 oas3: <URL> 时把该页正文换成 Stoplight Elements 渲染的 OpenAPI 文档",
+  "keywords": [],
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-stoplight",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
+    "directory": "packages/theme-stoplight"
+  },
+  "bugs": {
+    "url": "https://github.com/show-docs/docusaurus/issues"
+  },
+  "types": "dist/index.d.mts",
+  "main": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "default": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": [
+    "components",
+    "dist",
+    "theme"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@stoplight/elements": "^9.0.24",
+    "buffer": "^6.0.3",
+    "process": "^0.11.10",
+    "react-router-dom": "^6.30.6",
+    "url": "^0.11.4"
+  },
+  "peerDependencies": {
+    "@docusaurus/theme-common": "^3.9.2",
+    "@docusaurus/types": "^3.9.2",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
+    "react": "~18.3.1"
+  },
+  "peerDependenciesMeta": {
+    "@docusaurus/types": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

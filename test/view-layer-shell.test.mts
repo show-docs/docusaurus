@@ -8,8 +8,8 @@ import { createRoot } from 'react-dom/client';
 import {
   ViewLayer,
   ViewLayerDocItem,
-} from '../theme/theme-iframe/lib/view-layer-shell.tsx';
-import { hackStyle } from '../theme/theme-iframe/lib/view-layer.ts';
+} from '../packages/theme-iframe/lib/view-layer-shell.tsx';
+import { hackStyle } from '../packages/theme-iframe/lib/view-layer.ts';
 
 /**
 三条视图层（`theme-markmap` / `theme-erd` / `theme-diff`）共用那份外壳的分支单测

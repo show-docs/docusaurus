@@ -113,7 +113,7 @@ When(
 
 地址里带的是 frontmatter 那个 spec 地址（编码成 `src` 参数），**不带** hash：iframe 的 `src`
 只由配置决定，服务端与客户端算出的完全一样，深链那一段靠框里那句 ready 换进框内
-（见 `theme/theme-iframe/docs/iframe-protocol.md`）。这里比的是属性原文，不是解析后的绝对地址。
+（见 `packages/theme-iframe/docs/iframe-protocol.md`）。这里比的是属性原文，不是解析后的绝对地址。
 */
 Then(
   new RegExp(`^这一页放的是一个 iframe，指向 (${layerWord}) 那条独立页面$`),
@@ -155,7 +155,7 @@ Then(
 
 `theme-redoc`、`theme-stoplight` 与 `theme-scalar` 各钉一条同形状的场景：站点自己的开关是
 唯一的驱动，操作系统的偏好不算数，而且换配色不该把框内那份文档重新加载。这三步量的都是
-**跨 iframe 边界**那一条消息通道（实现见 `theme/theme-iframe/lib/`），两边读同一处信号 —— 它在框内
+**跨 iframe 边界**那一条消息通道（实现见 `packages/theme-iframe/lib/`），两边读同一处信号 —— 它在框内
 那份文档的 `<html>`（redoc、stoplight）或 `<body>`（scalar）上，三处读数各自的含义见
 `../helpers.mts` 里 `frameModeSignal` 那一段。
 

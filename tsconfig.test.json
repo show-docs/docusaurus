@@ -16,20 +16,20 @@
     "test/**/*.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "plugins/**/*.mts",
-    "theme/theme-iframe/lib/**/*.ts",
-    "theme/theme-iframe/lib/**/*.mts",
-    "theme/theme-iframe/lib/**/*.tsx",
-    "theme/theme-diff/src/**/*.mts",
-    "theme/theme-erd/src/**/*.mts",
+    "packages/plugin-*/**/*.mts",
+    "packages/theme-iframe/lib/**/*.ts",
+    "packages/theme-iframe/lib/**/*.mts",
+    "packages/theme-iframe/lib/**/*.tsx",
+    "packages/theme-diff/src/**/*.mts",
+    "packages/theme-erd/src/**/*.mts",
     "scripts/**/*.mjs"
   ],
   "exclude": [
-    "plugins/*/dist"
+    "packages/*/dist"
   ],
   "//files": "`@theme*` 的类型声明归解析器包（`types/` 是源码，不是 dist，类型检查不依赖构建产物存在）；`@docusaurus/useIsBrowser` 这类只在构建期存在的 import 由仓库根那份 `module-aliases.d.ts` 说明（根 `tsconfig.json` 的 include 收得到它，本项目的 include 只列源码，所以按 files 点名）。",
   "files": [
-    "plugins/plugin-prev-layer-resolver/types/theme-specifiers.d.ts",
+    "packages/plugin-prev-layer-resolver/types/theme-specifiers.d.ts",
     "module-aliases.d.ts"
   ]
 }

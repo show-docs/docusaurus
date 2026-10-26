@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
@@ -6,24 +10,27 @@ import { watchPageErrors } from '../helpers.mts';
 
 const { Given, When, Then } = createBdd();
 
+/** 仓库根：本文件在 `test/e2e/steps/` 下，往上三层。不靠 cwd，从哪儿跑都对。 */
+const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+
 // 卡片由 `@theme/DocCardList` 按侧边栏自动给，所以这里钉的是「每张卡真能点进对应那一格」，
-// 不钉清单本身（清单口径的产地在 `sidebars.mts` 与 test/plugin.test.mts）。
-// 一格的顶层页就是那个包自己的 `README.md`，所以这些地址等于仓库里的目录路径。
-const packageHrefs = [
-  '/plugins/plugin-prev-layer-resolver/',
-  '/theme/theme-copy-button/',
-  '/theme/theme-diff/',
-  '/theme/theme-erd/',
-  '/theme/theme-iframe/',
-  '/theme/theme-markmap/',
-  '/theme/theme-redoc/',
-  '/theme/theme-scalar/',
-  '/theme/theme-stoplight/',
-  '/theme/theme-viewer/',
-];
+// 不钉清单本身（清单口径的产地在 `sidebars.mts`）。
+/**
+「一格一个包」那一份清单是**扫出来的**，判据与 `sidebars.mts` 同一句：`packages/` 下有
+`README.md` 的那个目录占一顶层格，地址就是 `/packages/<目录名>/`。手抄那版漏了
+`plugin-frontmatter-injector`，少一张卡照样绿 —— 这一格本来就是为「别忘了某个包」而存在的。
+*/
+const packageHrefs = fs
+  .readdirSync(path.join(repoRoot, 'packages'), { withFileTypes: true })
+  .filter(
+    (entry) =>
+      entry.isDirectory() &&
+      fs.existsSync(path.join(repoRoot, 'packages', entry.name, 'README.md')),
+  )
+  .map((entry) => `/packages/${entry.name}/`);
 
 /**
-主页正文里那条链：站点层加 demo 那三层主题，从外到内 `src/theme > theme-c > theme-b > theme-a`，
+主页正文里那条链：站点层加 `tools/` 那三层主题，从外到内 `src/theme > theme-c > theme-b > theme-a`，
 最里面才是官方那张卡片列表。选择器按「直接子元素」串起来，所以嵌套关系本身是被验的一环。
 */
 const cardChain = (page: Page): Locator =>
@@ -48,17 +55,20 @@ Then('卡片列表被套进四层主题的链里', async ({ page }) => {
   ).toBeVisible();
 });
 
-Then(
-  '链里有十张卡片，一格一个包：解析器插件那一份加九个主题包各自的顶层页',
-  async ({ page }) => {
-    for (const href of packageHrefs) {
-      await expect(
-        cardChain(page).locator(`a.theme-doc-card-container[href="${href}"]`),
-        `主页该有一张指向 ${href} 的卡片`,
-      ).toBeVisible();
-    }
-  },
-);
+Then('链里一格一个包都有卡片，指向各包自己的顶层页', async ({ page }) => {
+  for (const href of packageHrefs) {
+    await expect(
+      cardChain(page).locator(`a.theme-doc-card-container[href="${href}"]`),
+      `主页该有一张指向 ${href} 的卡片`,
+    ).toBeVisible();
+  }
+  // 总数也钉住：多一张少一张都红。头那一张是主页自己 —— `packages/README` 就排在这份根级
+  // 清单的头一格，`sidebars.mts` 里写得很明白。
+  await expect(
+    cardChain(page).locator('a.theme-doc-card-container'),
+    `卡片应是「${packageHrefs.length} 个包 + 主页那一张」`,
+  ).toHaveCount(packageHrefs.length + 1);
+});
 
 // 卡片上那行说明取自本包 package.json 的 `description`（`sidebars.mts` 读的就是这一格）。
 // 这句话改了那个包的 description 就要跟着改，两处是同一件事的两个写法，不是两份独立的判据。
@@ -74,14 +84,14 @@ Then('卡片上那行说明取自本包 package.json 的 description', async ({ 
 // Playwright 的严格模式因此直接报错。
 When('我点开指向 theme-markmap 那一格的卡片', async ({ page }) => {
   await page
-    .locator('a.theme-doc-card-container[href="/theme/theme-markmap/"]')
+    .locator('a.theme-doc-card-container[href="/packages/theme-markmap/"]')
     .click();
 });
 
 Then(
   '我落在 theme-markmap 的顶层页上，那一页就是这个包的 README',
   async ({ page }) => {
-    await expect(page).toHaveURL(/\/theme\/theme-markmap\/$/);
+    await expect(page).toHaveURL(/\/packages\/theme-markmap\/$/);
     // README 的第一个一级标题就是包名：这一页的正文确实是那份文件，不是空的索引格。
     await expect(
       page.locator('article h1').first(),

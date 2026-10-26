@@ -7,7 +7,7 @@
 // program 范围的，不分目录。两个 program 各从一个入口拿到它：
 //
 // - 根 `tsconfig.json`（`pnpm lint:type`）：默认 include `**/*`，这一份顺手收进来；
-// - `tsconfig.test.json`（`pnpm typecheck`）：include 只列 test / src / plugins / scripts，
+// - `tsconfig.test.json`（`pnpm typecheck`）：include 只列 test / src / packages / scripts，
 //   这一份不在其中，所以在它的 `files` 里点名。
 //
 // 各包自己的构建项目（`tsconfig.build.json`）只收 `src/`，那里没有这些构建期 import，

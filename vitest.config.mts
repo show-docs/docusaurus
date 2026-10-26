@@ -11,7 +11,7 @@ export default defineConfig({
         new URL('./test/stubs/use-is-browser.ts', import.meta.url),
       ),
       // 同理，`@theme/*` 也是 webpack 构建期的 specifier，磁盘上没有。视图层共享外壳
-      // （`theme/theme-iframe/lib/view-layer-shell.tsx`）要用官方 `Admonition` 报那一条提示，
+      // （`packages/theme-iframe/lib/view-layer-shell.tsx`）要用官方 `Admonition` 报那一条提示，
       // 单测里换成按它形状落地的一份替身 —— 换的理由写在替身头上。
       '@theme/Admonition': fileURLToPath(
         new URL('./test/stubs/admonition.tsx', import.meta.url),
@@ -19,7 +19,7 @@ export default defineConfig({
     },
   },
   test: {
-    // 单测覆盖核心包（plugins/plugin-prev-layer-resolver）的纯逻辑 + webpack 接线，
+    // 单测覆盖核心包（packages/plugin-prev-layer-resolver）的纯逻辑 + webpack 接线，
     // 不加载 Docusaurus 主题层；测试文件与源码同为 ESM（.mts → .mjs 编译产物）。
     include: ['test/**/*.test.mts'],
     environment: 'node',
@@ -43,17 +43,17 @@ export default defineConfig({
       // `lib/` 里浏览器那几份要 DOM，靠测试文件自己标 `@vitest-environment jsdom` 切环境，
       // 全局口径仍是 node。
       include: [
-        'plugins/plugin-frontmatter-injector/src/**/*.mts',
-        'plugins/plugin-prev-layer-resolver/src/**/*.mts',
-        'theme/theme-iframe/lib/**',
-        'theme/theme-diff/src/loader/**/*.mts',
-        'theme/theme-erd/src/loader/**/*.mts',
-        'theme/theme-erd/src/options.mts',
+        'packages/plugin-frontmatter-injector/src/**/*.mts',
+        'packages/plugin-prev-layer-resolver/src/**/*.mts',
+        'packages/theme-iframe/lib/**',
+        'packages/theme-diff/src/loader/**/*.mts',
+        'packages/theme-erd/src/loader/**/*.mts',
+        'packages/theme-erd/src/options.mts',
       ],
       exclude: [
-        'plugins/plugin-frontmatter-injector/src/**/*.d.mts',
-        'plugins/plugin-prev-layer-resolver/src/**/*.d.mts',
-        'theme/theme-iframe/lib/**/*.d.ts',
+        'packages/plugin-frontmatter-injector/src/**/*.d.mts',
+        'packages/plugin-prev-layer-resolver/src/**/*.d.mts',
+        'packages/theme-iframe/lib/**/*.d.ts',
       ],
       // 红线挂在产出它的那一步：`.github/workflows` 的 verify 作业跑 `pnpm verify`
       // （含 test:coverage），阈值就在那儿拦；本地只跑 `pnpm test` 不带覆盖率，

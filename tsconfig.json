@@ -16,11 +16,5 @@
   },
   // 默认 include 是 `**/*`，而 base 开了 `allowJs` —— 不排掉构建产物，第二次跑
   // `pnpm lint:type` 就会去类型检查 webpack 打出来的 bundle。
-  "exclude": [
-    "build",
-    ".docusaurus",
-    "coverage",
-    "plugins/*/dist",
-    "theme/*/dist",
-  ],
+  "exclude": ["build", ".docusaurus", "coverage", "packages/*/dist"],
 }

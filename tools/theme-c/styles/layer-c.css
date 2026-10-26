@@ -1,0 +1,13 @@
+/* theme-c 那一层的边界：三道彩色虚线里最外面的一道（站点层 `src/theme` 在它外面，
+   但只留文字角标，不圈边）。写法与口径见 theme-a 那份样式表头上的说明。 */
+.layer-c {
+  margin: 0.5rem;
+  border: 2px dashed #3e63dd;
+  padding: 0.75rem;
+}
+
+/* 角标与本层的边框同色，一眼看得出 `[C]` 圈的是哪一道 */
+.layer-c > .mark {
+  color: #3e63dd;
+  font-weight: 700;
+}

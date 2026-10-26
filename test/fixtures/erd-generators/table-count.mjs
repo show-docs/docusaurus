@@ -1,5 +1,5 @@
 // 一份「外接生成器」的样子：默认导出一个函数，拿到归一化模型与 `.dbml` 原文，
-// 返回一个字符串 —— 那个字符串就是页签里的代码块内容。契约见 `theme/theme-erd/README.md`。
+// 返回一个字符串 —— 那个字符串就是页签里的代码块内容。契约见 `packages/theme-erd/README.md`。
 export default function generate({ model, dbml }) {
   const tables = Object.values(model.tables);
 

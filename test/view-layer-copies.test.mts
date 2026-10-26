@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 const siteDir = path.resolve(import.meta.dirname, '..');
 
-/** 读某个主题包里的文件：`segments` 相对 `theme/<包名>/`。 */
+/** 读某个主题包里的文件：`segments` 相对 `packages/<包名>/`。 */
 const read = (...segments: string[]): string =>
-  fs.readFileSync(path.join(siteDir, 'theme', ...segments), 'utf8');
+  fs.readFileSync(path.join(siteDir, 'packages', ...segments), 'utf8');
 
 /**
 ## 三条视图层共用的那一份外壳
@@ -30,9 +30,31 @@ const reference = 'theme-markmap';
 
 /** 注释是每个包自己的话，不参与比较；比较的是代码那一格。 */
 function codeLines(source: string): string[] {
-  return source
+  const lines = source
     .split('\n')
     .filter((line) => !line.trimStart().startsWith('//'));
+  const indentOf = (line: string) => line.length - line.trimStart().length;
+
+  // prettier 按显示宽度决定一个属性值要不要另起一行，而 CJK 那点宽度差（`markmap` 比 `dbml`
+  // 长三个字母）就够让它在一份里折行、在另一份里不折。那是**排版**的形状，不是结构的形状：
+  // 这里要比的是「同一格属性」，所以把 `键:` + 缩进更深的那一行折回同一格。
+  const folded: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    const next = lines[index + 1];
+    if (
+      next !== undefined &&
+      line.endsWith(':') &&
+      indentOf(next) > indentOf(line)
+    ) {
+      folded.push(`${line} ${next.trim()}`);
+      index += 1;
+    } else {
+      folded.push(line);
+    }
+  }
+
+  return folded;
 }
 
 /**
@@ -48,8 +70,8 @@ function expectSameSkeleton(
   const pkgFile = path.join(pkg, relativeFile);
   for (const file of [refFile, pkgFile]) {
     expect(
-      fs.existsSync(path.join(siteDir, 'theme', file)),
-      `theme/${file} 不在了：这三份副本是各包自带的一份，要合并就得同时改本用例与三个包的文档`,
+      fs.existsSync(path.join(siteDir, 'packages', file)),
+      `packages/${file} 不在了：这三份副本是各包自带的一份，要合并就得同时改本用例与三个包的文档`,
     ).toBe(true);
   }
 
@@ -95,8 +117,8 @@ describe('三条视图层共用的那一份外壳', () => {
       'view-layer.ts',
     ]) {
       expect(
-        fs.existsSync(path.join(siteDir, 'theme', shared, file)),
-        `theme/${path.join(shared, file)} 不在了：三条视图层引的都是这一份`,
+        fs.existsSync(path.join(siteDir, 'packages', shared, file)),
+        `packages/${path.join(shared, file)} 不在了：三条视图层引的都是这一份`,
       ).toBe(true);
     }
   });
@@ -109,7 +131,7 @@ describe('三条视图层共用的那一份外壳', () => {
   it('各包不再留 error-boundary / hack-style 两份转出文件', () => {
     for (const pkg of viewPackages) {
       for (const name of ['error-boundary.tsx', 'hack-style.tsx']) {
-        const file = path.join('theme', pkg, 'components', name);
+        const file = path.join('packages', pkg, 'components', name);
         expect(
           fs.existsSync(path.join(siteDir, file)),
           `${file} 又出现了：本层的说法应当就地写在 theme/DocItem/index.tsx 里，` +

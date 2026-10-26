@@ -7,14 +7,14 @@ import { createRoot } from 'react-dom/client';
 import {
   createFrameMessages,
   type FrameColorMode,
-} from '../theme/theme-iframe/lib/frame-messages.ts';
+} from '../packages/theme-iframe/lib/frame-messages.ts';
 import {
   createRouteReporter,
   isTrustedMessage,
   useInnerFrameSync,
   useOuterFrameSync,
   type FrameRef,
-} from '../theme/theme-iframe/lib/frame-sync.ts';
+} from '../packages/theme-iframe/lib/frame-sync.ts';
 
 /**
 两条消息循环的分支单测（`@vitest-environment jsdom`：这一族是 React hook + `window`，

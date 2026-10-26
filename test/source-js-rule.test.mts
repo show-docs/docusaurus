@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { needsSiteJsRule } from '../theme/theme-iframe/lib/api-frame-source-js-rule.ts';
+import { needsSiteJsRule } from '../packages/theme-iframe/lib/api-frame-source-js-rule.ts';
 
-const packageRoot = '/repo/theme/theme-markmap';
+const packageRoot = '/repo/packages/theme-markmap';
 
 describe('needsSiteJsRule()', () => {
   it('工作区里链到包根的源码不认领：官方那条 babel 规则本来就会编译它们', () => {
