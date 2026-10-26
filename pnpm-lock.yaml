@@ -339,6 +339,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe
@@ -360,6 +363,9 @@ importers:
       '@git-diff-view/react':
         specifier: ^0.1.8
         version: 0.1.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe
@@ -378,6 +384,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe
@@ -399,6 +408,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
       react:
         specifier: ~18.3.1
         version: 18.3.1
@@ -411,6 +423,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe
@@ -444,6 +459,9 @@ importers:
       '@redocly/config':
         specifier: ^0.66.0
         version: 0.66.0
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe
@@ -471,6 +489,9 @@ importers:
       '@scalar/api-reference':
         specifier: ^1.75.0
         version: 1.75.0(change-case@5.4.4)(nprogress@0.2.0)(supports-color@10.2.2)(tailwindcss@4.3.3)(typescript@6.0.3)(zod@4.6.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe
@@ -486,6 +507,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe
@@ -513,6 +537,9 @@ importers:
       '@docusaurus/types':
         specifier: ^3.9.2
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe

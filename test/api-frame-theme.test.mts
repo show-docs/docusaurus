@@ -7,6 +7,10 @@ import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import { needsSiteJsRule } from '../packages/theme-iframe/lib/api-frame-source-js-rule.ts';
 import { createApiFrameTheme } from '../packages/theme-iframe/lib/api-frame-theme.mts';
+import {
+  IFRAME_PLUGIN,
+  RESOLVER_PLUGIN,
+} from '../packages/theme-iframe/lib/prerequisites.ts';
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
 
@@ -189,5 +193,29 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
     });
 
     expect(webpackResultOf(plugin).module.rules).toHaveLength(1);
+  });
+
+  it('loadContent 检查前置插件：缺解析器当场点名，装齐则放行', () => {
+    const contextWith = (plugins: unknown[]): LoadContext =>
+      ({
+        siteConfig: { baseUrl: '/', plugins, themes: [] },
+      }) as unknown as LoadContext;
+
+    const missing = createApiFrameTheme(contextWith([IFRAME_PLUGIN]), {
+      namespace: '@show-docs/docusaurus-theme-redoc',
+      selfEntryUrl: entryUrlOf('redoc'),
+    });
+    expect(() => (missing.loadContent as () => void)()).toThrow(
+      new RegExp(RESOLVER_PLUGIN),
+    );
+
+    const complete = createApiFrameTheme(
+      contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN]),
+      {
+        namespace: '@show-docs/docusaurus-theme-redoc',
+        selfEntryUrl: entryUrlOf('redoc'),
+      },
+    );
+    expect(() => (complete.loadContent as () => void)()).not.toThrow();
   });
 });

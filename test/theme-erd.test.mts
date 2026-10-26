@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { validateOptions } from '../packages/theme-erd/src/index.mts';
+import theme, { validateOptions } from '../packages/theme-erd/src/index.mts';
 import loader from '../packages/theme-erd/src/loader/dbml-loader.mts';
 import {
   normalizeExports,
@@ -479,5 +479,93 @@ describe('不配清单就是空的：本包不随带模板', () => {
       }).exports,
     ).toHaveLength(1);
     expect(() => validateOptions({ options: { exports: [3] } })).toThrow();
+  });
+});
+
+describe('configureWebpack：把 `.dbml` 接进 MDX 那条链', () => {
+  type ErdPlugin = ReturnType<typeof theme>;
+  type WebpackConfig = Parameters<
+    NonNullable<ErdPlugin['configureWebpack']>
+  >[0];
+  type WebpackUtils = Parameters<NonNullable<ErdPlugin['configureWebpack']>>[2];
+
+  const siteDir = fileURLToPath(new URL('..', import.meta.url));
+
+  const createPlugin = (): ErdPlugin =>
+    theme({ siteDir } as Parameters<typeof theme>[0], {});
+
+  const createUtils = () => {
+    const getJSLoader = vi.fn(() => 'site-js-loader');
+    return {
+      getJSLoader,
+      utils: { getJSLoader } as unknown as WebpackUtils,
+    };
+  };
+
+  it('只改正则文本里写着 mdx 的那条；能匹配 `.mdx` 的兜底规则原样不动', () => {
+    // 官方那条（`@docusaurus/bundler` 里 mdx 规则的形状）
+    const mdxRule = { test: /\.mdx?$/ };
+    // 能匹配 `.mdx`、但跟 mdx 没关系：只按「能否匹配」判就会把 `.dbml` 塞进它的 loader 链
+    const catchAll = { test: /./ };
+    const plainString = { test: 'not-a-regexp' };
+    const rules: unknown[] = [
+      mdxRule,
+      catchAll,
+      null,
+      plainString,
+      { noTest: true },
+    ];
+    const config = { module: { rules } } as unknown as WebpackConfig;
+
+    const { utils } = createUtils();
+    createPlugin().configureWebpack?.(config, false, utils, {} as never);
+
+    expect(mdxRule.test.test('.mdx')).toBe(true);
+    expect(mdxRule.test.test('.md')).toBe(true);
+    expect(mdxRule.test.test('.dbml')).toBe(true);
+    expect(mdxRule.test.test('.mjs')).toBe(false);
+    expect(mdxRule.test.flags).toBe('i');
+    expect(mdxRule.test.source).toBe(String.raw`(\.mdx?|\.dbml)$`);
+
+    expect(catchAll.test.source).toBe('.');
+    expect(plainString.test).toBe('not-a-regexp');
+  });
+
+  it('`.dbml` 那条规则排在最前，后面回来的三条各就各位', () => {
+    const rules: unknown[] = [];
+    const config = { module: { rules } } as unknown as WebpackConfig;
+    const { getJSLoader, utils } = createUtils();
+
+    const appended = createPlugin().configureWebpack?.(
+      config,
+      true,
+      utils,
+      {} as never,
+    );
+
+    // 直接改传进来的 config：loader 链从右往左跑，`.dbml` 必须先见到原文
+    const dbmlRule = rules[0] as { test: RegExp; use: unknown[] };
+    expect(dbmlRule.test.test('.dbml')).toBe(true);
+    expect(dbmlRule.test.test('.mdx')).toBe(false);
+    expect(dbmlRule.use).toEqual(['site-js-loader']);
+    expect(getJSLoader).toHaveBeenCalledWith({ isServer: true });
+
+    const returned = appended?.module?.rules as Array<{
+      test: RegExp;
+      loader?: string;
+      resolve?: { fullySpecified: boolean };
+      use?: unknown[];
+      options?: unknown;
+      include?: (file: string) => boolean;
+    }>;
+    expect(returned).toHaveLength(3);
+    expect(returned[0]?.test.test('.mjs')).toBe(true);
+    expect(returned[0]?.resolve).toEqual({ fullySpecified: false });
+    // 这一格写的是**产物名**（`thisDir` 是包出口所在的那一层），不是源码名
+    expect(returned[1]?.test.test('.dbml')).toBe(true);
+    expect(returned[1]?.loader).toMatch(/[/\\]loader[/\\]dbml-loader\.mjs$/);
+    expect(returned[1]?.options).toEqual({ exports: [] });
+    expect(returned[2]?.test.test('.tsx')).toBe(true);
+    expect(typeof returned[2]?.include).toBe('function');
   });
 });

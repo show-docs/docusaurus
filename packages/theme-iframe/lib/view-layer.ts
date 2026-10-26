@@ -16,8 +16,8 @@ const STYLE_ID = 'theme-view-layer-hack';
 /**
 把补丁挂到 `<head>` 上，同页只挂一份 —— 三条层命中同一页时它们各调一次。
 
-返回 `null`：渲染树里因此不会多出节点，调用方把它当组件写（`<HackStyle />`）
-或当值插（`{HackStyle}`）都一样。
+只从 `useInsertionEffect` 里调（见 `view-layer-shell.tsx`）：那一步在 DOM 变更前执行，
+补丁来得及参与首屏绘制；渲染函数里直接调用会在并发渲染下被重放或丢弃，留下重复节点。
 */
 export function hackStyle(): null {
   // 浏览器之外（SSG 那一轮）没有 `<head>` 可挂，也无需补。

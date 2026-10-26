@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { needsSiteJsRule } from '@show-docs/docusaurus-theme-iframe/lib/api-frame-source-js-rule.ts';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/lib/prerequisites.ts';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -33,8 +34,14 @@ function includeDbmlInMdxRules(config: WebpackConfig): void {
       continue;
     }
 
+    // 两道都要：①那条规则的**正则文本**本身就写着 mdx（官方那条是 `/\.mdx?$/`）——
+    // 只按「能否匹配 `.mdx`」判会连 `/./`、`/^.*$/` 这类兜底规则一起改掉，
+    // 把 `.dbml` 塞进不相干的 loader 链；②确实匹配 `.mdx`。
     // 新建一个正则再试：带 `g` 标志的正则 `test` 会推进 `lastIndex`
-    if (new RegExp(rule.test.source, rule.test.flags).test('.mdx')) {
+    if (
+      /mdx/i.test(rule.test.source) &&
+      new RegExp(rule.test.source, rule.test.flags).test('.mdx')
+    ) {
       rule.test = /(\.mdx?|\.dbml)$/i;
     }
   }
@@ -69,6 +76,14 @@ export default function theme(
 
   return {
     name: '@show-docs/docusaurus-theme-erd',
+    loadContent() {
+      // 本层的 `ViewLayerDocItem` 住在 theme-iframe 未编译的 `lib/` 里：那个插件不注册，
+      // 它的 babel 规则就不在，站点会在 `view-layer-shell.tsx` 上撞 `Module parse failed`。
+      assertThemePrerequisites(context, {
+        namespace: '@show-docs/docusaurus-theme-erd',
+        iframe: true,
+      });
+    },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 剩下的东西（入口、loader、类型）。
     getThemePath() {

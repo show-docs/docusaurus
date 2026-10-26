@@ -86,7 +86,8 @@ trace 才红，记在 [`packages/theme-iframe/docs/iframe-protocol.md`](../packa
 | `frame-precedence.feature` | `frame-precedence.steps.mts` | 「同页多把键按判定清单的顺序判」这一条语义：两页 fixture 各写多把键（一页四把全写、一页去掉 `scalar:` 只留三把），各钉这一页只渲染**一个** `<iframe>`（落败的键也渲染就红）、赢的那一把对应的类名与 `src`（`scalar-frame` + `/scalar-view?src=…`、`redoc-frame` + `/redoc-view?src=…`）。本站不设覆盖，跑的是注册表默认顺序 × 装机过滤（`lib/api-frame-entries.ts`；覆盖与过滤两条分支由 `test/api-frame-entries.test.mts` 单测钉），不再由 `plugins` 的层栈决定 —— 这一条是收拢之后新加的                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ——                         | `common.steps.mts`           | 几条层共用的那十六句：五句「打开哪一页 / 那个框指向哪儿」（`我打开 X 示例页`、`我按操作系统的深色偏好打开 X 示例页`、`我直接打开 X 框内那条地址`、`我把 X 框内那条地址里的 spec 去掉`、`这一页放的是一个 iframe，指向 X 那条独立页面`）、「浏览器里没有运行期错误」（记录来自 `e2e/helpers.mts` 的 `watchPageErrors()`）、「这一页没有文档正文外壳」、「我把站点切成暗色」、「我在框里那份文档上做个记号」、「框里的配色跟着站点翻过去，那份文档没有重新加载」、「站点的亮暗模式不受操作系统影响」、「这一页没有站点的 navbar」、「正文容器在这一页让位」、「框占满 navbar 以下那一屏」、「这一页没有站点的页脚」、「这一页有站点的页脚」（钉在 markmap 那一页上，缺它前一句会假绿）。iframe 那三层（redoc / stoplight / scalar）在这些句子上的形状一模一样，所以句子只写一份：那五句写成**正则步骤**，层名当捕获组，示例页与框内那条页面的地址、那个框的类名都由 `e2e/helpers.mts` 那份层名清单算出来（`/{层名}-demo`、`/{层名}-view?src=…`、`iframe.{层名}-frame`），各层不再抄一遍字面量；其余句子量的是 `iframe.redoc-frame, iframe.stoplight-frame, iframe.scalar-frame` 那个并集，读哪一份文档用的辅助函数（某一层那个框的句柄、框内那份文档的句柄、配色信号、起始时刻）都住在 `e2e/helpers.mts`；配色信号那一句要兼容两种落法（redoc / stoplight 读属性，scalar 读 `<body>` 上的类名），所以它按「那份文档里有没有那两个类名」选读取方式，而不是各写一句     |
 
-> **只有本地跑**：`pnpm verify` 与 CI 都不含它（要额外下载浏览器，且依赖一个能起服务的端口）。
+> **不在 `pnpm verify` 里**：它要额外下载浏览器、依赖一个能起服务的端口，所以 CI 单独开一个
+> `e2e` 作业跑它（`pnpm exec playwright install --with-deps chromium`，再 `pnpm test:e2e`）。
 > 配置落点是仓库根的 `playwright.config.mts`（`testDir` 由 `defineBddConfig()` 给出），
 > 用例目录 `test/e2e/features/` + `test/e2e/steps/`，生成目录 `.features-gen/` 与运行产物
 > `test-results/`、`playwright-report/` 已在 `.gitignore`。
@@ -118,9 +119,10 @@ frontmatter 注入包的 `src/`（三个文件：规则表、git 那一侧、接
 - `theme-markmap`：`src/loader/` 与上面两层是同一类构建期判据，眼下还没有对应的单测文件。
 - `theme-copy-button`：`src/index.mts` 同样是插件接线（那条 babel 规则由
   `view-layer-copies.test.mts` 钉，包本身由 `plugin.test.mts` 那条分包三件套扫目录扫到），按钮、图标与
-  提示条全在浏览器侧，只有开页面才看得见。示例页 `packages/theme-copy-button/docs/copy-button-demo.md` 与主页那张卡片由
-  `plugin.test.mts` 那条「每个主题包有一份示例页」的判据和 `home.feature` 钉；「点一下真的把地址
-  放进剪贴板」这一步要浏览器给剪贴板权限，眼下没有用例钉住。
+  提示条全在浏览器侧。示例页 `packages/theme-copy-button/docs/copy-button-demo.md` 与主页那张卡片由
+  `plugin.test.mts` 那条「每个主题包有一份示例页」的判据和 `home.feature` 钉；按钮自己的行为
+  （有/没有剪贴板、写入成败各给哪条提示）由 `copy-button.test.mts` 在 jsdom 里钉，
+  「点一下真的把地址放进系统剪贴板」仍要浏览器给权限，没有用例覆盖。
 
 红线只在带覆盖率的这一步拦：`pnpm test:coverage`（`pnpm verify` 与 CI 的 verify 作业含它），
 本地只跑 `pnpm test` 是量不到的。

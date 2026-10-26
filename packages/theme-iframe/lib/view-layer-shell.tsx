@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { Component, useInsertionEffect } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 
 import Admonition from '@theme/Admonition';
@@ -27,42 +27,45 @@ interface State {
   failed: boolean;
 }
 
+interface BoundaryProps extends Props {
+  /** 这一层的说法（包名、失败提示的两句文案）。 */
+  labels: ViewLayerLabels;
+}
+
 /**
-整棵子树（含懒加载 chunk）的兜底。每条层用 `ErrorBoundary(labels)` 造自己那一份 ——
-失败提示的文案因此跟着层走，而实现只有这一份。
+整棵子树（含懒加载 chunk）的兜底。每条层把 `labels` 当 prop 交进来，而不是在渲染期按它现造
+一个类 —— 类身份必须稳定，否则父级每次 re-render 都会让 React 卸载重挂视图，错误状态也跟着丢。
 */
-export function ErrorBoundary(labels: ViewLayerLabels) {
-  const { name, title, description } = labels;
+export class ViewErrorBoundary extends Component<BoundaryProps, State> {
+  static getDerivedStateFromError(): State {
+    return { failed: true };
+  }
 
-  return class ViewErrorBoundary extends Component<Props, State> {
-    static getDerivedStateFromError(): State {
-      return { failed: true };
+  constructor(props: BoundaryProps) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  override componentDidCatch(error: unknown): void {
+    const { name, title } = this.props.labels;
+
+    console.error(`[${name}] ${title}：`, error);
+  }
+
+  override render(): ReactNode {
+    const { failed } = this.state;
+    const { labels, children } = this.props;
+
+    if (failed) {
+      return (
+        <Admonition title={labels.title} type="danger">
+          {labels.description}
+        </Admonition>
+      );
     }
 
-    constructor(props: Props) {
-      super(props);
-      this.state = { failed: false };
-    }
-
-    override componentDidCatch(error: unknown): void {
-      console.error(`[${name}] ${title}：`, error);
-    }
-
-    override render(): ReactNode {
-      const { failed } = this.state;
-      const { children } = this.props;
-
-      if (failed) {
-        return (
-          <Admonition title={title} type="danger">
-            {description}
-          </Admonition>
-        );
-      }
-
-      return children;
-    }
-  };
+    return children;
+  }
 }
 
 interface ViewLayerProps {
@@ -78,12 +81,17 @@ interface ViewLayerProps {
 那条 `.fake` 配的是 `.container:not(.fake) { max-width: 100% !important }` ——
 视图要铺满这一格，而页面结构（标题、目录、面包屑、页脚导航）一个字都不动：
 正文仍是原样交给下层 `DocItem`，只是在它外面多套了这一层容器。
-补丁由 `hackStyle()` 在同一个渲染里挂（见 `view-layer.ts`），壳里只剩结构。
+补丁由 `hackStyle()` 挂（见 `view-layer.ts`），时机走 `useInsertionEffect`：
+在 DOM 变更之前、绘制之前插进去，效果与「渲染期直接改 `<head>`」相同，
+但渲染函数本身不再有副作用（那一步在 React 并发渲染下会被丢弃或重放）。
 */
 export function ViewLayer({ view, children }: ViewLayerProps): ReactNode {
+  useInsertionEffect(() => {
+    hackStyle();
+  }, []);
+
   return (
     <>
-      {hackStyle()}
       {view}
       <hr />
       <div className="container padding-top--md padding-bottom--lg fake">
@@ -112,15 +120,10 @@ export function ViewLayerDocItem<TData>(options: {
     return children;
   }
 
-  const ViewErrorBoundary = ErrorBoundary(labels);
-
   return (
     <ViewLayer
       view={
-        // 兜底那份是按调用方说法现造的类组件（< 20 行，`ErrorBoundary(labels)`），
-        // 不是渲染期新造的「静态组件」；这条规则认不出这种工厂形状。
-        // eslint-disable-next-line react-hooks/static-components -- 见上一句
-        <ViewErrorBoundary>
+        <ViewErrorBoundary labels={labels}>
           <View data={data} />
         </ViewErrorBoundary>
       }

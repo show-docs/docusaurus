@@ -527,6 +527,10 @@ describe('git 那一侧（真 git 仓库）', () => {
     );
     // 临时目录的上一级不是仓库（`/tmp` 与 `os.tmpdir()` 都不是）
     expect(findRepoRoot(os.tmpdir())).toBeUndefined();
+    // 目录根本不存在：spawn 没起来，`stdout` 是 null，同样按「没有 git」处理
+    expect(
+      findRepoRoot(path.join(os.tmpdir(), 'frontmatter-no-such-dir', 'nested')),
+    ).toBeUndefined();
   });
 
   it('HEAD 与「最近这几个提交动过的文件」是一次读出来的', () => {
@@ -896,6 +900,53 @@ describe('plugin-frontmatter-injector 插件接线', () => {
       expect(frontMatter).toMatchObject({ tags: ['站点'] });
     } finally {
       process.chdir(cwd);
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('找仓库从 siteDir 起步：工作目录在仓库之外时 git 那一半照样生效', async () => {
+    const cwd = process.cwd();
+    const root = mkdtempReal(path.join(os.tmpdir(), 'injector-sitedir-'));
+    const outside = mkdtempReal(path.join(os.tmpdir(), 'injector-cwd-'));
+    try {
+      const run = (args: string[]) =>
+        execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+
+      run(['init', '-q']);
+      run(['config', 'user.email', 'test@example.com']);
+      run(['config', 'user.name', 'test']);
+      run(['config', 'commit.gpgsign', 'false']);
+      fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+      fs.writeFileSync(
+        path.join(root, 'docs', 'intro.md'),
+        '---\ntitle: 首页\n---\n',
+      );
+      run(['add', '.']);
+      run(['commit', '-q', '-m', '初始', '--no-verify']);
+
+      // 关键那一格：工作目录挪到另一个临时目录，它本身不是仓库
+      process.chdir(outside);
+
+      const markdown = createMarkdown();
+      frontMatterInjectorPlugin(
+        {
+          siteDir: root,
+          siteConfig: { markdown },
+        } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0],
+        { tags: ['站点'] },
+      ).loadContent?.();
+
+      const { frontMatter } = await markdown.parseFrontMatter(
+        params(path.join(root, 'docs', 'intro.md')),
+      );
+
+      // 读到的必须是 siteDir 那个仓库：刚提交过的那份算「新」
+      expect(frontMatter.tags).toEqual(
+        expect.arrayContaining(['站点', NEW_TAG]) as string[],
+      );
+    } finally {
+      process.chdir(cwd);
+      fs.rmSync(root, { recursive: true, force: true });
       fs.rmSync(outside, { recursive: true, force: true });
     }
   });

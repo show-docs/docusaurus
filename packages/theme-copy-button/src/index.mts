@@ -2,8 +2,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { needsSiteJsRule } from '@show-docs/docusaurus-theme-iframe/lib/api-frame-source-js-rule.ts';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/lib/prerequisites.ts';
 
-import type { Plugin } from '@docusaurus/types';
+import type { LoadContext, Plugin } from '@docusaurus/types';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
@@ -11,9 +12,16 @@ const thisDir = dirname(fileURLToPath(import.meta.url));
 /** 包根：那条 `.tsx?` 规则的认领范围。 */
 const packageRoot = resolve(thisDir, '..');
 
-export default function theme(): Plugin {
+export default function theme(context: LoadContext): Plugin {
   return {
     name: '@show-docs/docusaurus-theme-copy-button',
+    loadContent() {
+      // 本层只在构建期引 theme-iframe 的一条纯函数，不需要它的插件规则；但 `@theme-prev/*`
+      // 的别名仍由解析器插件提供，缺了它同样是构建期才炸。
+      assertThemePrerequisites(context, {
+        namespace: '@show-docs/docusaurus-theme-copy-button',
+      });
+    },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 那一份入口。
     getThemePath() {

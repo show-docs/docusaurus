@@ -6,8 +6,10 @@
 
 ## 安装
 
+本层的共享外壳住在 theme-iframe，`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
+
 ```bash
-pnpm add @show-docs/docusaurus-theme-diff
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-diff
 ```
 
 ## 使用
@@ -17,7 +19,11 @@ pnpm add @show-docs/docusaurus-theme-diff
 ```js
 // docusaurus.config.mjs
 export default {
-  plugins: ['@show-docs/docusaurus-theme-diff']
+  plugins: [
+    '@show-docs/docusaurus-plugin-prev-layer-resolver',
+    '@show-docs/docusaurus-theme-iframe',
+    '@show-docs/docusaurus-theme-diff'
+  ]
 };
 ```
 

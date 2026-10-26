@@ -42,7 +42,19 @@ export function ImageViewer({ children }: Props): ReactNode {
       '.container .theme-doc-markdown.markdown',
     );
 
-    if (!article || article.querySelectorAll('img').length === 0) {
+    // 正文容器不在 = 这一层的挂载点没了（官方改了那串类名，或这一页根本没有文档正文）。
+    // 静默跳过会让「换了 core 之后查看器全站失灵」看起来像一张普通页面，所以在开发模式留一句。
+    // 容器在、只是没有图片：那是正常的一页，不告警。
+    if (!article) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[theme-viewer] 找不到正文容器（`.container .theme-doc-markdown.markdown`），这一页不会挂图片查看器。',
+        );
+      }
+      return undefined;
+    }
+
+    if (article.querySelectorAll('img').length === 0) {
       return undefined;
     }
 

@@ -61,8 +61,8 @@ export interface FrontMatterInjectorOptions {
 }
 
 /**
- 从工作目录往上找仓库，把那个仓库读出来。**只在初始化阶段跑一次**（`loadContent()` 里现取
- 现包那一下），之后每个文件都在这份结果里查。
+ 从给定目录（插件拿的是 `context.siteDir`）往上找仓库，把那个仓库读出来。**每个插件实例只读
+ 一次**：第一次问历史时打开，之后（含 `reloadSite()` 重跑）每个文件都在这份结果里查。
 
  读不到（站点不在 git 里、git 不在 PATH、仓库坏了）就返回 `undefined`，注入那边当「没有历史」
  处理 —— 不阻断构建：一份 README 少两个标签，不该比构建失败更糟。
@@ -169,8 +169,9 @@ export default function frontMatterInjectorPlugin(
       tags,
       () => {
         // 只读一次：第一次问历史时才走 git，之后（含 `reloadSite()` 重跑）
-        // 都拿同一份结果
-        cached ??= { repo: openRepoFrom(process.cwd()) };
+        // 都拿同一份结果。找仓库从**站点根**起步，不从 `process.cwd()`：`pnpm --dir`
+        // 或从仓库里别的子目录起构建时，工作目录不一定是被构建的那个站点。
+        cached ??= { repo: openRepoFrom(context.siteDir) };
 
         return cached.repo;
       },

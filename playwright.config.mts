@@ -4,10 +4,9 @@ import { defineBddConfig } from 'playwright-bdd';
 const port = 3021;
 
 /**
-浏览器侧的 e2e（只本地跑，不进 `pnpm verify`）：起真实静态服务器，逐主题看
-「命中 frontmatter 之后那一页到底长什么样」。这几层（iframe、stoplight、redoc、scalar）的命中效果
-在构建产物里是空的
-（`lazy` + 只在浏览器渲染），所以静态回读的 `verify:chain` 覆盖不到它。
+浏览器侧的 e2e（不进 `pnpm verify`，由 CI 单独的 `e2e` 作业跑 `pnpm test:e2e`）：起真实静态服务器，
+逐主题看「命中 frontmatter 之后那一页到底长什么样」。这几层（iframe、stoplight、redoc、scalar）的
+命中效果在构建产物里是空的（`lazy` + 只在浏览器渲染），所以静态回读的 `verify:chain` 覆盖不到它。
 
 用例写成 Gherkin（`test/e2e/features/*.feature`），步骤实现写在 `test/e2e/steps/`；
 `bddgen` 把两者生成到 `.features-gen/` 里的 Playwright 测试文件，`testDir` 就指那里 ——

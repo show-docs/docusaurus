@@ -8,8 +8,10 @@ theme-redoc、theme-stoplight 在框内渲染，本包负责外层套壳与跨 i
 
 ## 安装
 
+`@theme-prev/*` 的别名由解析器插件提供，两个包一起安装：
+
 ```bash
-pnpm add @show-docs/docusaurus-theme-iframe
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe
 ```
 
 ## 使用
@@ -19,7 +21,10 @@ pnpm add @show-docs/docusaurus-theme-iframe
 ```js
 // docusaurus.config.mjs
 export default {
-  plugins: ['@show-docs/docusaurus-theme-iframe']
+  plugins: [
+    '@show-docs/docusaurus-plugin-prev-layer-resolver',
+    '@show-docs/docusaurus-theme-iframe'
+  ]
 };
 ```
 
@@ -27,6 +32,7 @@ export default {
 
 ```js
 [
+  '@show-docs/docusaurus-plugin-prev-layer-resolver',
   '@show-docs/docusaurus-theme-iframe',
   '@show-docs/docusaurus-theme-stoplight',
   '@show-docs/docusaurus-theme-redoc',

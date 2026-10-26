@@ -31,12 +31,13 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@git-diff-view/react": "^0.1.8",
-    "@show-docs/docusaurus-theme-iframe": "workspace:^"
+    "@git-diff-view/react": "^0.1.8"
   },
   "peerDependencies": {
     "@docusaurus/theme-common": "^3.9.2",
     "@docusaurus/types": "^3.9.2",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "react": "~18.3.1",
     "webpack": "^5.112.0"
   },

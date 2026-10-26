@@ -11,13 +11,14 @@
 pnpm install
 pnpm start          # 本地预览 http://localhost:3000
 pnpm build          # 编译需要编译的分包 + 构建静态站点
-pnpm build:core     # 只用 tsc 编译那十一个「构建包」（两个插件包 + packages/theme-* 那九个主题包）到各自的 dist（即包出口）；packages/theme-iframe 的 lib/ 不在里面，那份共享源码不发编译产物
+pnpm build:core     # 只用 tsc 编译每个带 build 脚本的包（眼下十一个：两个插件包 + 九个主题包，都在 `packages/*` 下）到各自的 dist（即包出口）；packages/theme-iframe 的 lib/ 不在里面，那份共享源码不发编译产物
 pnpm lint:type      # tsc -p tsconfig.json：唯一把站点根与 *.config.mjs 纳进来的一道（提交钩子也跑）
 pnpm typecheck      # tsc -b：tools 与 test 两份 composite 项目
-pnpm lint:eslint    # eslint
+pnpm lint:eslint    # eslint + --fix（改工作树的那一份）
+pnpm lint:eslint:check # 同一套规则、不写文件：pnpm verify 与 CI 用的是这一条
 pnpm test           # vitest 单元测试（解析语义 + 不变量 + 输入校验 + 真实 resolver 端到端）
 pnpm test:coverage  # 同上 + 覆盖率（红线 100% 只挂在这里：pnpm test 全绿 ≠ CI 全绿）
-pnpm test:e2e       # 构建产物起服务，Playwright 在真浏览器里点开每个主题的示例页（只本地跑）
+pnpm test:e2e       # 构建产物起服务，Playwright 在真浏览器里点开每个主题的示例页（CI 单独的 e2e 作业跑它）
 pnpm verify:chain   # 读真实 build 产物，回读主页那条四层渲染链（src/theme > theme-c > theme-b > theme-a）
 pnpm verify         # 一键全链路（组成见 package.json 的 verify；本表不复述，避免两处说法漂移）
 ```
@@ -100,7 +101,7 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 
 ### 构建包的编译口径
 
-九份 `tsconfig.build.json` 是**同一份差量**：`extends: @nice-move/tsconfig/node-bundle.json`，
+十一份 `tsconfig.build.json` 是**同一份差量**：`extends: @nice-move/tsconfig/node-bundle.json`，
 再写 `noEmit: false` 与 `rootDir` / `outDir`，能从 extends 拿的一律不重抄。这张表是这些口径的产地，
 包里的注释只留指针：
 

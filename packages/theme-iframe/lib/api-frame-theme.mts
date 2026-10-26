@@ -23,6 +23,7 @@ import {
   type ApiFrameEntryInternal,
 } from './api-frame-registry.ts';
 import { needsSiteJsRule } from './api-frame-source-js-rule.ts';
+import { assertThemePrerequisites } from './prerequisites.ts';
 
 export type ApiFrameThemeOptions = {
   /** 包名，同时是注册表的键；表里没有这一族就直接失败。 */
@@ -66,6 +67,11 @@ export function createApiFrameTheme(
 
   return {
     name: namespace,
+    loadContent() {
+      // 本层注册的框内页面与 `@theme-prev/*` 都依赖解析器；外层框则由 theme-iframe 提供。
+      // 缺任何一个都在这里点名，而不是让 webpack 在某个页面文件上抛。
+      assertThemePrerequisites(context, { namespace, iframe: true });
+    },
     // 主题层与 `components/` 是源码，站在包根上，不经 tsc：用本包的站点编译它们。
     getThemePath() {
       return themePath;

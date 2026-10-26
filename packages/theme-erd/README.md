@@ -5,8 +5,10 @@
 
 ## 安装
 
+本层的共享外壳住在 theme-iframe，`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
+
 ```bash
-pnpm add @show-docs/docusaurus-theme-erd
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-erd
 ```
 
 ## 使用
@@ -17,7 +19,11 @@ pnpm add @show-docs/docusaurus-theme-erd
 // docusaurus.config.mjs
 export default {
   // 不带选项 = 只有 `@dbml/core` 那四个固定格式；导出模板要自己配，见下面的「配置」
-  plugins: ['@show-docs/docusaurus-theme-erd']
+  plugins: [
+    '@show-docs/docusaurus-plugin-prev-layer-resolver',
+    '@show-docs/docusaurus-theme-iframe',
+    '@show-docs/docusaurus-theme-erd'
+  ]
 };
 ```
 

@@ -32,12 +32,13 @@
   },
   "dependencies": {
     "@dbml/core": "^10.3.1",
-    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "erdiagram": "^0.1.5",
     "markdown-table": "^3.0.4"
   },
   "peerDependencies": {
     "@docusaurus/types": "^3.9.2",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "react": "~18.3.1",
     "webpack": "^5.112.0"
   },

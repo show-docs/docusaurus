@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { act, createElement } from 'react';
+import { act, createElement, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -277,6 +277,46 @@ describe('ViewLayerDocItem：命中才插那块视图，不命中原样交给下
       expect(page.querySelector('hr')).toBeNull();
       expect(page.querySelector('#doc')?.textContent).toBe('正文');
     }
+  });
+
+  it('父级换一份 labels（同层 re-render）时视图不重挂，补丁也不会多插一份', () => {
+    let mounts = 0;
+    function Counting({ data }: { data: string }): ReactNode {
+      // 只在挂载那一次跑：re-render 不算，重挂才算。
+      useEffect(() => {
+        mounts += 1;
+      }, []);
+      return createElement('div', { id: 'probe' }, data);
+    }
+
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mounted.push(() => {
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    });
+
+    const renderWith = (labelsNow: typeof labels): void => {
+      act(() => {
+        root.render(
+          createElement(ViewLayerDocItem<string>, {
+            labels: labelsNow,
+            data: 'probe-data',
+            view: Counting,
+          }),
+        );
+      });
+    };
+
+    renderWith(labels);
+    // 调用方每次渲染都现造一份说法（三条层都这么写），类身份必须只由本模块决定
+    renderWith({ ...labels });
+
+    expect(mounts).toBe(1);
+    expect(document.querySelectorAll(`#${STYLE_ID}`)).toHaveLength(1);
   });
 
   it('视图那边抛了：退回本层那条提示，正文照旧不白屏', () => {

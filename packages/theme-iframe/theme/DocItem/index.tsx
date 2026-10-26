@@ -38,7 +38,7 @@ export default function DocItemFrame(props: Props): ReactNode {
   const { pathname } = useLocation();
 
   const { entries, warnings } = resolveFrameDistribution(
-    siteConfig.plugins,
+    { plugins: siteConfig.plugins, themes: siteConfig.themes },
     frontMatter,
     pathname,
   );

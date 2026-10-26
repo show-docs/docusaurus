@@ -2,11 +2,15 @@ import './redoc-ui.css';
 
 // 渲染要用的那份文档地址，加上「选中了哪条接口」报给框外那一份文档 ——
 // 这一格的形状由 theme-iframe 那份框内工厂给出（`ApiFrameViewProps`），三份渲染接线共用一份。
-import type { ApiFrameViewProps as Props } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
+// 「把框里那段 `#` 报出去」那一格也在那份共享源码里（`createLocationMirror`），各层只交
+// 自己路由包里的 `useLocation`。
+import {
+  createLocationMirror,
+  type ApiFrameViewProps as Props,
+} from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 import { RedocStandalone } from 'redoc';
 import { StyleSheetManager } from 'styled-components';
 
-import { useEffect, useRef } from 'react';
 import { HashRouter, useLocation } from 'react-router';
 
 import { followSiteColorMode } from './redoc-color-mode.ts';
@@ -15,28 +19,8 @@ import { followSiteColorMode } from './redoc-color-mode.ts';
 // 它**不再**参与样式圈定（那件事现在由 iframe 的文档边界负责，见 `redoc-color-mode.ts`）。
 const REDOC_ROOT_CLASS = 'redoc-root';
 
-/**
-站在 `HashRouter` 里面，把「地址里 `#` 那一段」报给外面。
-
-不能靠监听 `hashchange`：React Router 换地址走 `history.pushState`，那一步不触发它
-（理由与实测记在 theme-iframe 的 `docs/iframe-protocol.md`，「四个方向各走一条路」一节）。
-`first` 那一格是那条「挂载那一次别报」的约定，见 `createRouteReporter`。
-*/
-function LocationMirror(props: Pick<Props, 'onRouteChange'>): null {
-  const { onRouteChange } = props;
-  const location = useLocation();
-  const first = useRef(true);
-
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    onRouteChange(`#${location.pathname}${location.search}${location.hash}`);
-  }, [location, onRouteChange]);
-
-  return null;
-}
+// 本层的 `useLocation` 来自 `react-router`（Redoc 内部那条线）；镜像本身是共享的那一份。
+const LocationMirror = createLocationMirror(useLocation);
 
 // `disableTelemetry`：`redoc` 的依赖里挂着 `@redocly/redoc-opentelemetry`，默认会把文档标题
 // 之类的用量报出去。本仓的示例页全在本地（`/openapi-redoc.yaml`），也不该往第三方发东西。

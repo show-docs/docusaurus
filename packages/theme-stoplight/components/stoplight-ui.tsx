@@ -2,7 +2,12 @@ import './stoplight-ui.css';
 
 // 交给 `@stoplight/elements` 的那个地址，加上「选中了哪条接口」报给框外那一份文档 ——
 // 这一格的形状由 theme-iframe 那份框内工厂给出（`ApiFrameViewProps`），三份渲染接线共用一份。
-import type { ApiFrameViewProps as Props } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
+// 「把框里那段 `#` 报出去」那一格也在那份共享源码里（`createLocationMirror`），各层只交
+// 自己路由包里的 `useLocation`。
+import {
+  createLocationMirror,
+  type ApiFrameViewProps as Props,
+} from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 import { API } from '@stoplight/elements';
 // 这一条 `import` 拿到的不是「把这文件打进 bundle」，而是**它单独那个产物的地址**（一个字符串）：
 // `src/index.mts` 给这一条路径配了 webpack 的 `asset/resource` 规则，并把它从 Docusaurus 的 css
@@ -15,7 +20,6 @@ import { API } from '@stoplight/elements';
 // 「样式」一节。
 import stoplightStylesUrl from '@stoplight/elements/styles.min.css';
 
-import { useEffect, useRef } from 'react';
 import { HashRouter, useLocation } from 'react-router-dom';
 
 // 亮暗那条属性名住在 `stoplight-color-mode.ts`：框内那条页面也要用它，而它不该因此把
@@ -24,28 +28,8 @@ import { HashRouter, useLocation } from 'react-router-dom';
 /** 包着 Elements 的那层壳，也是 `stoplight-ui.css` 那份样式的作用范围。 */
 const STOPLIGHT_ROOT_CLASS = 'stoplight-root';
 
-/**
-站在 `HashRouter` 里面，把「这一份文档地址里 `#` 那一段」报给外面。
-
-不能靠监听 `hashchange`：Elements 换一条接口走 `history.pushState`，那一步不触发它
-（理由与实测记在 theme-iframe 的 `docs/iframe-protocol.md`，「四个方向各走一条路」一节）。
-`first` 那一格是那条「挂载那一次别报」的约定，见 `createRouteReporter`。
-*/
-function LocationMirror(props: Pick<Props, 'onRouteChange'>): null {
-  const { onRouteChange } = props;
-  const location = useLocation();
-  const first = useRef(true);
-
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    onRouteChange(`#${location.pathname}${location.search}${location.hash}`);
-  }, [location, onRouteChange]);
-
-  return null;
-}
+// 本层的 `useLocation` 来自 `react-router-dom`（Elements 内部那条线）；镜像本身是共享的那一份。
+const LocationMirror = createLocationMirror(useLocation);
 
 // `hideExport`：那条「Export / Download」入口在本仓的示例页上没有对象（文档是站点自己那份
 // `static/openapi-stoplight.yaml`，导出一份再存回本地没有意义）。

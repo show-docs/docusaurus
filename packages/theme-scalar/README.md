@@ -6,10 +6,10 @@ Scalar 在框内页面 `/scalar-view` 中渲染那份文档。
 
 ## 安装
 
-外层套壳由 theme-iframe 提供，两个包一起安装：
+外层套壳由 theme-iframe 提供，`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-scalar
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-scalar
 ```
 
 ## 使用
@@ -20,6 +20,7 @@ pnpm add @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-scalar
 // docusaurus.config.mjs
 export default {
   plugins: [
+    '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-iframe',
     '@show-docs/docusaurus-theme-scalar'
   ]

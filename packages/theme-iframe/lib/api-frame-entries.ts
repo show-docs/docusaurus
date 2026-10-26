@@ -34,11 +34,15 @@ type ApiFramePluginOptions = {
 };
 
 /**
-从 `siteConfig.plugins` 的一项里取「名字 + 选项」。浏览器侧拿到的是**原始配置形状**，四种写法：
+从 `siteConfig.plugins` / `siteConfig.themes` 的一项里取「名字 + 选项」。浏览器侧拿到的是
+**原始配置形状**，四种写法：
 - 字符串（裸包名或路径 —— 名字与层的对应关系见 `slotIsNamespace`）；
 - `[包名, 选项]`；
 - `[路径, 选项]`；
 - `{name}` 对象（归一化形状，兼容 `siteVersion` 那类元数据）。
+
+`plugins` 与 `themes` 是两份清单：Docusaurus 会把它们合并成真实插件表，但生成的浏览器配置里
+仍然分开。装机判定两边都要看 —— 用 `themes: ['…']` 声明的层照样参与判定。
 */
 function readPluginSlot(plugin: unknown): {
   name: string | undefined;
@@ -53,11 +57,14 @@ function readPluginSlot(plugin: unknown): {
       options: plugin[1] as ApiFramePluginOptions | undefined,
     };
   }
+  const name =
+    typeof plugin === 'object' && plugin !== null
+      ? (plugin as { name?: unknown }).name
+      : undefined;
   return {
-    name:
-      typeof plugin === 'object' && plugin !== null
-        ? (plugin as { name?: string }).name
-        : undefined,
+    // 归一化形状那一格只认字符串：配置里塞了别的类型就当认不出名字，
+    // 而不是把一个数字一路带到 `slotIsNamespace()` 的 `replaceAll` 上。
+    name: typeof name === 'string' ? name : undefined,
     options: undefined,
   };
 }
@@ -68,7 +75,7 @@ function readPluginSlot(plugin: unknown): {
 入口文件名；钉文件名会把「产物改名」变成静默失效）。装机判定与覆盖槽位识别共用这一条，
 两边不存在「一层认路径、另一层只认包名」的不对称。
 */
-function slotIsNamespace(name: string, namespace: string): boolean {
+export function slotIsNamespace(name: string, namespace: string): boolean {
   if (name === namespace) {
     return true;
   }
@@ -120,12 +127,32 @@ export type FrameDistribution = {
   warnings: readonly string[];
 };
 
+/**
+站点声明层的两个入口。`themes:` 与 `plugins:` 在 Docusaurus 里是两份清单，装机判定不能只看一份。
+*/
+export type ApiFrameSlots = {
+  plugins?: readonly unknown[] | null;
+  themes?: readonly unknown[] | null;
+};
+
+/**
+`plugins` 与 `themes` 两份清单里每个槽位的名字（认不出的槽位直接略过）。
+装机判定与前置检查（`prerequisites.ts`）共用这一条，免得两边各写一套「四种写法怎么认」。
+*/
+export function declaredNamespaces(declared: ApiFrameSlots): string[] {
+  return [...(declared.plugins ?? []), ...(declared.themes ?? [])]
+    .map((slot) => readPluginSlot(slot).name)
+    .filter((name): name is string => name !== undefined);
+}
+
 export function resolveFrameDistribution(
-  plugins: readonly unknown[],
+  declared: ApiFrameSlots,
   frontMatter: Record<string, unknown> | undefined,
   pagePath?: string,
 ): FrameDistribution {
-  const slots = plugins.map((plugin) => readPluginSlot(plugin));
+  const slots = [...(declared.plugins ?? []), ...(declared.themes ?? [])].map(
+    (plugin) => readPluginSlot(plugin),
+  );
   const isInstalled = (namespace: string): boolean =>
     slots.some(
       (slot) =>

@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+  # 只挂 `push` 时，PR 上的每一道闸门都要等合进 main 才跑一次；改成两边都跑，
+  # 判红落在 PR 上，而不是落在 main 的历史里。
+  pull_request:
+    branches:
+      - main
 
 jobs:
   verify:
@@ -38,8 +43,22 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
+  # 浏览器侧那批判据（跨 iframe 投递、渲染器、样式边界）只在真浏览器里有意义，而
+  # `verify` 一路是静态回读，覆盖不到。只装 chromium：`playwright.config.mts` 只有这一个 project。
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+
   publish:
-    needs: [verify, test]
+    needs: [verify, test, e2e]
     runs-on: ubuntu-latest
     permissions:
       id-token: write

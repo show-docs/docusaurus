@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  declaredNamespaces,
   resolveFrameDistribution,
   warnFrameDistribution,
   type FrameDistribution,
@@ -19,13 +20,24 @@ const distributionOf = (
   frontMatter?: Record<string, unknown>,
   pagePath?: string,
 ): FrameDistribution =>
-  resolveFrameDistribution(plugins, frontMatter, pagePath);
+  resolveFrameDistribution({ plugins }, frontMatter, pagePath);
 
 const namespacesOf = (
   plugins: unknown[],
   frontMatter?: Record<string, unknown>,
 ): string[] =>
   distributionOf(plugins, frontMatter).entries.map((entry) => entry.namespace);
+
+describe('declaredNamespaces：两份清单合起来报名字', () => {
+  it('两份都缺时是空数组；认不出名字的槽位略过', () => {
+    expect(declaredNamespaces({})).toEqual([]);
+    expect(
+      declaredNamespaces({
+        plugins: ['a', ['b', { x: 1 }], () => undefined, {}, { name: 3 }],
+      }),
+    ).toEqual(['a', 'b']);
+  });
+});
 
 describe('resolveFrameDistribution：判定清单的分发', () => {
   it('无覆盖时按注册表顺序，且只留装了的层', () => {
@@ -37,6 +49,36 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
       IFRAME,
     ]);
     expect(namespacesOf([])).toEqual([]);
+  });
+
+  it('themes 里声明的层也算装机，覆盖选项也从 themes 槽位读', () => {
+    // 只写 themes、不写 plugins：两份清单合并后才是真实插件表
+    expect(
+      resolveFrameDistribution(
+        { themes: [SCALAR, IFRAME] },
+        undefined,
+      ).entries.map((entry) => entry.namespace),
+    ).toEqual([SCALAR, IFRAME]);
+    // 覆盖清单挂在 themes 里的 iframe 槽位上一样生效
+    expect(
+      resolveFrameDistribution(
+        {
+          themes: [
+            [IFRAME, { themeConfig: { apiFrame: { order: [REDOC] } } }],
+            REDOC,
+            SCALAR,
+          ],
+        },
+        undefined,
+      ).entries.map((entry) => entry.namespace),
+    ).toEqual([REDOC]);
+    // 只给 plugins、不给 themes 时退回空清单（也是 `?? []` 的另一条分支）
+    expect(
+      resolveFrameDistribution(
+        { plugins: registryOrder },
+        undefined,
+      ).entries.map((entry) => entry.namespace),
+    ).toEqual(registryOrder);
   });
 
   it('名字格认裸包名、[包名, 选项]、[路径, 选项] 与 {name} 对象四种写法；路径按包目录段认层', () => {

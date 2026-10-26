@@ -188,6 +188,37 @@ if (fs.existsSync(browserConfigFile)) {
       );
       isOk = false;
     }
+
+    // 注册表那条清单的顺序是「越靠外越先判」的默认值（`api-frame-registry.ts` 的顺序，
+    // 上面 FRAME_LAYERS 就是照它抄的）。层栈里越靠外 = 在 plugins 里声明越晚，
+    // 所以本站这四条的声明顺序应当是注册表顺序的**逆序**。
+    // 两边没有机制上的绑定（站点可以不装、也可以覆盖），这条钉的是「本站的默认优先级
+    // 与注册表说的是同一件事」：谁单独挪了一边，这里就红。
+    const declaredOrder = FRAME_LAYERS.map((namespace) => ({
+      namespace,
+      at: pluginsSection.indexOf(`"${namespace}"`),
+    }))
+      .filter(({ at }) => at >= 0)
+      .toSorted((a, b) => a.at - b.at)
+      .map(({ namespace }) => namespace);
+    const expectedOrder = FRAME_LAYERS.toReversed();
+    const orderOk =
+      declaredOrder.length === expectedOrder.length &&
+      declaredOrder.every(
+        (namespace, index) => namespace === expectedOrder[index],
+      );
+    console.log(
+      `   ${orderOk ? '✅' : '❌'} 声明顺序（在 plugins 里，外 → 内）：${declaredOrder.join(' > ') || '(无)'}`,
+    );
+    if (!orderOk) {
+      console.log(
+        `   → 期望 ${expectedOrder.join(' > ')}：越晚声明 = 层栈越靠外 = 默认越先判。`,
+      );
+      console.log(
+        '      真要改优先级，写在 `themeConfig.apiFrame.order` 里，别只挪声明顺序。',
+      );
+      isOk = false;
+    }
   }
 } else {
   console.log(

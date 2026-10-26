@@ -53,7 +53,9 @@ export function findRepoRoot(cwd: string): string | undefined {
     cwd,
     encoding: 'utf8',
   });
-  const root = stdout.trim();
+  // `cwd` 不存在时进程根本没起来，`stdout` 是 `null`（`spawnSync` 的 error 那格）；
+  // 这和「不在仓库里」是同一件事：这条构建没有 git 可用。
+  const root = (stdout ?? '').trim();
 
   // 软链要解析掉：`/tmp` 在 macOS 上是 `/private/tmp` 的软链，Docusaurus 给的路径与 git 给的
   // 这一条得站在同一套写法上才比得了

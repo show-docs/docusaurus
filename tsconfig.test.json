@@ -4,6 +4,7 @@
   "//exclude": "产物在包内 `dist/`，`index.d.mts` 会以 `*.mts` 的形状被上面的 glob 收进来。",
   "//theme-lib": "`test/api-frame-entries.test.mts` 引 theme-iframe 免编译的 `lib/` 源码（站点编译的那份，没有自己的产物项目），`test/api-frame-view.test.mts` 还引那里那份 `.tsx` 工厂 —— composite 项目要把被引的文件列进 include。",
   "//theme-loader": "`test/theme-diff.test.mts` 与 `test/theme-erd.test.mts` 引那两包 `src/loader/` 的源码（构建期判据，红线在覆盖率那一格）：与被引的 `lib/` 同一判据 —— composite 项目要把它们列进 include。",
+  "//theme-copy-button": "`test/copy-button.test.mts` 引那颗按钮的 `.tsx` 源码（它不进 `tsc`，由站点编译）；同样是 composite 项目要把被引文件列进 include。",
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": true,
@@ -22,6 +23,7 @@
     "packages/theme-iframe/lib/**/*.tsx",
     "packages/theme-diff/src/**/*.mts",
     "packages/theme-erd/src/**/*.mts",
+    "packages/theme-copy-button/components/**/*.tsx",
     "scripts/**/*.mjs"
   ],
   "exclude": [

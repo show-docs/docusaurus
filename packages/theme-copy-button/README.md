@@ -5,8 +5,11 @@
 
 ## 安装
 
+`@theme-prev/*` 的别名由解析器插件提供；theme-iframe 只在构建期提供一条共享函数，装上即可，
+不必注册成插件。三个包一起安装：
+
 ```bash
-pnpm add @show-docs/docusaurus-theme-copy-button
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-copy-button
 ```
 
 ## 使用
@@ -16,7 +19,10 @@ pnpm add @show-docs/docusaurus-theme-copy-button
 ```js
 // docusaurus.config.mjs
 export default {
-  plugins: ['@show-docs/docusaurus-theme-copy-button']
+  plugins: [
+    '@show-docs/docusaurus-plugin-prev-layer-resolver',
+    '@show-docs/docusaurus-theme-copy-button'
+  ]
 };
 ```
 
