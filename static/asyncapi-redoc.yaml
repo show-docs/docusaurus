@@ -1,0 +1,60 @@
+asyncapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Redoc 演示事件 API
+  description: >
+    这份文档只给 `docs/redoc-asyncapi-demo.md` 那一页用：frontmatter 写
+
+    `oas3: /asyncapi-redoc.yaml`，构建时它从 `static/` 复制到站点根，浏览器端按这个地址取。
+
+    Scalar 的示例页用自己那份（`asyncapi-scalar.yaml`），两份不再共用。
+servers:
+  production:
+    host: broker.example.com:9092
+    protocol: kafka
+    description: 生产环境的 Kafka 集群
+channels:
+  orderCreated:
+    address: orders/created
+    title: 订单创建
+    description: 订单落库之后发出的那条事件
+    messages:
+      OrderCreated:
+        $ref: '#/components/messages/OrderCreated'
+operations:
+  receiveOrderCreated:
+    action: receive
+    title: 接收订单创建事件
+    description: 消费方订阅的那一条
+    channel:
+      $ref: '#/channels/orderCreated'
+    messages:
+      - $ref: '#/channels/orderCreated/messages/OrderCreated'
+    tags:
+      - orders
+components:
+  messages:
+    OrderCreated:
+      name: OrderCreated
+      title: 订单已创建
+      summary: 订单落库后广播的那条消息
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          id:
+            type: string
+            description: 订单号
+          item:
+            type: string
+            description: 商品名
+          quantity:
+            type: integer
+            minimum: 1
+        required:
+          - id
+          - item
+          - quantity
+tags:
+  - name: orders
+    description: 订单相关的事件

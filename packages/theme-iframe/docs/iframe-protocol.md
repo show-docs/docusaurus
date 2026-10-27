@@ -73,6 +73,10 @@
 判定按注册表顺序逐条走，**第一个能出框的层赢**；`oas3:` 给的那份地址被送进框里那条路由的 `src`
 参数（`frameViewSrc()` 那一步），框内那页按它取文档。
 
+**那把 spec 键不挑文档类型**：它给的只是一个地址，OpenAPI 与 AsyncAPI 3 都走这一把，判据在厂商
+那边（Scalar 认文档里 `asyncapi:` 那一格，Redoc 认 `asyncapi.startsWith('3.')`）。分发这一格只要求
+它是个非空字符串，不看内容。实测过 AsyncAPI 3 的是 scalar 与 redoc 两层，stoplight 那一层没测。
+
 **条目的排列顺序是判定优先级的默认值**，但决定权在站点，分发在 `lib/api-frame-entries.ts`
 （`resolveFrameDistribution({ plugins, themes }, frontMatter)`，交出 `{ entries, warnings }`）。
 规则**只有一条**：参与判定的层 = 装了的层（`plugins` 或 `themes` 里有其包名、或其包目录内入口路径的

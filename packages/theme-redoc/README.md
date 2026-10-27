@@ -1,8 +1,11 @@
 # @show-docs/docusaurus-theme-redoc
 
-用 [Redoc](https://github.com/Redocly/redoc) 渲染 OpenAPI 文档的 Docusaurus 主题插件。frontmatter
+用 [Redoc](https://github.com/Redocly/redoc) 渲染 API 文档的 Docusaurus 主题插件。frontmatter
 写 `redoc: true`（渲染哪份文档由 `oas3:` 给）时，该文档页整页换成一个 iframe，Redoc 在框内页面
 `/redoc-view` 中渲染那份文档。
+
+`oas3:` 给的那份文档可以是 **OpenAPI**，也可以是 **AsyncAPI 3** —— 这一层不挑文档类型，
+厂商自己按文档里那一格（`openapi:` / `asyncapi:`）认。
 
 ## 安装
 
@@ -42,6 +45,10 @@ oas3: /openapi.yaml
 整页换成 iframe，不保留文档正文外壳，也不再渲染导图。
 框内页面只接受 spec 地址这一种入参，不支持传入内联文档。
 
+`oas3:` 不挑文档类型：写 OpenAPI 就是 OpenAPI，写 AsyncAPI 3 就是 AsyncAPI 3（判据在厂商那边
+—— Redoc 认文档里 `asyncapi:` 那一格）。AsyncAPI 3 那一版见
+[AsyncAPI 示例](./docs/redoc-asyncapi-demo.md)。
+
 ## 配置
 
 本包没有插件选项。Redoc 的渲染参数集中在
@@ -63,6 +70,8 @@ oas3: /openapi.yaml
   返回 200。
 - hash 段由框内与框外的消息双向同步；Redoc 的格式是前导 `/`，路径为标签加小写的
   `operationId`（如 `#/orders/createorder`）。
+- AsyncAPI 3 那一版的 hash 是按通道走的：`#/channels/<通道 id>`，进到某条操作再往下一段
+  `#/channels/<通道 id>/operations/<操作 id>`。
 - `/redoc-view?src=…` 可以直接打开，但它是框内页面本身，不带外层 hash，不应作为分享地址。
 - 产物中每条接口没有独立的 HTML。
 
@@ -80,3 +89,4 @@ oas3: /openapi.yaml
 - [维护者文档](./docs/internals.md)：样式、路由、亮暗模式与实测记录。
 - [跨 iframe 协议](../theme-iframe/docs/iframe-protocol.md)：地址与亮暗同步的消息形状。
 - [Redoc 示例](./docs/redoc-demo.md)。
+- [Redoc AsyncAPI 示例](./docs/redoc-asyncapi-demo.md)。

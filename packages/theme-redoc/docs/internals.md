@@ -266,6 +266,11 @@ Redoc 写的那个 `dark` 类 —— 类名在、配色却是站点这一头的�
 `/openapi-redoc.yaml`；关掉之后整格不生成，那一格的位置换成 `panel-servers`。判据因此按**数量**写，
 不按可见性写，另配一句「正文第一格是 Servers」当对照，免得 testid 哪天改了名变成假绿。
 
+AsyncAPI 那一版是同一个机制、另一个 testid：用默认配置渲染那份 AsyncAPI 文档，正文第一格是
+`[data-testid="panel-download-asyncapi-description"]`，标题「Download AsyncAPI description」，
+里面那条链接指向那份 `asyncapi.yaml`。所以判据里那一条用的是**前缀**（`[data-testid^="panel-download"]`），
+两种文档类型都收得住。
+
 ## 高度：外层给框定高，框内不给 Redoc 定高
 
 两侧各有一条规则，方向相反，因为两份文档的排版模型不同。
@@ -339,6 +344,32 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2Fopenapi-redoc.yaml` 本身也是条能
 直接打开的地址（产物里有那份 html），不带外层那段 hash，也不该有人拿它当分享链接。
 
+## AsyncAPI 3：同一把 spec 键换一份文档
+
+`oas3:` 那把 spec 键**不挑文档类型** —— 本层拿到的只有一个地址，判据在厂商那边：Redoc 3 认文档
+里 `asyncapi:` 那一格（`redoc@3.0.1` 的 bundle 里有 `asyncapi.startsWith('3.')` 这一格，
+`SpecType` 枚举是 `'openapi' | 'asyncapi' | 'graphql'`）。所以本层**一行代码都不用改**：
+`oas3:` → 框内 `src` → 组件那份 `url` → `RedocStandalone` 的 `specUrl`，这一条路与文档类型无关。
+
+实测（`static/asyncapi-redoc.yaml` 那份 AsyncAPI 3.0.0 的文档，示例页
+`packages/theme-redoc/docs/redoc-asyncapi-demo.md`，判据在 `test/e2e/features/asyncapi.feature`）：
+
+- 框里那份文档真的按 AsyncAPI 摆出来：标题是那份文档的 `info.title`，左栏里是**通道**而不是
+  标签分组，点通道进到详情，详情那一段也换过去了。
+- **hash 的形状变了**：OpenAPI 那一版是 `#/orders/createorder`（标签 + 小写 `operationId`），
+  AsyncAPI 那一版是 `#/channels/ordercreated`（通道 id），进到某条操作再往下一段
+  `#/channels/ordercreated/operations/receiveordercreated`。**两种都带前导 `/`** —— 与
+  Scalar 那边的 `#channel/ordercreated`（没有前导斜杠）不一样，别拿一边去推另一边。
+- 收掉的那几处在这一版里照旧成立：正文最前面那一格下载仍然不生成（`hideDownloadButtons` 对
+  AsyncAPI 一样生效，DOM 里 `[data-testid^="panel-download"]` 为 0，正文第一格是 `panel-servers`）；
+  它那颗亮暗开关、Redocly 那条署名、章节标题旁那一整格操作按钮仍看不见。
+- 亮暗那套不变：改挂生效条件的中间件链认的是 `:root.dark` 打头的选择器，与文档类型无关。
+  实测那一版的暗色表也是 54 条 `:root.dark`，与 OpenAPI 那一版**逐条相同**。
+
+判据只钉「形状」不钉「哪一行」：通道名、操作名、标题都取自那份文档的原文，改了文档就要改用例。
+
+没实测到的：GraphQL 那一种 `specType`。
+
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 
 `docusaurus.config.mjs` 的 `plugins` 里在 scalar 之前、stoplight 之后（这一条先后现在只影响
@@ -380,7 +411,7 @@ iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2
 > `/stoplight-view` 时求值 Elements 模块树里那个 store 在抱怨，不影响产物。口径记在
 > [`theme-stoplight` 的维护者文档](../../theme-stoplight/docs/internals.md) 的「状态」一节。
 
-没实测到的：AsyncAPI / GraphQL 那两种 `specType` 没试。
+没实测到的：GraphQL 那一种 `specType`（AsyncAPI 3 那一版见上面「AsyncAPI 3」一节）。
 
 `RedocUI` 原先还留着「给内联文档」那一支（`spec` 收解析好的对象或 YAML/JSON 文本），和
 `theme-stoplight` 的组件是同一形状的 `Props`。

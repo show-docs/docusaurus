@@ -42,6 +42,8 @@ oas3: /openapi.yaml
 整页换成 iframe，不保留文档正文外壳，也不再渲染导图。
 框内页面只接受 spec 地址这一种入参，不支持传入内联文档。
 
+这一层只覆盖 **OpenAPI** —— `oas3:` 给一份 AsyncAPI 3 文档过来，Elements 那边不认，本层没测过。
+
 ## 配置
 
 本包没有插件选项。Elements 的渲染参数集中在

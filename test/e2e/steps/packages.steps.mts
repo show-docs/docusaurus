@@ -38,24 +38,37 @@ Then('这一页的正文就是这个包的 README', async ({ page }) => {
 });
 
 /**
-那一格侧栏里的子页 = 本包 `docs/` 目录里的那两份（示例页 + 维护者文档）。
+那一格侧栏里的子页 = 本包 `docs/` 目录里的那几页（示例页、AsyncAPI 那一版示例页、维护者文档）。
 判的是「这一格下挂的子页正好是这些」，用前缀选择器数一遍，多一页少一页都会红。
+
+清单**从磁盘那份目录算出来**，不手抄 —— 往 `docs/` 里再放一页（示例页、AsyncAPI 那一版…）时
+这里跟着走，不必改这句；反过来，少挂一页或多挂一页都会红。
+
+（句子里那个 `docs` 后面**不能带斜杠** —— 步骤文本是 Cucumber Expression，`/` 是「或」，
+写成 `docs/ 目录` 会在生成用例时报 `Alternative may not be empty`。）
 */
-Then('scalar 那一格的子页是示例页与维护者文档那两份', async ({ page }) => {
+Then('scalar 那一格的子页就是本包 docs 目录里那几页', async ({ page }) => {
   // 判的是左侧那一格的子页清单：`.theme-doc-sidebar-menu` 只此一份（实测），而正文底下那条
   // 上一页/下一页也是 `<a href="/theme-scalar/docs/…">`，光按 `nav` 选会把它们数进来。
   const subpages = page.locator(
     '.theme-doc-sidebar-menu a[href^="/theme-scalar/docs/"]',
   );
-  await expect(
-    subpages.filter({ hasText: 'Scalar 示例' }).first(),
-    '子页里少了示例页',
-  ).toBeVisible();
-  await expect(
-    subpages.filter({ hasText: 'theme-scalar 维护者文档' }).first(),
-    '子页里少了维护者文档',
-  ).toBeVisible();
-  await expect(subpages, '子页不止那两份').toHaveCount(2);
+
+  const expected = fs
+    .readdirSync(path.join(repoRoot, 'packages', 'theme-scalar', 'docs'))
+    .filter((name) => /\.(?:md|mdx|dbml)$/.test(name))
+    .map((name) => `/theme-scalar/docs/${name.replace(/\.[^.]+$/, '')}`)
+    .toSorted((a, b) => a.localeCompare(b));
+
+  for (const href of expected) {
+    await expect(
+      page.locator(`.theme-doc-sidebar-menu a[href="${href}"]`).first(),
+      `子页里少了 ${href}`,
+    ).toBeVisible();
+  }
+  await expect(subpages, '子页与本包 docs/ 目录里那几页对不上').toHaveCount(
+    expected.length,
+  );
 });
 
 /**

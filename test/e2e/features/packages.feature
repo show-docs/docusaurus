@@ -7,7 +7,7 @@ Feature: 站点按包组织
   Scenario: 顶层页就是这个包的 README，子页挂在它下面
     Given 我打开 theme-scalar 那一格的顶层页
     Then 这一页的正文就是这个包的 README
-    And scalar 那一格的子页是示例页与维护者文档那两份
+    And scalar 那一格的子页就是本包 docs 目录里那几页
     And 这一格里没有 tools 那三层假主题
     And 浏览器里没有运行期错误
 

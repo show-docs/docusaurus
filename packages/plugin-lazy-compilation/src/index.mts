@@ -12,8 +12,9 @@ import type { Plugin } from '@docusaurus/types';
 //（`@docusaurus/core/lib/commands/build/build.js`）。于是 `start` 命中、`build` 不命中；
 // `serve` 只伺服构建产物、不跑编译，压根到不了这里。
 //
-// 形态：本包**免编译** —— 入口就是这一份 `index.mts`（`main` 指它），由 Docusaurus 的 jiti
-// 直接加载，没有 `dist/`。它也没有主题目录，所以层栈推不出它那一格（判据见
+// 形态：本包是**构建包** —— 源码在 `src/`，`tsc -p tsconfig.build.json` 编译出 `dist/`，
+// 包出口是 `dist/index.mjs`（Docusaurus 按包名解析到它，jiti 加载那份 ESM 产物）。
+// 它也没有主题目录，所以层栈推不出它那一格（判据见
 // `packages/plugin-prev-layer-resolver/src/layers.mts` 的「没有主题目录的插件不产生层」）。
 export default function lazyCompilationPlugin(): Plugin {
   return {

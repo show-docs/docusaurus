@@ -62,13 +62,13 @@ oas3: /openapi.yaml
 ---
 ```
 
-| 键          | 渲染方                                  | 值的含义                      |
-| ----------- | --------------------------------------- | ----------------------------- |
-| `iframe`    | 本包                                    | 要嵌入的页面地址              |
-| `scalar`    | `@show-docs/docusaurus-theme-scalar`    | 写 `true` = 这一层接这一页    |
-| `redoc`     | `@show-docs/docusaurus-theme-redoc`     | 写 `true` = 这一层接这一页    |
-| `stoplight` | `@show-docs/docusaurus-theme-stoplight` | 写 `true` = 这一层接这一页    |
-| `oas3`      | 三条 API 层共用                         | 要渲染的那份 OpenAPI 文档地址 |
+| 键          | 渲染方                                  | 值的含义                   |
+| ----------- | --------------------------------------- | -------------------------- |
+| `iframe`    | 本包                                    | 要嵌入的页面地址           |
+| `scalar`    | `@show-docs/docusaurus-theme-scalar`    | 写 `true` = 这一层接这一页 |
+| `redoc`     | `@show-docs/docusaurus-theme-redoc`     | 写 `true` = 这一层接这一页 |
+| `stoplight` | `@show-docs/docusaurus-theme-stoplight` | 写 `true` = 这一层接这一页 |
+| `oas3`      | 三条 API 层共用                         | 要渲染的那份 API 文档地址  |
 
 `iframe:` 的值原样使用；以 `/` 开头时按当前站点 origin 补成绝对地址。地址栏带
 `?path=<相对路径>` 时，会在该地址之下再解析一层，用来切换外部站点的子页面。
@@ -76,6 +76,9 @@ oas3: /openapi.yaml
 `oas3:` 的值是框内页面要加载的 spec 地址：`static/openapi.yaml` 对应 `/openapi.yaml`，也可以写
 完整 URL（跨域时对方需允许 CORS）。三把布尔键里写了哪一把就用哪一层渲染它；一把都没写、
 只给 `oas3:`，那一格不生效（开发模式会有一条告警）。
+
+`oas3:` **不挑文档类型**：OpenAPI 与 AsyncAPI 3 都走这一把键，判据在厂商那边（见各层 README）。
+目前实测过 AsyncAPI 3 的是 `scalar` 与 `redoc` 两层，`stoplight` 那一层没测。
 
 ## 配置
 

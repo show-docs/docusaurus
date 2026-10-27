@@ -301,6 +301,10 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   补一句 `[DEPRECATED]`。**收之前的实测**：`/theme-scalar/docs/scalar-demo` 框里 1 颗 `.download-container`、2 颗
   `.download-button`（JSON 与 YAML 各一颗）；收之后两处都 0 颗。e2e 那句按这两条类名加一条
   `[aria-label*="OpenAPI"]` 判，后者兜的是哪天那颗换成不带这串类名的按钮。
+  AsyncAPI 那一版是同一个机制、另一组文案：默认配置下实测是 1 颗 `.download-container`
+  （class `download-both`）+ 2 颗 `.download-button`，无障碍标签是「下载 AsyncAPI 文档（JSON）」与
+  「下载 AsyncAPI 文档（YAML）」。所以 e2e 那句的无障碍标签按中英文两种都收
+  （`[aria-label*="下载"], [aria-label*="Download"]`）。
 - **左栏底部那两颗「Generate MCP」/「Connect MCP」**：配置收的（`mcp: { disabled: true }`）。
   厂商那一格（`sidebarCta`）按 `mcp.disabled` 优先 —— 钉成 disabled 就直接退回 API client 那颗
   入口；不设时按「本机地址摆 explore、线上摆 client」走，本地与线上又是两个形状。这一层不卖
@@ -436,7 +440,34 @@ src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` �
   主页那份 html 不引它；样式表那份也在构建期摘成独立产物（236 KB），只在框内那份文档里被
   `<link>`，见「样式」。
 
-没实测到的：AsyncAPI / GraphQL 那两种入口没试；Scalar 的 `hideModels` 那一类配置项没有逐条验，
+## AsyncAPI 3：同一把 spec 键换一份文档
+
+`oas3:` 那把 spec 键**不挑文档类型** —— 本层拿到的只有一个地址，判据在厂商那边：Scalar 认文档里
+`asyncapi:` 那一格是不是字符串（`isAsyncApiDocument()`），是了就走 AsyncAPI 那一套渲染分支
+（`scalar-asyncapi-*` 那些块）。所以本层**一行代码都不用改**：`oas3:` → 框内 `src` →
+组件那份 `url` → `createApiReference` 的 `url`，这一条路与文档类型无关。
+
+实测（`static/asyncapi-scalar.yaml` 那份 AsyncAPI 3.0.0 的文档，示例页
+`packages/theme-scalar/docs/scalar-asyncapi-demo.md`，判据在 `test/e2e/features/asyncapi.feature`）：
+
+- 框里那份文档真的按 AsyncAPI 摆出来：标题是那份文档的 `info.title`，左栏里是**通道**，点通道
+  进到详情，详情那一段也换过去了（`h2` 是通道名、`h3` 是那条操作名）。
+- **hash 的形状变了**：OpenAPI 那一版是 `#tag/orders/POST/orders`（标签 + 方法 + 路径），AsyncAPI
+  那一版是 `#channel/ordercreated`（通道 id），进到某条操作再往下一段
+  `#channel/ordercreated/operation/receiveordercreated`。**两种都没有前导斜杠** —— 与 Redoc
+  那边（`#/channels/ordercreated`）不一样，别拿一边去推另一边。
+- 左栏那条通道链接带的是**完整地址**（不是 `#` 段），所以配置里那个 `onSidebarClick` 收到之后要
+  `new URL(href, window.location.href).hash` 取那一段（`scalar-ui.tsx` 里就是这么写的）——
+  这一格与 OpenAPI 那一族同形，不用改。
+- 收掉的那几处在这一版里照旧成立：正文顶上那一格下载仍然不生成（`documentDownloadType: 'none'`
+  对 AsyncAPI 一样生效，DOM 里 `.download-container` / `.download-button` 为 0，按无障碍标签认的
+  下载按钮也为 0）、它那颗亮暗开关不见、左栏底部两颗 MCP 入口不见、署名那一格仍被 CSS 收掉。
+- 界面文案仍是简体那一份（`localization.locale: 'zh-cn'` 对 AsyncAPI 那一套界面也生效）。
+- 亮暗那套不变：落法是 `<body>` 上互斥的两个类名，与文档类型无关。
+
+判据只钉「形状」不钉「哪一行」：通道名、操作名、标题都取自那份文档的原文，改了文档就要改用例。
+
+没实测到的：GraphQL 那一种入口；Scalar 的 `hideModels` 那一类配置项没有逐条验，
 本层只用了 `agent`、`darkMode`、`forceDarkModeState`、`hideDarkModeToggle`、
 `hideTestRequestButton`、`localization`、`mcp`、`onSidebarClick`、`showDeveloperTools`、
 `showOperationId`、`telemetry`、`url` 这十二格。其中每一条都对着 `@scalar/types@0.25.0` 那份
