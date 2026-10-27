@@ -333,7 +333,7 @@ importers:
         specifier: ^3.9.2
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       webpack:
-        specifier: ^5.112.0
+        specifier: ^5.112.2
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
   packages/theme-copy-button:
@@ -375,7 +375,7 @@ importers:
         specifier: ~18.3.1
         version: 18.3.1
       webpack:
-        specifier: ^5.112.0
+        specifier: ^5.112.2
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
   packages/theme-erd:
@@ -402,7 +402,7 @@ importers:
         specifier: ~18.3.1
         version: 18.3.1
       webpack:
-        specifier: ^5.112.0
+        specifier: ^5.112.2
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
   packages/theme-iframe:
@@ -447,7 +447,7 @@ importers:
         specifier: ~18.3.1
         version: 18.3.1
       webpack:
-        specifier: ^5.112.0
+        specifier: ^5.112.2
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
   packages/theme-redoc:
@@ -552,7 +552,7 @@ importers:
         specifier: ^1.15.2
         version: 1.15.2
       webpack:
-        specifier: ^5.112.0
+        specifier: ^5.112.2
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
   tools/theme-a: {}
