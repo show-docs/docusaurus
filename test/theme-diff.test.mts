@@ -203,13 +203,47 @@ describe('frontmatter 那把键的读法', () => {
     expect(readDiffValue('diffx: true')).toBeUndefined();
   });
 
-  it('值折行写在下面几行：认不出，等于没写这把键', () => {
-    // YAML 允许 `diff:` 空着、把 `{ }` 那两项写在缩进的后续行里，判据读的却是原文那一行。
-    // 钉住这一条是因为示例页曾这么写：视图没了、告警也没一条，从构建日志里看不出为什么。
-    // 认不出的落点是「什么都不追加」，不是「写坏了」—— 后者至少还会留一句 warning。
+  it('值折行写在下面几行：流式那几项收得回来，缩进与换行不影响分的形状', () => {
+    // 示例页的 frontmatter 就是这种形状：`diff:` 空着，`{ }` 那两项落在下面几行。
+    const folded =
+      'diff:\n  {\n    old: a.md,\n    new: b.md\n  }\ntitle: a.md';
+
+    expect(splitDiffValue(readDiffValue(folded)!)).toEqual({
+      kind: 'pair',
+      old: 'a.md',
+      new: 'b.md',
+    });
+  });
+
+  it('值折行写成块式：`old:` 与 `new:` 各一行，行的先后同样不影响角色', () => {
+    const block = 'diff:\n  new: b.md\n  old: a.md';
+
+    expect(splitDiffValue(readDiffValue(block)!)).toEqual({
+      kind: 'pair',
+      old: 'a.md',
+      new: 'b.md',
+    });
+    // 按行分项，地址里带逗号也不碍事（流式那种按逗号分，才有这条限制）
     expect(
-      readDiffValue('diff:\n  {\n    old: a.md,\n    new: b.md\n  }\n'),
-    ).toBeUndefined();
+      splitDiffValue(readDiffValue('diff:\n  old: a,b.md\n  new: c.md')!),
+    ).toEqual({ kind: 'pair', old: 'a,b.md', new: 'c.md' });
+  });
+
+  it('续行只到下一个顶格键为止，缩进的注释不算一项', () => {
+    const value = readDiffValue(
+      'diff:\n  # 对照哪两份\n  old: a.md\n  new: b.md\ntitle: 下一把键',
+    );
+
+    expect(value).not.toContain('下一把键');
+    expect(splitDiffValue(value!)).toEqual({
+      kind: 'pair',
+      old: 'a.md',
+      new: 'b.md',
+    });
+  });
+
+  it('续行里只有空白：与空值一样算没开', () => {
+    expect(readDiffValue('diff:\n   \ntitle: 下一把键')).toBeUndefined();
   });
 
   it('`resolveDiffTarget`：`true` 指本文自己，路径相对这份 md 所在目录', () => {
@@ -475,6 +509,13 @@ describe('值的形状：一份文件还是两份文件', () => {
     ]) {
       expect(splitDiffValue(value), value).toEqual({ kind: 'invalid', value });
     }
+
+    // 块式里有一行读不成 `键: 值`：整把作废，不把那一行当成谁的地址
+    const block = 'old: a.md\nnew: b.md\n这一行没有冒号';
+    expect(splitDiffValue(block), block).toEqual({
+      kind: 'invalid',
+      value: block,
+    });
   });
 });
 
@@ -568,6 +609,22 @@ describe('md loader 的两份文件落点', () => {
     expect(data.fileName).toBe('x.txt');
     expect(data.caption).toBe('x.txt → y.txt');
     expect(data.old).toContain('第一行');
+    expect(data.diff).toContain('+第二行');
+  });
+
+  it('frontmatter 折行写：`{ }` 落在下面几行，视图数据照样产出', () => {
+    // 示例页（docs/diff-pair-demo.md）就是这个形状，曾经因为判据只读原文那一行而静默失效
+    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-folded-'));
+    tempDirs.push(dir);
+    const run = runLoader(
+      pairPage(dir, 'diff:\n  {\n    old: x.txt,\n    new: y.txt\n  }'),
+    );
+
+    expect(run.error).toBeNull();
+    expect(run.warnings).toEqual([]);
+    const data = exportedDiff(run.output);
+    expect(data.source).toBe('files');
+    expect(data.caption).toBe('x.txt → y.txt');
     expect(data.diff).toContain('+第二行');
   });
 

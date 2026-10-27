@@ -1,39 +1,22 @@
 /**
 那一族视图层（`theme-markmap` / `theme-erd` / `theme-diff`）共用的一句补丁：
 
-    .container:not(.fake) { max-width: 100% !important }
+    .container:has(.fake) { max-width: 100% !important }
 
-命中页的正文装在一个带 `.fake` 的 `.container` 里，这一条把页面默认那个宽度上限放开，
+命中页的正文装在一个带 `.fake` 的 `.container` 里，这一句把**包着它的**页面容器放开，
 让视图与正文铺满整栏。三条层共用同一句，所以它只住在这里。
 
-**为什么是运行期插一份 `<style>`，而不是走 Docusaurus 的样式管道**：这条补丁只有在
-头几帧就要生效的前提下才有意义（视图是首屏最上面那一块），走 `getClientModules()`
-的样式表要等站点那份 css 下载解析完，命中页会先窄一下再变宽。
+**为什么随视图一起渲染，而不是往 `<head>` 里插一份**：补丁必须跟着这一页来、跟着这一页走。
+挂在 `<head>` 上时，「同页只插一份」的守卫防不了离开页面 —— SPA 导航不重建 `<head>`，
+访问过一次视图页之后，之后所有普通页的 `.container` 都会被放宽。渲染成子树里的 `<style>`
+之后，命中页的 HTML 里就有它（首屏绘制前生效，不必等站点那份 css 下载解析完），
+离开时随组件卸载一起消失。
+
+选择器交给 `:has()` 限定作用域：只命中「里面有视图容器」的那几层 `.container`，
+不再是一枚全站开关。浏览器基线见仓库根 `browserslist`（Chrome 105+ / Safari 15.4+ / Firefox 121+）。
 */
-
-const STYLE_ID = 'theme-view-layer-hack';
-
-/**
-把补丁挂到 `<head>` 上，同页只挂一份 —— 三条层命中同一页时它们各调一次。
-
-只从 `useInsertionEffect` 里调（见 `view-layer-shell.tsx`）：那一步在 DOM 变更前执行，
-补丁来得及参与首屏绘制；渲染函数里直接调用会在并发渲染下被重放或丢弃，留下重复节点。
-*/
-export function hackStyle(): null {
-  // 浏览器之外（SSG 那一轮）没有 `<head>` 可挂，也无需补。
-  if (
-    typeof document !== 'undefined' &&
-    !document.querySelector(`#${STYLE_ID}`)
-  ) {
-    const style = document.createElement('style');
-    style.id = STYLE_ID;
-    style.textContent = `
-  .container:not(.fake) {
+export const WIDTH_HACK_CSS = `
+  .container:has(.fake) {
     max-width: 100% !important;
   }
 `;
-    document.head.append(style);
-  }
-
-  return null;
-}

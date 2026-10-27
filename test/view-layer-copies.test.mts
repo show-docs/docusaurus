@@ -181,7 +181,7 @@ describe('三条视图层共用的那一份外壳', () => {
         'Admonition',
         'Suspense',
         'ErrorBoundary',
-        'hackStyle',
+        'data-theme-view-layer-hack',
       ]) {
         expect(
           source,

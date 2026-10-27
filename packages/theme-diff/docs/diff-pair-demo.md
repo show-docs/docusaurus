@@ -28,9 +28,10 @@ diff:
 上一次被提交是什么时候无关。地址相对这份 md 所在的目录算，`../../../static/` 就是站点根下那份
 静态资源；视图上方那一行写的也是这一串相对地址，因为它显示的就是这里给的两份。
 
-**这一条要写在一行里**：判据读的是 frontmatter 原文那一行（`src/loader/diff-decision.mts`），
-换成 YAML 允许的折行写法（`diff:` 后面空着、`{ }` 落在下面几行）就读不出值 —— 连告警都没有，
-跟没写这把键一样：正文照常渲染，上方什么都不多。
+这一条写成一行 `diff: {old: …, new: …}` 也行，像本页这样让 YAML 把 `{ }` 折到下面几行也行；
+判据（`src/loader/diff-decision.mts`）从 `diff:` 那一行起，把下面缩进的行一并收回来，遇到下一个
+顶格的键就停。`old:` 与 `new:` 各占一行的块式写法同样认 —— 折行只是为了 frontmatter 那一段
+读起来松快些，不影响比的是哪两份。
 
 站点里那三层 API 主题各读一份 OpenAPI（`static/openapi-redoc.yaml`、
 `static/openapi-scalar.yaml`、`static/openapi-stoplight.yaml`），三份的形状一样、只差标题与

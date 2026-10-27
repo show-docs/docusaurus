@@ -70,7 +70,17 @@ export interface FrontMatterInjectorOptions {
 export function openRepoFrom(cwd: string): Repo | undefined {
   const root = findRepoRoot(cwd);
 
-  return root === undefined ? undefined : openRepo(root);
+  if (root === undefined) {
+    return undefined;
+  }
+
+  try {
+    return openRepo(root);
+  } catch {
+    // 仓库在、但读不动：最常见的是 `git init` 之后还没有第一个提交（`git log` 以 128 退出），
+    // 其次是对象库损坏。两种都按「没有历史」处理 —— 上面那条契约不能只在文档里成立。
+    return undefined;
+  }
 }
 
 /**

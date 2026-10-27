@@ -217,6 +217,31 @@ describe('边界与降级', () => {
     ).toBeNull();
   });
 
+  it('watch 下近层新增 / 删除同名组件：缓存命中也会重算「谁该赢」', () => {
+    const a = site.layer('w-a', { Logo: '' });
+    const b = site.layer('w-b', { Logo: '' });
+    const c = site.layer('w-c', { Logo: '' });
+    // d 先空着，模拟「层目录在、组件还没写」的初始状态
+    const d = site.layer('w-d');
+    const s = site.siteLayer({ Logo: '' });
+    const r = resolverFor([a, b, c, d, s]);
+    const ask = (): string | undefined =>
+      r.resolveTarget({ request: '@theme-prev/Logo', issuer: logo(s) })?.target;
+
+    // d 没实现 Logo：落到 c，结论进缓存
+    expect(ask()).toBe(logo(c));
+    // 模拟 watch：更近的 d 长出了 Logo。只复查 c 那一层会把答案永远钉在 c 上。
+    fs.mkdirSync(path.join(d.owner, 'Logo'), { recursive: true });
+    fs.writeFileSync(
+      path.join(d.owner, 'Logo', 'index.js'),
+      'export default 1',
+    );
+    expect(ask()).toBe(logo(d));
+    // 反过来删掉：缓存也不能把 d 钉死，应回落到 c
+    fs.rmSync(path.join(d.owner, 'Logo'), { recursive: true });
+    expect(ask()).toBe(logo(c));
+  });
+
   it('挂在 resolve 入口，并把 request 换绝对路径后从 internal-resolve 继续', async () => {
     // 这两个 hook 的选择都是「换一个就坏」的：
     //  - 入口必须是 resolve，裸 specifier 才会经过我们（internal-resolve 到不了）

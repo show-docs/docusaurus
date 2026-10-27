@@ -297,12 +297,19 @@ export class PrevLayerResolverPlugin {
     const cacheKey = `${this.fingerprint()}\0${prefix}\0${componentName}\0${issuer}`;
     const hit = this.resolutionCache.get(cacheKey);
     if (hit !== undefined) {
-      // Watch 模式下组件文件可能新增、删除或切换扩展名；重新确认该层当前的
-      // 官方赢家，避免永久缓存把旧文件路径钉死。
-      const current = resolveComponentInLayer(
-        this.layers[hit.targetIndex],
+      // Watch 模式下缓存要跟得上磁盘，两个方向都要重看：
+      // ① 「谁该赢」可能变了 —— 更近的层刚新增了同名组件；只复查原落点会把答案永久钉在
+      //    旧层上（不走缓存的请求能发现，走缓存的永远发现不了）；
+      // ② 原落点那份文件可能删了、或换了扩展名 —— 该层的官方赢家不再是它。
+      // 先按与 miss 路径同一把尺子重算赢家，再确认那个文件还在原处。
+      const currentIndex = this.findTargetLayerIndex(
+        findIssuerLayerIndex(this.layers, issuer, this.realpathOf),
         base,
       );
+      const current =
+        currentIndex === hit.targetIndex
+          ? resolveComponentInLayer(this.layers[hit.targetIndex], base)
+          : undefined;
       const cachedBase = tail ? hit.target.slice(0, -tail.length) : hit.target;
       if (current === cachedBase) return hit;
       this.resolutionCache.delete(cacheKey);

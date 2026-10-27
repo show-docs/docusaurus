@@ -6,17 +6,17 @@
 
 ## 组成
 
-| 文件                            | 编译吗              | 职责                                                                                                                                          |
-| ------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：给出层目录、把那条 `enforce: 'post'` loader 挂到 `.md` 上、交出样式表与本包的 babel 规则                                                |
-| `src/loader/diff-decision.mts`  | ✅                  | 纯函数三把：frontmatter 里 `diff:` 那把键的读法（`true` / 路径 / 引号 / `false`）、值是**一份文件还是 `{old:, new:}` 那两条**、目标路径怎么解 |
-| `src/loader/git-diff.mts`       | ✅                  | `git` 调用：找仓库根、问仓库相对路径、取「上一个版本 → 此刻这一份」的 diff 与左边那一份内容；另有一次 `diff --no-index`，比磁盘上的两份文件   |
-| `src/loader/md-diff-loader.mts` | ✅                  | `enforce: 'post'` 那一步：从磁盘上的源文件读判据，按两种来源算出差异，追加成一条 `export const diff`                                          |
-| `src/types.mts`                 | ✅（只出类型）      | `DiffData`（追加的那条导出的形状，带 `source` 与 `caption`）与 `LoaderContextExtras`                                                          |
-| `theme/DocItem/index.tsx`       | ❌ 站点编译         | 本层那一格：命中就把视图摆在 `DocItem` **前面**，命不中原样交回                                                                               |
-| `components/diff-view.tsx`      | ❌ 站点编译         | 浏览器侧：把 `git diff` 原文交给 `@git-diff-view/react`，配色跟站点的亮暗模式，说明行按 `source` 给两种说法                                   |
-| `components/error-boundary.tsx` | ❌ 站点编译         | 交给共享实现的本层说法（包名 + 提示文案），实现在 `theme-iframe/lib/view-layer-shell.tsx`                                                     |
-| `components/hack-style.tsx`     | ❌ 站点编译         | 一行转出正文容器的宽度补丁，实现在 `theme-iframe/lib/view-layer.ts`                                                                           |
+| 文件                            | 编译吗              | 职责                                                                                                                                                                              |
+| ------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：给出层目录、把那条 `enforce: 'post'` loader 挂到 `.md` 上、交出样式表与本包的 babel 规则                                                                                    |
+| `src/loader/diff-decision.mts`  | ✅                  | 纯函数三把：frontmatter 里 `diff:` 那把键的读法（`true` / 路径 / 引号 / `false`，值折到下面几行时把续行收回来）、值是**一份文件还是 `{old:, new:}` / 块式那两条**、目标路径怎么解 |
+| `src/loader/git-diff.mts`       | ✅                  | `git` 调用：找仓库根、问仓库相对路径、取「上一个版本 → 此刻这一份」的 diff 与左边那一份内容；另有一次 `diff --no-index`，比磁盘上的两份文件                                       |
+| `src/loader/md-diff-loader.mts` | ✅                  | `enforce: 'post'` 那一步：从磁盘上的源文件读判据，按两种来源算出差异，追加成一条 `export const diff`                                                                              |
+| `src/types.mts`                 | ✅（只出类型）      | `DiffData`（追加的那条导出的形状，带 `source` 与 `caption`）与 `LoaderContextExtras`                                                                                              |
+| `theme/DocItem/index.tsx`       | ❌ 站点编译         | 本层那一格：命中就把视图摆在 `DocItem` **前面**，命不中原样交回                                                                                                                   |
+| `components/diff-view.tsx`      | ❌ 站点编译         | 浏览器侧：把 `git diff` 原文交给 `@git-diff-view/react`，配色跟站点的亮暗模式，说明行按 `source` 给两种说法                                                                       |
+| `components/error-boundary.tsx` | ❌ 站点编译         | 交给共享实现的本层说法（包名 + 提示文案），实现在 `theme-iframe/lib/view-layer-shell.tsx`                                                                                         |
+| `components/hack-style.tsx`     | ❌ 站点编译         | 一行转出正文容器的宽度补丁，实现在 `theme-iframe/lib/view-layer.ts`                                                                                                               |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -68,9 +68,11 @@ Windows 上可以有两条写法：8.3 短名（`C:\Users\RUNNER~1\…`）不被
 由调用方按「git 出问题」那一种落点处理。
 
 左右两格由**键名**定：`old` 交给 `--no-index` 的第一个地址、`new` 交给第二个，所以两条写在
-frontmatter 里的先后不影响产物。值按逗号分两项、按第一个冒号分键与值，因此那两个地址里不能带
-逗号（带冒号没事，Windows 的盘符写法落在值里）—— 判据读的是磁盘上那行原文，跟 YAML 把这行
-读成什么都不影响是两回事。
+frontmatter 里的先后不影响产物。`diff:` 那一行空着、把值折到下面几行时，`readDiffValue` 只收
+缩进的后续行（顶格的下一把键或空行就停），`{ }` 折行与 `old:` / `new:` 各一行的块式写法都落到
+`splitDiffValue`：流式按逗号分项、块式按行分项，每项再按第一个冒号分键与值。因此流式那两个地址
+里不能带逗号（块式没有这条限制；带冒号没事，Windows 的盘符写法落在值里）—— 判据读的是
+frontmatter 原文，跟 YAML 把它读成什么都不影响是两回事。
 
 ## 取不到差异时的几种落点
 
@@ -79,7 +81,7 @@ frontmatter 里的先后不影响产物。值按逗号分两项、按第一个�
 | 情况                                                                      | 落点                                       |
 | ------------------------------------------------------------------------- | ------------------------------------------ |
 | frontmatter 没有 `diff:` 这把键                                           | 原样交回，什么都不追加，也不告警           |
-| 写成 `{ }` 但凑不出正好 `old` 与 `new` 两个键                             | 一条告警，带回原文那个值                   |
+| 写成两份对照（`{ }` 或块式）但凑不出正好 `old` 与 `new` 两个键            | 一条告警，带回原文那个值                   |
 | 单份路径指向的文件在磁盘上不存在                                          | 一条告警（带解析出来的绝对路径）           |
 | 两份里 `old` 或 `new` 那一份在磁盘上不存在                                | 一条告警，点名是哪一个键，带绝对路径       |
 | 单份那种：不在 git 仓库里、这份文件还没提交过、或提交过一次之后没有再改动 | 一条告警，说清是「没有可对比的上一个版本」 |

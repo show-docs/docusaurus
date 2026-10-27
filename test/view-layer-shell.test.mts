@@ -9,16 +9,15 @@ import {
   ViewLayer,
   ViewLayerDocItem,
 } from '../packages/theme-iframe/lib/view-layer-shell.tsx';
-import { hackStyle } from '../packages/theme-iframe/lib/view-layer.ts';
 
 /**
 三条视图层（`theme-markmap` / `theme-erd` / `theme-diff`）共用那份外壳的分支单测
 （`@vitest-environment jsdom`：这三份都要 DOM 与 React 渲染）。
 
 量的是共享实现自己的几格：兜底在成功时放行、失败时退回那一条提示（文案跟着调用方给的说法走）、
-`ViewLayer` 那三层结构（视图 + 分隔线 + 容器）与正文的顺序、`hackStyle()` 只在需要时往
-`<head>` 插一份补丁、`ViewLayerDocItem` 在有没有本层数据时的两条分支。各包那句说法交了什么
-文案，归 `view-layer-copies.test.mts` 的源码文本护栏。
+`ViewLayer` 那三层结构（视图 + 分隔线 + 容器）与正文的顺序、宽度补丁跟着这一格渲染并随卸载
+消失、`ViewLayerDocItem` 在有没有本层数据时的两条分支。各包那句说法交了什么文案，归
+`view-layer-copies.test.mts` 的源码文本护栏。
 
 `act` 的环境标记与另两份 jsdom 用例同一口径（只认 globalThis，是那条 unicorn 规则的唯一例外）。
 */
@@ -27,14 +26,7 @@ import { hackStyle } from '../packages/theme-iframe/lib/view-layer.ts';
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const STYLE_ID = 'theme-view-layer-hack';
-
-/** 放干当前这一轮微任务与宏任务队列。 */
-function flush(): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
-}
+const HACK_STYLE = 'style[data-theme-view-layer-hack]';
 
 const mounted: Array<() => void> = [];
 
@@ -64,7 +56,6 @@ afterEach(() => {
     unmount();
   }
   vi.restoreAllMocks();
-  document.querySelector(`#${STYLE_ID}`)?.remove();
 });
 
 const labels = {
@@ -177,63 +168,41 @@ describe('ViewLayer：视图 + 分隔线 + 装正文的容器', () => {
   });
 });
 
-describe('hackStyle：那条宽度补丁只插一份', () => {
-  it('第一次调用往 <head> 插一份带 id 的 <style>，内容就是那条规则', () => {
-    expect(document.querySelector(`#${STYLE_ID}`)).toBeNull();
+describe('宽度补丁：跟着视图那一格来，也跟着它走', () => {
+  it('补丁渲染在视图自己的子树里，规则按 :has() 限定作用域', () => {
+    const page = renderPage(
+      createElement(ViewLayer, { view: null }, createElement('i')),
+    );
 
-    expect(hackStyle()).toBeNull();
-
-    const style = document.querySelector<HTMLStyleElement>(`#${STYLE_ID}`);
+    const style = page.querySelector<HTMLStyleElement>(HACK_STYLE);
     expect(style).not.toBeNull();
-    expect(style?.textContent).toContain('.container:not(.fake)');
+    expect(style?.textContent).toContain('.container:has(.fake)');
     expect(style?.textContent).toContain('max-width: 100% !important');
   });
 
-  it('同一页再调几次不会插第二份', () => {
-    hackStyle();
-    hackStyle();
-    hackStyle();
+  it('不往 <head> 插；卸载后页面里一份都不剩（SPA 离开视图页）', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
 
-    expect(document.querySelectorAll(`#${STYLE_ID}`)).toHaveLength(1);
+    act(() => {
+      root.render(createElement(ViewLayer, { view: null }));
+    });
+    expect(document.querySelector(HACK_STYLE)).not.toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+
+    expect(document.querySelector(HACK_STYLE)).toBeNull();
+    expect(document.head.querySelector(HACK_STYLE)).toBeNull();
   });
 
-  it('已经有一份（服务端注入或上一次调用留下的）时不再插', () => {
-    const existing = document.createElement('style');
-    existing.id = STYLE_ID;
-    existing.textContent = '/* 别人放的 */';
-    document.head.append(existing);
+  it('没有视图层的普通页：一份补丁都没有', () => {
+    renderPage(createElement('article', { id: 'plain' }, '正文'));
 
-    hackStyle();
-
-    const all = document.querySelectorAll<HTMLStyleElement>(`#${STYLE_ID}`);
-    expect(all).toHaveLength(1);
-    expect(all[0]?.textContent).toBe('/* 别人放的 */');
-  });
-
-  it('浏览器之外（SSG 那一轮）不碰 `document.head`：挂不上也无需挂', () => {
-    // jsdom 的环境把 `document` 挂在 globalThis 上，这一格要的就是「没有它」。
-    // 与 `act` 那条环境标记同一口径：只认 globalThis，是这条规则的唯一例外。
-    /* eslint-disable unicorn/no-global-object-property-assignment -- 见上一句 */
-    const serverDocument = globalThis.document;
-    delete (globalThis as { document?: Document }).document;
-    try {
-      expect(hackStyle()).toBeNull();
-    } finally {
-      globalThis.document = serverDocument;
-    }
-    /* eslint-enable unicorn/no-global-object-property-assignment */
-
-    expect(document.querySelector(`#${STYLE_ID}`)).toBeNull();
-  });
-
-  it('渲染树里不留节点：当组件插进去也只有 null', async () => {
-    const Page = function Page(): ReactNode {
-      return createElement('div', { id: 'root' }, hackStyle());
-    };
-    const page = renderPage(createElement(Page));
-    await flush();
-
-    expect(page.querySelector('#root')?.childNodes).toHaveLength(0);
+    expect(document.querySelector(HACK_STYLE)).toBeNull();
   });
 });
 
@@ -260,7 +229,7 @@ describe('ViewLayerDocItem：命中才插那块视图，不命中原样交给下
     expect(page.querySelector('#probe')?.textContent).toBe('probe-data');
     expect(page.querySelector('hr')).not.toBeNull();
     expect(page.querySelector('#doc')?.textContent).toBe('正文');
-    expect(document.querySelector(`#${STYLE_ID}`)).not.toBeNull();
+    expect(page.querySelector(HACK_STYLE)).not.toBeNull();
   });
 
   it('本层数据不在（`undefined` / `null`）：没有视图、没有分隔线，只剩下层交回的那份', () => {
@@ -276,10 +245,12 @@ describe('ViewLayerDocItem：命中才插那块视图，不命中原样交给下
       expect(page.querySelector('#probe')).toBeNull();
       expect(page.querySelector('hr')).toBeNull();
       expect(page.querySelector('#doc')?.textContent).toBe('正文');
+      // 不命中 = 这一层根本不该挂补丁
+      expect(page.querySelector(HACK_STYLE)).toBeNull();
     }
   });
 
-  it('父级换一份 labels（同层 re-render）时视图不重挂，补丁也不会多插一份', () => {
+  it('父级换一份 labels（同层 re-render）时视图不重挂，补丁也只渲染一份', () => {
     let mounts = 0;
     function Counting({ data }: { data: string }): ReactNode {
       // 只在挂载那一次跑：re-render 不算，重挂才算。
@@ -316,7 +287,7 @@ describe('ViewLayerDocItem：命中才插那块视图，不命中原样交给下
     renderWith({ ...labels });
 
     expect(mounts).toBe(1);
-    expect(document.querySelectorAll(`#${STYLE_ID}`)).toHaveLength(1);
+    expect(container.querySelectorAll(HACK_STYLE)).toHaveLength(1);
   });
 
   it('视图那边抛了：退回本层那条提示，正文照旧不白屏', () => {

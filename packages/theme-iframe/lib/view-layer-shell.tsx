@@ -1,10 +1,10 @@
-import { Component, useInsertionEffect } from 'react';
+import { Component } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 
 import Admonition from '@theme/Admonition';
 
 import type { ViewLayerLabels } from './view-layer-labels.ts';
-import { hackStyle } from './view-layer.ts';
+import { WIDTH_HACK_CSS } from './view-layer.ts';
 
 /**
 「在正文上方多插一块视图」那一族层（`theme-markmap` / `theme-erd` / `theme-diff`）共用的外壳。
@@ -78,20 +78,17 @@ interface ViewLayerProps {
 /**
 那一族视图层落在正文上方的那一格：命中之后先摆视图、一条分隔线，再把正文放进一个 `.container`。
 
-那条 `.fake` 配的是 `.container:not(.fake) { max-width: 100% !important }` ——
+那条 `.fake` 配的是 `.container:has(.fake) { max-width: 100% !important }` ——
 视图要铺满这一格，而页面结构（标题、目录、面包屑、页脚导航）一个字都不动：
 正文仍是原样交给下层 `DocItem`，只是在它外面多套了这一层容器。
-补丁由 `hackStyle()` 挂（见 `view-layer.ts`），时机走 `useInsertionEffect`：
-在 DOM 变更之前、绘制之前插进去，效果与「渲染期直接改 `<head>`」相同，
-但渲染函数本身不再有副作用（那一步在 React 并发渲染下会被丢弃或重放）。
+
+补丁 CSS 住在 `view-layer.ts`，由这里渲染成子树里的 `<style>`：命中页的 HTML 里就有它，
+首屏绘制前生效；离开这一页时随组件卸载一起消失，不会像挂在 `<head>` 上那样带到普通页。
 */
 export function ViewLayer({ view, children }: ViewLayerProps): ReactNode {
-  useInsertionEffect(() => {
-    hackStyle();
-  }, []);
-
   return (
     <>
+      <style data-theme-view-layer-hack>{WIDTH_HACK_CSS}</style>
       {view}
       <hr />
       <div className="container padding-top--md padding-bottom--lg fake">

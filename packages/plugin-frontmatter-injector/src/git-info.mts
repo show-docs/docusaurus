@@ -115,26 +115,25 @@ export function repoPath(repo: Repo, filePath: string): string | undefined {
 /**
  一份文件的两个时刻，**一次 `git log` 拿到**。
 
- 数的是这份文件自己被提交过几次：`--format=` 把提交头清空，只留 `--name-only` 那一行。
- 重命名那一步它会吐两行（新名在前、旧名在后），所以先把旧名那一行去掉 —— 不去掉就把一次
- 提交数成两次。只提交过一次，那一次既是「创建」也是「更新」；两次以上就只有「更新」。
+ `%ct` 一行一个提交（`git log` 默认倒序），所以行数就是「提交过几次」，第一行就是最近那次。
+ 不数 `--name-only` 的文件名行：重命名那一步会同时吐新旧两个名字，而 `--follow` 更早的提交
+ 里只有旧名 —— 按名字过滤计数会把历史数少，把重命名过的文件误判成「只提交过一次」。
+ 只提交过一次，那一次既是「创建」也是「更新」；两次以上就只有「更新」。
 */
 function readTimes(repo: Repo, path: string): GitTimes {
   const commits = git(
-    ['log', '--follow', '--format=', '--name-only', '--', path],
+    ['log', '--follow', '--format=%ct', '--', path],
     repo.root,
   )
     .split('\n')
     .filter(Boolean)
-    .filter((name) => repoPath(repo, resolve(repo.root, name)) === path);
+    .map(Number);
 
   if (commits.length === 0) {
     return noTimes;
   }
 
-  const updated = Number(
-    git(['log', '-1', '--follow', '--format=%ct', '--', path], repo.root),
-  );
+  const [updated] = commits;
 
   return { created: commits.length === 1 ? updated : undefined, updated };
 }

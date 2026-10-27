@@ -18,6 +18,7 @@ import frontMatterInjectorPlugin, {
   NEW_TAG,
   noTimes,
   openRepo,
+  openRepoFrom,
   repoPath,
   scopeOf,
   tagsOf,
@@ -482,22 +483,22 @@ describe('git 那一侧（真 git 仓库）', () => {
   const DAY = 86_400;
   const now = Math.floor(Date.now() / 1000);
 
-  /** 一个真仓库：两份文件，各提交过一次 —— `new.md` 是一分钟前那次，`old.md` 是 21 天前那次 */
-  function makeRepo(): { root: string; repo: Repo } {
-    const root = mkdtempReal(path.join(os.tmpdir(), 'frontmatter-git-'));
+  /** 空仓库骨架：`git init` + 自己给时刻的提交（重命名与空仓库两组都用） */
+  function gitRepo(prefix: string) {
+    const root = mkdtempReal(path.join(os.tmpdir(), prefix));
     roots.push(root);
 
-    const run = (args: string[], date?: number) =>
+    const run = (args: string[], at?: number): string =>
       execFileSync('git', args, {
         cwd: root,
         encoding: 'utf8',
         env:
-          date === undefined
+          at === undefined
             ? process.env
             : {
                 ...process.env,
-                GIT_AUTHOR_DATE: `${String(date)} +0000`,
-                GIT_COMMITTER_DATE: `${String(date)} +0000`,
+                GIT_AUTHOR_DATE: `${String(at)} +0000`,
+                GIT_COMMITTER_DATE: `${String(at)} +0000`,
               },
       }).trim();
 
@@ -505,6 +506,20 @@ describe('git 那一侧（真 git 仓库）', () => {
     run(['config', 'user.email', 'test@example.com']);
     run(['config', 'user.name', 'test']);
     run(['config', 'commit.gpgsign', 'false']);
+
+    return {
+      root,
+      run,
+      commit: (message: string, at: number): void => {
+        run(['add', '-A']);
+        run(['commit', '-q', '-m', message, '--no-verify'], at);
+      },
+    };
+  }
+
+  /** 一个真仓库：两份文件，各提交过一次 —— `new.md` 是一分钟前那次，`old.md` 是 21 天前那次 */
+  function makeRepo(): { root: string; repo: Repo } {
+    const { root, run } = gitRepo('frontmatter-git-');
 
     fs.writeFileSync(path.join(root, 'old.md'), 'old\n');
     fs.writeFileSync(path.join(root, 'new.md'), 'new\n');
@@ -525,6 +540,8 @@ describe('git 那一侧（真 git 仓库）', () => {
     expect(findRepoRoot(root)).toBe(
       fs.realpathSync.native(root).replaceAll('\\', '/'),
     );
+    // 正常仓库这一侧：`openRepoFrom` 真的把仓库读出来（catch 那条另一侧见空仓库用例）
+    expect(openRepoFrom(root)?.root).toBe(findRepoRoot(root));
     // 临时目录的上一级不是仓库（`/tmp` 与 `os.tmpdir()` 都不是）
     expect(findRepoRoot(os.tmpdir())).toBeUndefined();
     // 目录根本不存在：spawn 没起来，`stdout` 是 null，同样按「没有 git」处理
@@ -599,6 +616,32 @@ describe('git 那一侧（真 git 仓库）', () => {
         repo,
       }),
     ).toEqual([NEW_TAG, UPDATE_TAG]);
+  });
+
+  it('重命名过的文件按提交数算历史：不会把两段历史误判成「只提交过一次」', () => {
+    const { root, run, commit } = gitRepo('frontmatter-rename-');
+    const created = now - 30 * DAY;
+    const renamed = now - 60;
+
+    fs.writeFileSync(path.join(root, 'before.md'), 'v1\n');
+    commit('创建', created);
+    run(['mv', 'before.md', 'after.md']);
+    commit('重命名', renamed);
+
+    const repo = openRepo(root);
+    // 两次提交：只有「更新」。旧实现把改名那次的旧名行滤掉，历史只剩 1 行 → 误报成新文件。
+    expect(timesOf(repo, path.join(root, 'after.md'))).toEqual({
+      created: undefined,
+      updated: renamed,
+    });
+  });
+
+  it('空仓库（`git init` 还没有首个提交）：按「没有历史」处理，不阻断构建', () => {
+    const { root } = gitRepo('frontmatter-empty-');
+
+    // 找得到仓库根，但 `git log` 在空仓库上以 128 退出 —— 这一格以前会把构建直接抛停
+    expect(findRepoRoot(root)).toBeDefined();
+    expect(openRepoFrom(root)).toBeUndefined();
   });
 });
 
