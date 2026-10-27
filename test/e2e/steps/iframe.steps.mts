@@ -50,10 +50,15 @@ Then('它指向本站 404 那一页', async ({ page }) => {
 
 // 嵌进来的那页自己也要真的渲染出来：只证明「有个 iframe」证明不了目标页可达。
 // 这一页是站点的未找到页，所以框里的标题是它自己那句。
+//
+// 那句文案跟着**站点的 locale**走：站点是 `zh-Hans`（`docusaurus.config.mjs` 里的 `i18n`），
+// 于是框里那句是「找不到页面」（上游 `theme.NotFound.title` 的简体译文；英文那句
+// "Page Not Found" 是 `en` 那一份）。判据两种都收 —— 它钉的是「这一页是站点的未找到页」，
+// 不是「站点用哪种语言」，哪天站点加了 locale 也不用回来改这一句。
 Then('被嵌的那一页在框里真的渲染出来', async ({ page }) => {
   const inner = frame(page).contentFrame();
   await expect(inner.locator('h1'), '被嵌页面没渲染出标题').toContainText(
-    'Page Not Found',
+    /Page Not Found|找不到页面/,
   );
   await expect(
     inner.locator('.navbar'),
@@ -106,7 +111,7 @@ Then('外层站点的壳还在，navbar 照旧', async ({ page }) => {
 });
 
 // 这一页 markdown 的正文一行都不剩。`locator` 不跨 frame，所以这里量的 `h1`
-// 只有外层文档的，框里那句「Page Not Found」不算。
+// 只有外层文档的，框里那句 404 标题不算。
 Then('本页 markdown 的正文一行都不剩', async ({ page }) => {
   await expect(page.locator('h1'), '本页标题还在页面上').toHaveCount(0);
   await expect(page.locator('.markdown'), '本页正文还在页面上').toHaveCount(0);
