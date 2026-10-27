@@ -3,6 +3,7 @@ import type { LoadContext, Plugin } from '@docusaurus/types';
 import { layersFromPlugins } from './layers.mts';
 import { PluginDiscovery } from './plugins.mts';
 import { PrevLayerResolverPlugin } from './resolver.mts';
+import { showDocsSourceRule } from './source-js-rule.mts';
 import type { LoggerLike } from './types.mts';
 
 export interface PrevLayerResolverOptions {
@@ -39,7 +40,7 @@ export default async function prevLayerResolverPlugin(
     // 「名字说的是它做的事」。
     name: '@show-docs/docusaurus-plugin-prev-layer-resolver',
 
-    configureWebpack() {
+    configureWebpack(_config, isServer, utils) {
       // `plugins` 为 null（拿不到插件列表）时的降级由 `layersFromPlugins` 自己兜；
       // 此时层栈**不一定为空**：只要 core 与 `src/theme` 定位得到，缺席的是全部主题层。
       const layers = layersFromPlugins({ siteDir, plugins, logger });
@@ -62,6 +63,12 @@ export default async function prevLayerResolverPlugin(
       return {
         resolve: {
           plugins: [resolverPlugin],
+        },
+        // 家族里那些**未编译**的 TS 源码（各主题包的层与组件）随包发布，官方那条 babel 规则
+        // 把 `node_modules` 整个排除在外 —— 这一格补上，判据见 `source-js-rule.mts`。
+        // 它与层栈无关：层栈空了这条规则照样在（那只是 `@theme-prev/*` 失效）。
+        module: {
+          rules: [showDocsSourceRule(utils, isServer)],
         },
       };
     },

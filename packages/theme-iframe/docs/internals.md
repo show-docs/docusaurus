@@ -48,7 +48,7 @@
 三条视图层（`theme-markmap` / `theme-erd` / `theme-diff`）共用的外壳也住在这里 ——
 `lib/view-layer-shell.tsx` / `lib/view-layer-labels.ts` / `lib/view-layer.ts`。放本包而不是单开一个包：
 `lib/` 已经随包发出去（`files` 与 `./lib/*` 那条 exports），而那三条视图层本来就依赖本包
-（babel 认领判据与 iframe 那层）。收在一处之前这三份是每个包各抄一遍的副本，
+（那份共享外壳与 iframe 那层）。收在一处之前这三份是每个包各抄一遍的副本，
 合成一份之后各包又还各留着 `components/error-boundary.tsx` / `components/hack-style.tsx`
 两个只管转出的文件；现在连那两个都没有了，`test/view-layer-copies.test.mts` 钉的是
 「三处引的是同一份」，也钉「那两份转出文件不许再长回来」。
@@ -90,7 +90,7 @@ README 的「构建包的编译口径」。
 没有 `../theme-markmap/`，`import()` 在**运行期**抛 `Module not found`。写成包 specifier
 `import('…/docusaurus-theme-markmap/components/markmap.tsx')` 则要三个视图包各自把
 `components/*` 加进 `exports`，再反过来让 `theme-iframe` 依赖它们 —— 而它们本来就依赖
-`theme-iframe`（babel 认领判据与 iframe 那层），**这会成环**。绕开环依赖只剩两条：视图文件搬进
+`theme-iframe`（那份共享外壳与 iframe 那层），**这会成环**。绕开环依赖只剩两条：视图文件搬进
 本包（三个包变空壳，`README` / `docs/` / `sidebars.mts` 里的路径全要改），或者表改成 build 期
 生成器（新造一处漂移源，还要再写用例钉「生成物与源码一致」）。为一个演示站，这笔账算不过来。
 
@@ -151,12 +151,15 @@ README 的「构建包的编译口径」。
   浏览器出口；三条 API 层的入口按全 specifier
   `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 引它（包的 `exports` 里
   `./lib/*` 是通配，`/lib` 裸路径不解析）。
-- 本包入口与那份工厂都在 `configureWebpack` 里补一条 `.tsx?` 规则
-  （`utils.getJSLoader({ isServer })`）：官方 babel 规则排除 `node_modules`，不补的话 npm
-  安装后层源码报 `Module parse failed`。工厂那一格的 `include` 是 `lib/api-frame-source-js-rule.ts`
-  里那条判据，不是包根那个字符串 —— 工作区里官方本来就在编这批源码，认领回来等于同一份文件跑两遍
-  babel。本包**入口**那一格仍是包根：它进 `tsc`，而 `lib/` 不在那份 `rootDir` 里、引不到判据。
-  口径见仓库根 README 的「构建包的编译口径」；三条 API 层用本包工厂，自动带上判据那一版。
+- 「谁来编这一族未编译的 TS 源码」**不归本包**：官方 babel 规则排除 `node_modules`，不补的话
+  npm 安装后层源码报 `Module parse failed` —— 那一格由
+  `@show-docs/docusaurus-plugin-prev-layer-resolver` 一处认领（按 `@show-docs` 这个 scope，
+  判据在它的 `src/source-js-rule.mts`）。本包入口与三条 API 层经
+  `lib/api-frame-theme.mts` 的工厂都不再自己补规则；工厂那一格只透传调用方给的
+  `configureWebpack`（Redoc 的 `worker_threads` 空模块、Elements 的样式表隔离那些差异）。
+  口径见仓库根 README 的「构建包的编译口径」，与解析器包
+  [internals](../../plugin-prev-layer-resolver/docs/internals.md) 的
+  「谁来编未编译的 TS 源码」一节。
 - `components/api-frame.css` 与用它的组件同目录，`theme/DocItem/index.tsx` 静态 import
   `../../components/api-frame.tsx` —— 磁盘上就是这个文件，未编译这一侧不存在「产物名改写」。
 - 改 `theme/` 与 `components/` 不用先编译，`pnpm start` 直接生效；改注册表也一样（两边都是

@@ -2,7 +2,6 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { needsSiteJsRule } from '@show-docs/docusaurus-theme-iframe/lib/api-frame-source-js-rule.ts';
 import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/lib/prerequisites.ts';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
@@ -12,15 +11,12 @@ const require = createRequire(import.meta.url);
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
 
-/** 包根：那条 `.tsx?` 规则的认领范围。 */
-const packageRoot = resolve(thisDir, '..');
-
 export default function theme(context: LoadContext): Plugin {
   return {
     name: '@show-docs/docusaurus-theme-diff',
     loadContent() {
-      // 本层的 `ViewLayerDocItem` 住在 theme-iframe 未编译的 `lib/` 里：那个插件不注册，
-      // 它的 babel 规则就不在，站点会在 `view-layer-shell.tsx` 上撞 `Module parse failed`。
+      // 本层的 `ViewLayerDocItem` 住在 theme-iframe 未编译的 `lib/` 里：那个包没装，
+      // 站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。
       assertThemePrerequisites(context, {
         namespace: '@show-docs/docusaurus-theme-diff',
         iframe: true,
@@ -28,6 +24,9 @@ export default function theme(context: LoadContext): Plugin {
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 剩下的东西（入口、loader、类型）。
+    //
+    // 「谁来编」归 `@show-docs/docusaurus-plugin-prev-layer-resolver`（它按 `@show-docs`
+    // 这个 scope 认领 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
     getThemePath() {
       return resolve(thisDir, '../theme');
     },
@@ -42,19 +41,10 @@ export default function theme(context: LoadContext): Plugin {
         require.resolve('@git-diff-view/react/styles/diff-view-pure.css'),
       ];
     },
-    configureWebpack(_config, isServer, utils) {
+    configureWebpack() {
       return {
         module: {
           rules: [
-            {
-              // 官方那条 babel 规则排除整个 node_modules、只放行 `docusaurus*.js`，本包装进真项目
-              // 之后那些未编译的 `.tsx` 会报 `Module parse failed`。补一条覆盖包根的规则接上这一格，
-              // 但只在官方不认的地方认领 —— 工作区里它们是链到 `node_modules` 之外的，官方本来就在编，
-              // 再命中就是白跑一遍 babel。判据见 theme-iframe 的 `lib/api-frame-source-js-rule.ts`。
-              test: /\.tsx?$/,
-              include: (file: string) => needsSiteJsRule(packageRoot, file),
-              use: [utils.getJSLoader({ isServer })],
-            },
             {
               // md 由官方 mdx-loader 编译，这里只能在其产物后追加导出
               enforce: 'post',

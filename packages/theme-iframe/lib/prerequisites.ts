@@ -22,8 +22,12 @@ export type ThemePrerequisites = {
   /** 本包的包名，只用于报错时点名。 */
   namespace: string;
   /**
-  是否必须**注册** `theme-iframe`：视图三层要它编译未发布的 `lib/*.tsx`，API 三层要它提供
-  外层框与路由；查看器与复制按钮只在构建期引它的一条纯函数，装上了就够。
+  是否必须**注册** `theme-iframe`：视图三层要它发布那份共享外壳，API 三层要它提供外层框与
+  路由；查看器与复制按钮只在构建期引它的一条纯函数，装上了就够。
+
+  「谁来编那份外壳」不在这一格：未编译的 `lib/*.tsx` 由
+  `@show-docs/docusaurus-plugin-prev-layer-resolver` 按 `@show-docs` 这个 scope 统一认领
+  （判据见它的 `src/source-js-rule.mts`）。
   */
   iframe?: boolean;
   /**

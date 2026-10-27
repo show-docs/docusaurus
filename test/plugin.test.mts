@@ -50,6 +50,14 @@ function loadPlugin(): Promise<Plugin> {
   );
 }
 
+/**
+`configureWebpack` 的第三个参数（`utils`）：插件用它取官方那条 babel loader（`getJSLoader`）。
+测试里只需要这一格，给个哨兵。
+*/
+const utilsStub = {
+  getJSLoader: () => ({ loader: 'js-loader' }),
+} as never;
+
 describe('plugin-prev-layer-resolver 插件接线', () => {
   it('插件初始化返回可用的 Plugin 形状，且不声明任何客户端模块', async () => {
     const plugin = await loadPlugin();
@@ -105,7 +113,7 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
     const result = plugin.configureWebpack!(
       config as never,
       false,
-      undefined as never,
+      utilsStub,
       undefined,
     );
     // 返回值里只有我们自己，且**不改动**入参
@@ -123,6 +131,39 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
     expect(
       mergedPlugins.some((p) => p instanceof PrevLayerResolverPlugin),
     ).toBe(true);
+  });
+
+  /**
+  这一格与层栈无关：家族里那些**未编译**的 TS 源码随包发布，官方那条 babel 规则把整个
+  `node_modules` 排除在外 —— 由本插件补一条规则按 `@show-docs` 这个 scope 认领。
+  判据的细节在 `test/source-js-rule.test.mts`，这里钉「这条规则由本插件产出」。
+  */
+  it('补上那条 TS 源码规则：官方不编的 node_modules 里的 @show-docs 源码归它', async () => {
+    const plugin = await loadPlugin();
+    const result = plugin.configureWebpack!(
+      {} as never,
+      false,
+      utilsStub,
+      undefined,
+    );
+
+    const rules = (result?.module?.rules ?? []) as Array<{
+      test: RegExp;
+      include: (file: string) => boolean;
+      use: unknown[];
+    }>;
+    expect(rules).toHaveLength(1);
+    const rule = rules[0]!;
+    expect(rule.test.test('index.tsx')).toBe(true);
+    expect(rule.use).toEqual([{ loader: 'js-loader' }]);
+    expect(
+      rule.include(
+        '/site/node_modules/@show-docs/docusaurus-theme-markmap/theme/DocItem/index.tsx',
+      ),
+    ).toBe(true);
+    expect(
+      rule.include('/repo/packages/theme-markmap/theme/DocItem/index.tsx'),
+    ).toBe(false);
   });
 
   it('层栈为空时告警一次，且不改写任何 request', async () => {
@@ -148,12 +189,7 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
   it('config.resolve 缺失时不崩溃', async () => {
     const plugin = await loadPlugin();
     expect(() =>
-      plugin.configureWebpack!(
-        {} as never,
-        false,
-        undefined as never,
-        undefined,
-      ),
+      plugin.configureWebpack!({} as never, false, utilsStub, undefined),
     ).not.toThrow();
   });
 
@@ -246,7 +282,7 @@ function captureResolver(plugin: Plugin): PrevLayerResolverPlugin {
   const result = plugin.configureWebpack!(
     { resolve: { alias: {} } } as never,
     false,
-    undefined as never,
+    utilsStub,
     undefined,
   );
   const plugins = (result?.resolve?.plugins ?? []) as unknown[];

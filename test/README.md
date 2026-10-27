@@ -113,15 +113,16 @@ frontmatter 注入包的 `src/`（三个文件：规则表、git 那一侧、接
   `theme-iframe/lib/api-frame-theme.mts` 那家工厂一次」的接线，判据都住在工厂里、而那份在红线上；
   框内那一页的 `components/` 与 `theme/` 全在浏览器侧，只有开页面才看得见 —— 由
   `redoc.feature` / `scalar.feature` / `stoplight.feature` 钉。
-- `theme-viewer`：`src/index.mts` 是插件接线（那条 babel 规则由
-  `view-layer-copies.test.mts` 钉，层目录与样式表由 `plugin.test.mts` 的分包三件套钉）。
+- `theme-viewer`：`src/index.mts` 是插件接线（那条编译未编译 TS 源码的 babel 规则由
+  `view-layer-copies.test.mts` 钉 —— 它只在解析器插件里有一份，本包不再自己补；
+  层目录与样式表由 `plugin.test.mts` 的分包三件套钉）。
   它唯一一条构建期行为是「宿主没开 lightningcss 压缩器就报错」，判据住在所有主题层共用的
   `assertThemePrerequisites` 里，由 `test/prerequisites.test.mts` 连入口这一格一起钉。
   组件全在浏览器侧，判据是「正文里真的有 `<img>` 才挂查看器」，只有开页面才看得见 ——
   由 `viewer.feature` 钉。
 - `theme-markmap`：`src/loader/` 与上面两层是同一类构建期判据，眼下还没有对应的单测文件。
-- `theme-copy-button`：`src/index.mts` 同样是插件接线（那条 babel 规则由
-  `view-layer-copies.test.mts` 钉，包本身由 `plugin.test.mts` 那条分包三件套扫目录扫到），按钮、图标与
+- `theme-copy-button`：`src/index.mts` 同样是插件接线（那条 babel 规则归解析器插件一处管，
+  `view-layer-copies.test.mts` 钉「只有那一份」，包本身由 `plugin.test.mts` 那条分包三件套扫目录扫到），按钮、图标与
   提示条全在浏览器侧。示例页 `packages/theme-copy-button/docs/copy-button-demo.md` 与主页那张卡片由
   `plugin.test.mts` 那条「每个主题包有一份示例页」的判据和 `home.feature` 钉；按钮自己的行为
   （有/没有剪贴板、写入成败各给哪条提示）由 `copy-button.test.mts` 在 jsdom 里钉，

@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
-import { needsSiteJsRule } from '../packages/theme-iframe/lib/api-frame-source-js-rule.ts';
 import { createApiFrameTheme } from '../packages/theme-iframe/lib/api-frame-theme.mts';
 import {
   IFRAME_PLUGIN,
@@ -125,8 +124,8 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
 
   type RulesConfig = {
     ignoreWarnings?: unknown[];
-    module: {
-      rules: Array<{
+    module?: {
+      rules?: Array<{
         test: RegExp;
         use: unknown[];
         include?: (file: string) => boolean;
@@ -142,35 +141,22 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
       {} as never,
     ) as RulesConfig;
 
-  it('恒补一条只覆盖本包的 TS 源码规则：npm 装机后 node_modules 不在官方 babel 范围里', () => {
+  /**
+  工厂**不再**补那条 TS 源码规则：那份未编译的 `.ts` / `.tsx` 由
+  `@show-docs/docusaurus-plugin-prev-layer-resolver` 统一认领（按 `@show-docs` 这个 scope），
+  判据与用例在那边（`test/source-js-rule.test.mts`）。这里只钉「工厂不自己再补一份」。
+  */
+  it('工厂不再补 TS 源码规则：那一格归解析器插件', () => {
     for (const pkg of ['redoc', 'scalar', 'stoplight'] as const) {
       const result = webpackResultOf(make(pkg));
-      const rule = result.module.rules[0]!;
-      expect(rule.test.test('index.tsx')).toBe(true);
-      expect(rule.test.test('index.ts')).toBe(true);
-      expect(rule.test.test('index.js')).toBe(false);
-      expect(rule.use).toEqual([{ loader: 'js-loader:false' }]);
+      expect(
+        result.module?.rules ?? [],
+        `${pkg} 的工厂又自己补了一条规则：这条判据只该在解析器插件里有一份`,
+      ).toEqual([]);
     }
   });
 
-  it('那条规则的认领范围按判据来，不是包根整片', () => {
-    const rule = webpackResultOf(make('scalar')).module.rules[0]!;
-    // 工作区里（链路解析到 node_modules 之外）交给官方那条，不重复编一遍
-    expect(
-      rule.include!(
-        `${repoRoot}/packages/theme-scalar/theme/ScalarPage/index.tsx`,
-      ),
-    ).toBe(false);
-    // 同一条判据在装机之后翻过来：包里那份落在 node_modules 里，官方不认，才轮到它
-    expect(
-      needsSiteJsRule(
-        '/site/node_modules/@show-docs/docusaurus-theme-scalar',
-        '/site/node_modules/@show-docs/docusaurus-theme-scalar/theme/ScalarPage/index.tsx',
-      ),
-    ).toBe(true);
-  });
-
-  it('调用方自己的 configureWebpack 结果原样并入，并接在源码规则前面', () => {
+  it('调用方自己的 configureWebpack 结果原样透传', () => {
     const callerRule = { test: /\.md$/, loader: 'caller-loader' };
     const plugin = createApiFrameTheme(contextWithBase('/'), {
       namespace: '@show-docs/docusaurus-theme-redoc',
@@ -181,18 +167,17 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
 
     const result = webpackResultOf(plugin, true);
     expect(result.ignoreWarnings).toEqual([/x/]);
-    expect(result.module.rules[0]).toBe(callerRule);
-    expect(result.module.rules[1]!.use).toEqual([{ loader: 'js-loader:true' }]);
+    expect(result.module?.rules).toEqual([callerRule]);
   });
 
-  it('调用方返回 undefined 时也照常补规则', () => {
+  it('调用方返回 undefined 时也不补任何规则', () => {
     const plugin = createApiFrameTheme(contextWithBase('/'), {
       namespace: '@show-docs/docusaurus-theme-scalar',
       selfEntryUrl: entryUrlOf('scalar'),
       configureWebpack: () => undefined,
     });
 
-    expect(webpackResultOf(plugin).module.rules).toHaveLength(1);
+    expect(webpackResultOf(plugin).module?.rules ?? []).toEqual([]);
   });
 
   it('loadContent 检查前置插件：缺解析器当场点名，装齐则放行', () => {

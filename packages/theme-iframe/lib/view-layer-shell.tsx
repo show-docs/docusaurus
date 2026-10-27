@@ -16,7 +16,7 @@ import { WIDTH_HACK_CSS } from './view-layer.ts';
 「三处引的是同一份」，不再是「三份逐字相同」。
 
 放在本包 `lib/` 而不是单开一个包：`lib/` 已随包发出去（`files` 与 `./lib/*` 那条 exports），
-而这三条视图层本来就依赖 `@show-docs/docusaurus-theme-iframe`（babel 认领判据与 iframe 那层）。
+而这三条视图层本来就依赖 `@show-docs/docusaurus-theme-iframe`（这份外壳与 iframe 那层）。
 */
 
 interface Props {

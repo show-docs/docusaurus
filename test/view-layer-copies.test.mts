@@ -199,52 +199,79 @@ describe('三条视图层共用的那一份外壳', () => {
 });
 
 /**
-## 两处「每个包自己抄一遍」的接线
+## 「谁来编这一族未编译的 TS 源码」只有一处说了算
 
-这两样不在副本文件里，藏在各包入口与 loader 里，漂移了不会有任何用例报红，只在**装机的站点**
-上以 `Module parse failed` / 那一格视图不出现的形式现身，所以只能由源码文本层面的护栏来钉。
+官方那条 babel 规则排除整个 `node_modules`，每个随包发布 `.tsx` 的主题包都得自己补一条规则。
+这七条规则以前各写一份（同一个判据抄七处），改一处忘另两处就是漂移；现在收在
+`@show-docs/docusaurus-plugin-prev-layer-resolver` 一处（`src/source-js-rule.mts`），
+按 `@show-docs` 这个 scope 认领。
+
+所以这里的钉法从「七处逐字相同」换成了「**只有那一份**」：任何主题包再自己补一条，
+就是第二处要改的地方。
 */
-describe('各包重复的 webpack 与 loader 接线', () => {
-  /**
-  官方那条 babel 规则排除整个 `node_modules`，每个分发 `.tsx` 的主题包都要补这一条。
-  `include` 是判据函数而不是包根那个字符串：工作区里官方本来就在编这些源码，不带判据就是同一份
-  文件跑两遍 babel（判据本身在 `lib/api-frame-source-js-rule.ts`，另有用例钉它）。
+describe('TS 源码的编译规则只有一处', () => {
+  /** 家族里带源码层的包：层与组件是随包发布的源码，官方那条规则不编。 */
+  const sourcePackages = [
+    'theme-markmap',
+    'theme-erd',
+    'theme-diff',
+    'theme-viewer',
+    'theme-copy-button',
+    'theme-iframe',
+    'theme-redoc',
+    'theme-scalar',
+    'theme-stoplight',
+  ] as const;
 
-  `theme-iframe` 自己是唯一例外：它的入口进 `tsc`，而 `lib/` 不在那份 `rootDir` 里、引不到判据，
-  所以那一条仍按包根认领 —— 见它入口里那段注释。
-  */
-  const babelRule = [
-    String.raw`              test: /\.tsx?$/,`,
-    '              include: (file: string) => needsSiteJsRule(packageRoot, file),',
-    '              use: [utils.getJSLoader({ isServer })],',
-  ].join('\n');
-
-  const iframeBabelRule = [
-    String.raw`              test: /\.tsx?$/,`,
-    "              include: [resolve(thisDir, '..')],",
-    '              use: [utils.getJSLoader({ isServer })],',
-  ].join('\n');
-
-  it('六个带源码层的包，补的那条 babel 规则逐字相同', () => {
-    for (const pkg of [
-      'theme-markmap',
-      'theme-erd',
-      'theme-diff',
-      'theme-viewer',
-      'theme-copy-button',
-    ]) {
-      expect(
-        read(pkg, 'src/index.mts'),
-        `${pkg} 的 src/index.mts 里那条 babel 规则与另外几个包不一样（改一处要改五处）`,
-      ).toContain(babelRule);
-    }
-
-    expect(
-      read('theme-iframe', 'src/index.mts'),
-      'theme-iframe 的 src/index.mts 里那条 babel 规则变了（它的认领范围另有一段注释说明）',
-    ).toContain(iframeBabelRule);
+  it('那条规则在解析器插件里有一份', () => {
+    const source = fs.readFileSync(
+      path.join(
+        siteDir,
+        'packages',
+        'plugin-prev-layer-resolver',
+        'src',
+        'source-js-rule.mts',
+      ),
+      'utf8',
+    );
+    expect(source, '解析器插件里没有那条 TS 源码规则').toContain(
+      'utils.getJSLoader({ isServer })',
+    );
+    expect(source).toContain('needsShowDocsSourceRule');
   });
 
+  it('各主题包不再自己补那条规则（第二处 = 要改两处）', () => {
+    for (const pkg of sourcePackages) {
+      const source = read(pkg, 'src/index.mts');
+      expect(
+        source,
+        `${pkg} 的 src/index.mts 里又自己补了一条 TS 源码规则：` +
+          '这一格归 @show-docs/docusaurus-plugin-prev-layer-resolver 一处管',
+      ).not.toMatch(/test:\s*\/\\\.tsx\?\$\//);
+      expect(
+        source,
+        `${pkg} 的 src/index.mts 里不该再出现 needsSiteJsRule（那份判据已并入解析器插件）`,
+      ).not.toContain('needsSiteJsRule');
+    }
+  });
+
+  it('theme-iframe 的 lib/ 里那份旧的判据文件没了', () => {
+    expect(
+      fs.existsSync(
+        path.join(
+          siteDir,
+          'packages',
+          'theme-iframe',
+          'lib',
+          'api-frame-source-js-rule.ts',
+        ),
+      ),
+      'packages/theme-iframe/lib/api-frame-source-js-rule.ts 又出现了：判据只有一份，在解析器插件里',
+    ).toBe(false);
+  });
+});
+
+describe('两条 md 后处理 loader 的接线', () => {
   /** 两条 md 后处理 loader 认 frontmatter 起止的那一条，两边必须是一个口径。 */
   const frontMatterLine = `const FRONT_MATTER = /^---${String.raw`\r?\n([\s\S]*?)\r?\n---/;`}`;
 

@@ -83,6 +83,27 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 不回落官方别名：能用的落点里没有语义对的（理由见
 [`docs/internals.md`](./docs/internals.md) 的「设计取舍」一节），宁可让人看到官方报错。
 
+## 编译 `@show-docs` 家族未编译的 TS 源码
+
+Docusaurus 官方那条 babel 规则把整个 `node_modules` 排除在外（只给 `docusaurus*.js[x]` 开例外）。
+`@show-docs` 家族的主题层与组件是**未编译的 `.tsx` / `.jsx`**，随包发布 —— 从 npm 装进真项目时，
+官方那条规则不编它们，于是报 `Module parse failed`。
+
+这一格由本插件认领：`configureWebpack` 里用官方 `utils.getJSLoader()` 补一条 `.tsx?` 规则，
+`include` 只收 `node_modules/@show-docs/` 底下的文件。
+
+- **工作区里不认领**：pnpm 的软链把源码解析到 `node_modules` 之外，官方那条本来就在编；
+  再命中一次就是同一份文件跑两遍 babel。
+- **别家的 scope 不认领**：这一族只发在 `@show-docs` 下。
+- **`.d.ts` 不认领**：声明文件没有运行期内容。
+
+这一格以前是**每个主题包各补一条**（同一个判据抄了七处，改一处忘另两处就是漂移），收在
+本插件一处之后各主题包不再自己补 —— 判据与实测见
+[`src/source-js-rule.mts`](./src/source-js-rule.mts) 与
+[`docs/internals.md`](./docs/internals.md) 的「谁来编未编译的 TS 源码」一节。
+
+**它与层栈无关**：层栈空了这条规则照样在（那只是 `@theme-prev/*` 失效）。
+
 ## 类型声明
 
 `types/theme-specifiers.d.ts` 给 `@theme/X`、`@theme-original/X`、`@theme-prev/X` 三条 specifier

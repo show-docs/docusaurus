@@ -22,7 +22,6 @@ import {
   apiFrameByNamespace,
   type ApiFrameEntryInternal,
 } from './api-frame-registry.ts';
-import { needsSiteJsRule } from './api-frame-source-js-rule.ts';
 import { assertThemePrerequisites } from './prerequisites.ts';
 
 export type ApiFrameThemeOptions = {
@@ -63,7 +62,6 @@ export function createApiFrameTheme(
         '（由入口产物所在目录算出；若构建输出目录不再是 dist/，上一句 resolve 就是要改的地方）。',
     );
   }
-  const packageRoot = resolve(themePath, '..');
 
   return {
     name: namespace,
@@ -72,33 +70,18 @@ export function createApiFrameTheme(
       // 缺任何一个都在这里点名，而不是让 webpack 在某个页面文件上抛。
       assertThemePrerequisites(context, { namespace, iframe: true });
     },
-    // 主题层与 `components/` 是源码，站在包根上，不经 tsc：用本包的站点编译它们。
+    // 主题层与 `components/` 是源码，站在包根上，不经 tsc：由用它们的站点编译。
     getThemePath() {
       return themePath;
     },
+    // webpack 的差异由调用方自己给（Redoc 的 `worker_threads` 空模块、Elements 的样式表隔离与
+    // polyfill、Scalar 的样式表摘出与告警豁免），工厂只负责把它接进 Plugin 形状。
+    //
+    // 「谁来编这一族未编译的 TS 源码」不归这里：那条 babel 规则在
+    // `@show-docs/docusaurus-plugin-prev-layer-resolver` 里（按 `@show-docs` 这个 scope
+    // 认领 `node_modules` 里的 `.ts` / `.tsx`），口径见它的 `docs/internals.md`。
     configureWebpack(config, isServer, utils, content) {
-      const callerConfig =
-        configureWebpack?.(config, isServer, utils, content) ?? {};
-      // 装进 node_modules 后官方那条 babel 规则会按 `excludeJS` 排除整个 node_modules，
-      // 只给 `docusaurus*.js` 开例外 —— 本包的 .ts/.tsx 源码于是报 `Module parse failed`。
-      // 用官方给插件作者的 `getJSLoader()` 补一条覆盖包根的规则接上这一格。
-      //
-      // 认领范围由 `needsSiteJsRule()` 判：工作区里链路解析到 node_modules 之外，官方那条本来
-      // 就会编译它们，我们再命中一次就是白跑一遍 babel（产物不变，代价是编译时间）。
-      return {
-        ...callerConfig,
-        module: {
-          ...callerConfig.module,
-          rules: [
-            ...(callerConfig.module?.rules ?? []),
-            {
-              test: /\.tsx?$/,
-              include: (file: string) => needsSiteJsRule(packageRoot, file),
-              use: [utils.getJSLoader({ isServer })],
-            },
-          ],
-        },
-      };
+      return configureWebpack?.(config, isServer, utils, content) ?? {};
     },
     contentLoaded({ actions }) {
       // 框内那条独立页面：不是文档页、没有 frontmatter 可判，走官方插件路由 API。

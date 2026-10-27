@@ -531,7 +531,7 @@ describe('configureWebpack：把 `.dbml` 接进 MDX 那条链', () => {
     expect(plainString.test).toBe('not-a-regexp');
   });
 
-  it('`.dbml` 那条规则排在最前，后面回来的三条各就各位', () => {
+  it('`.dbml` 那条规则排在最前，后面回来的两条各就各位', () => {
     const rules: unknown[] = [];
     const config = { module: { rules } } as unknown as WebpackConfig;
     const { getJSLoader, utils } = createUtils();
@@ -558,14 +558,14 @@ describe('configureWebpack：把 `.dbml` 接进 MDX 那条链', () => {
       options?: unknown;
       include?: (file: string) => boolean;
     }>;
-    expect(returned).toHaveLength(3);
+    // 本包只交自己的两条差异规则：编译未编译 TS 源码那条归
+    // `@show-docs/docusaurus-plugin-prev-layer-resolver` 一处管（不再各包各补一份）。
+    expect(returned).toHaveLength(2);
     expect(returned[0]?.test.test('.mjs')).toBe(true);
     expect(returned[0]?.resolve).toEqual({ fullySpecified: false });
     // 这一格写的是**产物名**（`thisDir` 是包出口所在的那一层），不是源码名
     expect(returned[1]?.test.test('.dbml')).toBe(true);
     expect(returned[1]?.loader).toMatch(/[/\\]loader[/\\]dbml-loader\.mjs$/);
     expect(returned[1]?.options).toEqual({ exports: [] });
-    expect(returned[2]?.test.test('.tsx')).toBe(true);
-    expect(typeof returned[2]?.include).toBe('function');
   });
 });
