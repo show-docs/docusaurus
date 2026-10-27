@@ -257,7 +257,7 @@ Then('Scalar 那颗「问 AI」的按钮不出现', async ({ page }) => {
 凭据与 CORS 都不在本层的承诺里，所以按配置收掉；代码示例那一格不受影响（见上面那句
 「Scalar 代码块里的复制按钮还在」与包 `docs/internals.md` 的「收掉的几处」）。
 
-按文案认。厂商那一格 `hideTestRequestButton` 的默认值是 `false`（`@scalar/types@0.24.0`，类型注释
+按文案认。厂商那一格 `hideTestRequestButton` 的默认值是 `false`（`@scalar/types@0.25.0`，类型注释
 写的是 `Whether to show the "Test Request" button`），那颗按钮没有 `data-testid`，文案取自本地化表
 里的 `operation.testRequest`（`features/localization/locales/`：英文 "Test Request"、简体「测试请求」），
 所以两种都收。从整份框内文档往下数：那颗按钮长在每条接口的标题行里，判据不押它嵌在布局根的哪一层。
@@ -331,7 +331,7 @@ Then('左栏底部那一颗换成了 API client，不是 MCP 安装入口', asyn
 正文顶上那条开发者工具栏（本层真的摆出来的是标题与「改配置」那颗；分享、部署、生成 SDK 要
 有 `workspace` 才渲染）不出现。
 
-为什么要在这层按死它：Scalar 那一格默认值是 `localhost`（`@scalar/types@0.24.0` 的
+为什么要在这层按死它：Scalar 那一格默认值是 `localhost`（`@scalar/types@0.25.0` 的
 `showDeveloperTools`：`z.enum(['always','localhost','never']).default('localhost')`），判据是
 `isLocalUrl(window.location.href)` —— 站点跑在 `pnpm start` 与 e2e 的本地服务上**正好命中**，
 于是同一份产物在本地和线上长得不一样。实测这一格从默认换成 `never`：框内那份文档里
@@ -373,30 +373,25 @@ Then('Scalar 那条署名不出现，左栏那一格还在', async ({ page }) =>
 /**
 那颗「生成 SDK」（简体那份是「生成 SDK」，英文 "Generate SDK"）不出现。
 
-为什么要在这层收：厂商那一格没有配置（`@scalar/types@0.24.0` 那份 schema 里 `sdk` 相关的一条
-都没有），判据是「本机地址」—— `use-generate-sdk.js` 的 `isLocalUrl(window.location.href)`。
-站点跑在 `pnpm start` 与 e2e 的本地服务上**正好命中**，实测本地 3 颗、线上 0 颗，与已经按死的
-开发者工具栏、Ask AI、MCP 入口是同一族「本地比线上多出东西」。这一颗点下去还会把这份文档
-上传到 scalar.com。
+厂商 1.76.0 起把这一颗的判据接到了 `showDeveloperTools` 上：`ApiReference.vue` 把它递成
+`useGenerateSdk({ disabled: () => showDeveloperTools === 'never' })`，那一格为真时
+`GenerateSdkButton` 整个不渲染（返回的是空注释节点），于是接口卡代码示例页脚那颗
+（`.generate-sdk-button`）与客户端选择器右上角那颗（`.selected-client-action` —— 厂商把它
+递给了同一颗按钮的 `variant: 'card'`，1.76.0 起那颗身上还多挂了 `generate-sdk-button`）
+在 DOM 里都不存在。
 
-两句一起写，理由与上面那条 MCP 的一样：只看「看不见」不够 —— 厂商哪天换了类名，那条 CSS
-就打成空的，计数同样是 0，所以先钉 DOM 里那两种形状确实还在（`generate-sdk-button` 是接口卡
-代码示例页脚那一颗，`selected-client-action` 是客户端选择器右上角那一颗），再各取一颗判可见性
-（`display: none` 收的，元素仍在 DOM 里）。最后那句按文案数一遍**可见**的按钮，两种语言都收，
-钉的是「读者眼前没有这一颗」。
+所以按数量判 0，与上面那条开发者工具栏、那颗亮暗开关同一口径（本来就不渲染的，
+`display: none` 用不上）。这一层原先自己加过一条 CSS 收它（1.75.0 时它只在本地地址冒出来，
+本地 3 颗、线上 0 颗，那颗点下去还会把这份文档上传到 scalar.com），上游收掉之后那条 CSS
+与它那句「先钉 DOM 里认得出来」的判据一起摘了。
+
+最后那句按文案数一遍**可见**的按钮，两种语言都收，兜的是哪天厂商又换了类名。
 */
 Then('Scalar 那颗「生成 SDK」的按钮不出现', async ({ page }) => {
-  for (const selector of ['.generate-sdk-button', '.selected-client-action']) {
-    const buttons = frameDoc(page).locator(selector);
-    expect(
-      await buttons.count(),
-      `框内找不到 ${selector}：那颗按钮的形状变了，${selector} 那条 CSS 规则现在是打成空的`,
-    ).toBeGreaterThan(0);
-    await expect(
-      buttons.first(),
-      `框里那颗 ${selector} 还看得见（scalar-ui.css 那条 display: none 没落上）`,
-    ).toBeHidden();
-  }
+  await expect(
+    frameDoc(page).locator('.generate-sdk-button, .selected-client-action'),
+    '框里出现了 Scalar 那颗「生成 SDK」的按钮（`showDeveloperTools` 不是 `never`）',
+  ).toHaveCount(0);
 
   await expect(
     frameDoc(page)

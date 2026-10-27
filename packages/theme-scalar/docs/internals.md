@@ -15,7 +15,7 @@
 | —— 外层那一格                     | ——                  | **本包没有外层 CSS**：框定高占满 navbar 以下那一屏、正文容器去掉内边距与最大宽度，四条层共用 theme-iframe 那份 `components/api-frame.css`（站点那侧的版式不动，见「宽度」一节）；`scalar-frame` 只剩类名，用来认「这一格是哪一层赢的」                                                 |
 | `components/scalar-ui.tsx`        | ❌ 站点编译         | 浏览器端 `createApiReference(元素, 配置)` 挂上去，卸载时 `destroy()`；两头的地址各走一条路（框内 → 外层听 `onSidebarClick`，外层 → 框内把 `hashchange` 转成 `popstate`）                                                                                                               |
 | `components/scalar-color-mode.ts` | ❌ 站点编译         | 亮暗落地的两个小函数：挂载那一刻交给 Scalar 的布尔、收到外层送的值就换 `<body>` 上那两个类名                                                                                                                                                                                           |
-| `components/scalar-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Scalar 送出来的那条署名与推广位、那颗只在本地地址冒出来的「生成 SDK」（厂商配置里没有这两格；为什么每条都要 `!important`，见「样式」一节）                                                                                                                      |
+| `components/scalar-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Scalar 送出来的那条署名与推广位（厂商配置里没有这一格；为什么每条都要 `!important`，见「样式」一节）                                                                                                                                                            |
 | `tsconfig.build.json`             | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                                 |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
@@ -99,18 +99,24 @@ postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?s
 
 实测产物（`pnpm build` 之后）：
 
-| 产物                                 | 字节 | 内容                                                                   |
-| ------------------------------------ | ---- | ---------------------------------------------------------------------- |
-| `build/assets/css/styles.<hash>.css` | 108K | 站点那一份：`.scalar-app` 只剩 3 处，全是本包 `scalar-ui.css` 自己写的 |
-| `build/assets/css/style.<hash>.css`  | 236K | Scalar 那一份：只在框内那份文档里被 `<link>`                           |
+| 产物                                 | 字节    | 内容                                                                     |
+| ------------------------------------ | ------- | ------------------------------------------------------------------------ |
+| `build/assets/css/styles.<hash>.css` | 112,608 | 站点那一份：`.scalar-app` 只剩 1 处，是本包 `scalar-ui.css` 自己写的那条 |
+| `build/assets/css/style.<hash>.css`  | 277,962 | Scalar 那一份：只在框内那份文档里被 `<link>`                             |
+
+先前记的 108K / 236K 是**换压缩器之前**量的 —— 站点那格现在用 lightningcss（见仓库根
+`docusaurus.config.mjs` 那条），厂商那份表又从 1.75.0 升到 1.76.0，两处都动过，数字是这一次
+重新量的。站点那一份里 `.scalar-app` 从 3 处掉到 1 处：被摘掉的那条规则本身带两个选择器
+（`.generate-sdk-button` 与 `.selected-client-action`），每个都写一遍 `.scalar-app.scalar-api-reference`
+（1.76.0 起那颗由厂商自己收，见「收掉的几处」一节）。
 
 那份产物里 Css Minimizer 会报三条 `postcss-calc` / `Unexpected '}'` 的告警（Scalar 那份表里
 `(50 - l) * infinity` 这种写法与一处原生嵌套），压缩器忽略那几条、文件照发 —— 与并把它们并进全站
 那一份时的症状一致，不是这一格带出来的。
 
 因为规则带着 `:not(#\#)` 那四段 ID 级权重，**本层想覆盖它就得写 `!important`**。实测：不带
-`!important` 的同一条规则注进页面也不生效（`scalar-ui.css` 里那两条各量过一次 —— 署名那一格、
-那 3 颗「生成 SDK」，不带时一处都收不掉，加上才归零）。
+`!important` 的同一条规则注进页面也不生效（`scalar-ui.css` 里那条署名那一格量过一次 ——
+不带时收不掉，加上才归零）。
 前缀用 `.scalar-app.scalar-api-reference` 这两格类名而不是裸的 `.scalar-app`：框内那份文档里
 `.scalar-app` 有 3 格，只带 `scalar-api-reference` 的那一颗是布局根（实测 1 格，`aside`、左栏链接
 与正文都在它下面），另外两格是厂商给自己那几格弹层与提示造的（实测其中一格带 `scalar-tooltip`）。
@@ -291,7 +297,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   不是看文档的能力，而文件本身对读的人并没有藏起来 —— 地址就在框内那条 `src` 上，浏览器直接打开就能存。
   这一层只是不再把它做成一颗按钮递到手边。
   走 `documentDownloadType` 而不是同名的旧写法 `hideDownloadButton: true`，是因为后者在
-  `@scalar/types@0.24.0` 里已标 deprecated：它会把这一格换算成 `none`（行为一样），同时往控制台
+  `@scalar/types@0.25.0` 里已标 deprecated：它会把这一格换算成 `none`（行为一样），同时往控制台
   补一句 `[DEPRECATED]`。**收之前的实测**：`/theme-scalar/docs/scalar-demo` 框里 1 颗 `.download-container`、2 颗
   `.download-button`（JSON 与 YAML 各一颗）；收之后两处都 0 颗。e2e 那句按这两条类名加一条
   `[aria-label*="OpenAPI"]` 判，后者兜的是哪天那颗换成不带这串类名的按钮。
@@ -306,13 +312,15 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   服务上正好命中，于是**同一份产物在本地和线上长得不一样**。本层没有 `workspace`，那条栏真的摆出来
   的是标题与「改配置」那颗（分享、部署、生成 SDK 那三颗要有 workspace 才渲染），读文档的人用不上；
   按 `never` 钉死之后本地与线上是同一个形状。实测代价：框里含「Copy」的按钮少
-  一颗（那条栏上有一处拷贝入口），框内那份文档里 `.scalar-app` 从 7 颗变成 3 颗（直接打开
-  `/scalar-view` 从 9 颗到 5 颗）。工具栏上那颗「生成 SDK」只是它摆的第三次：厂商自己在客户端
-  选择器与每条接口的代码示例页脚也渲染同一颗（`ClientSelector` / `Operation` 那两个布局），那两处的
-  路收在下面那条里。
+  一颗（那条栏上有一处拷贝入口），框内那份文档里 `.scalar-app` 从 7 颗变成 3 颗（放开这一格量过：
+  7 颗，钉死后 3 颗）。**1.76.0 起这一格还顺带收掉两处**：厂商把它递成
+  `useGenerateSdk({ disabled: () => showDeveloperTools === 'never' })`，那颗「生成 SDK」于是整个
+  不渲染；厂商 `sidebarCta` 的本机分支也先看它（这一层那格推广位本来就被 `mcp.disabled` 压成
+  API client 那颗入口，厂商这一条是另一条独立的路）。本层原先自己加的那条收「生成 SDK」的 CSS
+  因此摘掉了（见下面那条）。
 - **左栏底部那条「powered by Scalar」署名与 Scalar 那张推广位**：`scalar-ui.css` 里一条
   `display: none !important` 收掉整格。走 CSS 而不是配置是因为配置里**没有这一格**：查过
-  `@scalar/types@0.24.0` 那份 `api-reference-configuration` 的 schema，`hide*` 一共七条
+  `@scalar/types@0.25.0` 那份 `api-reference-configuration` 的 schema，`hide*` 一共七条
   （`hideDarkModeToggle`、`hideDownloadButton`、`hideSearch`、`hideModels`、`hideModelNames`、
   `hideClientButton`、`hideTestRequestButton`），管署名与推广位的一条都没有。那七条是这一族的名字，
   与上面「收掉几处」的处数无关；而且 `hideDownloadButton` 这一条本层没有用 —— 它已标 deprecated，
@@ -320,22 +328,28 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   选择器认的是**它是什么**（装着指向 `https://scalar.com/?utm_source=powered-by` 那条链接的
   `aside` 直接子格），不是 Tailwind 那串 `flex flex-col gap-3 px-3 pb-3` —— 换个版本类名就重排。
   收的是那一整格，但**左栏整格不收**：`e2e` 里配了一句「左栏那一格还在」。
-- **那颗「生成 SDK」**：也是 CSS 收的（`scalar-ui.css` 里 `.generate-sdk-button` 与
-  `.selected-client-action` 那一条）。为什么没有配置可走：那颗的判据整个住在代码里
-  （`features/generate-sdk/use-generate-sdk.js` 的 `isLocalUrl(window.location.href)`，配一个
-  `enabled` 的那一格调用方根本没传），上面那七条 `hide*` 里也没有管它的。于是它是**只在本地冒出来**
-  的那一族：实测 `localhost` 起站点时框里有 3 颗（客户端选择器右上角 1 颗 + 接口代码示例页脚 2 颗），
-  线上那份 0 颗。收它的另一半理由是它不只是个链接 —— 点下去打开的是它自己那个对话框，会把这份
-  文档上传到 `scalar.com`。厂商留的另一条路没有走：文档 `info` 里写 `x-scalar-sdk-installation`
-  （`hasRenderableSdks` 认它）也能让那颗就地消失，但它同时把客户端选择器换成「SDK 安装说明」那张卡，
-  动的是**这份演示文档的内容与正文一整块**，比收一颗按钮大。
+- **那颗「生成 SDK」**：**厂商 1.76.0 自己收的**，本层不再用 CSS 单收它。厂商那一颗的判据本来整个
+  住在代码里（`features/generate-sdk/use-generate-sdk.js` 的 `isLocalUrl(window.location.href)`，
+  配置里没有一格管它），于是它是**只在本地冒出来**的那一族：1.75.0 时实测 `localhost` 起站点框里
+  有 3 颗（客户端选择器右上角 1 颗 + 接口代码示例页脚 2 颗），线上那份 0 颗 —— 本层原先自己加了
+  一条 CSS（`scalar-ui.css` 里 `.generate-sdk-button` 与 `.selected-client-action`）把它们收掉。
+  1.76.0 起厂商把 `useGenerateSdk` 的 `disabled` 接到 `showDeveloperTools === 'never'` 上
+  （`ApiReference.vue` 里 `disabled: () => mergedConfig.value.showDeveloperTools === "never"`），
+  那一格为真时 `GenerateSdkButton` 返回空注释节点 —— **那颗按钮整个不渲染**，不止是看不见。
+  本层那一格 `showDeveloperTools: 'never'` 早就按死了，于是那条 CSS 与它那句「先钉 DOM 里
+  认得出来」的 e2e 判据一起摘掉，e2e 现在按数量判 0。
+  跟着的一条依赖约束：本包 `@scalar/api-reference` 的范围因此抬到 `^1.76.0` —— 装到 1.75.0 的
+  消费者会看到那颗按钮重新冒出来（那一版厂商还没接 `disabled`）。
+  厂商留的另一条路仍然没有走：文档 `info` 里写 `x-scalar-sdk-installation`（`hasRenderableSdks`
+  认它）也能让那颗就地消失，但它同时把客户端选择器换成「SDK 安装说明」那张卡，动的是**这份演示
+  文档的内容与正文一整块**，比收一颗按钮大。
 
 **给读文档的人多摆的一处**：每条接口标题旁那颗 operationId 徽标（`showOperationId: true`，厂商默认
 `false`）。抄 curl、生成客户端的人认的就是这一串，这份 `static/openapi-scalar.yaml` 三条都有
 （`listOrders` / `createOrder` / `getOrder`）。实测它是标题旁 `div.flex.flex-wrap.gap-1` 里的一颗
 `div`，e2e 那句按「整段文案正好等于 `createOrder`」认，把代码示例里那几个同样出现的字排除掉。
 
-还有一格是**表态，不改行为**：`telemetry: false`。厂商默认 `true`，但实测这份安装的 1.75.0 里
+还有一格是**表态，不改行为**：`telemetry: false`。厂商默认 `true`，但实测这份安装的 1.76.0 里
 `dist/plugins/posthog/index.js` 没有任何地方 import（不载插件就什么都不发），所以这一格现在等于
 没写；留下来是按本层的口径表一句，也是给厂商哪天默认载上时的一道防线。
 
@@ -404,8 +418,9 @@ src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` �
   Test Request 的按钮）、正文顶上那一格下载也不在（0 颗 `.download-container` 与 `.download-button`，
   再补一条 0 颗 `aria-label*="OpenAPI"` 兜类名哪天换掉），左栏底部那一颗是 `a.open-api-client-button`（1 颗）而不是 MCP 那两颗
   （0 颗带 MCP 字样的按钮或链接）、接口标题旁那颗 `createOrder` 徽标在，
-  署名那一格 `display: none` 而左栏整格还在、那 3 颗「生成 SDK」也各是 `display: none`
-  （先钉两种形状在 DOM 里认得出来，再判看不见）；17 颗代码块复制
+  署名那一格 `display: none` 而左栏整格还在、那颗「生成 SDK」整个不在 DOM 里（0 颗
+  `.generate-sdk-button` 与 `.selected-client-action` —— 1.76.0 起厂商跟着 `showDeveloperTools`
+  一起收，见「收掉的几处」一节）；17 颗代码块复制
   按钮都还在（按 `Copy` 与「复制」两种文案一起认，见「界面文案」）；界面是简体的（实测左栏那排是
   「简介」「打开搜索」「复制默认值」）；全程没有运行期错误。
 - 深链：整页加载 `/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`，托管侧回 200，框里把那条接口摆出来
@@ -424,6 +439,6 @@ src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` �
 没实测到的：AsyncAPI / GraphQL 那两种入口没试；Scalar 的 `hideModels` 那一类配置项没有逐条验，
 本层只用了 `agent`、`darkMode`、`forceDarkModeState`、`hideDarkModeToggle`、
 `hideTestRequestButton`、`localization`、`mcp`、`onSidebarClick`、`showDeveloperTools`、
-`showOperationId`、`telemetry`、`url` 这十二格。其中每一条都对着 `@scalar/types@0.24.0` 那份
-`api-reference-configuration` 的 schema 与装好的 `@scalar/api-reference@1.75.0` 里读它的那一处核过，
+`showOperationId`、`telemetry`、`url` 这十二格。其中每一条都对着 `@scalar/types@0.25.0` 那份
+`api-reference-configuration` 的 schema 与装好的 `@scalar/api-reference@1.76.0` 里读它的那一处核过，
 不是照着别的版本的文档抄的。

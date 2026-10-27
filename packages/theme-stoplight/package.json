@@ -31,7 +31,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@stoplight/elements": "^9.0.24",
+    "@stoplight/elements": "^9.0.29",
     "buffer": "^6.0.3",
     "process": "^0.11.10",
     "react-router-dom": "^6.30.6",

@@ -19,20 +19,22 @@ const DOCS_INCLUDE = [
 const DOCS_EXCLUDE = ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'];
 
 const config = {
-  title: 'Theme Override Test',
-  tagline: '验证多主题覆盖同一组件与主题别名语义',
+  title: 'Docusaurus Themes',
+  tagline: '主题预览',
   url: 'https://example.com',
   baseUrl: '/',
   onBrokenLinks: 'throw',
-  organizationName: 'airkro',
-  projectName: 'test-ci',
-
+  organizationName: 'show-docs',
+  projectName: 'docusaurus',
+  i18n: {
+    defaultLocale: 'zh-Hans',
+    locales: ['zh-Hans'],
+  },
   markdown: {
     hooks: {
       onBrokenMarkdownLinks: 'warn',
     },
   },
-
   plugins: [
     // frontmatter 注入：给每一页 md 的 `tags` 补上 git 判出来的那两个
     //（`git-new` 只有一次提交且就在最近，`git-update` 最近动过；「最近」= 7 天内，或全仓最后 5 个提交）。

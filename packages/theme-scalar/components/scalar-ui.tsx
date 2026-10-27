@@ -76,7 +76,8 @@ export function ScalarUI(props: Props) {
       // 每条接口右上角那颗「Test Request」：它真的把请求发出去，读的是文档里那条 server 地址。这是一份
       // **文档**站点，凭据与 CORS 都不在这一层的承诺里，所以收掉（厂商那一路：这颗与正文的鉴权选择器同源，
       // `Content.vue` 的注释写的是 "tied to `hideTestRequestButton`"）。看的那一路不收：实测代码示例选择器
-      // 还在（那颗「生成 SDK」是另一件事，厂商没有配置、只在本地地址渲染，归 `scalar-ui.css` 收）。
+      // 还在（那颗「生成 SDK」是另一件事，厂商从 1.76.0 起跟着 `showDeveloperTools` 一起收，
+      // 见下面那条）。
       hideTestRequestButton: true,
       // 界面文案走厂商自带的简体中文那份。取值认的是它内置九份那种小写带连字符的 id（不是 BCP 47，
       // 写 `zh-CN` 会退回 `en`）；`zh-cn` 实测与 `en` 一样齐，不会露半句英文。换语言牵到 e2e：
@@ -95,11 +96,14 @@ export function ScalarUI(props: Props) {
       // 厂商默认值是 `localhost`：hostname 是本机时正文顶上多出一条开发者工具栏（本层没有 `workspace`，
       // 那条栏上真的摆出来的是标题与「改配置」那颗）。这一层跑在 `pnpm start` 与 e2e 的本地服务上，
       // 正好命中那个判断 —— 同一份产物在本地与线上会长得不一样，所以按 `never` 钉死。
+      // 1.76.0 起这一格还顺带收掉两处只在本地冒出来的东西：左栏底部那格本地推广位（厂商的
+      // `sidebarCta` 在本机分支上先看它）与那颗「生成 SDK」（厂商 `useGenerateSdk` 的 `disabled`
+      // 就是按这一格接的），所以本层不再用 CSS 单收那颗按钮。
       showDeveloperTools: 'never',
       // 每条接口标题旁那颗 operationId 徽标（实测这份 `static/openapi-scalar.yaml` 三条都有：listOrders /
       // createOrder / getOrder）。默认是 `false`，抄 curl、生成客户端的人认的是这个，本层摆出来。
       showOperationId: true,
-      // 厂商默认值是 `true`。实测这份安装的 1.75.0 里 `dist/plugins/posthog/index.js` 没有被任何地方
+      // 厂商默认值是 `true`。实测这份安装的 1.76.0 里 `dist/plugins/posthog/index.js` 没有被任何地方
       // import（不载插件就什么都不发），所以这一格现在不改任何行为；写下来是按本层的口径表态，
       // 也是给厂商哪天默认载上时留的防线。
       telemetry: false,

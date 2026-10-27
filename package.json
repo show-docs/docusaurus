@@ -75,7 +75,7 @@
     "syncpack": "^15.3.3",
     "typescript": "~6.0.3",
     "vitest": "^5.0.5",
-    "webpack": "^5.112.0"
+    "webpack": "^5.112.2"
   },
   "packageManager": "pnpm@12.14.0",
   "engines": {
