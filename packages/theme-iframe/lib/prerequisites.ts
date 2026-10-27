@@ -26,6 +26,11 @@ export type ThemePrerequisites = {
   外层框与路由；查看器与复制按钮只在构建期引它的一条纯函数，装上了就够。
   */
   iframe?: boolean;
+  /**
+  是否必须用 lightningcss 压缩 CSS：`viewerjs` 那份样式表写的是原生嵌套，Docusaurus
+  默认的 cssnano + clean-css 会把它压坏（子规则并进父选择器、括号总账为负）。
+  */
+  lightningCssMinimizer?: boolean;
 };
 
 /**
@@ -38,7 +43,11 @@ export type ThemePrerequisites = {
 */
 export function assertThemePrerequisites(
   context: LoadContext,
-  { namespace, iframe = false }: ThemePrerequisites,
+  {
+    namespace,
+    iframe = false,
+    lightningCssMinimizer = false,
+  }: ThemePrerequisites,
 ): void {
   const declared = declaredNamespaces({
     plugins: context.siteConfig.plugins,
@@ -58,6 +67,20 @@ export function assertThemePrerequisites(
     throw new Error(
       `${namespace} 需要同时注册 ${IFRAME_PLUGIN}：本层的共享外壳由它发布并编译。` +
         `请先 \`pnpm add ${IFRAME_PLUGIN}\`，再把它加进 \`plugins\`（顺序在本层之前后均可）。`,
+    );
+  }
+
+  // `future.faster` 在插件拿到 `LoadContext` 时已经被 Docusaurus 补全成完整对象，
+  // 所以这一格读到的是布尔值，不是站点写下的 `true` / 部分对象。
+  if (
+    lightningCssMinimizer &&
+    !context.siteConfig.future?.faster?.lightningCssMinimizer
+  ) {
+    throw new Error(
+      `${namespace} 要求站点用 lightningcss 压缩 CSS：viewerjs 的样式表写的是原生嵌套，` +
+        `默认的 cssnano + clean-css 会把它压坏（子规则并进父选择器、括号失衡）。` +
+        `请在 docusaurus.config.mjs 里打开 \`future.faster.lightningCssMinimizer: true\` ` +
+        `（或 \`future.faster: true\`）。`,
     );
   }
 }

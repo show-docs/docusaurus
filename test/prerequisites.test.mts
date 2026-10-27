@@ -7,11 +7,16 @@ import {
   IFRAME_PLUGIN,
   RESOLVER_PLUGIN,
 } from '../packages/theme-iframe/lib/prerequisites.ts';
+import viewerTheme from '../packages/theme-viewer/src/index.mts';
 
-/** 只造两份原始插件清单：检查器不读别的（`LoadContext` 本身没有 `plugins` 字段）。 */
-const contextWith = (plugins: unknown[], themes: unknown[] = []): LoadContext =>
+/** 只造两份原始插件清单与 `future.faster`：检查器不读别的（`LoadContext` 本身没有 `plugins` 字段）。 */
+const contextWith = (
+  plugins: unknown[],
+  themes: unknown[] = [],
+  faster: Record<string, boolean> = {},
+): LoadContext =>
   ({
-    siteConfig: { plugins, themes },
+    siteConfig: { plugins, themes, future: { faster } },
   }) as unknown as LoadContext;
 
 const NAMESPACE = '@show-docs/docusaurus-theme-probe';
@@ -54,6 +59,30 @@ describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
     }
   });
 
+  it('要求 lightningcss 而站点没开：报出包名与那一格配置', () => {
+    expect(() =>
+      assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
+        namespace: NAMESPACE,
+        lightningCssMinimizer: true,
+      }),
+    ).toThrow(new RegExp(String.raw`${NAMESPACE}[\s\S]*lightningCssMinimizer`));
+  });
+
+  it('lightningcss 已开、或这一项没被要求时放行', () => {
+    expect(() =>
+      assertThemePrerequisites(
+        contextWith([RESOLVER_PLUGIN], [], { lightningCssMinimizer: true }),
+        { namespace: NAMESPACE, lightningCssMinimizer: true },
+      ),
+    ).not.toThrow();
+
+    expect(() =>
+      assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
+        namespace: NAMESPACE,
+      }),
+    ).not.toThrow();
+  });
+
   it('`themes` 里声明、`[包名, 选项]` 元组、`require.resolve()` 路径都算装上了', () => {
     // 三种真实形状：`themes` 那份清单、带选项的元组、站点里 `require.resolve()` 出来的路径
     expect(() =>
@@ -87,5 +116,18 @@ describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
         { namespace: NAMESPACE },
       ),
     ).toThrow(new RegExp(RESOLVER_PLUGIN));
+  });
+});
+
+describe('theme-viewer 入口：把「宿主必须用 lightningcss」接进 loadContent', () => {
+  const load = (faster: Record<string, boolean>) => {
+    const plugin = viewerTheme(contextWith([RESOLVER_PLUGIN], [], faster));
+    return () => (plugin.loadContent as () => void)();
+  };
+
+  it('站点没开 lightningcss 就报错，开了才放行', () => {
+    // 光有用例钉住 helper 不够：入口漏传这一格，检查器形同虚设，构建照样绿。
+    expect(load({})).toThrow(/lightningCssMinimizer/);
+    expect(load({ lightningCssMinimizer: true })).not.toThrow();
   });
 });

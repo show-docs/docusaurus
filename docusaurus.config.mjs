@@ -152,16 +152,19 @@ const config = {
     ],
   ],
 
-  // CSS 压缩器：官方默认是 cssnano 预设 + clean-css，两者底下都是 **csso 5.0.5**，
-  // 而 csso 不认识 CSS Nesting（`&[data-v-…]` 那种）。`@scalar/api-reference` 那份样式表
-  // 正好含嵌套，于是产物里 `@container client-libraries-list` 那段被吃掉一条
-  // `.client-libraries__select`，边界上还多出一个 `}`（括号总账 -1），
-  // PostCSS 与 csso 各报一次，看着像「两条告警」，其实是同一个坏点。
+  // CSS 压缩器：官方默认是 cssnano 预设 + clean-css，其中 **clean-css 不认识 CSS Nesting**
+  //（`&[data-v-…]` 那种）；`csso` 只是 css-minimizer-webpack-plugin 带来的备选，默认没走它。
+  // `@scalar/api-reference` 那份样式表正好含嵌套，于是产物里 `@container client-libraries-list`
+  // 那段被吃掉一条 `.client-libraries__select`，边界上还多出一个 `}`（括号总账 -1），
+  // PostCSS 与 clean-css 各报一次，看着像「两条告警」，其实是同一个坏点。
   //
-  // 换成 lightningcss：它认嵌套（不打平时原样留着 `&`，浏览器认就直接跑），
+  // 换成 lightningcss：它认嵌套（不摊平时原样留着 `&`，浏览器认就直接跑），
   // 三条告警一起消失，`select` 那条规则回来。代价是产物大 9.7%（详见 issue #15 的实测表），
   // 以及这里只能是**这一格**开关 —— `faster: true` 那种简写会顺带打开 swc / rspack /
   // 持久缓存，跟压缩器无关的变量一概不要。
+  //
+  // theme-viewer 也靠这一格：`viewerjs` 那份样式表同样是原生嵌套，本包已删掉自己那句
+  // `postcss-nesting`，宿主没开 lightningcss 时它在 `loadContent()` 里直接报错。
   //
   // 依赖关系：这一格为 true 时 `@docusaurus/bundler` 会 `import('@docusaurus/faster')`，
   // 缺包直接抛错，所以 devDependencies 里那个包不是可选项；版本要跟 `@docusaurus/core` 同轨。

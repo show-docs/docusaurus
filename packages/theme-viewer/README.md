@@ -12,6 +12,22 @@
 pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-viewer
 ```
 
+站点的 CSS 压缩器必须是 lightningcss：`viewerjs` 那份样式表写的是 CSS 原生嵌套，Docusaurus
+默认的 cssnano + clean-css 会把它压坏（子规则并进父选择器、括号失衡）。在配置里打开：
+
+```js
+// docusaurus.config.mjs
+export default {
+  future: {
+    faster: {
+      lightningCssMinimizer: true
+    }
+  }
+};
+```
+
+本层在 `loadContent()` 里检查这一格，没开时构建直接报错，不会等到产物里样式坏掉。
+
 ## 使用
 
 ### 注册插件
@@ -55,8 +71,8 @@ DOM、也不读 frontmatter，命不中（正文没有图片）时等于透明�
 - 这一层覆盖 `DocItem/Content`，正文原样交给下面的实现；它自己不放任何 DOM，
   只在正文落位之后把里面的图片接上查看器。
 - `viewerjs` 在浏览器里按需加载：正文没有图片的页面不会请求它。
-- 第三方那份样式表要过站点的样式表管线，本包替它补了两处（嵌套摊平与展开态的先后顺序），
-  否则查看器打开是透明的；实测口径见[维护者文档](./docs/internals.md)。
+- 第三方那份样式表要过站点的样式表管线：嵌套由宿主的 lightningcss 处理，本包只把展开态的
+  先后顺序改写成特异性（否则查看器打开是透明的）；实测口径见[维护者文档](./docs/internals.md)。
 - 换页时先销毁上一个查看器再接新的一页，图片清单跟着页面走。
 - 初始化失败只在控制台留一条 warning，正文照常渲染。
 

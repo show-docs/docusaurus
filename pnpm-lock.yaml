@@ -543,9 +543,6 @@ importers:
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe
-      postcss-nesting:
-        specifier: ^13.0.2
-        version: 13.0.2(postcss@8.5.29)
       react:
         specifier: ~18.3.1
         version: 18.3.1

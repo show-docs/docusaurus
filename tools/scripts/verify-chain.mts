@@ -228,8 +228,9 @@ if (fs.existsSync(browserConfigFile)) {
 }
 
 // ---- 4. CSS 产物没被压缩器吃掉规则 ----
-// `future.faster.lightningCssMinimizer` 之前，CSS 走的是 cssnano 预设 + clean-css（底下都是
-// csso 5.0.5），而 csso 不认识 CSS Nesting：`@scalar/api-reference` 那份样式表里
+// `future.faster.lightningCssMinimizer` 之前，CSS 走的是 cssnano 预设 + clean-css（`csso`
+// 只是 css-minimizer-webpack-plugin 带的备选，默认没走），而 clean-css 不认识 CSS Nesting：
+// `@scalar/api-reference` 那份样式表里
 // `@container client-libraries-list` 下的 `.client-libraries__select{&[data-v-…]{…}}` 被整块吞掉，
 // 边界上还多出一个 `}`（括号总账 -1）。症状只在 `/scalar-view` 与 scalar-demo 上可见，
 // 构建全程零告警 —— 只有对着产物数括号才看得见，所以这条护栏钉的就是产物本身。
@@ -252,9 +253,11 @@ for (const file of cssFiles) {
   for (const char of css) {
     depth += char === '{' ? 1 : char === '}' ? -1 : 0;
   }
-  // 只有 style.<hash>.css 里那份含嵌套（`@scalar/api-reference` 的 style.css）；
-  // lightningcss 按 production browserslist 判定浏览器认嵌套，于是把 `&` **原样留着**，
-  // 所以这里按 `&` 找，不按摊平后的选择器找。
+  // `style.<hash>.css` 里是 scalar 的嵌套（`@scalar/api-reference` 的 style.css）：坏点时
+  // 整条 `.client-libraries__select` 都不在，所以按选择器名找。不按 `&` 找 —— lightningcss
+  // 会按 browserslist 决定摊平还是原样保留，`&` 留着只是当前目标下的形状。
+  // `styles.<hash>.css` 里还有 viewerjs 的嵌套（`theme-viewer` 已删掉自己那句
+  // `postcss-nesting`）：它没有可点名的规则，由上面的括号总账兜住 —— clean-css 压坏时会多吐 `}`。
   const needsNestingRule = file.startsWith('style.');
   const hasSelect = css.includes('client-libraries__select');
   const ok = depth === 0 && (!needsNestingRule || hasSelect);
@@ -267,7 +270,7 @@ for (const file of cssFiles) {
   );
   if (!ok) {
     console.log(
-      '   → 嵌套规则被压缩器吃了：CS.minimizer 换回 csso 系（cssnano / clean-css）就会这样，',
+      '   → 嵌套规则被压缩器吃了：CSS 压缩器换回默认的 cssnano + clean-css（主要是 clean-css）就会这样，',
     );
     console.log(
       '      去看 docusaurus.config.mjs 的 `future.faster.lightningCssMinimizer`。',
