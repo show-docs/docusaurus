@@ -143,7 +143,7 @@ export async function siteStyles(page: Page): Promise<SiteStyles> {
 
 句子按它捕获（`我打开 redoc 示例页`），类名、示例页与框内那条页面的地址也由它算 —— 层名与
 注册表里那三条 internal 条目一对一（`frameClass` 是 `{层名}-frame`、`route` 是 `{层名}-view`；
-`theme-stoplight` 那一条 frontmatter 键写的是 `oas3:`，路由与类名用的还是 `stoplight`）。
+`theme-stoplight` 那一条 frontmatter 键写的是 `stoplight:`，路由与类名用的还是 `stoplight`）。
 新增一条层在这里加一个词，各处地址与类名不用再各抄一份字面量。
 */
 export const themeLayers = ['redoc', 'scalar', 'stoplight'] as const;

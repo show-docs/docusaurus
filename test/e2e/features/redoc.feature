@@ -1,4 +1,5 @@
-# 命中 frontmatter 的 `redoc: <地址>` 后，这一层整页换成**一个 iframe**：Redoc 跑在本包自己
+# 命中 frontmatter 的 `redoc: true` 后（渲染哪份文档由 `oas3:` 给），这一层整页换成**一个
+# iframe**：Redoc 跑在本包自己
 # 那条插件路由（`/redoc-view`）上的一份独立文档里，它的运行时代码、它往 `<head>` 插的那张样式表、
 # 它的 localStorage 与它自己的路由都关在框内，站点的文档页一行都碰不到
 # （口径见包 `docs/internals.md` 的「为什么要换一份文档」一节）。

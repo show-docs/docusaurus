@@ -45,15 +45,16 @@
 `api-frame-theme.mts` 跑在**配置期**（Docusaurus 的 jiti 直接吃这份源码），那一条链从
 `theme-*/src/index.mts`（经 `tsc` 的产物）跨到这份源码，两侧编译器不同、文件同一份。
 
-## 注册表与分发：四条键、一份默认顺序
+## 注册表与分发：四把匹配键、一把 spec 键、一份默认顺序
 
 `lib/api-frame-registry.ts` 是这一族唯一的**形状**来源。每个条目两种 `kind`：
 
-- `internal`（scalar / redoc / stoplight）：命名空间、frontmatter 键（`scalar:` / `redoc:` /
-  `oas3:`）、框内页面的路由名（`scalar-view`……）、spec 参数的查询名（`src`）、`@theme/` 页面别名、
-  外层 `<iframe>` 的**第二个**类名（`.scalar-frame`……；第一个是四条层共用的 `.api-frame`，
-  尺寸与容器让位都在它上面，见「尺寸与样式表」一节）与 `title`（**兜底值**：页面写了 `frontMatter.title`
-  时优先用页面自己的，`ApiFrame` 那一步）。框里是本包那条插件页面，同源，
+- `internal`（scalar / redoc / stoplight）：命名空间、**布尔** frontmatter 键（`scalar: true` /
+  `redoc: true` / `stoplight: true` —— 只说「这一层接这一页」）、**spec 键**（`oas3:`，这一层
+  渲染哪份文档由它给）、框内页面的路由名（`scalar-view`……）、spec 参数的查询名（`src`）、
+  `@theme/` 页面别名、外层 `<iframe>` 的**第二个**类名（`.scalar-frame`……；第一个是四条层共用的
+  `.api-frame`，尺寸与容器让位都在它上面，见「尺寸与样式表」一节）与 `title`（**兜底值**：页面写了
+  `frontMatter.title` 时优先用页面自己的，`ApiFrame` 那一步）。框里是本包那条插件页面，同源，
   深链与亮暗靠消息循环对齐。
 - `external`（`iframe:`）：只有命名空间、键、类名与 `title` —— 框里是外部站点，地址算法在
   `lib/frame-messages.ts` 的 `externalFrameURL()`：`src` 以 `/` 开头时按当前站点的 origin 补成
@@ -61,6 +62,16 @@
   `URLSearchParams` 自动解码）。只对**应解的那一段**动手 —— 曾经还有「整串 `decodeURIComponent`」
   的第三步，会把地址里本来合法的 `%` 序列二次解码，已删。服务端渲染阶段拿不到 `window`，那时
   `url` 就是 frontmatter 里那个原值。
+
+**一把键「写了没有」与「命中没有」是两件事**（判据在 `lib/api-frame-entries.ts` 的
+`frameKeyWritten()` 与 `matchApiFrameEntry()`，`DocItem` 与单测引同一份）：
+
+- 三条 API 层：键写 `true` 才算「作者选了哪一层」；命中还要**另有** `oas3:` 给了 spec 地址 ——
+  「用哪一层渲染」与「渲染哪份文档」是两件事。`oas3:` 缺了（或写成空串），这一层出不了框。
+- `iframe:`：键给一个非空地址即命中，值就是框要渲染的那份页面，它**不读** `oas3:`。
+
+判定按注册表顺序逐条走，**第一个能出框的层赢**；`oas3:` 给的那份地址被送进框里那条路由的 `src`
+参数（`frameViewSrc()` 那一步），框内那页按它取文档。
 
 **条目的排列顺序是判定优先级的默认值**，但决定权在站点，分发在 `lib/api-frame-entries.ts`
 （`resolveFrameDistribution({ plugins, themes }, frontMatter)`，交出 `{ entries, warnings }`）。
@@ -75,7 +86,8 @@
   `build/theme-scalar/docs/scalar-demo/index.html` 里 `<iframe>` 数从 1 变 0，写了四把键的夹具页换成 redoc 框。
 - 落空从「坏框」（肉眼可见）变成「页面看起来正常但键没生效」（看不见），所以分发把每一次落空
   的原因收进 `warnings`（键写了但层没装 / 被覆盖清单排除 / 覆盖里写了注册表认不出的命名空间 /
-  覆盖挂在认不出是本层的槽位上；**页面级那几条带页面地址** —— 去重按文本判等，不带地址的话
+  覆盖挂在认不出是本层的槽位上 / 布尔键写了却没给 `oas3:` / 布尔键写成了别的形状 /
+  只给了 `oas3:` 没写用哪一层渲染；**页面级那几条带页面地址** —— 去重按文本判等，不带地址的话
   十个页面上的同一个手误只报第一个），`DocItem` 在**开发模式**把它们交给 `warnFrameDistribution()`
   用 `console.warn` 打出来，每条一次 dev server 会话只打一遍（配置级那几条否则每翻一页都重放）；
   构建产物不打，那种页面对读者没有可修的东西。

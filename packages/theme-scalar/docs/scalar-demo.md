@@ -2,10 +2,11 @@
 id: scalar-demo
 sidebar_position: 6
 title: Scalar 示例
-description: 'frontmatter 写 scalar: <URL>，整页换成一个 iframe，框里用 Scalar 渲染 API 文档。'
+description: 'frontmatter 写 scalar: true（spec 地址由 oas3: 给），整页换成一个 iframe，框里用 Scalar 渲染 API 文档。'
 # 命中 theme-scalar 那一层：整页换成一个 iframe，Scalar 跑在本包自己那条 /scalar-view 页面上。
 # /openapi-scalar.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
-scalar: /openapi-scalar.yaml
+scalar: true
+oas3: /openapi-scalar.yaml
 ---
 
 # Scalar 示例
@@ -14,7 +15,8 @@ scalar: /openapi-scalar.yaml
 把整个 `DocItem` 换成 iframe，
 整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
-- 取的是 `static/openapi-scalar.yaml`（构建产物里的 `/openapi-scalar.yaml`）：只给这一页用，
+- 取的是 `static/openapi-scalar.yaml`（构建产物里的 `/openapi-scalar.yaml`）：frontmatter 的
+  `oas3:` 给的就是这个地址，只给这一页用，
   Stoplight 与 Redoc 的示例页各取自己那份，三页不再共用同一份输入。
 - **形状与 `theme-redoc` 一对一**：这一页放的是一个 `<iframe class="api-frame scalar-frame"
 src="/scalar-view?src=%2Fopenapi-scalar.yaml">`，`/scalar-view` 是本包自己注册的一条插件路由，构建产物里

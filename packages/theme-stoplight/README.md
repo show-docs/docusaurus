@@ -1,8 +1,8 @@
 # @show-docs/docusaurus-theme-stoplight
 
 用 [Stoplight Elements](https://github.com/Stoplight/elements) 渲染 OpenAPI 文档的 Docusaurus
-主题插件。frontmatter 写 `oas3: <spec 地址>` 时，该文档页整页换成一个 iframe，Elements 在框内
-页面 `/stoplight-view` 中渲染那份文档。
+主题插件。frontmatter 写 `stoplight: true`（渲染哪份文档由 `oas3:` 给）时，该文档页整页换成
+一个 iframe，Elements 在框内页面 `/stoplight-view` 中渲染那份文档。
 
 ## 安装
 
@@ -32,12 +32,14 @@ export default {
 ```md
 ---
 title: 订单 API
+stoplight: true
 oas3: /openapi.yaml
 ---
 ```
 
-`oas3` 的值是框内页面要加载的 spec 地址：`static/openapi.yaml` 对应 `/openapi.yaml`，也可以写
-完整 URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保留文档正文外壳，也不再渲染导图。
+`stoplight` 只写布尔 `true`：它说的是「这一层接这一页」。要渲染哪份文档由 `oas3:` 给 ——
+`static/openapi.yaml` 对应 `/openapi.yaml`，也可以写完整 URL（跨域时对方需允许 CORS）。命中后
+整页换成 iframe，不保留文档正文外壳，也不再渲染导图。
 框内页面只接受 spec 地址这一种入参，不支持传入内联文档。
 
 ## 配置

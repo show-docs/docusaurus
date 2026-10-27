@@ -2,10 +2,11 @@
 id: redoc-demo
 sidebar_position: 5
 title: Redoc 示例
-description: 'frontmatter 写 redoc: <URL>，整页换成一个 iframe，框里用 Redoc 渲染 API 文档。'
+description: 'frontmatter 写 redoc: true（spec 地址由 oas3: 给），整页换成一个 iframe，框里用 Redoc 渲染 API 文档。'
 # 命中 theme-redoc 那一层：整页换成一个 iframe，Redoc 跑在本包自己那条 /redoc-view 页面上。
 # /openapi-redoc.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
-redoc: /openapi-redoc.yaml
+redoc: true
+oas3: /openapi-redoc.yaml
 ---
 
 # Redoc 示例
@@ -14,7 +15,8 @@ redoc: /openapi-redoc.yaml
 把整个 `DocItem` 换成 iframe，
 整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
-- 取的是 `static/openapi-redoc.yaml`（构建产物里的 `/openapi-redoc.yaml`）：只给这一页用，
+- 取的是 `static/openapi-redoc.yaml`（构建产物里的 `/openapi-redoc.yaml`）：frontmatter 的
+  `oas3:` 给的就是这个地址，只给这一页用，
   Stoplight 与 Scalar 的示例页各取自己那份，三页不再共用同一份输入。
 - **Redoc 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
   `<iframe class="api-frame redoc-frame" src="/redoc-view?src=%2Fopenapi-redoc.yaml">`，`/redoc-view` 是本包
@@ -45,4 +47,4 @@ redoc: /openapi-redoc.yaml
   标签之外是空的，框内那份 html 也一样；要看结果得 `pnpm build && pnpm serve`。
 - 命中的是文档页，站点的侧栏仍然在那一列里（框只占正文那一格）。要连侧栏一起让位，用 `iframe:` 那一层。
 
-同一页同时写 `redoc:` 与 `oas3:` 时，本层在最外，stoplight 那层不出现。
+同一页同时写 `redoc:` 与 `stoplight:` 时，本层在最外，stoplight 那层不出现。

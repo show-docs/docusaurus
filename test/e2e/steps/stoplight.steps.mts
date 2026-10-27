@@ -65,7 +65,7 @@ Given('我直达 stoplight 那条接口的地址', async ({ page }) => {
 Then('Elements 在框里接管了这一屏，读的是本站那份 yaml', async ({ page }) => {
   await expect(
     root(page),
-    '框里没有 `.stoplight-root`：`oas3:` 那一步没命中，或框内那份文档没渲染',
+    '框里没有 `.stoplight-root`：`stoplight:` 那一步没命中，或框内那份文档没渲染',
   ).toBeVisible();
   await expect(
     root(page).locator('h4'),

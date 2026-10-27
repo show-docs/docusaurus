@@ -5,7 +5,7 @@ info:
   description: >
     这份文档只给 `docs/redoc-demo.md` 那一页用：frontmatter 写
 
-    `redoc: /openapi-redoc.yaml`，构建时它从 `static/` 复制到站点根，浏览器端按这个地址取。
+    `oas3: /openapi-redoc.yaml`，构建时它从 `static/` 复制到站点根，浏览器端按这个地址取。
 
     Stoplight 与 Scalar 的示例页各用自己那份（`openapi-stoplight.yaml` /
     `openapi-scalar.yaml`），

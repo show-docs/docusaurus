@@ -1,7 +1,7 @@
 {
   "name": "@show-docs/docusaurus-theme-stoplight",
   "version": "0.1.1",
-  "description": "Md 的 frontmatter 写 oas3: <URL> 时把该页正文换成 Stoplight Elements 渲染的 OpenAPI 文档",
+  "description": "Md 的 frontmatter 写 stoplight: true（spec 地址由 oas3: 给）时把该页正文换成 Stoplight Elements 渲染的 OpenAPI 文档",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-stoplight",
   "repository": {

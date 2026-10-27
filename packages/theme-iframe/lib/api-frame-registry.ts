@@ -8,13 +8,22 @@
 判定的先后 = 这份清单的顺序（**默认值**，站点可覆盖、没装的层不判 —— 那一步在
 `api-frame-entries.ts`），语义与原层栈一致：越靠外的层先判自己的键。一页同写两把键时，
 排在前面那条赢。
+
+键分两族：**四把匹配键**（`scalar` / `redoc` / `stoplight` / `iframe`；前三个是布尔，
+第四个是地址）与**一把 spec 键**（`oas3:`，三条 API 层读它当渲染源，`iframe:` 不沾边）。
 */
 
 /** 条目共有的形状；两种 `kind` 差的格见下面两个类型。 */
 type ApiFrameEntryBase = {
   /** 包名，同时是三条 postMessage 的命名空间与插件名。 */
   namespace: string;
-  /** md frontmatter 里那条键，值就是框要渲染的地址。 */
+  /**
+  md frontmatter 里那条键，**值的形状按 `kind` 分**：
+
+  - `internal`（三条 API 层）：布尔 —— `scalar: true` 只表示「这一层接这一页」，
+    要渲染哪份文档另由 `specFrontmatterKey` 那把键给（`oas3:`）；
+  - `external`（`iframe:`）：非空字符串 —— 值就是框要渲染的那个地址。
+  */
   frontmatterKey: string;
   /**
   外层 `<iframe>` 的**第二个**类名（第一个是共用的 `.api-frame`，尺寸与容器让位都在那一条上）。
@@ -37,6 +46,14 @@ export type ApiFrameEntryInternal = ApiFrameEntryBase & {
   pageComponent: string;
   /** 框内地址里带 spec 地址的那一条查询参数名。 */
   specParam: string;
+  /**
+  md frontmatter 里那条**给 spec 地址**的键（`oas3:`）。三条 API 层读的是同一把 ——
+  「用哪一层渲染」与「渲染哪份文档」是两件事：前者由各自的布尔键（`scalar: true`……）
+  决定，后者由这一把决定。
+
+  这一格与 `iframe:` 那条毫无关系：那条嵌的是外部页面，地址自带，不读这一把。
+  */
+  specFrontmatterKey: string;
 };
 
 /** 框里是**外部站点**（跨源）：没有那条通道，地址算法归用它的层自己管。 */
@@ -55,6 +72,7 @@ const apiFrameEntries: readonly ApiFrameEntry[] = [
     route: 'scalar-view',
     pageComponent: '@theme/ScalarPage',
     specParam: 'src',
+    specFrontmatterKey: 'oas3',
     frameClass: 'scalar-frame',
     title: 'API 文档',
   },
@@ -65,16 +83,18 @@ const apiFrameEntries: readonly ApiFrameEntry[] = [
     route: 'redoc-view',
     pageComponent: '@theme/RedocPage',
     specParam: 'src',
+    specFrontmatterKey: 'oas3',
     frameClass: 'redoc-frame',
     title: 'API 文档',
   },
   {
     kind: 'internal',
     namespace: '@show-docs/docusaurus-theme-stoplight',
-    frontmatterKey: 'oas3',
+    frontmatterKey: 'stoplight',
     route: 'stoplight-view',
     pageComponent: '@theme/StoplightPage',
     specParam: 'src',
+    specFrontmatterKey: 'oas3',
     frameClass: 'stoplight-frame',
     title: 'API 文档',
   },

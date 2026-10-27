@@ -807,7 +807,16 @@ describe('defaultRules：只补 tags 一把键', () => {
       wrap(fakeParse(), { repo: fakeRepo() }),
     );
 
-    for (const key of ['testing', 'markmap', 'diff', 'iframe', 'oas3']) {
+    for (const key of [
+      'testing',
+      'markmap',
+      'diff',
+      'iframe',
+      'oas3',
+      'scalar',
+      'redoc',
+      'stoplight',
+    ]) {
       expect(Object.hasOwn(frontMatter, key)).toBe(false);
     }
   });

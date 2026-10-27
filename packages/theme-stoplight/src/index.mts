@@ -30,7 +30,7 @@ const ELEMENTS_CSS = {
 };
 
 /**
-Stoplight 这一层的入口：外层套壳（`DocItem` 判 `oas3:`、那个 `<iframe>`、两条消息循环）
+Stoplight 这一层的入口：外层套壳（`DocItem` 判 `stoplight:`、那个 `<iframe>`、两条消息循环）
 都在 `@show-docs/docusaurus-theme-iframe`（注册表里那条 `internal` 条目），本包只交出三样 ——
 这条入口、框内那条 `theme/StoplightPage` 页面、`components/` 里 Elements 自己的渲染接线。
 

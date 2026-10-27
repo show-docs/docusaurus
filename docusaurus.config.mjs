@@ -87,14 +87,16 @@ const config = {
     // 差异视图主题层：md 里 `diff: true`（或一个路径）即在正文上方渲染这份文件最近一次提交的差异
     '@show-docs/docusaurus-theme-diff',
     // iframe 主题层：它是「整页交给一个框」这一族的**唯一外层套壳** —— 那份 `DocItem` 判四把键
-    // （`scalar` / `redoc` / `oas3` / `iframe`），命中就把正文区换成通用框。默认顺序与启用范围在
+    // （`scalar` / `redoc` / `stoplight` / `iframe`；前三把是布尔、后一把是地址），命中就把正文区
+    // 换成通用框。默认顺序与启用范围在
     // `packages/theme-iframe/lib/api-frame-registry.ts`（未安装的层不参与判定），站点可在这一项自己的
     // 插件选项里覆盖 `{ themeConfig: { apiFrame: { order: [命名空间…] } } }`：顺序即优先级、
     // 列出的即启用范围。本站不配这一格 = 走注册表默认（scalar 优先），判据在 e2e 的
     // frame-precedence 用例。口径全在 `packages/theme-iframe/docs/iframe-protocol.md`。
     '@show-docs/docusaurus-theme-iframe',
     // 下面三条 API 层各注册自己那条框内页面与渲染器差异，外层套壳与共用约定都在 theme-iframe：
-    // 键分别是 `oas3` / `redoc` / `scalar`，口径分别在各包自己的 README。
+    // 键分别是 `stoplight` / `redoc` / `scalar`（都写 `true`），渲染哪份文档统一读 `oas3:`，
+    // 口径分别在各包自己的 README。
     '@show-docs/docusaurus-theme-stoplight',
     '@show-docs/docusaurus-theme-redoc',
     '@show-docs/docusaurus-theme-scalar',

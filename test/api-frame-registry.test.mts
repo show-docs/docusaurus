@@ -12,8 +12,21 @@ const internals = () =>
 describe('api-frame-registry：这一族清单的形状不变量', () => {
   it('四条都在，且 frontmatter 键互不重复', () => {
     const keys = apiFrameEntriesOrdered().map((e) => e.frontmatterKey);
-    expect(keys).toEqual(['scalar', 'redoc', 'oas3', 'iframe']);
+    expect(keys).toEqual(['scalar', 'redoc', 'stoplight', 'iframe']);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('三条 internal 的 spec 地址都读 `oas3` 那把键（与 `iframe:` 无关）', () => {
+    const rows = internals();
+    expect(rows).toHaveLength(3);
+    for (const entry of rows) {
+      expect(entry.specFrontmatterKey).toBe('oas3');
+    }
+    // external 那条嵌的是外部页面，地址自带，不读 spec 键
+    const external = apiFrameEntriesOrdered().find(
+      (e) => e.kind === 'external',
+    );
+    expect('specFrontmatterKey' in (external ?? {})).toBe(false);
   });
 
   it('三条 internal 占前三、iframe 那条 external 排在最后（默认优先级就靠这个排列）', () => {

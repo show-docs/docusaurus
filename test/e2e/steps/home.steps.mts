@@ -76,7 +76,7 @@ Then('链里一格一个包都有卡片，指向各包自己的顶层页', async
 Then('卡片上那行说明取自本包 package.json 的 description', async ({ page }) => {
   await expect(
     page.getByText(
-      'Md 的 frontmatter 写 oas3: <URL> 时把该页正文换成 Stoplight Elements 渲染的 OpenAPI 文档',
+      'Md 的 frontmatter 写 stoplight: true（spec 地址由 oas3: 给）时把该页正文换成 Stoplight Elements 渲染的 OpenAPI 文档',
     ),
   ).toBeVisible();
 });

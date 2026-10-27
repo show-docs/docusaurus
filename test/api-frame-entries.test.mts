@@ -2,10 +2,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   declaredNamespaces,
+  frameKeyWritten,
+  frameSpecUrl,
+  matchApiFrameEntry,
   resolveFrameDistribution,
   warnFrameDistribution,
   type FrameDistribution,
 } from '../packages/theme-iframe/lib/api-frame-entries.ts';
+import {
+  apiFrameByNamespace,
+  type ApiFrameEntry,
+  type ApiFrameEntryInternal,
+} from '../packages/theme-iframe/lib/api-frame-registry.ts';
 
 const SCALAR = '@show-docs/docusaurus-theme-scalar';
 const REDOC = '@show-docs/docusaurus-theme-redoc';
@@ -194,7 +202,7 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
     // 没装：只装 scalar + iframe，页面却写了 redoc —— redoc 不参与判定，另两层照判。
     // 页面级的消息带页面地址：DocItem 的去重按文本判等，不带地址会吞掉后面同毛病的页。
     const missPlugins = [SCALAR, IFRAME];
-    const missFrontMatter = { redoc: '/openapi.yaml' };
+    const missFrontMatter = { redoc: true, oas3: '/openapi.yaml' };
     expect(namespacesOf(missPlugins, missFrontMatter)).toEqual([
       SCALAR,
       IFRAME,
@@ -203,7 +211,7 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
       distributionOf(missPlugins, missFrontMatter, '/docs/a').warnings.join(
         '\n',
       ),
-    ).toContain('/docs/a 写了 `redoc:`');
+    ).toContain('/docs/a 写了 `redoc: true`');
     expect(
       distributionOf(missPlugins, missFrontMatter, '/docs/a').warnings.join(
         '\n',
@@ -221,25 +229,87 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
         [IFRAME, { themeConfig: { apiFrame: { order: [IFRAME] } } }],
         ...registryOrder,
       ],
-      { redoc: '/openapi.yaml' },
+      { redoc: true, oas3: '/openapi.yaml' },
     );
     expect(excluded.entries.map((entry) => entry.namespace)).toEqual([IFRAME]);
     expect(excluded.warnings.join('\n')).toContain('被站点的覆盖清单排除');
     // 装了、也参与了判定 —— 不该有说明
     expect(
-      distributionOf(registryOrder, { redoc: '/openapi.yaml' }).warnings,
+      distributionOf(registryOrder, { redoc: true, oas3: '/openapi.yaml' })
+        .warnings,
     ).toEqual([]);
-    // 键写了但值是空的：不算「写了这一族」，安静地交回普通文档页
-    expect(distributionOf([SCALAR, IFRAME], { redoc: '' }).warnings).toEqual(
+    // 布尔键写 `false` = 明确不接这一页：安静地交回普通文档页
+    expect(distributionOf([SCALAR, IFRAME], { redoc: false }).warnings).toEqual(
       [],
     );
-    expect(distributionOf([SCALAR, IFRAME], { redoc: 1 }).warnings).toEqual([]);
+    // 但 spec 地址还悬着（没有哪一层渲染它）—— 那一条仍要给说明
+    expect(
+      distributionOf([SCALAR, IFRAME], {
+        redoc: false,
+        oas3: '/openapi.yaml',
+      }).warnings.join('\n'),
+    ).toContain('spec 地址得配一把布尔键');
     // 拿不到页面地址时（非路由调用）用不带地址的说法，而不是拼出 `undefined`
     expect(
       distributionOf([SCALAR, IFRAME], {
-        redoc: '/openapi.yaml',
+        redoc: true,
+        oas3: '/openapi.yaml',
       }).warnings.join('\n'),
-    ).toContain('这一页 写了 `redoc:`');
+    ).toContain('这一页 写了 `redoc: true`');
+  });
+
+  it('外层那把键（`iframe:`）写了、层却没参与判定时也给一条说明', () => {
+    // 只装了 scalar，页面却写了 `iframe:` —— 那一层不参与判定，页面交回普通文档页
+    const dist = distributionOf([SCALAR], { iframe: '/404' }, '/docs/a');
+    expect(dist.warnings.join('\n')).toContain('/docs/a 写了 `iframe:`');
+    expect(dist.warnings.join('\n')).toContain('那个插件没装');
+  });
+
+  it('键写了却没给 spec 地址：出不了框，给一条说明', () => {
+    const dist = distributionOf(registryOrder, { scalar: true }, '/docs/a');
+    expect(dist.warnings.join('\n')).toContain(
+      '/docs/a 写了 `scalar: true`，但没有 `oas3:`',
+    );
+    expect(dist.warnings.join('\n')).toContain('这一层不出框');
+    // spec 地址给了空串同样算没有
+    expect(
+      distributionOf(registryOrder, { scalar: true, oas3: '' }).warnings.join(
+        '\n',
+      ),
+    ).toContain('但没有 `oas3:`');
+  });
+
+  it('布尔键写成了别的形状（老写法把地址写进 `scalar:`）：那一层不参与判定', () => {
+    const dist = distributionOf(
+      registryOrder,
+      { scalar: '/openapi.yaml' },
+      '/docs/a',
+    );
+    expect(dist.warnings.join('\n')).toContain(
+      '/docs/a 写了 `scalar:`，但这一族的键只认布尔 `true`',
+    );
+    // 值是别的类型（数字、空串）同样落空
+    expect(
+      distributionOf(registryOrder, { scalar: 1 }).warnings.join('\n'),
+    ).toContain('只认布尔 `true`');
+    expect(
+      distributionOf(registryOrder, { scalar: '' }).warnings.join('\n'),
+    ).toContain('只认布尔 `true`');
+  });
+
+  it('只给 spec 地址、没写用哪一层渲染：那一格没用，给一条说明', () => {
+    const dist = distributionOf(registryOrder, { oas3: '/openapi.yaml' });
+    expect(dist.warnings.join('\n')).toContain('写了 `oas3:`');
+    expect(dist.warnings.join('\n')).toContain(
+      'spec 地址得配一把布尔键指明用哪一层渲染',
+    );
+    // 布尔键写了就安静了
+    expect(
+      distributionOf(registryOrder, {
+        oas3: '/openapi.yaml',
+        stoplight: true,
+      }).warnings,
+    ).toEqual([]);
   });
 
   it('覆盖挂在一个认不出是本层的槽位上时不静默：用默认顺序并留下一条说明', () => {
@@ -255,6 +325,47 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
     );
     expect(dist.entries.map((entry) => entry.namespace)).toEqual(registryOrder);
     expect(dist.warnings.join('\n')).toContain('覆盖未生效');
+  });
+});
+
+describe('matchApiFrameEntry：一层在某一页上命不命中', () => {
+  const entryOf = (namespace: string) =>
+    apiFrameByNamespace(namespace) as ApiFrameEntry;
+
+  it('内层：键写 `true` 且 `oas3` 给了地址才命中，交回 spec 地址', () => {
+    const scalar = entryOf(SCALAR);
+    expect(matchApiFrameEntry(scalar, { scalar: true, oas3: '/x.yaml' })).toBe(
+      '/x.yaml',
+    );
+    // 键没写、值不是布尔、spec 缺失 —— 三种都不命中
+    expect(matchApiFrameEntry(scalar, { oas3: '/x.yaml' })).toBeUndefined();
+    expect(
+      matchApiFrameEntry(scalar, { scalar: '/x.yaml', oas3: '/x.yaml' }),
+    ).toBeUndefined();
+    expect(matchApiFrameEntry(scalar, { scalar: true })).toBeUndefined();
+  });
+
+  it('外层：键给一个非空地址就命中，交回那个地址', () => {
+    const iframe = entryOf(IFRAME);
+    expect(matchApiFrameEntry(iframe, { iframe: '/404' })).toBe('/404');
+    expect(matchApiFrameEntry(iframe, { iframe: '' })).toBeUndefined();
+    expect(matchApiFrameEntry(iframe, { iframe: true })).toBeUndefined();
+    expect(matchApiFrameEntry(iframe, {})).toBeUndefined();
+  });
+
+  it('frameKeyWritten / frameSpecUrl：只看形状，不看命中', () => {
+    const scalar = entryOf(SCALAR);
+    expect(frameKeyWritten(scalar, { scalar: true })).toBe(true);
+    expect(frameKeyWritten(scalar, { scalar: false })).toBe(false);
+    expect(frameKeyWritten(scalar, { scalar: '/x.yaml' })).toBe(false);
+    expect(frameKeyWritten(scalar, {})).toBe(false);
+    expect(
+      frameSpecUrl(scalar as ApiFrameEntryInternal, { oas3: '/x.yaml' }),
+    ).toBe('/x.yaml');
+    expect(frameSpecUrl(scalar as ApiFrameEntryInternal, { oas3: '' })).toBe(
+      undefined,
+    );
+    expect(frameSpecUrl(scalar as ApiFrameEntryInternal, {})).toBe(undefined);
   });
 });
 

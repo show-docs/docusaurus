@@ -1,4 +1,5 @@
-# 命中 frontmatter 的 `oas3: <地址>` 后，这一层整页换成**一个 iframe**：`@stoplight/elements`
+# 命中 frontmatter 的 `stoplight: true` 后（渲染哪份文档由 `oas3:` 给），这一层整页换成**一个
+# iframe**：`@stoplight/elements`
 # 跑在本包自己那条插件路由（`/stoplight-view`）上的一份独立文档里。它与 `theme-redoc` 的差别在
 # 样式表：Redoc 的样式是运行期插进自己那份文档的 `<head>`，Elements 的是一份静态文件 ——
 # 站点只有**一份**全站 css，每个页面都 `<link>` 同一个文件，iframe 拦不住它。所以这一层多做了

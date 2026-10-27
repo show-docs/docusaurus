@@ -126,7 +126,7 @@ Then(
 
 /**
 整页替换那一族（`theme-iframe` 的 `DocItem` 按 `lib/api-frame-registry.ts` 的顺序判四把键：
-`scalar:`、`redoc:`、`oas3:`、`iframe:`）命中时**不包**下层 `DocItem`，
+`scalar:`、`redoc:`、`stoplight:`、`iframe:`）命中时**不包**下层 `DocItem`，
 所以那一页连文档正文外壳都没有。四把键判的是同一件事，句子就一份。
 */
 Then('这一页没有文档正文外壳', async ({ page }) => {

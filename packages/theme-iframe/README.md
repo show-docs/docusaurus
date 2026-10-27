@@ -1,10 +1,15 @@
 # @show-docs/docusaurus-theme-iframe
 
-把文档页整页替换成 iframe 的 Docusaurus 主题插件。frontmatter 写 `iframe:`、`scalar:`、`redoc:`
-或 `oas3:` 时，命中的页面保留站点 navbar，正文区换成一个 iframe。
+把文档页整页替换成 iframe 的 Docusaurus 主题插件。frontmatter 写 `iframe:`、`scalar: true`、
+`redoc: true` 或 `stoplight: true` 时，命中的页面保留站点 navbar，正文区换成一个 iframe。
 
-`iframe:` 由本包直接处理，用来嵌外部页面；`scalar:` / `redoc:` / `oas3:` 分别由 theme-scalar、
-theme-redoc、theme-stoplight 在框内渲染，本包负责外层套壳与跨 iframe 的地址、亮暗同步。
+`iframe:` 由本包直接处理，用来嵌外部页面；`scalar:` / `redoc:` / `stoplight:` 分别由
+theme-scalar、theme-redoc、theme-stoplight 在框内渲染，本包负责外层套壳与跨 iframe 的地址、
+亮暗同步。
+
+**用哪一层渲染**与**渲染哪份文档**是两件事：前者由那三把布尔键决定（`scalar: true`……），
+后者由一把 spec 键 `oas3:` 决定（三条 API 层读的是同一把）。`oas3:` 与 `iframe:` 无关 ——
+`iframe:` 嵌的是外部页面，地址自带。
 
 ## 安装
 
@@ -49,15 +54,28 @@ iframe: https://example.com/handbook/
 ---
 ```
 
-| 键       | 渲染方                                  | 值的含义         |
-| -------- | --------------------------------------- | ---------------- |
-| `iframe` | 本包                                    | 要嵌入的页面地址 |
-| `scalar` | `@show-docs/docusaurus-theme-scalar`    | OpenAPI 文档地址 |
-| `redoc`  | `@show-docs/docusaurus-theme-redoc`     | OpenAPI 文档地址 |
-| `oas3`   | `@show-docs/docusaurus-theme-stoplight` | OpenAPI 文档地址 |
+```md
+---
+title: 订单 API
+stoplight: true
+oas3: /openapi.yaml
+---
+```
+
+| 键          | 渲染方                                  | 值的含义                      |
+| ----------- | --------------------------------------- | ----------------------------- |
+| `iframe`    | 本包                                    | 要嵌入的页面地址              |
+| `scalar`    | `@show-docs/docusaurus-theme-scalar`    | 写 `true` = 这一层接这一页    |
+| `redoc`     | `@show-docs/docusaurus-theme-redoc`     | 写 `true` = 这一层接这一页    |
+| `stoplight` | `@show-docs/docusaurus-theme-stoplight` | 写 `true` = 这一层接这一页    |
+| `oas3`      | 三条 API 层共用                         | 要渲染的那份 OpenAPI 文档地址 |
 
 `iframe:` 的值原样使用；以 `/` 开头时按当前站点 origin 补成绝对地址。地址栏带
 `?path=<相对路径>` 时，会在该地址之下再解析一层，用来切换外部站点的子页面。
+
+`oas3:` 的值是框内页面要加载的 spec 地址：`static/openapi.yaml` 对应 `/openapi.yaml`，也可以写
+完整 URL（跨域时对方需允许 CORS）。三把布尔键里写了哪一把就用哪一层渲染它；一把都没写、
+只给 `oas3:`，那一格不生效（开发模式会有一条告警）。
 
 ## 配置
 
@@ -82,12 +100,13 @@ iframe: https://example.com/handbook/
 ];
 ```
 
-| 选项                         | 类型       | 默认值                                 | 说明                                                         |
-| ---------------------------- | ---------- | -------------------------------------- | ------------------------------------------------------------ |
-| `themeConfig.apiFrame.order` | `string[]` | `scalar` → `redoc` → `oas3` → `iframe` | 判定顺序与启用范围；排在前面的层优先，未列出的层不参与判定。 |
+| 选项                         | 类型       | 默认值                                      | 说明                                                         |
+| ---------------------------- | ---------- | ------------------------------------------- | ------------------------------------------------------------ |
+| `themeConfig.apiFrame.order` | `string[]` | `scalar` → `redoc` → `stoplight` → `iframe` | 判定顺序与启用范围；排在前面的层优先，未列出的层不参与判定。 |
 
 覆盖不会绕过「已安装」这一条：清单里列了但 `plugins` 里没装的层仍然不参与判定。同一页写了多
-把键时，按顺序取第一个命中的已安装层。开发模式下，写了键却没有层接收会在控制台给出告警。
+把键时，按顺序取第一个命中的已安装层。开发模式下，写了键却没有层接收会在控制台给出告警
+（键的形状不对、没给 `oas3:`、只给了 `oas3:` 没写用哪一层，各给一条）。
 
 ## 工作方式
 
@@ -107,6 +126,8 @@ iframe: https://example.com/handbook/
 - 承载 iframe 的容器会通过 `.container:has(iframe)` 去掉内边距；正文里手写的 iframe 同样命中
   这条样式。
 - 对应插件未安装时，frontmatter 里的键不生效，页面按普通文档渲染。
+- 三条 API 层写了布尔键却没给 `oas3:` 时同样不生效（那一层出不了框）；键写成非布尔值
+  （老写法把地址写进 `scalar:`）也不生效。两种都有开发模式的告警。
 
 ## 相关文档
 

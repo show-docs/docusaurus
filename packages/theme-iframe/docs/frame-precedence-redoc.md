@@ -2,12 +2,14 @@
 id: frame-precedence-redoc
 sidebar_position: 8
 title: 框键先后演示（不写 scalar）
-description: '同一页写 redoc / oas3 / iframe 三把键，生效的是注册表里排最前的那一把（redoc）。'
+description: '同一页写 redoc / stoplight / iframe 三把键，生效的是注册表里排最前的那一把（redoc）。'
 # 这一页也是 e2e 夹具：把注册表第一把（`scalar:`）拿掉，剩下三把按顺序就该 redoc 赢 ——
 # 上一份夹具只钉得住「scalar 赢」，那可能因为它是唯一被实现的判法；这一份钉「顺序真的在逐条走」。
+# spec 地址仍由 `oas3:` 给。
 # 正文在渲染后的页面上看不到：整页已经交给框了。
-redoc: /openapi-redoc.yaml
-oas3: /openapi-stoplight.yaml
+redoc: true
+stoplight: true
+oas3: /openapi-redoc.yaml
 iframe: /404
 ---
 

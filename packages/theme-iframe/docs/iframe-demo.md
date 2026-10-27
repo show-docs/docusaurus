@@ -20,6 +20,8 @@ iframe: /404
 - 嵌的是 `/404`，也就是站点自己那页未找到页 —— 它跟这一层无关，只用来证明「目标页在框里真的
   渲染出来」，而且不依赖外网。想换别的页面：地址栏带 `?path=<相对路径>`，会在 `iframe:` 那个
   地址之下再解一层，最后整体 `decodeURIComponent` 一次。
-- 同一页同时写 `iframe:` 与 `oas3:` 时，整页交给更外的 Stoplight 那一层，本层不出现 —— 层的
-  顺序决定谁赢，细节记在 `packages/theme-iframe/README.md`（站点文档源只收 `docs/`，链接出去
+- 同一页同时写 `iframe:` 与 `stoplight: true` 时，整页交给更外的 Stoplight 那一层，本层不出现 ——
+  层的顺序决定谁赢，细节记在 `packages/theme-iframe/README.md`（站点文档源只收 `docs/`，链接出去
   只会是死链）。
+- `oas3:`（三条 API 层读它当渲染源）与这一把键**没有关系**：它给的是 spec 地址，本层嵌的是
+  外部页面，地址自带。

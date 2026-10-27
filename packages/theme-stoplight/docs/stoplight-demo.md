@@ -2,19 +2,21 @@
 id: stoplight-demo
 sidebar_position: 4
 title: API 文档示例
-description: 'frontmatter 写 oas3: <URL>，整页换成一个 iframe，框里用 Stoplight Elements 渲染 API 文档。'
+description: 'frontmatter 写 stoplight: true（spec 地址由 oas3: 给），整页换成一个 iframe，框里用 Stoplight Elements 渲染 API 文档。'
 # 命中 theme-stoplight 那一层：整页换成一个 iframe，Elements 跑在本包自己那条 /stoplight-view 页面上。
 # /openapi-stoplight.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
+stoplight: true
 oas3: /openapi-stoplight.yaml
 ---
 
 # API 文档示例
 
-下面这些正文在渲染后的页面上**看不到**：theme-iframe 那一份 `DocItem` 按注册表命中 `oas3` 时
+下面这些正文在渲染后的页面上**看不到**：theme-iframe 那一份 `DocItem` 按注册表命中 `stoplight` 时
 把整个 `DocItem` 换成 iframe，
 整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
-- 取的是 `static/openapi-stoplight.yaml`（构建产物里的 `/openapi-stoplight.yaml`）：只给这一页用，
+- 取的是 `static/openapi-stoplight.yaml`（构建产物里的 `/openapi-stoplight.yaml`）：frontmatter 的
+  `oas3:` 给的就是这个地址，只给这一页用，
   Redoc 与 Scalar 的示例页各取自己那份，三页不再共用同一份输入。
 - **Elements 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
   `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi-stoplight.yaml">`，`/stoplight-view`
@@ -48,4 +50,4 @@ oas3: /openapi-stoplight.yaml
   那个 iframe 标签之外是空的，框内那份 html 也一样；要看结果得 `pnpm build && pnpm serve`。
 - 命中的是文档页，站点的侧栏仍然在那一列里（框只占正文那一格）。要连侧栏一起让位，用 `iframe:` 那一层。
 
-同一页同时写 `oas3:` 与 `redoc:` 时，redoc 那层在外，本层不出现。
+同一页同时写 `stoplight:` 与 `redoc:` 时，redoc 那层在外，本层不出现。
