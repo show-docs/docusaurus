@@ -34,21 +34,19 @@ const config = {
   },
 
   plugins: [
-    // frontmatter 注入：给每一页 md 的 `tags` 补上站点标签与 git 判出来的那两个
+    // frontmatter 注入：给每一页 md 的 `tags` 补上 git 判出来的那两个
     //（`git-new` 只有一次提交且就在最近，`git-update` 最近动过；「最近」= 7 天内，或全仓最后 5 个提交）。
-    // 页面自己写了 `tags` 时是**合并**（去重后排序），不是整格让位 —— 那几条与站点标签是并列的。
+    // 页面自己写了 `tags` 时是**合并**（去重后排序），不是整格让位 —— 那几条与 git 判出来的是并列的。
     // 注入的是元数据，走官方 `markdown.parseFrontMatter` 那条路径，侧边栏与 MDX 产物会一起变。
     // 它**包装**站点已有的解析器而不是替换（站点自己那份可能正接在 CMS 上），且接线在
     // `loadContent()` 里（早于 docs 插件把它读走）。git 那一侧只整仓读一次，之后按文件查缓存，
-    // 读不到 git 就只剩这里给的标签。口径见包内 `docs/internals.md`。
+    // 读不到 git 就一个标签都不补。口径见包内 `docs/internals.md`。
     //
     // `docs` 那一格是**转述**：真正生效的选项在下面 classic 预设里，插件手上拿不到，所以把
-    // `path` / `include` / `exclude` 在这里再写一遍 —— 注入的地盘跟着文档插件扫出来的那批文件走
-    //（页面自己写了 `tags` 就与注入的那几条**合并**，不是整格让位）。
+    // `path` / `include` / `exclude` 在这里再写一遍 —— 注入的地盘跟着文档插件扫出来的那批文件走。
     [
       '@show-docs/docusaurus-plugin-frontmatter-injector',
       {
-        tags: ['文档'],
         docs: {
           path: 'packages',
           include: DOCS_INCLUDE,

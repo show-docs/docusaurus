@@ -122,7 +122,7 @@ git log -1 --follow --format=%ct -- <path>         # 最后一次是什么时候
 
 - **只补不覆盖**：键已经在了就不碰、算值那一步也不跑。理由是「规则表」不该变成「谁来都能改
   站点写过的东西」。
-- **`tags` 是唯一的例外**：那一把键是并集语义 —— 页面自己写的几条与站点标签、`git-new` /
+- **`tags` 是唯一的例外**：那一把键是并集语义 —— 页面自己写的几条与 `git-new` /
   `git-update` 说的是不同的事，谁让位都会丢信息。所以它走 `mergeTags()`：去重、排序
   （排序是为了「同一个组合只有一种写法」，否则页面里换个顺序也会被当成改动），
   写进 frontmatter 的一定是数组；页面写了别的形状（数字、带对象的数组）就原样交回 ——
@@ -130,7 +130,7 @@ git log -1 --follow --format=%ct -- <path>         # 最后一次是什么时候
   实现上要留神一处：合并前后一模一样时**不能算「补过」**，否则包装层会以为变了、白换一个对象。
 - **函数不拿原值**：上一条决定了键不存在才会算，所以函数签名里没有 `current`（`tags` 那条例外
   由 `applyRules()` 自己取旧值，函数仍然只负责「算出注入的那一份」）。要按原文推值就
-  自己去问 `context`（`filePath`、此刻的 frontmatter、站点那几条标签、打开的那个仓库都在里面）。
+  自己去问 `context`（`filePath`、此刻的 frontmatter、打开的那个仓库都在里面）。
   返回 `undefined` = 不表态，那一格不写 —— 否则 frontmatter 上会多出一格 `key: undefined`
   （`Object.keys` 数得着、`JSON.stringify` 看不见）。
 - **算值可以是异步的**：`applyRules` 收 Promise。git 那条路本质上是异步的（真的 subprocess），
@@ -191,7 +191,7 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本插
    `@docusaurus/utils` 的 `DEFAULT_PARSE_FRONT_MATTER`，第 1、2 条漂了它会红）；
 5. `pnpm build` 之后读一眼产物：`.docusaurus/docusaurus-plugin-content-docs/default/*.json` 的
    `frontMatter` 里 `tags` 带上了 `git-new` / `git-update`（数量应该接近站点里有历史的那批页），
-   `build/assets/js/*.js` 里能找到 `tags:[\"文档\"]` 这一类的编译产物 —— 两侧同源才算真的注进去了。
+   `build/assets/js/*.js` 里能找到 `tags:[\"git-update\"]` 这一类的编译产物 —— 两侧同源才算真的注进去了。
 6. 地盘那条判据从产物回读最省事：产物里出现过的每一份 md/mdx 都带着 `tags`，而**站点里不存在
    的**文件（`tools/README.md`、`test/README.md`、`node_modules` 下那些 `README.md` 副本）不该
    出现在产物里；`.dbml` 那种非 md 页面没有 `tags` 是对的（`defaultRules` 只看后缀）。

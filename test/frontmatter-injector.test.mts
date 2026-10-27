@@ -95,21 +95,19 @@ async function frontMatterOf(
   return frontMatter;
 }
 
-/** 包一层：规则表、站点标签、仓库各给一份缺省 */
+/** 包一层：规则表与仓库各给一份缺省 */
 const wrap = (
   base: ParseFrontMatterLike,
   {
     rules = defaultRules,
-    tags,
     repo,
-  }: { rules?: FrontMatterRule[]; tags?: readonly string[]; repo?: Repo } = {},
-) => wrapParseFrontMatter(base, rules, tags ?? [], () => repo);
+  }: { rules?: FrontMatterRule[]; repo?: Repo } = {},
+) => wrapParseFrontMatter(base, rules, () => repo);
 
 describe('applyRules：只补不覆盖', () => {
   const context = (frontMatter: Record<string, unknown>) => ({
     filePath: DOC,
     frontMatter,
-    tags: [] as readonly string[],
     repo: undefined,
   });
 
@@ -184,20 +182,20 @@ describe('applyRules：只补不覆盖', () => {
     expect(Object.hasOwn(frontMatter, 'draft')).toBe(false);
   });
 
-  it('算值那一步拿得到文件路径、此刻的 frontmatter 与站点的 tags', async () => {
+  it('算值那一步拿得到文件路径、此刻的 frontmatter 与打开的仓库', async () => {
     const frontMatter: Record<string, unknown> = { title: 'a' };
-    const contextWithTags = { ...context(frontMatter), tags: ['站点的'] };
+    const repo = fakeRepo();
 
-    await applyRules(contextWithTags, [
+    await applyRules({ filePath: DOC, frontMatter, repo, scope: undefined }, [
       rule('.md', {
         slug: (ctx: RuleContext) =>
           `${ctx.filePath}:${String(ctx.frontMatter.title)}`,
-        tags: (ctx: RuleContext) => ctx.tags,
+        draft: (ctx: RuleContext) => ctx.repo === repo,
       }),
     ]);
 
     expect(frontMatter.slug).toBe(`${DOC}:a`);
-    expect(frontMatter.tags).toEqual(['站点的']);
+    expect(frontMatter.draft).toBe(true);
   });
 
   it('算值那一步可以是异步的（问 git 那条路）', async () => {
@@ -396,7 +394,6 @@ describe('地盘：只对文档插件扫得到的那批文件动手', () => {
         {
           filePath: '/site/README.md',
           frontMatter,
-          tags: [],
           repo: undefined,
           scope,
         },
@@ -416,22 +413,17 @@ describe('地盘：只对文档插件扫得到的那批文件动手', () => {
 });
 
 describe('tags 那把键怎么算（不碰磁盘）', () => {
-  const tagsOfFile = (
-    filePath: string,
-    tags: readonly string[],
-    repo: Repo | undefined,
-  ) => tagsOf({ filePath, frontMatter: {}, tags, repo });
+  const tagsOfFile = (filePath: string, repo: Repo | undefined) =>
+    tagsOf({ filePath, frontMatter: {}, repo });
 
-  it('只有配置里那份时原样交回，不另加 git 判出来的那两个', () => {
-    expect(tagsOfFile('/site/docs/a.md', ['站点'], undefined)).toEqual([
-      '站点',
-    ]);
+  it('读不到仓库（站点不在 git 里）：一个标签都不补', () => {
+    expect(tagsOfFile('/site/docs/a.md', undefined)).toEqual([]);
   });
 
   it('一个 commit 就是全部历史、且落在窗口里：算新（也就算最近更新）', () => {
     const repo = fakeRepo();
 
-    expect(tagsOfFile('/site/packages/README.md', [], repo)).toEqual([
+    expect(tagsOfFile('/site/packages/README.md', repo)).toEqual([
       NEW_TAG,
       UPDATE_TAG,
     ]);
@@ -444,9 +436,7 @@ describe('tags 那把键怎么算（不碰磁盘）', () => {
       ]),
     });
 
-    expect(tagsOfFile('/site/packages/README.md', [], repo)).toEqual([
-      UPDATE_TAG,
-    ]);
+    expect(tagsOfFile('/site/packages/README.md', repo)).toEqual([UPDATE_TAG]);
   });
 
   it('窗口外的老文件：一个都不加', () => {
@@ -457,18 +447,16 @@ describe('tags 那把键怎么算（不碰磁盘）', () => {
       ]),
     });
 
-    expect(tagsOfFile('/site/packages/README.md', [], repo)).toEqual([]);
+    expect(tagsOfFile('/site/packages/README.md', repo)).toEqual([]);
   });
 
-  it('一次都没提交过（或不在这个仓库里）的文件：只留配置里那份', () => {
+  it('一次都没提交过（或不在这个仓库里）的文件：也什么都不补', () => {
     const repo = fakeRepo({
       times: new Map([['packages/README.md', noTimes]]),
     });
 
-    expect(tagsOfFile('/site/packages/README.md', ['站点'], repo)).toEqual([
-      '站点',
-    ]);
-    expect(tagsOfFile('/elsewhere/a.md', ['站点'], repo)).toEqual(['站点']);
+    expect(tagsOfFile('/site/packages/README.md', repo)).toEqual([]);
+    expect(tagsOfFile('/elsewhere/a.md', repo)).toEqual([]);
   });
 });
 
@@ -593,9 +581,7 @@ describe('git 那一侧（真 git 仓库）', () => {
     expect(repoPath(repo, '/elsewhere/a.md')).toBeUndefined();
     expect(timesOf(repo, '/elsewhere/a.md')).toBe(noTimes);
     expect(timesOf(repo, loose)).toEqual(noTimes);
-    expect(
-      tagsOf({ filePath: loose, frontMatter: {}, tags: [], repo }),
-    ).toEqual([]);
+    expect(tagsOf({ filePath: loose, frontMatter: {}, repo })).toEqual([]);
   });
 
   it('七天内的算更新、只提交过一次的还算新；最后一个提交里的老文件也算更新', () => {
@@ -605,7 +591,6 @@ describe('git 那一侧（真 git 仓库）', () => {
       tagsOf({
         filePath: path.join(root, 'new.md'),
         frontMatter: {},
-        tags: [],
         repo,
       }),
     ).toEqual([UPDATE_TAG]);
@@ -613,7 +598,6 @@ describe('git 那一侧（真 git 仓库）', () => {
       tagsOf({
         filePath: path.join(root, 'old.md'),
         frontMatter: {},
-        tags: [],
         repo,
       }),
     ).toEqual([NEW_TAG, UPDATE_TAG]);
@@ -701,7 +685,6 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
     const wrapped = wrapParseFrontMatter(
       fakeParse(),
       [rule(/\/blog\//, { draft: true })],
-      [],
       () => {
         asked = true;
         return undefined;
@@ -711,7 +694,6 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
     const wrapped2 = wrapParseFrontMatter(
       async () => parsed,
       [rule(/\/blog\//, { draft: true })],
-      [],
       () => {
         asked = true;
         return undefined;
@@ -730,7 +712,6 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
     const wrapped = wrapParseFrontMatter(
       async () => parsed,
       [rule('.md', { draft: true })],
-      [],
       () => {
         asked = true;
         return undefined;
@@ -756,7 +737,6 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
         {
           filePath: '/site/README.md',
           frontMatter,
-          tags: [],
           repo: undefined,
           scope: docsOnly(),
         },
@@ -785,7 +765,6 @@ describe('wrapParseFrontMatter：包装而非覆盖', () => {
       wrapParseFrontMatter(
         wrapped,
         [rule('.md', { title: '第二次' })],
-        [],
         () => undefined,
       ),
     ).toBe(wrapped);
@@ -804,12 +783,10 @@ describe('defaultRules：只补 tags 一把键', () => {
   it('md/mdx 都吃得到', async () => {
     const repo = fakeRepo();
 
-    expect(
-      await frontMatterOf(wrap(fakeParse(), { repo, tags: ['站点'] })),
-    ).toEqual({
+    expect(await frontMatterOf(wrap(fakeParse(), { repo }))).toEqual({
       title: DOC,
       path: DOC,
-      tags: ['站点', NEW_TAG, UPDATE_TAG],
+      tags: [NEW_TAG, UPDATE_TAG],
     });
   });
 
@@ -818,13 +795,10 @@ describe('defaultRules：只补 tags 一把键', () => {
 
     expect(
       await frontMatterOf(
-        wrap(fakeParse({ tags: ['站点自己写的', UPDATE_TAG] }), {
-          repo,
-          tags: ['站点'],
-        }),
+        wrap(fakeParse({ tags: ['页面自己写的', UPDATE_TAG] }), { repo }),
       ),
     ).toMatchObject({
-      tags: [NEW_TAG, UPDATE_TAG, '站点', '站点自己写的'],
+      tags: [NEW_TAG, UPDATE_TAG, '页面自己写的'],
     });
   });
 
@@ -845,7 +819,6 @@ describe('defaultRules：只补 tags 一把键', () => {
       {
         filePath: '/site/docs/a.dbml',
         frontMatter,
-        tags: [],
         repo: fakeRepo(),
       },
       defaultRules,
@@ -932,7 +905,7 @@ describe('plugin-frontmatter-injector 插件接线', () => {
           siteDir: outside,
           siteConfig: { markdown },
         } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0],
-        { tags: ['站点'], docs: { path: outDocs } },
+        { docs: { path: outDocs } },
       );
 
       plugin.loadContent?.();
@@ -941,7 +914,8 @@ describe('plugin-frontmatter-injector 插件接线', () => {
         params(path.join(outside, outDocs, 'intro.md')),
       );
 
-      expect(frontMatter).toMatchObject({ tags: ['站点'] });
+      // 注入照样装上（这一格被写上），只是 git 那两个都不在
+      expect(frontMatter).toMatchObject({ tags: [] });
     } finally {
       process.chdir(cwd);
       fs.rmSync(outside, { recursive: true, force: true });
@@ -977,7 +951,7 @@ describe('plugin-frontmatter-injector 插件接线', () => {
           siteDir: root,
           siteConfig: { markdown },
         } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0],
-        { tags: ['站点'] },
+        {},
       ).loadContent?.();
 
       const { frontMatter } = await markdown.parseFrontMatter(
@@ -986,7 +960,7 @@ describe('plugin-frontmatter-injector 插件接线', () => {
 
       // 读到的必须是 siteDir 那个仓库：刚提交过的那份算「新」
       expect(frontMatter.tags).toEqual(
-        expect.arrayContaining(['站点', NEW_TAG]) as string[],
+        expect.arrayContaining([NEW_TAG, UPDATE_TAG]) as string[],
       );
     } finally {
       process.chdir(cwd);
@@ -1041,16 +1015,6 @@ describe('plugin-frontmatter-injector 插件接线', () => {
     expect(markdown.parseFrontMatter).toBe(base);
   });
 
-  it('选件：站点自己的 tags 跟着注入一起写进 frontmatter', async () => {
-    const { plugin, markdown } = loadPlugin({ tags: ['站点'] });
-
-    plugin.loadContent?.();
-
-    expect(await parseFrontMatter(markdown)).toMatchObject({
-      tags: expect.arrayContaining(['站点']) as string[],
-    });
-  });
-
   it('选件：自定义规则表说了算，只补不覆盖', async () => {
     const { plugin, markdown } = loadPlugin({
       rules: [rule('.md', { title: '被规则改掉' })],
@@ -1062,21 +1026,30 @@ describe('plugin-frontmatter-injector 插件接线', () => {
     expect(await parseFrontMatter(markdown)).toMatchObject({ title: DOC });
   });
 
-  it('选件：只给 `tags` 时内容根是 `<站点根>/docs`，别处的文件一个标签都不补', async () => {
+  it('选件：不传 `docs` 时内容根是 `<站点根>/docs`，别处的文件一条规则都不跑', async () => {
     const markdown = createMarkdown();
     const context = {
       siteDir: path.dirname(DOC),
       siteConfig: { markdown },
     } as unknown as Parameters<typeof frontMatterInjectorPlugin>[0];
 
-    frontMatterInjectorPlugin(context, { tags: ['站点'] }).loadContent?.();
+    // 用一条确定补 `draft` 的规则当探针：`tags` 那一格现在只由 git 判，这份假站点根读不到仓库
+    frontMatterInjectorPlugin(context, {
+      rules: [rule('.md', { draft: true })],
+    }).loadContent?.();
 
-    // 这个路径不在 `<站点根>/docs` 里（它在 `__fixtures__/docs`）
-    const { frontMatter } = await markdown.parseFrontMatter(
+    const inside = await markdown.parseFrontMatter(
+      params(path.join(path.dirname(DOC), 'docs', 'intro.md')),
+    );
+
+    expect(inside.frontMatter).toMatchObject({ draft: true });
+
+    // 这一份不在 `<站点根>/docs` 里（它在 `__fixtures__/docs`）
+    const outside = await markdown.parseFrontMatter(
       params(path.join(path.dirname(DOC), DOCS_PATH, 'intro.md')),
     );
 
-    expect(Object.hasOwn(frontMatter, 'tags')).toBe(false);
+    expect(Object.hasOwn(outside.frontMatter, 'draft')).toBe(false);
   });
 
   it('选件：整个选项都不传时也一样（内容根跟着 docs 那份缺省走）', async () => {
@@ -1090,11 +1063,19 @@ describe('plugin-frontmatter-injector 插件接线', () => {
       frontMatterInjectorPlugin(context).loadContent?.(),
     ).not.toThrow();
 
-    const { frontMatter } = await markdown.parseFrontMatter(
+    // 内容根之内：`tags` 这一格被写上（这份假站点根读不到 git，所以是一串空的）
+    const inside = await markdown.parseFrontMatter(
+      params(path.join(path.dirname(DOC), 'docs', 'intro.md')),
+    );
+
+    expect(inside.frontMatter).toMatchObject({ tags: [] });
+
+    // 内容根之外：一个标签都不补
+    const outside = await markdown.parseFrontMatter(
       params(path.join(path.dirname(DOC), DOCS_PATH, 'intro.md')),
     );
 
-    expect(Object.hasOwn(frontMatter, 'tags')).toBe(false);
+    expect(Object.hasOwn(outside.frontMatter, 'tags')).toBe(false);
   });
 
   it('选件：构造插件时不读 git（那一次读留到第一次问历史）', () => {

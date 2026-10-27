@@ -49,8 +49,6 @@ export const WRAPPED = Symbol.for(PLUGIN_NAME);
 export interface FrontMatterInjectorOptions {
   /** 规则表；不传用 `defaultRules`（给 md/mdx 补 `tags`），传 `[]` 等于本插件什么都不做 */
   rules?: FrontMatterRule[];
-  /** 站点自己的标签：跟着注入一起并进 `tags`（`git-new` / `git-update` 由 git 判） */
-  tags?: readonly string[];
   /**
    文档插件扫哪些文件（`docs.path` / `docs.include` / `docs.exclude`）。站点把那份选项写在预设里
    时插件拿不到，只能由站点转述过来；不传 = 只管 `<siteDir>/docs` 整棵。
@@ -102,7 +100,6 @@ frontmatter。`reloadSite()` 会把插件重跑一遍，同一份解析器套两
 export function wrapParseFrontMatter(
   base: ParseFrontMatter,
   rules: FrontMatterRule[],
-  tags: readonly string[],
   repo: () => Repo | undefined,
   scope?: Scope,
 ): ParseFrontMatter {
@@ -129,7 +126,7 @@ export function wrapParseFrontMatter(
       // 在拷贝上补：既不动 base 的返回值，下游按引用比较也看得见「变了」。`content` 一个字都不碰
       const next = { ...frontMatter };
       const injected = await applyRules(
-        { filePath, frontMatter: next, tags, repo: repo(), scope },
+        { filePath, frontMatter: next, repo: repo(), scope },
         hit,
       );
 
@@ -151,7 +148,7 @@ export function wrapParseFrontMatter(
 */
 export default function frontMatterInjectorPlugin(
   context: LoadContext,
-  { rules = defaultRules, tags = [], docs }: FrontMatterInjectorOptions = {},
+  { rules = defaultRules, docs }: FrontMatterInjectorOptions = {},
 ): Plugin {
   const { markdown } = context.siteConfig;
   // 地盘在构造函数里定下来就够：`docs.path` / `include` / `exclude` 是站点配置的一部分，
@@ -176,7 +173,6 @@ export default function frontMatterInjectorPlugin(
     markdown.parseFrontMatter = wrapParseFrontMatter(
       markdown.parseFrontMatter,
       rules,
-      tags,
       () => {
         // 只读一次：第一次问历史时才走 git，之后（含 `reloadSite()` 重跑）
         // 都拿同一份结果。找仓库从**站点根**起步，不从 `process.cwd()`：`pnpm --dir`

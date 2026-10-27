@@ -19,8 +19,6 @@ export interface RuleContext {
   filePath: string;
   /** 此刻的 frontmatter */
   frontMatter: Record<string, unknown>;
-  /** `docusaurus.config.mjs` 在 `plugins` 里给的那一份（传给本插件的 `tags` 选项） */
-  tags: readonly string[];
   /** 打开的那个仓库；站点不在 git 里就是 `undefined` */
   repo: Repo | undefined;
   /**
@@ -57,10 +55,10 @@ export function isRecent(repo: Repo, path: string, updatedAt: number): boolean {
   return repo.recent.has(path) || repo.head! - updatedAt <= RECENT_DAYS * DAY;
 }
 
-/** 这份文件要补的那几个标签：配置里那份与前缀拼起来的新造标签，外加 git 判出来的那两个 */
-export function tagsOf({ filePath, tags, repo }: RuleContext): string[] {
-  // 页面自己写了 `tags` 的话，这一格整格都不会被算（只补不覆盖）
-  const result: string[] = [...tags];
+/** 这份文件要补的那几个标签：由 git 判出来的那两个；读不到历史就没有 */
+export function tagsOf({ filePath, repo }: RuleContext): string[] {
+  // 从空串起：这一格只交 git 判出来的那几个，页面自己写的那几条由 `applyRules` 合并进来
+  const result: string[] = [];
 
   if (!repo) {
     return result;
@@ -178,7 +176,7 @@ export function normalizePath(filePath: string): string {
  键在不在用 `Object.hasOwn` 判，不用 `in`：原型链上的名字（`constructor`）不该算「这一页写过了」。
 */
 export async function applyRules(
-  { filePath, frontMatter, tags, repo, scope }: RuleContext,
+  { filePath, frontMatter, repo, scope }: RuleContext,
   rules: FrontMatterRule[],
 ): Promise<string[]> {
   // 地盘之外的文件连一条规则都不跑：那些文件在站点里根本不成为页面
@@ -187,7 +185,7 @@ export async function applyRules(
   }
 
   const injected: string[] = [];
-  const context: RuleContext = { filePath, frontMatter, tags, repo, scope };
+  const context: RuleContext = { filePath, frontMatter, repo, scope };
 
   for (const rule of rules) {
     if (!matches(rule.match, filePath)) {
