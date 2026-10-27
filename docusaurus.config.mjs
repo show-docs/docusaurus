@@ -108,10 +108,10 @@ const config = {
     '@show-docs/docusaurus-theme-copy-button',
     // 开发期 webpack 加速：非 build 的客户端编译开 `lazyCompilation`（页面与依赖按需编译，
     // 首屏更快）。`configureWebpack` 不是站点配置的合法字段（配置 schema 会直接拒收），
-    // 它只能是插件生命周期方法，所以逻辑放进 `tools/webpack-lazy-compilation/` 那个子包、
+    // 它只能是插件生命周期方法，所以逻辑放进 `packages/plugin-lazy-compilation/` 那个子包、
     // 在这里按包名挂上。
     // 这个插件没有主题目录，不参与上面的层栈推导（见 layers.mts 的过滤口径）。
-    '@show-docs/webpack-lazy-compilation',
+    '@show-docs/docusaurus-plugin-lazy-compilation',
   ],
 
   presets: [

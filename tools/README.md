@@ -6,15 +6,14 @@
 「链可任意加长、每层写法相同」。它们包的是同一个组件 —— 主页正文区那张卡片列表（`DocCardList`），
 站点层 `src/theme` 再往最外面包一层，所以渲染出来是四层。
 
-| 目录                        | 内容                                                                                                      |
-| --------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `theme-a/`                  | 主题插件 A（`@show-docs/theme-a`，覆盖 DocCardList）                                                      |
-| `theme-b/`                  | 主题插件 B（`@show-docs/theme-b`，覆盖 DocCardList）                                                      |
-| `theme-c/`                  | 主题插件 C（`@show-docs/theme-c`，覆盖 DocCardList，验证链可加长）                                        |
-| `webpack-lazy-compilation/` | 开发期插件（`@show-docs/webpack-lazy-compilation`，只开客户端 `lazyCompilation`，没有主题目录、不进层栈） |
-| `scripts/`                  | 验证脚本（`verify-chain.mts`，不是包）                                                                    |
+| 目录       | 内容                                                               |
+| ---------- | ------------------------------------------------------------------ |
+| `theme-a/` | 主题插件 A（`@show-docs/theme-a`，覆盖 DocCardList）               |
+| `theme-b/` | 主题插件 B（`@show-docs/theme-b`，覆盖 DocCardList）               |
+| `theme-c/` | 主题插件 C（`@show-docs/theme-c`，覆盖 DocCardList，验证链可加长） |
+| `scripts/` | 验证脚本（`verify-chain.mts`，不是包）                             |
 
-四个包各有 `package.json`（见 `pnpm-workspace.yaml`），站点按**包名**加载。
+三个包各有 `package.json`（见 `pnpm-workspace.yaml`），站点按**包名**加载。
 
 每个主题插件只导出 `getThemePath()` 与 `getClientModules()` 这两个标准钩子，Docusaurus 的 babel
 直接编译 `.mts` / `.tsx`，不需要自己的构建产物。`getClientModules()` 交出去的是本包
@@ -22,9 +21,10 @@
 看得见的边界，从外到内是 C、B、A。站点层 `src/theme` 是套在这三道外面的第四道（橙色），
 样式在站点的 `src/css/custom.css`，见 [`src/theme/README.md`](../src/theme/README.md)。
 
-第四个不是主题：它只导出 `configureWebpack()`，没有主题目录，所以层栈推不出它那一格（判据见
-`packages/plugin-prev-layer-resolver/src/layers.mts` 的「没有主题目录的插件不产生层」）。原来
-它住在 `src/plugins/`、站点按相对路径加载，搬进这里之后按包名加载。
+另一个不是主题的插件已经搬走：开发期那个 webpack 加速插件（`@show-docs/docusaurus-plugin-lazy-compilation`）
+只导出 `configureWebpack()`，没有主题目录，所以层栈推不出它那一格（判据见
+`packages/plugin-prev-layer-resolver/src/layers.mts` 的「没有主题目录的插件不产生层」）。它现在住在
+[`packages/plugin-lazy-compilation/`](../packages/plugin-lazy-compilation/)，不在这一格了。
 
 ## 验证链
 

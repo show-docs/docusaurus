@@ -34,6 +34,7 @@
     "@docusaurus/core": "^3.9.2",
     "@docusaurus/preset-classic": "^3.9.2",
     "@show-docs/docusaurus-plugin-frontmatter-injector": "workspace:^",
+    "@show-docs/docusaurus-plugin-lazy-compilation": "workspace:^",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
     "@show-docs/docusaurus-theme-copy-button": "workspace:^",
     "@show-docs/docusaurus-theme-diff": "workspace:^",
@@ -47,7 +48,6 @@
     "@show-docs/theme-a": "workspace:^",
     "@show-docs/theme-b": "workspace:^",
     "@show-docs/theme-c": "workspace:^",
-    "@show-docs/webpack-lazy-compilation": "workspace:^",
     "react": "~18.3.1",
     "react-dom": "~18.3.1"
   },

@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@show-docs/webpack-lazy-compilation",
+  "name": "@show-docs/docusaurus-plugin-lazy-compilation",
   "version": "0.0.0",
   "license": "UNLICENSED",
   "main": "index.mts",

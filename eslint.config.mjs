@@ -134,6 +134,7 @@ export default [
       '*.config.mjs',
       'playwright.config.mts',
       'sidebars.mts',
+      'packages/*/index.mts',
       'packages/*/src/index.mts',
       'packages/*/src/loader/**',
       'packages/*/theme/**',

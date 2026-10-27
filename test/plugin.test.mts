@@ -527,7 +527,8 @@ describe('构建脚本与 CI 护栏', () => {
     expect(yml).toContain('tools/*');
 
     // 解析**按 Node 的 ESM 规则**走：写了 `exports` 就只认它（core 包的出口是 `dist/index.mjs`），
-    // 没写的才退回 `main`（`tools/` 那四个包都是 `index.mts`）。这里只问「解析得到没有」，
+    // 没写的才退回 `main`（`tools/` 那三个假主题与 `packages/plugin-lazy-compilation/`
+    // 都是 `index.mts`）。这里只问「解析得到没有」，
     // 真正能不能加载由 `pnpm build` 兜 —— 但解析这一步在装包时就该红，不该拖到构建期。
     const from = pathToFileURL(path.join(siteDir, 'c.js')).href;
     for (const name of names) {
@@ -545,11 +546,11 @@ describe('构建脚本与 CI 护栏', () => {
       'utf8',
     );
     for (const name of [
+      '@show-docs/docusaurus-plugin-lazy-compilation',
       '@show-docs/docusaurus-plugin-prev-layer-resolver',
       '@show-docs/theme-a',
       '@show-docs/theme-b',
       '@show-docs/theme-c',
-      '@show-docs/webpack-lazy-compilation',
     ]) {
       expect(config, `${name} 应按包名出现`).toContain(`'${name}'`);
     }
