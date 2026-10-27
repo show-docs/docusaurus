@@ -169,7 +169,7 @@ export const layerFrameDoc = (page: Page, layer: ThemeLayer): FrameLocator =>
 
 /** 某一层的示例页（现在是本包 `docs/` 下的子页）：整页交给框那一条文档页。 */
 export const layerDemoUrl = (layer: ThemeLayer): string =>
-  `/packages/theme-${layer}/docs/${layer}-demo`;
+  `/theme-${layer}/docs/${layer}-demo`;
 
 /** 某一层框内那条独立页面（本包那条插件路由）：`/{层名}-view`，不带参数就是「缺 spec」那一格。 */
 export const layerViewUrl = (layer: ThemeLayer): string => `/${layer}-view`;
@@ -192,13 +192,13 @@ export const layerFrameSrc = (layer: ThemeLayer): string =>
 export const viewLayers = [
   {
     step: '我打开 markmap 示例页',
-    demo: '/packages/theme-markmap/docs/markmap-demo',
+    demo: '/theme-markmap/docs/markmap-demo',
   },
-  { step: '我打开 ERD 示例页', demo: '/packages/theme-erd/docs/erd-demo' },
-  { step: '我打开差异视图示例页', demo: '/packages/theme-diff/docs/diff-demo' },
+  { step: '我打开 ERD 示例页', demo: '/theme-erd/docs/erd-demo' },
+  { step: '我打开差异视图示例页', demo: '/theme-diff/docs/diff-demo' },
   {
     step: '我打开图片查看器示例页',
-    demo: '/packages/theme-viewer/docs/viewer-demo',
+    demo: '/theme-viewer/docs/viewer-demo',
   },
 ] as const;
 

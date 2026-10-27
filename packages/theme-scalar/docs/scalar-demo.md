@@ -28,7 +28,7 @@ src="/scalar-view?src=%2Fopenapi-scalar.yaml">`，`/scalar-view` 是本包自己
   结论不同。这里不动构建期改写，因为 Scalar 每条规则出厂就带 `.scalar-app` 前缀，实测对上站点没有
   改写。代价（每页 +359 KB）与实测口径记在 `packages/theme-scalar/docs/internals.md` 的「样式」一节。
 - **点进接口后的地址也能分享**：能发给别人的是**这一页自己的**地址
-  —— `/packages/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`。注意 `#` 后面**没有前导斜杠**，那是 Scalar 自己的
+  —— `/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`。注意 `#` 后面**没有前导斜杠**，那是 Scalar 自己的
   路由写法；与 redoc 的 `#/orders/createorder`、stoplight 的 `#/operations/createOrder` 都不一样，
   多写一个斜段是**静默失灵**（停在概览、控制台不报错）。hash 段不参与取文件，`pnpm serve` 回
   **HTTP 200**；每条接口在产物里**没有自己的 html**。

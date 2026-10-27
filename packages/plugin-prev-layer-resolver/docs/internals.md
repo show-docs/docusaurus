@@ -205,7 +205,7 @@ theme-fallback 的位置以**官方同一基准**推导（core 的 `lib/webpack/
 
 ```
 build/index.html               正文里：src/theme > theme-c > theme-b > theme-a
-build/packages/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
+build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 ```
 
 `build/index.html` 就是主页：站点没有单独的首页组件，`packages/README.md` 以 `slug: /` 落在根。

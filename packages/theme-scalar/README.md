@@ -56,7 +56,7 @@ scalar: /openapi.yaml
 
 ## 路由与深链
 
-- 可分享的地址是外层文档页：`/packages/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`。hash 不参与请求文件，整页
+- 可分享的地址是外层文档页：`/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`。hash 不参与请求文件，整页
   加载返回 200。
 - hash 段由框内与框外的消息双向同步；Scalar 的格式是 `#tag/<tag>/<METHOD>/<path>`，`#` 后面没有
   前导斜杠。

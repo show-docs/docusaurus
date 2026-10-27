@@ -2,14 +2,18 @@
 // frontmatter 注入插件的 `docs`（转述给它的地盘判据）。抄两遍迟早会漂，漂了就是「注入跑在
 // 一批站点里不存在的页面上」或者「站点里的页面一个标签都没有」。
 //
+// 内容根是 `packages/`（见预设里的 `docs.path`）：每个包的 `README.md` 就是它在站点里的顶层页，
+// 包内 `docs/` 是它的子页。所以这几条 glob 相对 `packages/` 写，不再带那一段前缀。
+//
 // `build/**` 前面那个 `**/` 不是多余的：micromatch 按「相对内容根」比，写成 `build/**` 只管得到
-// 根那一层，`<包>/build/**` 这种产物目录仍然收得进来。
-// 第一行是主页那份：`packages/` 这个组目录自己的 README，`slug: /` 把它落在根。
-// `packages/*/README.md` 那条管不到它 —— `*` 要占完整一段，中间没有目录可给它匹配。
+// 顶层那一层，`<包>/build/**` 这种产物目录仍然收得进来。
 const DOCS_INCLUDE = [
-  'packages/README.md',
-  'packages/*/README.md',
-  'packages/*/docs/**/*.{md,dbml}',
+  // 主页：内容根自己那份 README，`slug: /` 把它落在根
+  'README.md',
+  // 每个包的顶层页
+  '*/README.md',
+  // 包内文档与示例页
+  '*/docs/**/*.{md,dbml}',
 ];
 
 const DOCS_EXCLUDE = ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'];
@@ -46,7 +50,7 @@ const config = {
       {
         tags: ['文档'],
         docs: {
-          path: '.',
+          path: 'packages',
           include: DOCS_INCLUDE,
           exclude: DOCS_EXCLUDE,
         },
@@ -120,21 +124,22 @@ const config = {
         // 站点没有单独的首页组件：`packages/README.md` 就是主页（`slug: /` 落在这里）。
         // `routeBasePath: '/'` 把 docs 的前缀挪到根，于是没有「页面层」去和主题层争同一格。
         //
-        // 内容根是整个仓库，不是某一个 `docs/`：每个包的 `README.md` 就是它在站点里的顶层页
-        //（Docusaurus 认 `README.md` 是所在目录的索引页，所以地址是 `/packages/theme-scalar/`），
-        // 这个包 `docs/` 目录里的那几页 —— 示例页与维护者文档 —— 是它的子页。
-        // 主页占的也是这一条规则的格子：`packages/README.md` 是组目录那一层的索引页，
-        // 只是被 `slug: /` 挪到了根，所以 `packages/` 这一格本身没有单独的地址。
-        // include 因此按包点名，而不是 `**/*.md`：站点根下那些只给仓库读者看的说明
-        //（根 README、`tools/README.md`、`src/theme/README.md`、`test/README.md`）不进站点。
+        // 内容根是 `packages/`：每个包的 `README.md` 就是它在站点里的顶层页（Docusaurus 认
+        // `README.md` 是所在目录的索引页，所以地址是 `/theme-scalar/`），这个包 `docs/` 目录里的
+        // 那几页 —— 示例页与维护者文档 —— 是它的子页（`/theme-scalar/docs/…`）。
+        // 主页占的也是这一条规则的格子：内容根自己那份 `README.md` 是索引页，被 `slug: /` 挪到了根，
+        // 所以内容根那一格本身没有单独的地址。
+        // include 因此按包点名，而不是 `**/*.md`：`packages/` 下那些只给仓库读者看的说明
+        //（包根上的其他 md、`packages/*/build/` 里的产物）不进站点；仓库根那些说明
+        //（根 README、`tools/README.md`、`src/theme/README.md`、`test/README.md`）在内容根之外。
         // 每一格对应哪个包、顺序怎么来，见 `sidebars.mts`（扫目录得到，没有手抄的清单）。
         docs: {
           routeBasePath: '/',
-          path: '.',
+          path: 'packages',
           sidebarPath: './sidebars.mts',
           include: DOCS_INCLUDE,
-          // 内容根挪到仓库根之后要挡掉的两类东西：装出来的依赖与产物里那些 `README.md` 副本
-          //（它们不是文档源，收进来只会变成一堆重名页）。
+          // 内容根挪到 `packages/` 之后要挡掉的两类东西：装出来的依赖与产物里那些 `README.md`
+          // 副本（它们不是文档源，收进来只会变成一堆重名页）。
           exclude: DOCS_EXCLUDE,
         },
         blog: false,

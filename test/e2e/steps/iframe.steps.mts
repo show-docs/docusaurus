@@ -16,14 +16,14 @@ const frameSrc = (page: Page): Promise<string> =>
 
 Given('我打开 iframe 示例页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/packages/theme-iframe/docs/iframe-demo');
+  await page.goto('/theme-iframe/docs/iframe-demo');
 });
 
 // 句子里不写 `?path=`：playwright-bdd 把步骤文本当 Cucumber 表达式解析，`?` 在那里是量词。
 Given('我打开 iframe 示例页并带上 path 参数', async ({ page }) => {
   watchPageErrors(page);
   await page.goto(
-    '/packages/theme-iframe/docs/iframe-demo?path=/packages/theme-markmap/docs/markmap-demo',
+    '/theme-iframe/docs/iframe-demo?path=/theme-markmap/docs/markmap-demo',
   );
 });
 
@@ -114,9 +114,7 @@ Then('本页 markdown 的正文一行都不剩', async ({ page }) => {
 
 Then('它指向本站的 markmap 示例页', async ({ page }) => {
   const src = await frameSrc(page);
-  expect(new URL(src).pathname).toBe(
-    '/packages/theme-markmap/docs/markmap-demo',
-  );
+  expect(new URL(src).pathname).toBe('/theme-markmap/docs/markmap-demo');
   expect(new URL(src).origin).toBe(new URL(page.url()).origin);
 });
 

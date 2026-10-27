@@ -28,7 +28,7 @@ Feature: theme-redoc
     And 站点自己的那几处样式不被 Redoc 改写
     And 浏览器里没有运行期错误
 
-  # 能发给别人的是**外层**那条地址：`/packages/theme-redoc/docs/redoc-demo#/orders/createorder`。hash 段不参与取文件，
+  # 能发给别人的是**外层**那条地址：`/theme-redoc/docs/redoc-demo#/orders/createorder`。hash 段不参与取文件，
   # 浏览器请求的还是这一页自己的那份 html，所以整页加载它回 200；页面起来之后，那一段由框里
   # 那句 ready 换进框内那份文档（为什么不是外层在 iframe 的 load 事件上推，见
   # packages/theme-iframe/docs/iframe-protocol.md 的「对齐是两侧各推一次的」一节）。

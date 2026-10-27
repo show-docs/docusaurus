@@ -17,8 +17,9 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 // 不钉清单本身（清单口径的产地在 `sidebars.mts`）。
 /**
 「一格一个包」那一份清单是**扫出来的**，判据与 `sidebars.mts` 同一句：`packages/` 下有
-`README.md` 的那个目录占一顶层格，地址就是 `/packages/<目录名>/`。手抄那版漏了
-`plugin-frontmatter-injector`，少一张卡照样绿 —— 这一格本来就是为「别忘了某个包」而存在的。
+`README.md` 的那个目录占一顶层格，地址就是 `/<目录名>/`（内容根是 `packages/`，地址不带这一段）。
+手抄那版漏了 `plugin-frontmatter-injector`，少一张卡照样绿 —— 这一格本来就是为「别忘了某个包」
+而存在的。
 */
 const packageHrefs = fs
   .readdirSync(path.join(repoRoot, 'packages'), { withFileTypes: true })
@@ -27,7 +28,7 @@ const packageHrefs = fs
       entry.isDirectory() &&
       fs.existsSync(path.join(repoRoot, 'packages', entry.name, 'README.md')),
   )
-  .map((entry) => `/packages/${entry.name}/`);
+  .map((entry) => `/${entry.name}/`);
 
 /**
 主页正文里那条链：站点层加 `tools/` 那三层主题，从外到内 `src/theme > theme-c > theme-b > theme-a`，
@@ -62,7 +63,7 @@ Then('链里一格一个包都有卡片，指向各包自己的顶层页', async
       `主页该有一张指向 ${href} 的卡片`,
     ).toBeVisible();
   }
-  // 总数也钉住：多一张少一张都红。头那一张是主页自己 —— `packages/README` 就排在这份根级
+  // 总数也钉住：多一张少一张都红。头那一张是主页自己 —— 内容根的 `README` 就排在这份根级
   // 清单的头一格，`sidebars.mts` 里写得很明白。
   await expect(
     cardChain(page).locator('a.theme-doc-card-container'),
@@ -84,14 +85,14 @@ Then('卡片上那行说明取自本包 package.json 的 description', async ({ 
 // Playwright 的严格模式因此直接报错。
 When('我点开指向 theme-markmap 那一格的卡片', async ({ page }) => {
   await page
-    .locator('a.theme-doc-card-container[href="/packages/theme-markmap/"]')
+    .locator('a.theme-doc-card-container[href="/theme-markmap/"]')
     .click();
 });
 
 Then(
   '我落在 theme-markmap 的顶层页上，那一页就是这个包的 README',
   async ({ page }) => {
-    await expect(page).toHaveURL(/\/packages\/theme-markmap\/$/);
+    await expect(page).toHaveURL(/\/theme-markmap\/$/);
     // README 的第一个一级标题就是包名：这一页的正文确实是那份文件，不是空的索引格。
     await expect(
       page.locator('article h1').first(),

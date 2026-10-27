@@ -60,7 +60,7 @@ const pages = [
   { chain: true, file: 'build/index.html' },
   {
     chain: false,
-    file: 'build/packages/theme-markmap/docs/markmap-demo/index.html',
+    file: 'build/theme-markmap/docs/markmap-demo/index.html',
   },
 ].filter(({ file }) => fs.existsSync(path.join(root, file)));
 

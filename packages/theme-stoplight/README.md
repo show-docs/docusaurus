@@ -56,7 +56,7 @@ oas3: /openapi.yaml
 
 ## 路由与深链
 
-- 可分享的地址是外层文档页：`/packages/theme-stoplight/docs/stoplight-demo#/operations/createOrder`。hash 不参与请求文件，
+- 可分享的地址是外层文档页：`/theme-stoplight/docs/stoplight-demo#/operations/createOrder`。hash 不参与请求文件，
   整页加载返回 200。
 - hash 段由框内与框外的消息双向同步；Elements 的格式是 `#/operations/<operationId>`，
   `operationId` 保留原样大小写。
@@ -65,7 +65,7 @@ oas3: /openapi.yaml
 
 ## 已知限制
 
-- iframe 内容对搜索引擎和抓取工具不可见；产物里只有 `build/packages/theme-stoplight/docs/stoplight-demo/index.html` 一份页面。
+- iframe 内容对搜索引擎和抓取工具不可见；产物里只有 `build/theme-stoplight/docs/stoplight-demo/index.html` 一份页面。
 - 滚动条在框内，更准确地说由 Elements 的两条内层容器负责滚动；键盘焦点需要先进入框内。
 - 页面上的 `#` 由 Elements 占用，正文标题锚点不适用。
 - `/stoplight-view` 会进入站点地图；缺少 `src` 参数时整屏空白。

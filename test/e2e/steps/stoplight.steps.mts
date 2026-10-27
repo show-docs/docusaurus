@@ -15,7 +15,7 @@ const { Given, When, Then } = createBdd();
 /**
 ## 这一层的判据分两份文档量，口径与 `theme-redoc` 一对一
 
-命中页（`/packages/theme-stoplight/docs/stoplight-demo`）里只有一个 iframe，Elements 整个跑在框内那份文档（本包那条插件路由
+命中页（`/theme-stoplight/docs/stoplight-demo`）里只有一个 iframe，Elements 整个跑在框内那份文档（本包那条插件路由
 `/stoplight-view`）上。每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有 Elements 的 DOM，也不该有它那份样式表；
@@ -44,7 +44,7 @@ const operationIds = ['listOrders', 'createOrder', 'getOrder'];
 /**
 整页加载一条**别人转发过来的接口地址**：`#/operations/createOrder` 这段是框里点了接口之后
 送进外层地址栏的。这一条钉的是它在静态产物里也打得开，而且是 **HTTP 200** —— 页面本身是
-`build/packages/theme-stoplight/docs/stoplight-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
+`build/theme-stoplight/docs/stoplight-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
 */
 Given('我直达 stoplight 那条接口的地址', async ({ page }) => {
   watchPageErrors(page);
@@ -111,7 +111,7 @@ Then('Elements 的详情面板换成那条接口，外层地址也跟着换', as
     '新建订单',
   );
   await expect(page).toHaveURL(
-    /\/packages\/theme-stoplight\/docs\/stoplight-demo#\/operations\/createOrder$/,
+    /\/theme-stoplight\/docs\/stoplight-demo#\/operations\/createOrder$/,
   );
 });
 

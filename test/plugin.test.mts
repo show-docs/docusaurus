@@ -369,14 +369,14 @@ describe('构建脚本与 CI 护栏', () => {
     ).toBeUndefined();
 
     // 去掉根的 `type` 后，ESM 只能靠扩展名声明：配置是 `.mjs`、侧栏是 `.mts`。
-    // 站点的内容根是仓库根 —— 每个包的 `README.md` 就是它在站点里的顶层页，包 `docs/` 里那几页
+    // 站点的内容根是 `packages/` —— 每个包的 `README.md` 就是它在站点里的顶层页，包 `docs/` 里那几页
     // 是它的子页。哪一格对应哪个包因此写在 `sidebars.mts` 里，那份文件只扫目录、不抄包清单：
     // 抄一份清单，新增一个包就要回来改第二处（这条口径和主页那张卡片列表是同一个道理）。
     const config = fs.readFileSync(
       path.join(siteDir, 'docusaurus.config.mjs'),
       'utf8',
     );
-    expect(config, 'docs 的内容根应是仓库根').toContain("path: '.'");
+    expect(config, 'docs 的内容根应是 packages').toContain("path: 'packages'");
     expect(config, '侧栏按包给，配置要点名那份侧栏文件').toContain(
       "sidebarPath: './sidebars.mts'",
     );
@@ -411,7 +411,8 @@ describe('构建脚本与 CI 护栏', () => {
   it('每个主题包在自己包里有一份 docs/*-demo.{md,dbml}，仓库根不再有自己的文档目录', () => {
     // 口径：`packages/<name>` 那一层的触发键要有一个页面演示它，命名固定为
     // `packages/<name>/docs/<name 去掉 theme- 前缀>-demo.{md,dbml}` —— 示例页跟着包走，
-    // 于是它在站点里的地址就是这个文件路径（`/packages/theme-erd/docs/erd-demo`）。
+    // 于是它在站点里的地址就是这个文件相对内容根（`packages/`）的路径
+    //（`/theme-erd/docs/erd-demo`）。
     // 新增主题包却没写示例页时这条用例变红 —— 光看 plugins 数组不知道那一层命中时长什么样。
     const themeNames = fs
       .readdirSync(path.join(siteDir, 'packages'))

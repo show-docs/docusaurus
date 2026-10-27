@@ -30,7 +30,7 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 
 ## 两份文档各放什么
 
-|                | 外层：站点的文档页（`/packages/theme-redoc/docs/redoc-demo`）                               | 框内：本包那条页面（`/redoc-view?src=…`）          |
+|                | 外层：站点的文档页（`/theme-redoc/docs/redoc-demo`）                                        | 框内：本包那条页面（`/redoc-view?src=…`）          |
 | -------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | 本层放的东西   | 一个 `<iframe class="api-frame redoc-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `RedocUI`，即 `.redoc-root` 那一格                 |
 | Redoc 的运行时 | 不加载，一行都没有                                                                          | 全在这里                                           |
@@ -118,7 +118,7 @@ SSG 跑在 Node 里，那模块本来就有。
 那三条真属性（底色、字色、字体）挪进 `.redoc-root`。**这两条已经删了**，因为渲染挪进
 `/redoc-view` 之后它们没有对象可圈：
 
-- 外层那份文档（站点的 `/packages/theme-redoc/docs/redoc-demo`）里根本没有这张表 —— 实测 styled 表 0 张、`.redoc-root`
+- 外层那份文档（站点的 `/theme-redoc/docs/redoc-demo`）里根本没有这张表 —— 实测 styled 表 0 张、`.redoc-root`
   0 个、Redoc 渲染出来的文字也不在这份文档里。Redoc 的运行时压根不在这页上加载。
 - 框内那份文档整份就是给 Redoc 的：`theme/RedocPage/index.tsx` 就是 theme-iframe 那份框内工厂
   造出的一页，
@@ -324,7 +324,7 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 
 ## 深链：Redoc 这一层实测到的形状
 
-能发给别人的是**外层**那条地址：`/packages/theme-redoc/docs/redoc-demo#/orders/createorder`。hash 段不参与取文件，浏览器
+能发给别人的是**外层**那条地址：`/theme-redoc/docs/redoc-demo#/orders/createorder`。hash 段不参与取文件，浏览器
 请求的还是这一页自己的那份 html，产物里有它，所以 `pnpm serve` 回 **HTTP 200**。四个方向各走
 哪条路、为什么框内 → 外层不听 `hashchange`、为什么外层写地址用 `replaceState`，记在
 [`iframe-protocol.md`](../../theme-iframe/docs/iframe-protocol.md) 的「四个方向各走一条路」与「对齐是两侧各推一次的」
@@ -350,7 +350,7 @@ iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2
 
 已实测到的（都在 `test/e2e/features/redoc.feature` 那四条用例里）：
 
-- 外层：`build/packages/theme-redoc/docs/redoc-demo/index.html` 里是 `<iframe class="api-frame redoc-frame" src="/redoc-view?src=%2Fopenapi-redoc.yaml">`；
+- 外层：`build/theme-redoc/docs/redoc-demo/index.html` 里是 `<iframe class="api-frame redoc-frame" src="/redoc-view?src=%2Fopenapi-redoc.yaml">`；
   这一页没有 `<article>` 正文外壳、styled 表 0 张、`.redoc-root` 0 个，`.container` 的内边距是 0，
   框的上沿贴着 navbar 下沿、下沿贴着视口（navbar 60px），站点的 docs 侧栏仍在（框左偏移 300px）。
 - 框内：`.redoc-root` 那一格在、左栏三个接口点开就在导航里、点新建订单时详情换成它**并且外层地址栏
@@ -360,7 +360,7 @@ iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2
   它那颗自己的亮暗按钮、Redocly 那条署名、章节标题旁那一整格操作按钮都看不见（CSS 收的，元素还在
   DOM 里），而同一格里的「收起侧栏」与代码块里那几颗复制按钮都还在；正文最前面那一格下载在 DOM 里
   就归零（配置收的，同一句钉住正文第一格是 `panel-servers`）；全程没有运行期错误。
-- 深链：整页加载 `/packages/theme-redoc/docs/redoc-demo#/orders/createorder`，托管侧回 200，框里把那条接口摆出来
+- 深链：整页加载 `/theme-redoc/docs/redoc-demo#/orders/createorder`，托管侧回 200，框里把那条接口摆出来
   （正文清单是直达那一份：`列出订单`、`新建订单`），上面那几步（换成 iframe、容器不留白、框占满
   navbar 以下那一屏）同样成立。
 - 亮暗：操作系统按深色打开这一页，两份文档都还是亮色（框内那份 `<html>` 上 Redoc 自己写的 `dark`

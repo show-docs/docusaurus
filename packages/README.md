@@ -16,12 +16,12 @@ import DocCardList from '@theme/DocCardList';
 
 ## 每个包一顶层格
 
-这一页自己就是 `packages/README.md` —— Docusaurus 认 `README.md` 是所在目录的索引页，
-但 `slug: /` 把它落在根，所以它同时是主页，`packages/` 那一格没有单独的地址。
+这一页自己就是 `packages/README.md` —— 站点的内容根是 `packages/`，Docusaurus 认内容根里的
+`README.md` 是索引页，而 `slug: /` 把它落在根，所以它同时是主页，内容根那一格没有单独的地址。
 站点按包组织：`packages/` 下每个包占侧边栏的一顶层格，那一格的顶层页就是这个包
-自己的 `README.md`（同理，所以地址是 `/packages/theme-scalar/`），它的子页是这个包
+自己的 `README.md`（同理，所以地址是 `/theme-scalar/`），它的子页是这个包
 `docs/` 目录里的那几页 —— 示例页与维护者文档。
-站点的内容根就是仓库根，因此**页面上的地址等于文件在仓库里的路径**：`/packages/theme-erd/docs/erd-demo`
+因此**页面上的地址等于文件相对 `packages/` 的路径**：`/theme-erd/docs/erd-demo`
 就是 `packages/theme-erd/docs/erd-demo.dbml`。
 
 <DocCardList />

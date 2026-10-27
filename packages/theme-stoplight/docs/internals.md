@@ -28,7 +28,7 @@
 
 ## 两份文档各放什么
 
-|                   | 外层：站点的文档页（`/packages/theme-stoplight/docs/stoplight-demo`）                           | 框内：本包那条页面（`/stoplight-view?src=…`）         |
+|                   | 外层：站点的文档页（`/theme-stoplight/docs/stoplight-demo`）                                    | 框内：本包那条页面（`/stoplight-view?src=…`）         |
 | ----------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | 本层放的东西      | 一个 `<iframe class="api-frame stoplight-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `StoplightUI`，即 `.stoplight-root` 那一格            |
 | Elements 的运行时 | 不加载，一行都没有                                                                              | 全在这里                                              |
@@ -66,7 +66,7 @@
 Docusaurus 把每一个 css 导入都并进同一个 `styles` chunk（`splitChunks.styles` 那条
 `type: 'css/mini-extract'` 加 `enforce: true`，为的就是不让多份 css 的加载顺序变成不确定的）。
 所以 `import '@stoplight/elements/styles.min.css'` **一定**落进全站那一份，产物里每一条页面都
-`<link>` 它 —— 实测改造前 `build/packages/theme-stoplight/docs/stoplight-demo/index.html`、`build/stoplight-view/index.html`
+`<link>` 它 —— 实测改造前 `build/theme-stoplight/docs/stoplight-demo/index.html`、`build/stoplight-view/index.html`
 与主页上 `<link>` 的是同一个文件名。iframe 隔的是 DOM、脚本、localStorage 和路由，
 静态 CSS 在构建期就写进 html 了，它隔不了。
 
@@ -262,14 +262,14 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 
 ## 深链：Stoplight 这一层实测到的形状
 
-能发给别人的是**外层**那条地址：`/packages/theme-stoplight/docs/stoplight-demo#/operations/createOrder`。hash 段不参与取文件，
+能发给别人的是**外层**那条地址：`/theme-stoplight/docs/stoplight-demo#/operations/createOrder`。hash 段不参与取文件，
 浏览器请求的还是这一页自己的那份 html，产物里有它，所以 `pnpm serve` 回 **HTTP 200**。四个方向
 各走哪条路、为什么框内 → 外层不听 `hashchange`、为什么外层写地址用 `replaceState`，记在
 [`iframe-protocol.md`](../../theme-iframe/docs/iframe-protocol.md) 的「四个方向各走一条路」一节；
 这里只留这一层实测到的形状：
 
 - **整页直达一条深链时，正文区第一颗 `h1` 是那条接口的 summary，不是文档标题**：Elements 从地址
-  指的那一格往下铺（实测 `/packages/theme-stoplight/docs/stoplight-demo#/operations/createOrder` 那份文档里 `h1` 就是
+  指的那一格往下铺（实测 `/theme-stoplight/docs/stoplight-demo#/operations/createOrder` 那份文档里 `h1` 就是
   「新建订单」），而先打开这一页再点下去时 `h1` 是「Stoplight 演示 API」。左栏那条 API 标题
   （一颗 `h4`）两种入口都在、且只有一颗，所以「框里真取到了那份 yaml」这一句量的是它，
   不是跟着入口形状变的 `h1`。
@@ -285,7 +285,7 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 
 已实测到的（都在 `test/e2e/features/stoplight.feature` 那四条用例里）：
 
-- 外层：`build/packages/theme-stoplight/docs/stoplight-demo/index.html` 里是
+- 外层：`build/theme-stoplight/docs/stoplight-demo/index.html` 里是
   `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi-stoplight.yaml">`；这一页没有
   `<article>` 正文外壳、没有 `.stoplight-root`、没有 Elements 那张表的 `<link>`、控制台干净。
 - 框内：左栏三条接口在，点「新建订单」后详情面板换过去，**外层地址栏那一段跟着换**

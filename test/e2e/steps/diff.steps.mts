@@ -76,7 +76,7 @@ Then('这一页没有差异视图', async ({ page }) => {
 */
 Given('我打开两份文件对照示例页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/packages/theme-diff/docs/diff-pair-demo');
+  await page.goto('/theme-diff/docs/diff-pair-demo');
 });
 
 Then('说明行写明比的是哪两份文件', async ({ page }) => {

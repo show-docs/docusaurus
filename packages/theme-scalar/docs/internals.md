@@ -41,7 +41,7 @@ Scalar 那份组件在自己渲染时会往 `<body>` 上写类名（亮暗那两
 
 ### 两份文档各管什么
 
-|                 | 外层：站点的文档页（`/packages/theme-scalar/docs/scalar-demo`）                              | 框内：本包那条页面（`/scalar-view?src=…`）                                   |
+|                 | 外层：站点的文档页（`/theme-scalar/docs/scalar-demo`）                                       | 框内：本包那条页面（`/scalar-view?src=…`）                                   |
 | --------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | 本层放的东西    | 一个 `<iframe class="api-frame scalar-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference` |
 | Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）                                                     | 全在这里（实测那一份文档里 `.scalar-app` 3 格，布局根只有 1 格）             |
@@ -81,7 +81,7 @@ postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?s
 的元素。
 
 这一句不是推理，是**对照量出来的**：把那一行 import 注掉重新构建，与注回来之后，在 `/`、
-`/packages/theme-redoc/docs/redoc-demo`、`/packages/theme-markmap/docs/markmap-demo` 三份页面上取同一批
+`/theme-redoc/docs/redoc-demo`、`/theme-markmap/docs/markmap-demo` 三份页面上取同一批
 31 个站点选择器 × 16 条 computed 属性比 —— **只有 `--tw-shadow` 这一处不一样**（引上那份表之后
 `<html>` 上是 `0 0 transparent`，去掉是空串），其余一字不差。那一处是 Tailwind 4 在 `@supports` 里给
 `*, :before, :after` 注册的自定义属性默认值，没有哪条站点规则读 `--tw-*`。
@@ -256,7 +256,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
 
 ## 深链
 
-能发给别人的是**外层**那条地址（`/packages/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`）。hash 段不参与取文件，
+能发给别人的是**外层**那条地址（`/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`）。hash 段不参与取文件，
 整页加载它回 200；iframe 的 `src` 里**不**塞那一段，它靠框里那句 `ready` 换进框内。为什么不是
 外层在 iframe 的 `load` 事件上推、两侧各推一次的来由，记在
 [`iframe-protocol.md`](../../theme-iframe/docs/iframe-protocol.md) 的「对齐是两侧各推一次的」一节。
@@ -274,7 +274,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   按数量判。理由见「亮暗模式」。
 - **那颗「Ask AI」按钮**：配置收的（`agent: { disabled: true }`）。厂商那一格的判据按顺序是
   配置里 `agent.disabled` 优先 → 本机地址就开 → 配了 `agent.key` 才开，而这一层没有 key，于是
-  它也是**只在本地冒出来**的东西（实测收之前：`/packages/theme-scalar/docs/scalar-demo` 框里那份文档有 1 颗文案为「Ask AI」
+  它也是**只在本地冒出来**的东西（实测收之前：`/theme-scalar/docs/scalar-demo` 框里那份文档有 1 颗文案为「Ask AI」
   的按钮，直接打开 `/scalar-view` 也是 1 颗；收之后两处都 0 颗）。它要 `agent.key` 才是在公网上
   能用起来的那一格（厂商判据里那第三路），本层没有那个 key，也不打算把对话交给它。
 - **那颗「Test Request」**：配置收的（`hideTestRequestButton: true`，厂商默认 `false`）。收它不是
@@ -292,7 +292,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   这一层只是不再把它做成一颗按钮递到手边。
   走 `documentDownloadType` 而不是同名的旧写法 `hideDownloadButton: true`，是因为后者在
   `@scalar/types@0.24.0` 里已标 deprecated：它会把这一格换算成 `none`（行为一样），同时往控制台
-  补一句 `[DEPRECATED]`。**收之前的实测**：`/packages/theme-scalar/docs/scalar-demo` 框里 1 颗 `.download-container`、2 颗
+  补一句 `[DEPRECATED]`。**收之前的实测**：`/theme-scalar/docs/scalar-demo` 框里 1 颗 `.download-container`、2 颗
   `.download-button`（JSON 与 YAML 各一颗）；收之后两处都 0 颗。e2e 那句按这两条类名加一条
   `[aria-label*="OpenAPI"]` 判，后者兜的是哪天那颗换成不带这串类名的按钮。
 - **左栏底部那两颗「Generate MCP」/「Connect MCP」**：配置收的（`mcp: { disabled: true }`）。
@@ -354,7 +354,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
 后者 —— stoplight 那一层当初就是构建全绿、页面一开就 `process is not defined`）。
 
 真正需要记的是**依赖图**那一格，不是 polyfill：接进这一层时 `@docusaurus/theme-common` 被 peer
-分组洗成两份物理副本，`/packages/theme-stoplight/docs/stoplight-demo` 在 SSG 阶段报 `ReactContextError`，靠
+分组洗成两份物理副本，`/theme-stoplight/docs/stoplight-demo` 在 SSG 阶段报 `ReactContextError`，靠
 `pnpm-workspace.yaml` 里那条 `overrides: { '@types/react': ~18.3.31 }` 收回去。来龙去脉与两次
 对照实验（去掉就红、加回来就绿，都清了 webpack 持久缓存）记在 `pnpm-workspace.yaml` 那份注释与
 仓库根 README。
@@ -392,7 +392,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
 
 已实测到的（都在 `test/e2e/features/scalar.feature` 那四条用例里）：
 
-- 外层：`build/packages/theme-scalar/docs/scalar-demo/index.html` 里是 `<iframe class="api-frame scalar-frame"
+- 外层：`build/theme-scalar/docs/scalar-demo/index.html` 里是 `<iframe class="api-frame scalar-frame"
 src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` 正文外壳、`.scalar-app` 0 个、
   没有 Scalar 渲染出来的文字，`.container` 的内边距是 0，框的上沿贴着 navbar
   下沿、下沿贴着视口，框宽 1140（1440 视口减掉站点那 300 的文档侧栏，它在这一页照常摆着）。
@@ -408,7 +408,7 @@ src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` �
   （先钉两种形状在 DOM 里认得出来，再判看不见）；17 颗代码块复制
   按钮都还在（按 `Copy` 与「复制」两种文案一起认，见「界面文案」）；界面是简体的（实测左栏那排是
   「简介」「打开搜索」「复制默认值」）；全程没有运行期错误。
-- 深链：整页加载 `/packages/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`，托管侧回 200，框里把那条接口摆出来
+- 深链：整页加载 `/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`，托管侧回 200，框里把那条接口摆出来
   （直达那一份清单钉到 `新建订单` 为止，原因见「正文按需挂载」一节）。
 - 亮暗：操作系统按深色打开这一页，站点仍是亮色、框内 `<body>` 上也是 `light-mode`（这一格现在由
   `forceDarkModeState` 钉住，同源 `localStorage` 里那条 `colorMode` 也压不动它）；操作系统换回

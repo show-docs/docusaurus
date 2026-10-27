@@ -72,7 +72,7 @@
 
 - 没装的层不再像以前那样照样命中、渲染出一个指向不存在路由的框（浏览器里 `…-view` 回 404
   一片空白），而是那一格落空，交回普通文档页。实测：注释掉 `plugins` 里 scalar 那一条重建，
-  `build/packages/theme-scalar/docs/scalar-demo/index.html` 里 `<iframe>` 数从 1 变 0，写了四把键的夹具页换成 redoc 框。
+  `build/theme-scalar/docs/scalar-demo/index.html` 里 `<iframe>` 数从 1 变 0，写了四把键的夹具页换成 redoc 框。
 - 落空从「坏框」（肉眼可见）变成「页面看起来正常但键没生效」（看不见），所以分发把每一次落空
   的原因收进 `warnings`（键写了但层没装 / 被覆盖清单排除 / 覆盖里写了注册表认不出的命名空间 /
   覆盖挂在认不出是本层的槽位上；**页面级那几条带页面地址** —— 去重按文本判等，不带地址的话

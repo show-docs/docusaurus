@@ -15,15 +15,15 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 /**
 ## 站点按包组织：顶层页 = 本包 README，子页 = 本包 `docs/`
 
-这一族用例钉的是「页面地址 == 文件在仓库里的路径」这层对应关系（做法见根 `README.md` 与
-`sidebars.mts`）。上面那些层用例句子里的「示例页」是 `viewLayers` 那张表注册的，这里两句
-问的是包自己的那一格，跟示例页不是一码事，所以单独写。
+这一族用例钉的是「页面地址 == 文件相对内容根（`packages/`）的路径」这层对应关系（做法见根
+`README.md` 与 `sidebars.mts`）。上面那些层用例句子里的「示例页」是 `viewLayers` 那张表注册的，
+这里两句问的是包自己的那一格，跟示例页不是一码事，所以单独写。
 */
 
-/** `theme-scalar` 那一格：地址就是 `/packages/theme-scalar/`，尾巴上没有 `README`。 */
+/** `theme-scalar` 那一格：地址就是 `/theme-scalar/`，尾巴上没有 `README`。 */
 Given('我打开 theme-scalar 那一格的顶层页', async ({ page }) => {
   watchPageErrors(page);
-  await page.goto('/packages/theme-scalar/');
+  await page.goto('/theme-scalar/');
 });
 
 /**
@@ -31,7 +31,7 @@ Given('我打开 theme-scalar 那一格的顶层页', async ({ page }) => {
 不是某个手写的页面标题。
 */
 Then('这一页的正文就是这个包的 README', async ({ page }) => {
-  await expect(page).toHaveURL(/\/packages\/theme-scalar\/$/);
+  await expect(page).toHaveURL(/\/theme-scalar\/$/);
   await expect(page.locator('article h1').first()).toHaveText(
     '@show-docs/docusaurus-theme-scalar',
   );
@@ -43,9 +43,9 @@ Then('这一页的正文就是这个包的 README', async ({ page }) => {
 */
 Then('scalar 那一格的子页是示例页与维护者文档那两份', async ({ page }) => {
   // 判的是左侧那一格的子页清单：`.theme-doc-sidebar-menu` 只此一份（实测），而正文底下那条
-  // 上一页/下一页也是 `<a href="/packages/theme-scalar/docs/…">`，光按 `nav` 选会把它们数进来。
+  // 上一页/下一页也是 `<a href="/theme-scalar/docs/…">`，光按 `nav` 选会把它们数进来。
   const subpages = page.locator(
-    '.theme-doc-sidebar-menu a[href^="/packages/theme-scalar/docs/"]',
+    '.theme-doc-sidebar-menu a[href^="/theme-scalar/docs/"]',
   );
   await expect(
     subpages.filter({ hasText: 'Scalar 示例' }).first(),
@@ -71,21 +71,22 @@ Then('这一格里没有 tools 那三层假主题', async ({ page }) => {
 });
 
 /**
-子页地址那一串 == 那份文件在仓库里的路径：`/packages/theme-markmap/docs/markmap-demo` 就该是
-`packages/theme-markmap/docs/markmap-demo.md`。内容根挪到仓库根之后这件事才成立，所以它值得钉住 ——
-文件名后缀按站点收的那几种（`md` / `mdx` / `dbml`）试，一个都不在就是地址与文件脱了。
+子页地址那一串 == 那份文件相对内容根的路径：`/theme-markmap/docs/markmap-demo` 就该是
+`packages/theme-markmap/docs/markmap-demo.md`。内容根挪到 `packages/` 之后这件事才成立，
+所以它值得钉住 —— 文件名后缀按站点收的那几种（`md` / `mdx` / `dbml`）试，一个都不在就是
+地址与文件脱了。
 */
-Then('地址栏那一串就是这个文件在仓库里的路径', async ({ page }) => {
+Then('地址栏那一串就是这份文件相对 packages 的路径', async ({ page }) => {
   const withoutLeadingSlash = new URL(page.url()).pathname
     .replace(/^\//, '')
     .replace(/\/$/, '');
   const found = ['md', 'mdx', 'dbml'].map((ext) =>
-    path.join(repoRoot, `${withoutLeadingSlash}.${ext}`),
+    path.join(repoRoot, 'packages', `${withoutLeadingSlash}.${ext}`),
   );
   const exists = found.map((file) => fs.existsSync(file));
   expect(
     exists.some(Boolean),
-    `地址 /${withoutLeadingSlash} 在仓库里对不上任何一份文档源（试过 ${found.join('、')}）`,
+    `地址 /${withoutLeadingSlash} 在 packages/ 下对不上任何一份文档源（试过 ${found.join('、')}）`,
   ).toBe(true);
 });
 
@@ -102,8 +103,5 @@ Then('面包屑的上一格是 theme-markmap 的 README', async ({ page }) => {
     '面包屑该是「主页 → theme-markmap 那一格」两截',
   ).toHaveCount(2);
   await expect(links.nth(0)).toHaveAttribute('href', '/');
-  await expect(links.nth(1)).toHaveAttribute(
-    'href',
-    '/packages/theme-markmap/',
-  );
+  await expect(links.nth(1)).toHaveAttribute('href', '/theme-markmap/');
 });

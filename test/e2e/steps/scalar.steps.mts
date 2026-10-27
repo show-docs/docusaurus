@@ -15,7 +15,7 @@ const { Given, When, Then } = createBdd();
 /**
 ## 这一层的判据分两份文档量，口径与 `theme-redoc`、`theme-stoplight` 一对一
 
-命中页（`/packages/theme-scalar/docs/scalar-demo`）里只有一个 iframe，Scalar 整个跑在框内那份文档（本包那条插件路由
+命中页（`/theme-scalar/docs/scalar-demo`）里只有一个 iframe，Scalar 整个跑在框内那份文档（本包那条插件路由
 `/scalar-view`）上。所以每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有 Scalar 的 DOM（`.scalar-app` 是框内那一份
@@ -70,7 +70,7 @@ const operationHrefs = [
 /**
 整页加载一条**别人转发过来的接口地址**：`#tag/orders/POST/orders` 这段是框里点了接口之后
 由 postMessage 送进外层地址栏的。这一条钉的是它在静态产物里也打得开，而且是 **HTTP 200**
-—— 页面本身是 `build/packages/theme-scalar/docs/scalar-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
+—— 页面本身是 `build/theme-scalar/docs/scalar-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
 （换成按路径的路由就是 404，取舍与理由见包 README 的「路由与深链」一节。）
 
 那一段写的是 `#tag/…` 而不是 `#/tag/…`：Scalar 自己拼的就是前者，`#` 后面紧跟 `tag`，
@@ -153,7 +153,7 @@ Then('Scalar 的详情面板换成那条接口，外层地址也跟着换', asyn
   // Scalar 报出来的就是它自己那条完整 hash（`#tag/orders/POST/orders`，`#` 后面**不带**斜杠；
   // Redoc 那边是小写 operationId、Elements 那边是 `#/operations/…`，三串各按各的写）。
   await expect(page).toHaveURL(
-    /\/packages\/theme-scalar\/docs\/scalar-demo#tag\/orders\/POST\/orders$/,
+    /\/theme-scalar\/docs\/scalar-demo#tag\/orders\/POST\/orders$/,
   );
 });
 
@@ -234,7 +234,7 @@ Scalar 那颗「Ask AI」的按钮不出现。
 `agent.key` 才开」（`ApiReference.vue.script.js`），本层没有 key，于是这颗按钮**只在本地服务上**
 露出来 —— 与下面那条开发者工具栏一样，是「同一份产物在本地和线上长得不一样」的那一格。
 
-这句按文案认（厂商那颗按钮没有 `data-testid`，也没带稳定的类名）。收之前实测：`/packages/theme-scalar/docs/scalar-demo`
+这句按文案认（厂商那颗按钮没有 `data-testid`，也没带稳定的类名）。收之前实测：`/theme-scalar/docs/scalar-demo`
 框里那份文档 1 颗「Ask AI」，直接打开 `/scalar-view` 也 1 颗；按 `agent.disabled` 钉死之后两处
 都 0 颗。从**整份框内文档**往下数，不从布局根往下 —— 那颗按钮在左栏搜索那一行里，判据不押它
 在不在布局根里面。界面换成 `zh-cn` 之后它的文案是「询问 AI」（厂商 locale 表里的 `agent.askAi`），

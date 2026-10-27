@@ -33,7 +33,7 @@ Feature: theme-scalar
     And 站点自己的那几处样式不被 Scalar 改写
     And 浏览器里没有运行期错误
 
-  # 能发给别人的是**外层**那条地址：`/packages/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`（Scalar 自己那串 id
+  # 能发给别人的是**外层**那条地址：`/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`（Scalar 自己那串 id
   # 的前导就是 `#tag`，**不带**斜杠 —— 与 Redoc 的 `#/orders/…` 不同，写错了它只是不跳，不报错）。
   # hash 段不参与取文件，浏览器请求的还是这一页自己的那份 html，所以整页加载它回 200；页面起来
   # 之后，那一段由框里那句 ready 换进框内那份文档，再经 `scalar-ui.tsx` 那一步

@@ -306,41 +306,40 @@ describe('地盘：只对文档插件扫得到的那批文件动手', () => {
   // （缺省 `docs`、`path` 换根、include/exclude 的认领范围），不是钉 POSIX 那一串分隔符。
   const root = path.resolve('/site').replaceAll('\\', '/');
 
-  /** 站点里真实的那一份：内容根是仓库根，按包点名收 */
-  const scope = createScope(root, {
-    include: [
-      'packages/README.md',
-      'packages/*/README.md',
-      'packages/*/docs/**/*.{md,dbml}',
-    ],
+  /** 站点里真实的那一份：内容根是 `packages/`，按包点名收 */
+  const scope = createScope(`${root}/packages`, {
+    include: ['README.md', '*/README.md', '*/docs/**/*.{md,dbml}'],
     exclude: ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'],
   });
 
   it('内容根默认是 `<站点根>/docs`，`path` 换成别的就跟着换', () => {
     expect(docsContentPath(root, {})).toBe(`${root}/docs`);
-    expect(docsContentPath(root, { path: '.' })).toBe(root);
+    expect(docsContentPath(root, { path: 'packages' })).toBe(
+      `${root}/packages`,
+    );
     expect(docsContentPath(root, { path: 'content/docs' })).toBe(
       `${root}/content/docs`,
     );
   });
 
-  it('include 收的才收：站外那几份 README 与包内 docs 不进站点', () => {
+  it('include 收的才收：内容根外的 README 与包根上的其他 md 不进站点', () => {
     for (const [path, expected] of [
-      // 主页：组目录自己那一份，靠第一条点名收进来（`packages/*/README.md` 差一整段）
-      ['packages/README.md', true],
-      ['packages/a/README.md', true],
-      ['packages/a/docs/internals.md', true],
-      ['packages/a/docs/demo.dbml', true],
-      ['README.md', false],
-      // 主页搬进 `packages/` 之后，顶层那个 `docs/` 不再有人收：这一格留着，钉的是「搬回来也不会
-      // 自动进站点」—— include 是点名的，不是按目录放开的。
-      ['docs/intro.md', false],
-      ['tools/README.md', false],
-      ['src/theme/README.md', false],
-      // include 明写 `.md`/`.dbml`：`packages/*/docs/**` 下没有 `.mdx` 这一格
-      ['packages/a/docs/internals.mdx', false],
+      // 主页：内容根自己那一份，靠第一条点名收进来（`*/README.md` 差一整段）
+      ['README.md', true],
+      ['a/README.md', true],
+      ['a/docs/internals.md', true],
+      ['a/docs/demo.dbml', true],
+      // 内容根之外：仓库根那份 README、顶层 `docs/`、`tools/`、`src/theme/` 都不进站点
+      ['../README.md', false],
+      ['../docs/intro.md', false],
+      ['../tools/README.md', false],
+      ['../src/theme/README.md', false],
+      // 包根上的其他 md 不在 include 里：include 是点名的，不是按目录放开的
+      ['a/NOTES.md', false],
+      // include 明写 `.md`/`.dbml`：`*/docs/**` 下没有 `.mdx` 这一格
+      ['a/docs/internals.mdx', false],
     ] as const) {
-      expect(scope.covers(`${root}/${path}`), path).toBe(expected);
+      expect(scope.covers(path), path).toBe(expected);
     }
   });
 
@@ -349,24 +348,24 @@ describe('地盘：只对文档插件扫得到的那批文件动手', () => {
       'node_modules/a/README.md',
       'a/node_modules/x/README.md',
       'build/docs/a.md',
-      'packages/a/build/README.md',
+      'a/build/README.md',
       '.docusaurus/a.md',
     ]) {
-      expect(scope.covers(`${root}/${path}`), path).toBe(false);
+      expect(scope.covers(path), path).toBe(false);
     }
   });
 
   it('内容根之外的路径一律不收（官方匹配器只认自己那棵根，先自己判）', () => {
     expect(scope.covers('/elsewhere/docs/a.md')).toBe(false);
-    // mdx-loader 递进来的那种假绝对路径：不是站内路径，也就不是页面
-    expect(scope.covers('webpack:///./docs/a.md')).toBe(false);
+    // mdx-loader 递进来的那种带协议的假路径：折进内容根之后也不再是那几条 include 认得的样子
+    expect(scope.covers('webpack:///./notes.md')).toBe(false);
   });
 
   it('相对内容根的路径也认；Windows 分隔符先归一', () => {
-    // 形状照上面那份 include 取（内容根是仓库根，包内 docs 才被收）：这里钉的是
+    // 形状照上面那份 include 取（内容根是 `packages/`，包内 docs 才被收）：这里钉的是
     // 「相对内容根 / 反斜杠 / 绝对反斜杠」三种写法归一到同一判定，不是钉某一条 include。
-    expect(scope.covers('packages/a/docs/b.md')).toBe(true);
-    expect(scope.covers(String.raw`packages\a\docs\b.md`)).toBe(true);
+    expect(scope.covers('a/docs/b.md')).toBe(true);
+    expect(scope.covers(String.raw`a\docs\b.md`)).toBe(true);
     expect(scope.covers(String.raw`${root}\packages\a\docs\b.md`)).toBe(true);
   });
 
@@ -382,7 +381,9 @@ describe('地盘：只对文档插件扫得到的那批文件动手', () => {
   });
 
   it('scopeOf 拿站点根与 docs.path 拼内容根，与文档插件自己算的口径一致', () => {
-    expect(scopeOf(root, { path: '.' }).contentPath).toBe(root);
+    expect(scopeOf(root, { path: 'packages' }).contentPath).toBe(
+      `${root}/packages`,
+    );
     expect(scopeOf(root, {}).contentPath).toBe(`${root}/docs`);
   });
 

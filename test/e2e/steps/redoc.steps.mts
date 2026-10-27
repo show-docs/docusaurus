@@ -15,7 +15,7 @@ const { Given, When, Then } = createBdd();
 /**
 ## 这一层的判据分两份文档量
 
-命中页（`/packages/theme-redoc/docs/redoc-demo`）里只有一个 iframe，Redoc 整个跑在框内那份文档（本包那条插件路由
+命中页（`/theme-redoc/docs/redoc-demo`）里只有一个 iframe，Redoc 整个跑在框内那份文档（本包那条插件路由
 `/redoc-view`）上。所以每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有任何 Redoc 的东西（边界由浏览器给，
@@ -48,7 +48,7 @@ const menuHref = (name: string): string => `#/orders/${name}`;
 /**
 整页加载一条**别人转发过来的接口地址**：`#/orders/createorder` 这段是框里点了接口之后
 由 postMessage 送进外层地址栏的。这一条用例钉的是它在静态产物里也打得开，而且是 **HTTP 200**
-—— 页面本身是 `build/packages/theme-redoc/docs/redoc-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
+—— 页面本身是 `build/theme-redoc/docs/redoc-demo/index.html` 那一份，hash 段不参与取文件，托管侧不用认识它。
 （换成按路径的路由就是 404，取舍见包 README 的「已知限制」一节。）
 */
 Given('我直达 redoc 那条接口的地址', async ({ page }) => {
@@ -115,7 +115,7 @@ Then('Redoc 的详情面板换成那条接口，外层地址也跟着换', async
     '接口详情没渲染出来',
   ).toContainText(['Redoc 演示 API (1.0.0)', 'orders', '列出订单', '新建订单']);
   await expect(page).toHaveURL(
-    /\/packages\/theme-redoc\/docs\/redoc-demo#\/orders\/createorder$/,
+    /\/theme-redoc\/docs\/redoc-demo#\/orders\/createorder$/,
   );
 });
 

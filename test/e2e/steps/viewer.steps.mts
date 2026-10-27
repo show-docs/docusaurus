@@ -105,22 +105,20 @@ Then('查看器收起', async ({ page }) => {
 */
 When('我从侧栏点开 theme-markmap 那一格', async ({ page }) => {
   await page
-    .locator('.theme-doc-sidebar-menu a[href="/packages/theme-markmap/"]')
+    .locator('.theme-doc-sidebar-menu a[href="/theme-markmap/"]')
     .first()
     .click();
-  await expect(page).toHaveURL(/\/packages\/theme-markmap\/$/);
+  await expect(page).toHaveURL(/\/theme-markmap\/$/);
 });
 
 When('再点开它的思维导图示例页', async ({ page }) => {
   await page
     .locator(
-      '.theme-doc-sidebar-menu a[href="/packages/theme-markmap/docs/markmap-demo"]',
+      '.theme-doc-sidebar-menu a[href="/theme-markmap/docs/markmap-demo"]',
     )
     .first()
     .click();
-  await expect(page).toHaveURL(
-    /\/packages\/theme-markmap\/docs\/markmap-demo$/,
-  );
+  await expect(page).toHaveURL(/\/theme-markmap\/docs\/markmap-demo$/);
 });
 
 Then('这一页没有图片查看器', async ({ page }) => {
