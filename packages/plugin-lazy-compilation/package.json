@@ -1,8 +1,8 @@
 {
-  "private": true,
   "name": "@show-docs/docusaurus-plugin-lazy-compilation",
   "version": "0.0.0",
   "license": "UNLICENSED",
+  "keywords": [],
   "types": "dist/index.d.mts",
   "main": "dist/index.mjs",
   "exports": {

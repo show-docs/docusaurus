@@ -49,6 +49,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # 全历史，不能用默认的浅检出（depth 1）：差异视图示例页要比的是
+          # `packages/README.md` 的**上一个版本**，那要 git 历史。浅检出里只有一次提交，
+          # 工作区又是干净的，比不出来 —— 那一页等于没开这个功能，差异视图整个不渲染
+          # （`theme-diff` 的 loader 走的是「这份文件上一次被提交的那一版」与「工作区这一份」
+          # 两端比，缺了历史就没有上一端）。实测：depth 1 的检出里
+          # `git log --follow -n 2 -- packages/README.md` 只有一条、且工作区无改动。
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
