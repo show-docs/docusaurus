@@ -6,17 +6,15 @@
 
 ## 组成
 
-| 文件                            | 编译吗              | 职责                                                                                       |
-| ------------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
-| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：校验插件选项、算出这一页要装载哪些生成器、给出层目录、把 loader 挂到 `.dbml` 上      |
-| `src/options.mts`               | ✅                  | 配置期判据（纯函数）：清单的形状检查、`module` 三种写法的解析                              |
-| `src/loader/dbml-loader.mts`    | ✅                  | `.dbml` 原文 → MDX：摘掉头部 frontmatter、解析成模型、装载每一条生成器、拼出页签与两张表格 |
-| `src/types.mts`                 | ✅（只出类型）      | 把 `@dbml/core` 归一化模型补齐成能用的类型（见下），以及生成器契约那三型                   |
-| `erdiagram.d.ts`                | ❌（随包发的声明）  | `erdiagram` 那份包缺的类型声明                                                             |
-| `theme/DocItem/index.tsx`       | ❌ 站点编译         | 本层那一格：`content.dbml_json` 命中就把关系图摆在 `DocItem` 前面                          |
-| `components/erd-chart.tsx`      | ❌ 站点编译         | 浏览器侧：把模型交给 `erdiagram` 画关系图，初始化后缩放到能看见全部表节点                  |
-| `components/error-boundary.tsx` | ❌ 站点编译         | 交给共享实现的本层说法（包名 + 提示文案），实现在 `theme-iframe/lib/view-layer-shell.tsx`  |
-| `components/hack-style.tsx`     | ❌ 站点编译         | 一行转出正文容器的宽度补丁，实现在 `theme-iframe/lib/view-layer.ts`                        |
+| 文件                         | 编译吗              | 职责                                                                                       |
+| ---------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
+| `src/index.mts`              | ✅ `src/` → `dist/` | 入口：校验插件选项、算出这一页要装载哪些生成器、给出层目录、把 loader 挂到 `.dbml` 上      |
+| `src/options.mts`            | ✅                  | 配置期判据（纯函数）：清单的形状检查、`module` 三种写法的解析                              |
+| `src/loader/dbml-loader.mts` | ✅                  | `.dbml` 原文 → MDX：摘掉头部 frontmatter、解析成模型、装载每一条生成器、拼出页签与两张表格 |
+| `src/types.mts`              | ✅（只出类型）      | 把 `@dbml/core` 归一化模型补齐成能用的类型（见下），以及生成器契约那三型                   |
+| `erdiagram.d.ts`             | ❌（随包发的声明）  | `erdiagram` 那份包缺的类型声明                                                             |
+| `theme/DocItem/index.tsx`    | ❌ 站点编译         | 本层那一格：`content.dbml_json` 命中就把关系图摆在 `DocItem` 前面                          |
+| `components/erd-chart.tsx`   | ❌ 站点编译         | 浏览器侧：把模型交给 `erdiagram` 画关系图，初始化后缩放到能看见全部表节点                  |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。

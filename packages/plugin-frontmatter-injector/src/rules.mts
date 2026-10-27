@@ -47,12 +47,15 @@ export interface FrontMatterRule {
  这份文件算不算「最近」：上次提交落在 {@link RECENT_DAYS} 天内，或那份文件在最后
  {@link RECENT_COMMITS} 个 commit 里出现过。
 
- 两个口径都由 `openRepo()` 那两次 `git log` 给：`--since` 管前一条、`--max-count` 管后一条。
- 走到这里说明这份文件在被读的那个窗口里出现过，所以 `head` 必然有值（`openRepo()` 最后一定
- 在 `recent` 里放了东西），这也是 `!` 的依据。
+ 前一条按**此刻**（墙上时钟）算，不按 HEAD 那次提交的时刻算：仓库最后一次提交可能已经很
+ 久以前（几个月没提交的那种），拿它当基准会把几十天前改过的文件也算成「最近」。
+ 后一条由 `openRepo()` 那两次 `git log` 给：`--since` 管前一条、`--max-count` 管后一条。
 */
 export function isRecent(repo: Repo, path: string, updatedAt: number): boolean {
-  return repo.recent.has(path) || repo.head! - updatedAt <= RECENT_DAYS * DAY;
+  return (
+    repo.recent.has(path) ||
+    Math.floor(Date.now() / 1000) - updatedAt <= RECENT_DAYS * DAY
+  );
 }
 
 /** 这份文件要补的那几个标签：由 git 判出来的那两个；读不到历史就没有 */
@@ -229,7 +232,11 @@ export async function applyRules(
 
 /** 规则的地盘：字符串按后缀比，正则原样交给 `test` */
 export function matches(match: RegExp | string, filePath: string): boolean {
-  return match instanceof RegExp
-    ? match.test(filePath)
-    : filePath.endsWith(match);
+  if (!(match instanceof RegExp)) {
+    return filePath.endsWith(match);
+  }
+
+  // 新建一个正则再试：带 `g` / `y` 标志的正则 `test` 会推进 `lastIndex`，同一条规则试两份文件
+  // 时第二份的结果就不对了（第一份命中后 `lastIndex` 停在命中处之后，第二份从那儿接着找）。
+  return new RegExp(match.source, match.flags).test(filePath);
 }

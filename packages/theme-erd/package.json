@@ -23,11 +23,12 @@
   "files": [
     "components",
     "dist",
+    "erdiagram.d.ts",
     "theme"
   ],
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/emit-type-references.mjs",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {

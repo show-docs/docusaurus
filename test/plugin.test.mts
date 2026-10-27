@@ -1,7 +1,9 @@
+import { exec } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
@@ -16,6 +18,8 @@ import { mkdtempReal } from './helpers.mts';
 import type { DocusaurusPluginLike, ThemeLayer } from './helpers.mts';
 
 const siteDir = path.resolve(import.meta.dirname, '..');
+
+const execAsync = promisify(exec);
 
 /**
 插件入口的类型是 Docusaurus 的 `PluginInitializer`（可返回 Promise），
@@ -572,6 +576,56 @@ describe('构建脚本与 CI 护栏', () => {
         () => import.meta.resolve(name, from),
         `${name} 应能解析（用它的 importer 必须声明 workspace:^ 依赖，否则链接不会建）`,
       ).not.toThrow();
+    }
+  });
+
+  it('发布出去的包里没有构建期缓存（`.tsbuildinfo` 那类）', async () => {
+    // 判据落在**真的会被发出去的那份清单**上：`files` 只写了目录名，里面的东西全都会跟着走 ——
+    // 构建期缓存（`.tsbuildinfo`）就是这么混进 tarball 的（一次 92 KB 的陈旧文件）。
+    // 走真的打包器问它「发出去的有哪些」，不自己复刻一遍 glob 语义。
+    const dirs = fs
+      .readdirSync(path.join(siteDir, 'packages'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(siteDir, 'packages', entry.name))
+      .filter((dir) => fs.existsSync(path.join(dir, 'package.json')));
+
+    expect(dirs.length, 'packages 下应有若干包').toBeGreaterThan(0);
+
+    const packed = await Promise.all(
+      dirs.map(async (dir) => {
+        const pkg = JSON.parse(
+          fs.readFileSync(path.join(dir, 'package.json'), 'utf8'),
+        ) as { private?: boolean };
+
+        // 私有的包不发出去，也就没有「发出去的清单」这一格
+        if (pkg.private) {
+          return { dir, files: [] as string[] };
+        }
+
+        // `pnpm pack --dry-run --json` 就是发布那一步（不落 tarball）。
+        // Windows 上 `pnpm` 是 `.cmd`，`execFile` 不拼 `PATHEXT`、spawn 不了它 —— 走 shell。
+        // 参数是写死的常量，命令串里没有别的东西进去。
+        const { stdout } = await execAsync('pnpm pack --dry-run --json', {
+          cwd: dir,
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        const raw = stdout.trim();
+        const json = raw.startsWith('{') ? raw : raw.slice(raw.indexOf('{'));
+
+        return {
+          dir,
+          files: (JSON.parse(json) as { files: { path: string }[] }).files.map(
+            (file) => file.path,
+          ),
+        };
+      }),
+    );
+
+    for (const { dir, files } of packed) {
+      expect(
+        files.filter((file) => file.endsWith('.tsbuildinfo')),
+        `${path.relative(siteDir, dir)} 发出去的清单里不该有构建期缓存`,
+      ).toEqual([]);
     }
   });
 

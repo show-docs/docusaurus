@@ -107,7 +107,7 @@
 不对称，路径声明的层照样算装机。本站全部按包名声明。
 
 这一格有三道门禁钉着：分支语义（默认、覆盖、过滤、每一条 `warnings`）由
-`test/api-frame-entries.test.mts` 在单测里钉（纯函数，不需要浏览器）；`lib/` 七份文件的每个分支
+`test/api-frame-entries.test.mts` 在单测里钉（纯函数，不需要浏览器）；`lib/` 十四份文件的每个分支
 都在覆盖率红线上（见 `vitest.config.mts` 的 `coverage.include`，浏览器那两份靠 jsdom，
 见 `test/frame-sync.test.mts`）；而「浏览器侧 `plugins`
 原样保留包名、插件选项到得了浏览器」是 Docusaurus 的**实现细节而非公开承诺**，由
@@ -120,8 +120,11 @@
 新增一条 API 层 = 注册表加一条 + 新包写两份（入口调一次 `createApiFrameTheme()`、框内那一页
 `theme/XxxPage` 调一次 `createApiFrameView()`，各家那个渲染用的 UI 组件作为参数交给它），
 并把中心声明进新包的 `peerDependencies`（协议变 → 中心升版 → 消费方在安装期被范围拦下，
-而不是等构建期工厂抛错）。现阶段本站所有包版本都是 `0.0.0`，这份契约**拦不住任何东西**，
-是为发版升版之后预留的；另外 `workspace:` 协议在非 pnpm 包管理器下的行为未实测。外层一概不动。
+而不是等构建期工厂抛错）。本站这些包已经发过版（`theme-*` 是 `0.1.0`~`0.1.2`、
+`plugin-prev-layer-resolver` 是 `0.2.1`，只有 `plugin-lazy-compilation` 还是 `0.0.0`）：
+`workspace:^` 发布时落成 `^<当前版本>`，对 `0.x` 来说就是「小版本锁住」—— 协议一变、中心升到下一个小版本，
+消费方在安装期就被范围拦下。只有 `0.0.0` 那份在发版升版之前拦不住任何东西；另外 `workspace:`
+协议在非 pnpm 包管理器下的行为未实测。外层一概不动。
 两边那两份工厂都拿命名空间去注册表取条目，取不到直接抛 ——
 宁可构建期红，不带一条没人注册的路由。
 
@@ -249,8 +252,10 @@ Elements 那一份拖了上一轮才拆开：它的模块曾被静态 require �
   框内那份文档的 `<head>`，站点那一份 css bundle 里根本没有它。
 - Elements 自带内层滚动，框内那一格要定高；它的样式是一张**静态**样式表，Docusaurus 会把每一个 css
   导入都并进全站那一份 bundle，所以本层要改构建配置把那份文件当成资源发出去。
-- Scalar 也是静态样式表、也并进全站那一份，但这一层**不改构建配置**：它出厂时每条规则已经带着
-  `.scalar-app` 前缀，越不出那一格（实测与代价记在
+- Scalar 也是静态样式表、也并进全站那一份，所以它同样要改构建配置把那份文件当成资源发出去 ——
+  走的是与 Elements 同一份实现（`@show-docs/docusaurus-theme-iframe/lib/isolate-renderer-css.ts`），
+  只交自己的文件与探针路径。它出厂时每条规则已经带着 `.scalar-app` 前缀，越不出框内那一格，
+  但前缀管的是「打不到站点」，管不了「每页都下载」（实测与代价记在
   [`theme-scalar` 的 docs/internals.md](../../theme-scalar/docs/internals.md) 的「样式」一节）。
 
 还有一条**只在 e2e 里看得见**的约定：`.container:has(iframe)` 是全局的，正文里手写的 `<iframe>`
@@ -276,7 +281,7 @@ Elements 那一份拖了上一轮才拆开：它的模块曾被静态 require �
 ## 局限
 
 - **改了它要三条层一起回归**：它的产物出口不存在，三个包直接引源码，所以改动会同时进三条层的
-  浏览器 bundle。`lib/` 那七份文件的每个分支都挂在覆盖率红线上（两条 hook 也在，靠 jsdom 把
+  浏览器 bundle。`lib/` 那十四份文件的每个分支都挂在覆盖率红线上（两条 hook 也在，靠 jsdom 把
   「递交交给浏览器」那一步换成直接点监听器与查 `postMessage`），所以接线方式一改就会红；
   但**真浏览器上那条通道**——跨文档、异步、以及渲染器认不认那一段——只有 `pnpm test:e2e`
   里那十二条用例量得到，而它只在本地跑。

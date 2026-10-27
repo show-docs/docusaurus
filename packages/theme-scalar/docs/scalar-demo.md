@@ -24,11 +24,14 @@ src="/scalar-view?src=%2Fopenapi-scalar.yaml">`，`/scalar-view` 是本包自己
   走 `packages/theme-iframe/lib/` 那份共享约定，与上面两条层同一份实现。
 - **差在框内那一页里**：`@scalar/api-reference` 是 Vue 3 的组件，本层用它的非 Vue 宿主入口
   `createApiReference(元素, 配置)` 把它挂进一格 `<div>`，因此不必直接引 `vue`，也不必装 React 包装层。
-- **换文档挡不住它的样式表，那一条防线是厂商自带的**：Scalar 的样式是发布好的静态
-  `@scalar/api-reference/style.css`，webpack 把它并进全站那一份 css，每一页都下载 —— 这一格与
-  theme-redoc 相反（那张表是运行期注入的，只存在于框内那份文档），也与 theme-stoplight 同处境但
-  结论不同。这里不动构建期改写，因为 Scalar 每条规则出厂就带 `.scalar-app` 前缀，实测对上站点没有
-  改写。代价（每页 +359 KB）与实测口径记在 `packages/theme-scalar/docs/internals.md` 的「样式」一节。
+- **样式表是静态的，所以要在构建期摘出来**：Scalar 的样式是发布好的静态
+  `@scalar/api-reference/style.css`，webpack 默认把它并进全站那一份 css，每一页都下载 —— 这一格与
+  theme-redoc 相反（那张表是运行期注入的，只存在于框内那份文档），与 theme-stoplight 同处境。所以
+  本层在 `configureWebpack` 里把它摘成独立产物（与 stoplight 同一份实现
+  `@show-docs/docusaurus-theme-iframe/lib/isolate-renderer-css.ts`），只由框内那份文档挂一条
+  `<link>`。厂商那份规则出厂就带 `.scalar-app` 前缀，实测对上站点没有改写 —— 前缀管的是
+  「打不到站点」，管不了「每页都下载」，摘出来才是后者那一格。实测口径（站点那一份 112,608 字节、
+  独立那一份 277,962 字节）记在 `packages/theme-scalar/docs/internals.md` 的「样式」一节。
 - **点进接口后的地址也能分享**：能发给别人的是**这一页自己的**地址
   —— `/theme-scalar/docs/scalar-demo#tag/orders/POST/orders`。注意 `#` 后面**没有前导斜杠**，那是 Scalar 自己的
   路由写法；与 redoc 的 `#/orders/createorder`、stoplight 的 `#/operations/createOrder` 都不一样，

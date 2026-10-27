@@ -1,3 +1,9 @@
+// 这一行是**给产物声明文件**用的：`erdiagram` 自家没带类型声明，本包替它写了一份
+// （包根的 `erdiagram.d.ts`）。TypeScript 只在源码本身是声明文件时才把 reference 指令
+// 写进产物，所以构建那一步（`scripts/emit-type-references.mjs`）把它搬进
+// `dist/index.d.mts` —— 消费方拿到的类型入口正是那一份。
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference -- 这一条指向的是**环境声明**（没有导出的模块），换不成 import
+/// <reference path="../erdiagram.d.ts" />
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

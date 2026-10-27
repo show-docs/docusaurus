@@ -15,8 +15,6 @@
 | `src/types.mts`                 | ✅（只出类型）      | `DiffData`（追加的那条导出的形状，带 `source` 与 `caption`）与 `LoaderContextExtras`                                                                                              |
 | `theme/DocItem/index.tsx`       | ❌ 站点编译         | 本层那一格：命中就把视图摆在 `DocItem` **前面**，命不中原样交回                                                                                                                   |
 | `components/diff-view.tsx`      | ❌ 站点编译         | 浏览器侧：把 `git diff` 原文交给 `@git-diff-view/react`，配色跟站点的亮暗模式，说明行按 `source` 给两种说法                                                                       |
-| `components/error-boundary.tsx` | ❌ 站点编译         | 交给共享实现的本层说法（包名 + 提示文案），实现在 `theme-iframe/lib/view-layer-shell.tsx`                                                                                         |
-| `components/hack-style.tsx`     | ❌ 站点编译         | 一行转出正文容器的宽度补丁，实现在 `theme-iframe/lib/view-layer.ts`                                                                                                               |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。

@@ -26,7 +26,8 @@
   },
   "files": [
     "dist",
-    "types"
+    "types",
+    "!dist/.tsbuildinfo"
   ],
   "type": "module",
   "scripts": {

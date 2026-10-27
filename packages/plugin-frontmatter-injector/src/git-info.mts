@@ -1,6 +1,15 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
-import { isAbsolute, relative, resolve } from 'node:path';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  parse,
+  relative,
+  resolve,
+  sep,
+} from 'node:path';
 
 /** 一次 git 调用的输出（去掉首尾空白）。用参数数组而不是拼命令串 */
 function git(args: string[], cwd: string): string {
@@ -104,9 +113,49 @@ export function openRepo(root: string): Repo {
   };
 }
 
+/**
+把这条路径的**目录**那一段解析掉软链，文件名那一截原样留着。
+
+ 两边要比的是同一件事：仓库根是解析过的（见 {@link findRepoRoot}），传进来的文件路径若
+ 还带着软链，两边就不在同一种写法上 —— `relative` 算出来的差会带着 `..`，每份文件都被
+ 判成「不在这个仓库里」，标签一个都补不上。
+
+ 只解析目录：文件自己可能是个软链，而 git 记下的是**那个软链**（它的路径），不是软链
+ 指向的地方 —— 把最后一截也解析掉，路径反而与 git 记的不一样了。
+
+ 目录可能压根不存在（生成出来的文件）：那就找出最深的那一层存在的祖先目录，解析它，再把
+ 底下那几段按原序接回去。
+*/
+function realpathOfDir(filePath: string): string {
+  const absolute = resolve(filePath);
+  const base = basename(absolute);
+  const { root } = parse(absolute);
+
+  // 从文件系统根往下逐段走：走得到的那几段构成「最深的存在的祖先目录」，走不到的（目录
+  // 不存在）按原序记下来，最后整体接在解析过的那一层底下。
+  let current = root;
+  const missing: string[] = [];
+  const segments = relative(root, dirname(absolute)).split(sep).filter(Boolean);
+
+  for (const segment of segments) {
+    const next = join(current, segment);
+
+    try {
+      // `native` 展开 8.3 短名（Windows CI 的 `%TEMP%` 就是短名形式），与 git 给的长名同口径
+      realpathSync.native(next);
+      current = next;
+    } catch {
+      // 这一段不存在：底下那几段也不可能存在（父目录都没有），于是原样记下来
+      missing.push(segment);
+    }
+  }
+
+  return POSIX(join(realpathSync.native(current), ...missing, base));
+}
+
 /** 绝对路径 → 仓库相对路径；不在这个仓库里就 `undefined` */
 export function repoPath(repo: Repo, filePath: string): string | undefined {
-  const path = relative(repo.root, resolve(filePath));
+  const path = relative(repo.root, realpathOfDir(filePath));
 
   // 越界有两种写法：`..` 开头，或（Windows 上跨盘）直接回一条绝对路径 —— 上面那句注释说的就是这一对
   return path.startsWith('..') || isAbsolute(path) ? undefined : POSIX(path);

@@ -110,8 +110,14 @@ function enumType(field: DbmlField, { enums, enumValues }: DbmlModel): string {
     : `${enum_.name} [枚举]`;
 }
 
-// 站点自己的 frontmatter（标题、说明、侧栏名）留在文件头上给 Docusaurus 读，
-// DBML 解析器只收 `---` 块之后的部分。
+/**
+头部那份 frontmatter：解析前摘掉，产物里不再写回。
+
+`@dbml/core` 的解析器只认 DBML 语法 —— 文件头那个 `---` 块会让它抛 `Expect an identifier`，
+所以解析前必须摘掉。摘掉的那份**不写回产物**：站点那份（标题、说明、侧栏名）由 docs 插件
+从**原文件**读（`plugin-content-docs` 的 `parseMarkdownFile` 读的是文件本身），不经过这一层
+换过的产物 —— 所以那一页的 `<h1>` 与别的文档页同一个来源。
+*/
 const FRONT_MATTER = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
 
 /**

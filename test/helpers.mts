@@ -41,6 +41,30 @@ export const canSymlink: boolean = (() => {
   }
 })();
 
+/**
+这台机器能不能给目录建一条「指向别处」的链接。
+
+Windows 上 `junction`（目录联接）不需要管理员权限，普通软链要「开发者模式」才有 —— 所以
+同一台机器上前者恒 `true`、后者恒 `false`。POSIX 上 `junction` 这个参数被忽略，就是普通
+软链。判据是真的建一次，不猜平台。
+
+要验的是「路径的另一种写法指向同一处目录」这件事（`realpath` 把它解析回同一处），
+junction 与软链在这件事上是一样的。
+*/
+export const canLinkDir: boolean = (() => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'link-capability-'));
+  try {
+    const real = path.join(dir, 'real');
+    fs.mkdirSync(real);
+    fs.symlinkSync(real, path.join(dir, 'link'), 'junction');
+    return true;
+  } catch {
+    return false;
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+})();
+
 export interface FixtureSite {
   root: string;
   /**

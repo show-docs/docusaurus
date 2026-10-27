@@ -5,21 +5,29 @@ const DIFF_KEY = /^diff[ \t]*:(.*)$/m;
 /**
 `diff:` 的续行：这一行没写值、把内容折到下面几行时，把属于这把键的那几行读出来。
 
-只收缩进的后续行，遇到顶格的行（frontmatter 里下一把键）或空行就停；缩进去掉、注释跳过，
+只收缩进的后续行，遇到顶格的行（frontmatter 里下一把键）就停；缩进去掉、注释跳过，
 按行拼回一段交给 `splitDiffValue` 分形状。流式写法的 `{` / `}` 折成几行、块式写法的
 `old:` / `new:` 各占一行，都从这里收下来。
+
+**空行不终止**：YAML 的块映射里空行只是分隔，键还在同一把下面 ——
+`diff:` 下面空一行再写 `old:` 与 `new:`，站点那边解析出来仍是两把键，这边也得收得回来。
+按空行截断的话，收回来的只剩一项，形状会掉成「一份文件」，而那个值还是一句看不懂的话。
 */
 function readContinuation(block: string, from: number): string {
   const lines: string[] = [];
 
   for (const raw of block.slice(from).split('\n').slice(1)) {
+    if (raw.trim() === '') {
+      continue;
+    }
+
     if (!/^[ \t]/.test(raw)) {
       break;
     }
 
     const line = raw.trim();
 
-    if (line && !line.startsWith('#')) {
+    if (!line.startsWith('#')) {
       lines.push(line);
     }
   }

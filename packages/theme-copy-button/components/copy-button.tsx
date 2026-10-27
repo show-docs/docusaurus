@@ -9,6 +9,10 @@ const FAILURE_MESSAGE = '复制失败';
 
 `navigator.clipboard` 只在这个页面是安全上下文（https，或 localhost）时才存在，
 用 http 打开的站点拿到的就是 `undefined` —— 这一格要单独判，不能只靠 `catch`。
+
+`location.href` 本身已经是百分号编码过的，**原样复制**：解码一遍会把 `%2F` 还原成 `/`，
+把地址改样；地址末尾有一个裸 `%`（`?q=100%`）时 `decodeURIComponent` 还会抛 `URIError`，
+按下去只会得到一句「复制失败」。
 */
 async function copyPageUrl(): Promise<void> {
   if (!navigator.clipboard) {
@@ -16,9 +20,7 @@ async function copyPageUrl(): Promise<void> {
     return;
   }
   try {
-    await navigator.clipboard.writeText(
-      decodeURIComponent(window.location.href),
-    );
+    await navigator.clipboard.writeText(window.location.href);
     toast.success(SUCCESS_MESSAGE);
   } catch (error) {
     toast.error(FAILURE_MESSAGE);

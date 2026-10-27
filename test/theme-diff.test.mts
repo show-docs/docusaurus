@@ -246,6 +246,17 @@ describe('frontmatter 那把键的读法', () => {
     expect(readDiffValue('diff:\n   \ntitle: 下一把键')).toBeUndefined();
   });
 
+  it('续行中间有空行：空行不终止这把键，下面的几项照样收得回来', () => {
+    // YAML 的块映射里空行只是分隔：`diff` 那把键仍是 `{old, new}` 两项
+    const block = 'diff:\n  old: a.md\n\n  new: b.md\ntitle: 下一把键';
+
+    expect(splitDiffValue(readDiffValue(block)!)).toEqual({
+      kind: 'pair',
+      old: 'a.md',
+      new: 'b.md',
+    });
+  });
+
   it('`resolveDiffTarget`：`true` 指本文自己，路径相对这份 md 所在目录', () => {
     // 取一个真实的绝对地址：`path.join` 在 Windows 上会把 `/site/...` 这种串当成
     // 「相对当前盘」，拼出来的结果与 Unix 不同口径，断言就跟着平台走。

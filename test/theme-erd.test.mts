@@ -1,7 +1,10 @@
+import { exec } from 'node:child_process';
 import fs from 'node:fs';
-import { resolve } from 'node:path';
+import path, { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
+import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 
 import theme, { validateOptions } from '../packages/theme-erd/src/index.mts';
@@ -479,6 +482,163 @@ describe('不配清单就是空的：本包不随带模板', () => {
       }).exports,
     ).toHaveLength(1);
     expect(() => validateOptions({ options: { exports: [3] } })).toThrow();
+  });
+});
+
+describe('随包发出去的那一份', () => {
+  const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+  const erdPkgDir = fileURLToPath(
+    new URL('../packages/theme-erd/', import.meta.url),
+  );
+
+  const execAsync = promisify(exec);
+
+  /**
+  真的问一次打包器：发出去的清单是什么。不自己复刻一遍 glob 语义 —— 那一版
+  复刻出来的判据与真打包器不同源，漏一条就是白绿。
+  */
+  async function publishedFiles(): Promise<string[]> {
+    // Windows 上 `pnpm` 是 `.cmd`，`execFile` 不拼 `PATHEXT`、spawn 不了它 —— 走 shell。
+    // 参数是写死的常量，命令串里没有别的东西进去。
+    const { stdout } = await execAsync('pnpm pack --dry-run --json', {
+      cwd: erdPkgDir,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    const raw = stdout.trim();
+    const json = raw.startsWith('{') ? raw : raw.slice(raw.indexOf('{'));
+
+    return (JSON.parse(json) as { files: { path: string }[] }).files.map(
+      (file) => file.path,
+    );
+  }
+
+  /**
+  造一个消费方：把「发出去的那一份」原样摆进它的 `node_modules`，
+  再让 TypeScript 真编译一段消费方的代码。
+
+  摆在仓库树内（`.temp/`）：消费方的类型入口要引 `@docusaurus/types`（peer 依赖），
+  从仓库根那份 `node_modules` 上溯才拿得到。
+  */
+  function makeConsumer(
+    files: string[],
+    omit: string[] = [],
+  ): { main: string; cleanup: () => void } {
+    const tempRoot = path.join(repoRoot, '.temp');
+    fs.mkdirSync(tempRoot, { recursive: true });
+    const root = fs.mkdtempSync(path.join(tempRoot, 'erd-consumer-'));
+
+    const installed = path.join(
+      root,
+      'node_modules',
+      '@show-docs',
+      'docusaurus-theme-erd',
+    );
+    for (const file of files) {
+      if (omit.includes(file)) continue;
+      const target = path.join(installed, file);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(path.join(erdPkgDir, file), target);
+    }
+
+    // 那个包**装上了**（它在本包的依赖里），但自家没带类型声明 ——
+    // 消费方那边本该撞「隐式 any」那一条，靠本包替它写的那份声明兜住。
+    fs.symlinkSync(
+      path.join(erdPkgDir, 'node_modules', 'erdiagram'),
+      path.join(root, 'node_modules', 'erdiagram'),
+      'junction',
+    );
+
+    const main = path.join(root, 'main.mts');
+    fs.writeFileSync(
+      main,
+      [
+        "import { ErDiagram } from 'erdiagram';",
+        "import theme from '@show-docs/docusaurus-theme-erd';",
+        '',
+        'const diagram = new ErDiagram({ container: document.body });',
+        'void diagram;',
+        'void theme;',
+        '',
+      ].join('\n'),
+    );
+
+    return {
+      main,
+      cleanup: () => fs.rmSync(root, { recursive: true, force: true }),
+    };
+  }
+
+  /** 让 TypeScript 真编译一遍：交回诊断（只留错误）。 */
+  function compile(main: string): string[] {
+    const program = ts.createProgram([main], {
+      module: ts.ModuleKind.NodeNext,
+      moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      target: ts.ScriptTarget.ES2022,
+      lib: ['lib.es2022.d.ts', 'lib.dom.d.ts'],
+      strict: true,
+      noEmit: true,
+      skipLibCheck: true,
+    });
+
+    return ts
+      .getPreEmitDiagnostics(program)
+      .filter(
+        (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+      )
+      .map((diagnostic) => {
+        const message = ts.flattenDiagnosticMessageText(
+          diagnostic.messageText,
+          ' ',
+        );
+        const where = diagnostic.file
+          ? `${path.basename(diagnostic.file.fileName)}: ${message}`
+          : message;
+        return `TS${diagnostic.code} ${where}`;
+      });
+  }
+
+  it('那份 `erdiagram` 的环境声明随包发出去，且消费方拿到就能用', async () => {
+    const files = await publishedFiles();
+
+    // 一、随包发：那份声明在清单里（`erdiagram` 自家没带类型，本包替它写的那份是唯一的来源）
+    expect(files).toContain('erdiagram.d.ts');
+
+    // 二、类型入口指到的那几份文件都得在清单里：缺一份，消费方那边就是一条「文件找不到」
+    const declaration = fs.readFileSync(
+      path.join(erdPkgDir, 'dist', 'index.d.mts'),
+      'utf8',
+    );
+    const references = declaration
+      .matchAll(/^\/\/\/ <reference path="([^"]+)" \/>$/gm)
+      .map((match) => match[1]!)
+      .toArray();
+    expect(references.length, '类型入口应当指到那份环境声明').toBeGreaterThan(
+      0,
+    );
+    for (const reference of references) {
+      // 指令里的路径相对类型入口所在目录（`dist/`），对回包根才是清单里的那条
+      const shipped = path.posix.normalize(path.posix.join('dist', reference));
+      expect(files, `类型入口引的 ${shipped} 得随包发出去`).toContain(shipped);
+    }
+
+    // 三、真的生效：消费方那段代码编译得过（`import { ErDiagram } from 'erdiagram'` 有类型）
+    const consumer = makeConsumer(files);
+    try {
+      expect(compile(consumer.main)).toEqual([]);
+    } finally {
+      consumer.cleanup();
+    }
+  });
+
+  it('那份声明没发出去：消费方那边就红（这一格证明上面那格不是白绿）', async () => {
+    const files = await publishedFiles();
+    const consumer = makeConsumer(files, ['erdiagram.d.ts']);
+    try {
+      const errors = compile(consumer.main);
+      expect(errors.join('\n')).toContain('erdiagram');
+    } finally {
+      consumer.cleanup();
+    }
   });
 });
 

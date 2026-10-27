@@ -29,8 +29,9 @@ import frontMatterInjectorPlugin, {
   type Repo,
   type RuleContext,
 } from '../packages/plugin-frontmatter-injector/src/index.mts';
+import { matches } from '../packages/plugin-frontmatter-injector/src/rules.mts';
 
-import { mkdtempReal } from './helpers.mts';
+import { canLinkDir, mkdtempReal } from './helpers.mts';
 
 /**
 ## plugin-frontmatter-injector 的四段判据
@@ -275,6 +276,40 @@ describe('applyRules：只补不覆盖', () => {
       ]),
     ).toEqual([]);
     expect(frontMatter.tags).toEqual(['页面']);
+  });
+});
+
+describe('matches：规则的地盘怎么判', () => {
+  it('字符串按后缀比', () => {
+    expect(matches('.md', '/site/a.md')).toBe(true);
+    expect(matches('.md', '/site/a.mdx')).toBe(false);
+  });
+
+  it('带 `g` 标志的正则连着试两份文件：两份都命中（`lastIndex` 不串）', () => {
+    const pattern = /\/docs\//g;
+
+    expect(matches(pattern, '/site/docs/a.md')).toBe(true);
+    // 同一个正则对象再试一次：命中处不变
+    expect(matches(pattern, '/site/docs/b.md')).toBe(true);
+    expect(matches(pattern, '/site/docs/a.md')).toBe(true);
+  });
+
+  it('走 `applyRules` 那条路也一样：带 `g` 标志的规则判两份文件，两份都补上', async () => {
+    const pattern = /\/docs\//g;
+    const first: Record<string, unknown> = {};
+    const second: Record<string, unknown> = {};
+
+    await applyRules(
+      { filePath: '/site/docs/a.md', frontMatter: first, repo: undefined },
+      [rule(pattern, { draft: true })],
+    );
+    await applyRules(
+      { filePath: '/site/docs/b.md', frontMatter: second, repo: undefined },
+      [rule(pattern, { draft: true })],
+    );
+
+    expect(first.draft).toBe(true);
+    expect(second.draft).toBe(true);
   });
 });
 
@@ -619,6 +654,64 @@ describe('git 那一侧（真 git 仓库）', () => {
       created: undefined,
       updated: renamed,
     });
+  });
+
+  it.runIf(canLinkDir)(
+    '软链那条路进来的文件也算在仓库里（仓库根与文件路径同一种写法）',
+    () => {
+      const { root, commit } = gitRepo('frontmatter-link-');
+
+      fs.writeFileSync(path.join(root, 'a.md'), 'a\n');
+      commit('初始', now - 60);
+
+      // 仓库根之外的一条链接指向仓库根：站点从链接那条路进来时，两边不在同一种写法上
+      const link = path.join(path.dirname(root), `${path.basename(root)}-link`);
+      fs.symlinkSync(root, link, 'junction');
+
+      const repo = openRepo(root);
+
+      expect(repoPath(repo, path.join(link, 'a.md'))).toBe('a.md');
+      expect(
+        tagsOf({
+          filePath: path.join(link, 'a.md'),
+          frontMatter: {},
+          repo,
+        }),
+      ).toEqual([NEW_TAG, UPDATE_TAG]);
+    },
+  );
+
+  it('目录压根不存在（生成出来的文件）：往上找到第一个存在的祖先，剩下的段按原序接回去', () => {
+    const { root, repo } = makeRepo();
+
+    // 三段都不存在：倒序那一段必须只倒一次 —— 倒着攒、边倒边攒会把段的次序搅乱
+    const generated = path.join(root, 'out', 'a', 'b', 'new.md');
+
+    expect(repoPath(repo, generated)).toBe('out/a/b/new.md');
+  });
+
+  it('最后一次提交很久以前：几十天前改过的文件不算「最近」（按此刻算，不按 HEAD 算）', () => {
+    const { root, commit } = gitRepo('frontmatter-stale-');
+    const stale = now - 100 * DAY;
+
+    fs.writeFileSync(path.join(root, 'stale.md'), 'v1\n');
+    commit('老提交', stale);
+
+    // 再补五次提交，把 `stale.md` 挤出「最后 5 个 commit」；每次另起一个文件
+    for (let index = 0; index < 5; index += 1) {
+      fs.writeFileSync(path.join(root, `filler-${index}.md`), `${index}\n`);
+      commit(`填充 ${index}`, stale);
+    }
+
+    const repo = openRepo(root);
+
+    // 这份文件既不在 7 天窗口里，也不在最后 5 个 commit 里
+    expect(repo.recent.has('stale.md')).toBe(false);
+    expect(repo.head).toBe(stale);
+    // HEAD 与这次提交同时刻：以 HEAD 当基准时差是 0 天，会误判成「最近」
+    expect(
+      tagsOf({ filePath: path.join(root, 'stale.md'), frontMatter: {}, repo }),
+    ).toEqual([]);
   });
 
   it('空仓库（`git init` 还没有首个提交）：按「没有历史」处理，不阻断构建', () => {

@@ -94,7 +94,7 @@ describe('CopyButton：页脚那一格右侧的按钮', () => {
     );
   });
 
-  it('点一下把解码后的当前页地址写进剪贴板，并给成功提示', async () => {
+  it('点一下把当前页地址原样写进剪贴板，并给成功提示', async () => {
     const writeText = vi.fn<(text: string) => Promise<void>>();
     writeText.mockResolvedValue();
 
@@ -103,11 +103,32 @@ describe('CopyButton：页脚那一格右侧的按钮', () => {
     });
     await flush();
 
-    expect(writeText).toHaveBeenCalledWith(
-      decodeURIComponent(window.location.href),
-    );
+    expect(writeText).toHaveBeenCalledWith(window.location.href);
     expect(mocks.success).toHaveBeenCalledWith('已复制当前页地址');
     expect(mocks.error).not.toHaveBeenCalled();
+  });
+
+  it('地址里带百分号编码时照原样复制：不解码，也不因此报错', async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>();
+    writeText.mockResolvedValue();
+
+    // `%2F` 解码后是 `/`，地址就变了；末尾一个裸 `%` 解码时还会抛 `URIError`
+    window.history.replaceState({}, '', '/a%2Fb?q=100%');
+
+    try {
+      withClipboard({ writeText } as unknown as Clipboard, () => {
+        renderButton().click();
+      });
+      await flush();
+
+      expect(writeText).toHaveBeenCalledWith(window.location.href);
+      expect(window.location.href).toContain('%2F');
+      expect(window.location.href).toContain('100%');
+      expect(mocks.success).toHaveBeenCalledWith('已复制当前页地址');
+      expect(mocks.error).not.toHaveBeenCalled();
+    } finally {
+      window.history.replaceState({}, '', '/');
+    }
   });
 
   it('没有剪贴板（http 打开的站点）时直接报失败，不去碰它', async () => {
