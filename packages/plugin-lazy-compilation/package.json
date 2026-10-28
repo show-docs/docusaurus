@@ -16,8 +16,8 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "peerDependencies": {
-    "@docusaurus/core": "^3.9.2",
-    "@docusaurus/types": "^3.9.2"
+    "@docusaurus/core": "catalog:",
+    "@docusaurus/types": "catalog:"
   },
   "engines": {
     "node": "^24.0.0"

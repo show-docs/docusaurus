@@ -5,6 +5,17 @@ packages:
 configDependencies:
   pnpm-plugin-nice-move: latest
 
+# 重复依赖集中到 catalog：同一份版本只写一次，
+# 各工作区包的 dependencies / peerDependencies 用 `catalog:` 引用，便于统一升降级。
+catalog:
+  '@docusaurus/core': '^3.9.2'
+  '@docusaurus/theme-common': '^3.9.2'
+  '@docusaurus/types': '^3.9.2'
+  '@show-docs/docusaurus-plugin-prev-layer-resolver': 'workspace:^'
+  '@show-docs/docusaurus-theme-iframe': 'workspace:^'
+  react: '~18.3.1'
+  webpack: '^5.112.2'
+
 # `@stoplight/mosaic` 把 `@types/react: ^17` 写成**依赖**（不是 peer），于是同一张图里能同时存在
 # 17 与 18 两份 `@types/react`。Docusaurus 那一串包按 peer 分组存放，peer 里就有这一格，
 # 两份 `@types/react` 因此把 `@docusaurus/plugin-content-docs` 与 `@docusaurus/theme-common` 各裂成

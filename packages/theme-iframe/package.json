@@ -33,9 +33,9 @@
     "prepublishOnly": "pnpm run build"
   },
   "peerDependencies": {
-    "@docusaurus/types": "^3.9.2",
-    "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
-    "react": "~18.3.1"
+    "@docusaurus/types": "catalog:",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "catalog:",
+    "react": "catalog:"
   },
   "peerDependenciesMeta": {
     "@docusaurus/types": {

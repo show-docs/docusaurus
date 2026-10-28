@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "name": "@show-docs/docusaurus-theme-avatar",
+  "version": "0.0.0",
+  "main": "index.mjs",
+  "exports": {
+    "default": "./index.mjs"
+  },
+  "type": "module",
+  "dependencies": {
+    "ahooks": "^3.10.0"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  }
+}

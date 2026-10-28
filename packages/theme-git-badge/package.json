@@ -35,11 +35,11 @@
     "@docusaurus/utils": "^3.9.2"
   },
   "peerDependencies": {
-    "@docusaurus/core": "^3.9.2",
-    "@docusaurus/types": "^3.9.2",
-    "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
-    "@show-docs/docusaurus-theme-iframe": "workspace:^",
-    "react": "~18.3.1"
+    "@docusaurus/core": "catalog:",
+    "@docusaurus/types": "catalog:",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "catalog:",
+    "@show-docs/docusaurus-theme-iframe": "catalog:",
+    "react": "catalog:"
   },
   "peerDependenciesMeta": {
     "@docusaurus/types": {
