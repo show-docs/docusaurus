@@ -79,6 +79,7 @@ function InternalFrame({
     route: entry.route,
     specParam: entry.specParam,
     specUrl,
+    trailingSlash: siteConfig.trailingSlash,
   });
 
   useOuterFrameSync({

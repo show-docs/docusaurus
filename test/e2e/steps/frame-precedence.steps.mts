@@ -35,7 +35,7 @@ Then('这一页只摆一个框，而且是 scalar 那一个', async ({ page }) =
   ).toHaveCount(1);
   await expect(page.locator('iframe.scalar-frame')).toHaveAttribute(
     'src',
-    '/scalar-view?src=%2Fopenapi-scalar.yaml',
+    '/scalar-view/?src=%2Fopenapi-scalar.yaml',
   );
 });
 
@@ -50,6 +50,6 @@ Then('这一页只摆一个框，而且是 redoc 那一个', async ({ page }) =>
   ).toHaveCount(1);
   await expect(page.locator('iframe.redoc-frame')).toHaveAttribute(
     'src',
-    '/redoc-view?src=%2Fopenapi-redoc.yaml',
+    '/redoc-view/?src=%2Fopenapi-redoc.yaml',
   );
 });

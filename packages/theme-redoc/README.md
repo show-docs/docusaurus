@@ -58,7 +58,7 @@ URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保�
 
 ## 渲染方式
 
-- 文档页只输出 `<iframe class="api-frame redoc-frame" src="/redoc-view?src=...">`。Redoc 的脚本和
+- 文档页只输出 `<iframe class="api-frame redoc-frame" src="/redoc-view/?src=...">`。Redoc 的脚本和
   样式只在框内页面加载，外层页面没有 Redoc 运行时。
 - 框内页面同样只做客户端渲染；`build/theme-redoc/docs/redoc-demo/index.html` 里只有 iframe 标签，渲染结果要看
   浏览器。
@@ -72,7 +72,7 @@ URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保�
   `operationId`（如 `#/orders/createorder`）。
 - AsyncAPI 3 那一版的 hash 是按通道走的：`#/channels/<通道 id>`，进到某条操作再往下一段
   `#/channels/<通道 id>/operations/<操作 id>`。
-- `/redoc-view?src=…` 可以直接打开，但它是框内页面本身，不带外层 hash，不应作为分享地址。
+- `/redoc-view/?src=…` 可以直接打开，但它是框内页面本身，不带外层 hash，不应作为分享地址。
 - 产物中每条接口没有独立的 HTML。
 
 ## 已知限制

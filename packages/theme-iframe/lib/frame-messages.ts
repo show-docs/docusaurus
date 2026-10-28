@@ -95,15 +95,24 @@ export function createFrameMessages(namespace: string): FrameMessages {
 `specUrl` 编码进去，`hash` **不**放进去：iframe 的 `src` 因此只跟 frontmatter 走，服务端与
 客户端算出的完全一样，两边不会在 `src` 这一格上对不上。深链那一段与亮暗模式都靠消息送，
 见 {@link createFrameMessages}。
+
+`trailingSlash` 原样接 `siteConfig.trailingSlash`，决定路径末尾那条斜杠：`false` 时产物是
+`{route}.html`，地址保持无斜杠；其余情况（`true` 或没配）产物是 `{route}/index.html`，地址
+**补上**尾斜杠 —— 直接请求文件本身，不经过静态服务器那条「补斜杠」的 301。这一条不是洁癖：
+那 301 由部署侧生成，协议跟着部署侧走，反向代理后面常写成 `http://`，https 页面上这一跳
+会被浏览器按混合内容拦掉，框直接空白（实测 `open.test.xinxiangsui.com.cn` 上就是这样）。
 */
 export function frameViewSrc(options: {
   baseUrl: string;
   route: string;
   specParam: string;
   specUrl: string;
+  trailingSlash: boolean | undefined;
 }): string {
   const query = new URLSearchParams({ [options.specParam]: options.specUrl });
-  return `${options.baseUrl}${options.route}?${query}`;
+  const path =
+    options.trailingSlash === false ? options.route : `${options.route}/`;
+  return `${options.baseUrl}${path}?${query}`;
 }
 
 /**
@@ -140,7 +149,7 @@ function upgradedAbsolute(value: string, page: URL): string {
 从框内那一页的地址里取出要渲染的 spec 地址。
 
 只认能解析成 `http:` / `https:` 的：这一格来自地址栏，任何人都能手工拼一条
-`/redoc-view?src=javascript:…` 那样的地址，而渲染器拿到的是「去取这个地址」的指令，
+`/redoc-view/?src=javascript:…` 那样的地址，而渲染器拿到的是「去取这个地址」的指令，
 不该由本层替它把非 URL 的东西喂进去。解析结果恒为绝对地址，`/openapi.yaml` 这种相对写法
 按 `base`（调用方给 `window.location.origin`）展开。
 

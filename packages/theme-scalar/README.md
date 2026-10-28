@@ -58,7 +58,7 @@ URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保�
 
 ## 渲染方式
 
-- 文档页只输出 `<iframe class="api-frame scalar-frame" src="/scalar-view?src=...">`。Scalar 的
+- 文档页只输出 `<iframe class="api-frame scalar-frame" src="/scalar-view/?src=...">`。Scalar 的
   脚本只在框内页面加载，外层页面没有 Scalar 运行时。
 - 框内页面只做客户端渲染，静态 HTML 里没有渲染结果。
 - 亮暗模式跟随站点开关；直接打开 `/scalar-view` 时使用页面加载时的模式，之后不再跟随站点。
@@ -71,7 +71,7 @@ URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保�
   前导斜杠。
 - AsyncAPI 3 那一版的 hash 是按通道走的：`#channel/<通道 id>`，进到某条操作再往下一段
   `#channel/<通道 id>/operation/<操作 id>`（同样没有前导斜杠）。
-- `/scalar-view?src=…` 可以直接打开，但它是框内页面本身，不带外层 hash，不应作为分享地址。
+- `/scalar-view/?src=…` 可以直接打开，但它是框内页面本身，不带外层 hash，不应作为分享地址。
 - 产物中每条接口没有独立的 HTML。
 
 ## 已知限制

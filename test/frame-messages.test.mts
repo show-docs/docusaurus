@@ -93,9 +93,37 @@ describe('frameViewSrc / specUrlFromSearch：框内地址的拼与拆', () => {
       route: 'scalar-view',
       specParam: 'src',
       specUrl: '/openapi.yaml',
+      trailingSlash: undefined,
     });
-    expect(src).toBe('/scalar-view?src=%2Fopenapi.yaml');
+    expect(src).toBe('/scalar-view/?src=%2Fopenapi.yaml');
     expect(src).not.toContain('#');
+  });
+
+  it('没配 trailingSlash 与配 true 都走目录形式，配 false 才不补那条斜杠', () => {
+    const build = (trailingSlash: boolean | undefined): string =>
+      frameViewSrc({
+        baseUrl: '/',
+        route: 'redoc-view',
+        specParam: 'src',
+        specUrl: '/openapi.yaml',
+        trailingSlash,
+      });
+    // 目录形式的产物是 `{route}/index.html`：带上尾斜杠直接落到文件上，
+    // 不经过静态服务器那条补斜杠的 301（它的 Location 可能是 http://）
+    expect(build(undefined)).toBe('/redoc-view/?src=%2Fopenapi.yaml');
+    expect(build(true)).toBe('/redoc-view/?src=%2Fopenapi.yaml');
+    // 产物是 `{route}.html`，地址保持无斜杠
+    expect(build(false)).toBe('/redoc-view?src=%2Fopenapi.yaml');
+    // baseUrl 不是 `/` 时斜杠只落在路由末尾，不重复
+    expect(
+      frameViewSrc({
+        baseUrl: '/docs/',
+        route: 'redoc-view',
+        specParam: 'src',
+        specUrl: '/openapi.yaml',
+        trailingSlash: undefined,
+      }),
+    ).toBe('/docs/redoc-view/?src=%2Fopenapi.yaml');
   });
 
   it('拼出去的值能原样拆回来', () => {
@@ -104,6 +132,7 @@ describe('frameViewSrc / specUrlFromSearch：框内地址的拼与拆', () => {
       route: 'redoc-view',
       specParam: 'src',
       specUrl: '/openapi.yaml',
+      trailingSlash: undefined,
     });
     const query = src.slice(src.indexOf('?'));
     expect(specUrlFromSearch(query, 'https://example.com', 'src')).toBe(

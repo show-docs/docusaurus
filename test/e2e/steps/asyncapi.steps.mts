@@ -111,7 +111,7 @@ Then(
     await expect(frame, '命中页没有那一个 iframe').toHaveCount(1);
     await expect(frame).toHaveAttribute(
       'src',
-      `${asyncApiLayers.redoc.route}?src=${encodeURIComponent(asyncApiLayers.redoc.spec)}`,
+      `${asyncApiLayers.redoc.route}/?src=${encodeURIComponent(asyncApiLayers.redoc.spec)}`,
     );
   },
 );
@@ -123,7 +123,7 @@ Then(
     await expect(frame, '命中页没有那一个 iframe').toHaveCount(1);
     await expect(frame).toHaveAttribute(
       'src',
-      `${asyncApiLayers.scalar.route}?src=${encodeURIComponent(asyncApiLayers.scalar.spec)}`,
+      `${asyncApiLayers.scalar.route}/?src=${encodeURIComponent(asyncApiLayers.scalar.spec)}`,
     );
   },
 );

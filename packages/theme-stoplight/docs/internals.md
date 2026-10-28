@@ -28,7 +28,7 @@
 
 ## 两份文档各放什么
 
-|                   | 外层：站点的文档页（`/theme-stoplight/docs/stoplight-demo`）                                    | 框内：本包那条页面（`/stoplight-view?src=…`）         |
+|                   | 外层：站点的文档页（`/theme-stoplight/docs/stoplight-demo`）                                    | 框内：本包那条页面（`/stoplight-view/?src=…`）        |
 | ----------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | 本层放的东西      | 一个 `<iframe class="api-frame stoplight-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `StoplightUI`，即 `.stoplight-root` 那一格            |
 | Elements 的运行时 | 不加载，一行都没有                                                                              | 全在这里                                              |
@@ -286,7 +286,7 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 已实测到的（都在 `test/e2e/features/stoplight.feature` 那四条用例里）：
 
 - 外层：`build/theme-stoplight/docs/stoplight-demo/index.html` 里是
-  `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi-stoplight.yaml">`；这一页没有
+  `<iframe class="api-frame stoplight-frame" src="/stoplight-view/?src=%2Fopenapi-stoplight.yaml">`；这一页没有
   `<article>` 正文外壳、没有 `.stoplight-root`、没有 Elements 那张表的 `<link>`、控制台干净。
 - 框内：左栏三条接口在，点「新建订单」后详情面板换过去，**外层地址栏那一段跟着换**
   （`#/operations/createOrder`）；那张表 2344 条规则在这里生效，`.stoplight-root` 定高占满整屏，

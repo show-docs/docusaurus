@@ -41,7 +41,7 @@ Scalar 那份组件在自己渲染时会往 `<body>` 上写类名（亮暗那两
 
 ### 两份文档各管什么
 
-|                 | 外层：站点的文档页（`/theme-scalar/docs/scalar-demo`）                                       | 框内：本包那条页面（`/scalar-view?src=…`）                                     |
+|                 | 外层：站点的文档页（`/theme-scalar/docs/scalar-demo`）                                       | 框内：本包那条页面（`/scalar-view/?src=…`）                                    |
 | --------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | 本层放的东西    | 一个 `<iframe class="api-frame scalar-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference`   |
 | Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）                                                     | 全在这里（实测那一份文档里 `.scalar-app` 3 格，布局根只有 1 格）               |
@@ -64,7 +64,7 @@ theme-iframe 的注册表里，组件是 `@theme/ScalarPage`（走层栈解析�
 
 框里那一页是站点自己的一条路由，和外层同一个源，`src` 由本包自己拼，本来不存在跨源信任问题。
 每条消息还是要过 origin 与来源窗口那两格（共享层的 `isTrustedMessage`）：防的是「别人往这一页
-postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?src=…` 是条公开地址，任何人都能手工
+postMessage」时不被当成自家消息，而不是防自己。`/scalar-view/?src=…` 是条公开地址，任何人都能手工
 拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`，
 页面是 https 时 `http:` 会先升成 https），拿不到就整格什么都不渲染。
 
@@ -411,7 +411,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
 已实测到的（都在 `test/e2e/features/scalar.feature` 那四条用例里）：
 
 - 外层：`build/theme-scalar/docs/scalar-demo/index.html` 里是 `<iframe class="api-frame scalar-frame"
-src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` 正文外壳、`.scalar-app` 0 个、
+src="/scalar-view/?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` 正文外壳、`.scalar-app` 0 个、
   没有 Scalar 渲染出来的文字，`.container` 的内边距是 0，框的上沿贴着 navbar
   下沿、下沿贴着视口，框宽 1140（1440 视口减掉站点那 300 的文档侧栏，它在这一页照常摆着）。
 - 框内：Scalar 的布局根（`.scalar-app.scalar-api-reference`）在、左栏三个接口 `#tag/orders/GET|POST/orders…` 都在（**默认就是展开的**，

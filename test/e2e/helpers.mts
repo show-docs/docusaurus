@@ -174,9 +174,12 @@ export const layerDemoUrl = (layer: ThemeLayer): string =>
 /** 某一层框内那条独立页面（本包那条插件路由）：`/{层名}-view`，不带参数就是「缺 spec」那一格。 */
 export const layerViewUrl = (layer: ThemeLayer): string => `/${layer}-view`;
 
-/** 命中页那个框的 `src`，也是「带着 spec 独立打开」那一条用的地址：上面那条路由 + 那份 spec。 */
+/**
+命中页那个框的 `src`，也是「带着 spec 独立打开」那一条用的地址：上面那条路由（目录形式，
+带尾斜杠，见 `frameViewSrc`）+ 那份 spec。
+*/
 export const layerFrameSrc = (layer: ThemeLayer): string =>
-  `${layerViewUrl(layer)}?src=${encodeURIComponent(layerSpec(layer))}`;
+  `${layerViewUrl(layer)}/?src=${encodeURIComponent(layerSpec(layer))}`;
 
 /**
 ## 四条视图层：句子里的词与示例页地址

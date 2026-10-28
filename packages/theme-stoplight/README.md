@@ -53,7 +53,7 @@ oas3: /openapi.yaml
 
 ## 渲染方式
 
-- 文档页只输出 `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=...">`。
+- 文档页只输出 `<iframe class="api-frame stoplight-frame" src="/stoplight-view/?src=...">`。
   Elements 的脚本只在框内页面加载，外层页面没有 Elements 运行时。
 - Elements 的静态样式表由框内页面自己挂 `<link>`，不会进入站点全站样式表。
 - 框内页面只做客户端渲染，静态 HTML 里没有渲染结果。
@@ -65,7 +65,7 @@ oas3: /openapi.yaml
   整页加载返回 200。
 - hash 段由框内与框外的消息双向同步；Elements 的格式是 `#/operations/<operationId>`，
   `operationId` 保留原样大小写。
-- `/stoplight-view?src=…` 可以直接打开，但它是框内页面本身，不带外层 hash，不应作为分享地址。
+- `/stoplight-view/?src=…` 可以直接打开，但它是框内页面本身，不带外层 hash，不应作为分享地址。
 - 产物中每条接口没有独立的 HTML。
 
 ## 已知限制

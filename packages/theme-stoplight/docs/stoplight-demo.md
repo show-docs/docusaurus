@@ -19,7 +19,7 @@ oas3: /openapi-stoplight.yaml
   `oas3:` 给的就是这个地址，只给这一页用，
   Redoc 与 Scalar 的示例页各取自己那份，三页不再共用同一份输入。
 - **Elements 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
-  `<iframe class="api-frame stoplight-frame" src="/stoplight-view?src=%2Fopenapi-stoplight.yaml">`，`/stoplight-view`
+  `<iframe class="api-frame stoplight-frame" src="/stoplight-view/?src=%2Fopenapi-stoplight.yaml">`，`/stoplight-view`
   是本包自己注册的一条插件路由，构建产物里真的有一份 `build/stoplight-view/index.html`。框里那份
   文档装的是 Elements 的运行时代码、它自己的路由、它写的 localStorage，站点的文档页都碰不到。
 - **这一层比 Redoc 那层多做一步：那份样式表不进站点的 css**。Redoc 的样式是运行时插进它自己那份
@@ -36,7 +36,7 @@ oas3: /openapi-stoplight.yaml
   换接口走 `history.pushState`，`hashchange` 收不到），整页加载一条深链时反过来由框里向外层要一次
   再写进自己的地址；写外层地址用的是替换，所以框里换一条接口不会在浏览器历史里多出一格。hash 段
   不参与取文件，浏览器请求的还是这一页那份 html，`pnpm serve` 回 **HTTP 200**。要说清两点：每条
-  接口在产物里**没有自己的 html**；`/stoplight-view?src=…` 虽然也能直接打开，但那是「框里那一页
+  接口在产物里**没有自己的 html**；`/stoplight-view/?src=…` 虽然也能直接打开，但那是「框里那一页
   本身」，不是拿来分享的地址。
 - **亮暗模式跟站点那个开关走，不跟操作系统走**：Elements 那套配色自己也有亮暗（判据存在它自己的
   localStorage 存档里），而它用的那条属性和站点的是同一个名字，所以本层只要把站点当前那一格送进

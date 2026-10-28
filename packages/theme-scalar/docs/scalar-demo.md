@@ -19,7 +19,7 @@ oas3: /openapi-scalar.yaml
   `oas3:` 给的就是这个地址，只给这一页用，
   Stoplight 与 Redoc 的示例页各取自己那份，三页不再共用同一份输入。
 - **形状与 `theme-redoc` 一对一**：这一页放的是一个 `<iframe class="api-frame scalar-frame"
-src="/scalar-view?src=%2Fopenapi-scalar.yaml">`，`/scalar-view` 是本包自己注册的一条插件路由，构建产物里
+src="/scalar-view/?src=%2Fopenapi-scalar.yaml">`，`/scalar-view` 是本包自己注册的一条插件路由，构建产物里
   真的有一份 `build/scalar-view/index.html`；跨 iframe 那两格（地址栏里 `#` 那一段、站点的亮暗模式）
   走 `packages/theme-iframe/lib/` 那份共享约定，与上面两条层同一份实现。
 - **差在框内那一页里**：`@scalar/api-reference` 是 Vue 3 的组件，本层用它的非 Vue 宿主入口

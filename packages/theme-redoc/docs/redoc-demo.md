@@ -19,7 +19,7 @@ oas3: /openapi-redoc.yaml
   `oas3:` 给的就是这个地址，只给这一页用，
   Stoplight 与 Scalar 的示例页各取自己那份，三页不再共用同一份输入。
 - **Redoc 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
-  `<iframe class="api-frame redoc-frame" src="/redoc-view?src=%2Fopenapi-redoc.yaml">`，`/redoc-view` 是本包
+  `<iframe class="api-frame redoc-frame" src="/redoc-view/?src=%2Fopenapi-redoc.yaml">`，`/redoc-view` 是本包
   自己注册的一条插件路由，构建产物里真的有一份 `build/redoc-view/index.html`。换过去的原因：
   Redoc 的样式由 styled-components 在运行时插进 `<head>`，构建期那份静态样式表不存在、前缀改写
   圈不住它，而它还会往 `<html>` 上写两千多条 CSS 变量、自己用 localStorage 和自己的路由 —— 这些
@@ -35,7 +35,7 @@ oas3: /openapi-redoc.yaml
   走 `history.pushState`，`hashchange` 收不到），整页加载一条深链时反过来由框里向外层要一次再写进
   自己的地址；写外层地址用的是替换，所以框里换一条接口不会在浏览器历史里多出一格。
   hash 段不参与取文件，浏览器请求的还是这一页那份 html，`pnpm serve` 回 **HTTP 200**。
-  要说清两点：每条接口在产物里**没有自己的 html**；`/redoc-view?src=…` 虽然也能直接打开，
+  要说清两点：每条接口在产物里**没有自己的 html**；`/redoc-view/?src=…` 虽然也能直接打开，
   但那是「框里那一页本身」，不是拿来分享的地址。做法与取舍记在 `packages/theme-redoc/README.md`。
 - **亮暗模式跟站点那个开关走，不跟操作系统走**：Redoc 自带一套按操作系统偏好判定的暗色，本层把
   它的暗色表改挂在 `<html data-redoc-mode="dark">` 上；那个开关写在**外层**文档上、配色在**框内**

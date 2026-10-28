@@ -30,7 +30,7 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 
 ## 两份文档各放什么
 
-|                | 外层：站点的文档页（`/theme-redoc/docs/redoc-demo`）                                        | 框内：本包那条页面（`/redoc-view?src=…`）          |
+|                | 外层：站点的文档页（`/theme-redoc/docs/redoc-demo`）                                        | 框内：本包那条页面（`/redoc-view/?src=…`）         |
 | -------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | 本层放的东西   | 一个 `<iframe class="api-frame redoc-frame">`（由 theme-iframe 的 `ApiFrame` 按注册表渲染） | `RedocUI`，即 `.redoc-root` 那一格                 |
 | Redoc 的运行时 | 不加载，一行都没有                                                                          | 全在这里                                           |
@@ -80,7 +80,7 @@ iframe 的边界是浏览器给的，不是靠枚举规则拼出来的：框里�
 
 框里那一页是站点自己的一条路由，和外层同一个源，`src` 由本包自己拼，本来不存在跨源信任问题。
 每条消息还是要过 origin 与来源窗口那两格（共享层的 `isTrustedMessage`）：防的是「别人往这一页
-postMessage」时不被当成自家消息，而不是防自己。`/redoc-view?src=…` 是条公开地址，任何人都能
+postMessage」时不被当成自家消息，而不是防自己。`/redoc-view/?src=…` 是条公开地址，任何人都能
 手工拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`，
 页面是 https 时 `http:` 会先升成 https），拿不到就整格什么都不渲染。这两格与亮暗、地址那两条
 监听一道住在 [`packages/theme-iframe/lib/`](../../theme-iframe/docs/iframe-protocol.md)，三条层共用同一份。
@@ -341,7 +341,7 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 
 框内 → 外层那一条由 `redoc-ui.tsx` 里那个 `LocationMirror` 站在 `HashRouter` 里面用
 `useLocation()` 报出去（`createRouteReporter()` 造的函数）；「刚挂载那一次不报」的理由见
-iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2Fopenapi-redoc.yaml` 本身也是条能
+iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view/?src=%2Fopenapi-redoc.yaml` 本身也是条能
 直接打开的地址（产物里有那份 html），不带外层那段 hash，也不该有人拿它当分享链接。
 
 ## AsyncAPI 3：换一把 spec 键，同一份渲染路径
@@ -382,7 +382,7 @@ iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view?src=%2
 
 已实测到的（都在 `test/e2e/features/redoc.feature` 那四条用例里）：
 
-- 外层：`build/theme-redoc/docs/redoc-demo/index.html` 里是 `<iframe class="api-frame redoc-frame" src="/redoc-view?src=%2Fopenapi-redoc.yaml">`；
+- 外层：`build/theme-redoc/docs/redoc-demo/index.html` 里是 `<iframe class="api-frame redoc-frame" src="/redoc-view/?src=%2Fopenapi-redoc.yaml">`；
   这一页没有 `<article>` 正文外壳、styled 表 0 张、`.redoc-root` 0 个，`.container` 的内边距是 0，
   框的上沿贴着 navbar 下沿、下沿贴着视口（navbar 60px），站点的 docs 侧栏仍在（框左偏移 300px）。
 - 框内：`.redoc-root` 那一格在、左栏三个接口点开就在导航里、点新建订单时详情换成它**并且外层地址栏

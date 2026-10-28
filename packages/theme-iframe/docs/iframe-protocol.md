@@ -75,6 +75,13 @@
 判定按注册表顺序逐条走，**第一个能出框的层赢**；spec 键里第一把非空地址被送进框里那条路由的
 `src` 参数（`frameViewSrc()` 那一步），框内那页按它取文档。
 
+`frameViewSrc()` 还按 `siteConfig.trailingSlash` 定路径末尾那条斜杠：`false` 时产物是
+`{route}.html`、地址保持无斜杠；其余情况（`true` 或没配）产物是 `{route}/index.html`、地址
+补上尾斜杠。补这一条是为了**不经过**静态服务器那条「补斜杠」的 301 —— 它的 `Location` 由
+部署侧生成，反向代理后面常写成 `http://`，https 页面上这一跳会被浏览器按混合内容拦掉，框
+直接空白（实测 `open.test.xinxiangsui.com.cn` 上就是这样：`/stoplight-view?src=…` 301 到
+`http://…/stoplight-view/?src=…`，框被拦；`/stoplight-view/?src=…` 直接 200）。
+
 两条地址（spec 键那条与 `iframe:` 那条）都有一条协议口径：**https 页面上的 `http:` 地址升成
 https，只升不降**（域名、路径、查询与非默认端口不动）。框内那一页自己就是 https 的，去取一个
 http 的 spec 必被浏览器按混合内容拦掉，不升那一格只能是空的；对方只支持 http 时得换 https 或
@@ -158,7 +165,7 @@ Redoc 认 `asyncapi.startsWith('3.')`）。两把同时写时按注册表顺序�
 不被当成自家消息。
 
 `specUrlFromSearch` 也在这一层：从框内那份文档的地址里取 spec 地址，**只认能解析成 `http:` /
-`https:` 的**。`/redoc-view?src=…` 那种地址是公开的、谁都能手工拼一条，而渲染器拿到的是「去取这个
+`https:` 的**。`/redoc-view/?src=…` 那种地址是公开的、谁都能手工拼一条，而渲染器拿到的是「去取这个
 地址」的指令，本层不替它把非 URL 的东西喂进去。取回来之后还有一步协议归一：页面是 https 时
 `http:` 升成 https（见上面「注册表与分发」里那条口径）。
 
@@ -215,7 +222,7 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
 （`dark-mode` / `light-mode`）写在 `<body>` 上、属性名换不动它，就给自己的回调。理由见各包
 `docs/internals.md` 的「亮暗模式」一节。一个来源，两边不会打架。
 
-代价要记一句：直接打开 `/redoc-view?src=…`、`/stoplight-view?src=…` 或 `/scalar-view?src=…`
+代价要记一句：直接打开 `/redoc-view/?src=…`、`/stoplight-view/?src=…` 或 `/scalar-view/?src=…`
 时没有外层送值，那一份文档的模式格是空的（Scalar 那一层落到挂载那一刻读到的那份内联属性上），
 也就是亮色。那三条地址本来也不该发给别人。
 
