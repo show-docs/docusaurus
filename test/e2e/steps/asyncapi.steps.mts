@@ -7,9 +7,9 @@ import { layerFrame, layerFrameDoc, watchPageErrors } from '../helpers.mts';
 const { Given, When, Then } = createBdd();
 
 /**
-## `oas3:` 那把 spec 键不挑文档类型
+## AsyncAPI 走 `aas3:`、OpenAPI 走 `oas3:`
 
-`oas3:` 给的是**一个地址**，本层不判断它指向的是哪一份文档 —— 判据在渲染器那边（按文档根上
+`aas3:` 给的是**一个地址**，本层不判断它指向的是哪一份文档 —— 判据在渲染器那边（按文档根上
 那个 `openapi` / `asyncapi` 字段分派）。这一份 feature 钉的就是这件事：给一份 **AsyncAPI 3.0.0**
 文档，`theme-redoc` 与 `theme-scalar` 两层照样在框里把它渲染出来。
 

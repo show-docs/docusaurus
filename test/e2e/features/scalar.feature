@@ -1,5 +1,5 @@
-# 命中 frontmatter 的 `scalar: true` 后（渲染哪份文档由 `oas3:` 给），这一层整页换成**一个
-# iframe**：Scalar 跑在本包自己
+# 命中 frontmatter 的 `scalar: true` 后（渲染哪份文档由 spec 键 `oas3:` / `aas3:` 给），
+# 这一层整页换成**一个 iframe**：Scalar 跑在本包自己
 # 那条插件路由（`/scalar-view`）上的一份独立文档里。它的运行时代码（Vue 3）、它那份 335K 的
 # 样式表、它写的 localStorage 与它自己的路由都关在框内，站点的文档页一行都碰不到
 # （口径见包 `docs/internals.md` 的「为什么要换一份文档」一节）。形状与 `theme-redoc` 一对一，

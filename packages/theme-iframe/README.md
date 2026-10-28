@@ -8,8 +8,8 @@ theme-scalar、theme-redoc、theme-stoplight 在框内渲染，本包负责外�
 亮暗同步。
 
 **用哪一层渲染**与**渲染哪份文档**是两件事：前者由那三把布尔键决定（`scalar: true`……），
-后者由一把 spec 键 `oas3:` 决定（三条 API 层读的是同一把）。`oas3:` 与 `iframe:` 无关 ——
-`iframe:` 嵌的是外部页面，地址自带。
+后者由 spec 键决定 —— `oas3:` 摆 OpenAPI、`aas3:` 摆 AsyncAPI 3（三条 API 层读同一组，按顺序
+取第一把非空地址）。两把 spec 键与 `iframe:` 无关：`iframe:` 嵌的是外部页面，地址自带。
 
 ## 安装
 
@@ -68,17 +68,25 @@ oas3: /openapi.yaml
 | `scalar`    | `@show-docs/docusaurus-theme-scalar`    | 写 `true` = 这一层接这一页 |
 | `redoc`     | `@show-docs/docusaurus-theme-redoc`     | 写 `true` = 这一层接这一页 |
 | `stoplight` | `@show-docs/docusaurus-theme-stoplight` | 写 `true` = 这一层接这一页 |
-| `oas3`      | 三条 API 层共用                         | 要渲染的那份 API 文档地址  |
+| `oas3`      | 三条 API 层共用（OpenAPI）              | 要渲染的那份 API 文档地址  |
+| `aas3`      | 三条 API 层共用（AsyncAPI 3）           | 要渲染的那份 API 文档地址  |
 
 `iframe:` 的值原样使用；以 `/` 开头时按当前站点 origin 补成绝对地址。地址栏带
 `?path=<相对路径>` 时，会在该地址之下再解析一层，用来切换外部站点的子页面。
 
-`oas3:` 的值是框内页面要加载的 spec 地址：`static/openapi.yaml` 对应 `/openapi.yaml`，也可以写
-完整 URL（跨域时对方需允许 CORS）。三把布尔键里写了哪一把就用哪一层渲染它；一把都没写、
-只给 `oas3:`，那一格不生效（开发模式会有一条告警）。
+`oas3:` / `aas3:` 的值是框内页面要加载的 spec 地址（OpenAPI 用前者、AsyncAPI 3 用后者）：
+`static/openapi.yaml` 对应 `/openapi.yaml`，也可以写完整 URL（跨域时对方需允许 CORS）。三把
+布尔键里写了哪一把就用哪一层渲染它；一把都没写、只给 spec 地址，那一格不生效（开发模式会有
+一条告警）。两把 spec 键同时写时按注册表顺序用 `oas3:`，另一把被忽略（开发模式有一条告警）。
 
-`oas3:` **不挑文档类型**：OpenAPI 与 AsyncAPI 3 都走这一把键，判据在厂商那边（见各层 README）。
-目前实测过 AsyncAPI 3 的是 `scalar` 与 `redoc` 两层，`stoplight` 那一层没测。
+**协议跟着页面走**：站点是 https 时，`oas3:` / `aas3:` 与 `iframe:` 给的绝对 `http://` 地址会
+升成 `https://`（域名、路径与非默认端口不变，只升不降；相对写法本来就继承页面协议）。http 资源
+在 https 页面上必被浏览器按混合内容拦掉，不升那一格只会是空的。对方只支持 http 的话，
+得把它换到 https，或把那份文件放进本站 `static/` 用相对地址。
+
+两把 spec 键只是「文档地址」的两个出处：`oas3:` 给 OpenAPI、`aas3:` 给 AsyncAPI 3；本层不判断
+文档类型，判据在厂商那边（见各层 README）。目前实测过 AsyncAPI 3 的是 `scalar` 与 `redoc`
+两层，`stoplight` 那一层没测。
 
 ## 配置
 
@@ -109,7 +117,7 @@ oas3: /openapi.yaml
 
 覆盖不会绕过「已安装」这一条：清单里列了但 `plugins` 里没装的层仍然不参与判定。同一页写了多
 把键时，按顺序取第一个命中的已安装层。开发模式下，写了键却没有层接收会在控制台给出告警
-（键的形状不对、没给 `oas3:`、只给了 `oas3:` 没写用哪一层，各给一条）。
+（键的形状不对、没给 spec 地址、只给了 spec 地址没写用哪一层、两把 spec 键同时写，各给一条）。
 
 ## 工作方式
 
@@ -129,8 +137,8 @@ oas3: /openapi.yaml
 - 承载 iframe 的容器会通过 `.container:has(iframe)` 去掉内边距；正文里手写的 iframe 同样命中
   这条样式。
 - 对应插件未安装时，frontmatter 里的键不生效，页面按普通文档渲染。
-- 三条 API 层写了布尔键却没给 `oas3:` 时同样不生效（那一层出不了框）；键写成非布尔值
-  （老写法把地址写进 `scalar:`）也不生效。两种都有开发模式的告警。
+- 三条 API 层写了布尔键却没给 spec 地址（`oas3:` / `aas3:`）时同样不生效（那一层出不了框）；
+  键写成非布尔值（老写法把地址写进 `scalar:`）也不生效。两种都有开发模式的告警。
 
 ## 相关文档
 

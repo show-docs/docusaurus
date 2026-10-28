@@ -3,8 +3,8 @@
 # 的条目顺序上：scalar → redoc → stoplight → iframe）。这一条用例钉的就是这条语义 ——
 # 同一页写多把键时，注册表里排前面的赢，其余键一概轮不到（口径见
 # `packages/theme-iframe/docs/iframe-protocol.md` 的「注册表」一节）。
-# 三条 API 层的键是布尔（`scalar: true`……），spec 地址统一由 `oas3:` 给；`iframe:` 嵌外部
-# 页面，与 `oas3:` 无关。
+# 三条 API 层的键是布尔（`scalar: true`……），spec 地址由两把 spec 键给（`oas3:` 摆 OpenAPI、
+# `aas3:` 摆 AsyncAPI 3）；`iframe:` 嵌外部页面，与这两把无关。
 Feature: theme-iframe 注册表 —— 同页多把键按注册表顺序判
 
   Scenario: 四把键同写的页面，注册表里排第一的 scalar 生效

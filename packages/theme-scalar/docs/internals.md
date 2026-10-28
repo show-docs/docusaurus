@@ -65,8 +65,8 @@ theme-iframe 的注册表里，组件是 `@theme/ScalarPage`（走层栈解析�
 框里那一页是站点自己的一条路由，和外层同一个源，`src` 由本包自己拼，本来不存在跨源信任问题。
 每条消息还是要过 origin 与来源窗口那两格（共享层的 `isTrustedMessage`）：防的是「别人往这一页
 postMessage」时不被当成自家消息，而不是防自己。`/scalar-view?src=…` 是条公开地址，任何人都能手工
-拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`），
-拿不到就整格什么都不渲染。
+拼一条，所以取 spec 那一段只认能解析成 `http:` / `https:` 的（共享层的 `specUrlFromSearch`，
+页面是 https 时 `http:` 会先升成 https），拿不到就整格什么都不渲染。
 
 ## 样式：那份表只在框内那一页
 
@@ -440,12 +440,13 @@ src="/scalar-view?src=%2Fopenapi-scalar.yaml">`；这一页没有 `<article>` �
   主页那份 html 不引它；样式表那份也在构建期摘成独立产物（277,962 字节），只在框内那份文档里被
   `<link>`，见「样式」。
 
-## AsyncAPI 3：同一把 spec 键换一份文档
+## AsyncAPI 3：换一把 spec 键，同一份渲染路径
 
-`oas3:` 那把 spec 键**不挑文档类型** —— 本层拿到的只有一个地址，判据在厂商那边：Scalar 认文档里
-`asyncapi:` 那一格是不是字符串（`isAsyncApiDocument()`），是了就走 AsyncAPI 那一套渲染分支
-（`scalar-asyncapi-*` 那些块）。所以本层**一行代码都不用改**：`oas3:` → 框内 `src` →
-组件那份 `url` → `createApiReference` 的 `url`，这一条路与文档类型无关。
+`aas3:` 与 `oas3:` 是同一组 spec 键（`oas3:` 摆 OpenAPI、`aas3:` 摆 AsyncAPI 3），本层拿到的都
+只是一个地址，判据在厂商那边：Scalar 认文档里 `asyncapi:` 那一格是不是字符串
+（`isAsyncApiDocument()`），是了就走 AsyncAPI 那一套渲染分支（`scalar-asyncapi-*` 那些块）。
+所以本层**一行代码都不用改**：spec 键 → 框内 `src` → 组件那份 `url` → `createApiReference` 的
+`url`，这一条路与文档类型无关。
 
 实测（`static/asyncapi-scalar.yaml` 那份 AsyncAPI 3.0.0 的文档，示例页
 `packages/theme-scalar/docs/scalar-asyncapi-demo.md`，判据在 `test/e2e/features/asyncapi.feature`）：

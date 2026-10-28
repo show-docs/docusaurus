@@ -10,7 +10,8 @@
 排在前面那条赢。
 
 键分两族：**四把匹配键**（`scalar` / `redoc` / `stoplight` / `iframe`；前三个是布尔，
-第四个是地址）与**一把 spec 键**（`oas3:`，三条 API 层读它当渲染源，`iframe:` 不沾边）。
+第四个是地址）与**两把 spec 键**（`oas3:` / `aas3:`，三条 API 层读同一组、按顺序取第一把
+非空地址，`iframe:` 不沾边）。
 */
 
 /** 条目共有的形状；两种 `kind` 差的格见下面两个类型。 */
@@ -21,7 +22,7 @@ type ApiFrameEntryBase = {
   md frontmatter 里那条键，**值的形状按 `kind` 分**：
 
   - `internal`（三条 API 层）：布尔 —— `scalar: true` 只表示「这一层接这一页」，
-    要渲染哪份文档另由 `specFrontmatterKey` 那把键给（`oas3:`）；
+    要渲染哪份文档另由 `specFrontmatterKeys` 那组键给（`oas3:` / `aas3:`）；
   - `external`（`iframe:`）：非空字符串 —— 值就是框要渲染的那个地址。
   */
   frontmatterKey: string;
@@ -47,13 +48,14 @@ export type ApiFrameEntryInternal = ApiFrameEntryBase & {
   /** 框内地址里带 spec 地址的那一条查询参数名。 */
   specParam: string;
   /**
-  md frontmatter 里那条**给 spec 地址**的键（`oas3:`）。三条 API 层读的是同一把 ——
-  「用哪一层渲染」与「渲染哪份文档」是两件事：前者由各自的布尔键（`scalar: true`……）
-  决定，后者由这一把决定。
+  md frontmatter 里**给 spec 地址**的那组键，**按优先级排列**（`oas3:` 在前、`aas3:` 在后）。
+  「用哪一层渲染」与「渲染哪份文档」是两件事：前者由各自的布尔键（`scalar: true`……）决定，
+  后者由这组键里**第一把非空**的决定 —— `oas3:` 摆 OpenAPI，`aas3:` 摆 AsyncAPI 3；两把
+  都写时 `oas3:` 赢（开发模式有告警）。顺序是判定顺序，不按文档类型猜。
 
-  这一格与 `iframe:` 那条毫无关系：那条嵌的是外部页面，地址自带，不读这一把。
+  这一格与 `iframe:` 那条毫无关系：那条嵌的是外部页面，地址自带，不读这组键。
   */
-  specFrontmatterKey: string;
+  specFrontmatterKeys: readonly string[];
 };
 
 /** 框里是**外部站点**（跨源）：没有那条通道，地址算法归用它的层自己管。 */
@@ -72,7 +74,7 @@ const apiFrameEntries: readonly ApiFrameEntry[] = [
     route: 'scalar-view',
     pageComponent: '@theme/ScalarPage',
     specParam: 'src',
-    specFrontmatterKey: 'oas3',
+    specFrontmatterKeys: ['oas3', 'aas3'],
     frameClass: 'scalar-frame',
     title: 'API 文档',
   },
@@ -83,7 +85,7 @@ const apiFrameEntries: readonly ApiFrameEntry[] = [
     route: 'redoc-view',
     pageComponent: '@theme/RedocPage',
     specParam: 'src',
-    specFrontmatterKey: 'oas3',
+    specFrontmatterKeys: ['oas3', 'aas3'],
     frameClass: 'redoc-frame',
     title: 'API 文档',
   },
@@ -94,7 +96,7 @@ const apiFrameEntries: readonly ApiFrameEntry[] = [
     route: 'stoplight-view',
     pageComponent: '@theme/StoplightPage',
     specParam: 'src',
-    specFrontmatterKey: 'oas3',
+    specFrontmatterKeys: ['oas3', 'aas3'],
     frameClass: 'stoplight-frame',
     title: 'API 文档',
   },

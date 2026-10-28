@@ -1,11 +1,12 @@
 # @show-docs/docusaurus-theme-scalar
 
 用 [Scalar](https://github.com/scalar/scalar) 的 `@scalar/api-reference` 渲染 API 文档的
-Docusaurus 主题插件。frontmatter 写 `scalar: true`（渲染哪份文档由 `oas3:` 给）时，该文档页
-整页换成一个 iframe，Scalar 在框内页面 `/scalar-view` 中渲染那份文档。
+Docusaurus 主题插件。frontmatter 写 `scalar: true`（渲染哪份文档由 spec 键 `oas3:` / `aas3:`
+给）时，该文档页整页换成一个 iframe，Scalar 在框内页面 `/scalar-view` 中渲染那份文档。
 
-`oas3:` 给的那份文档可以是 **OpenAPI**，也可以是 **AsyncAPI 3** —— 这一层不挑文档类型，
-厂商自己按文档里那一格（`openapi:` / `asyncapi:`）认。
+`oas3:` 摆 **OpenAPI**、`aas3:` 摆 **AsyncAPI 3** —— 两把都是 spec 键、给的都是地址，这一层
+不判断类型，厂商自己按文档里那一格（`openapi:` / `asyncapi:`）认。两把同时写时 `oas3:` 优先
+（开发模式有一条告警）。
 
 ## 安装
 
@@ -40,14 +41,13 @@ oas3: /openapi.yaml
 ---
 ```
 
-`scalar` 只写布尔 `true`：它说的是「这一层接这一页」。要渲染哪份文档由 `oas3:` 给 ——
-`static/openapi.yaml` 对应 `/openapi.yaml`，也可以写完整 URL（跨域时对方需允许 CORS）。命中后
-整页换成 iframe，不保留文档正文外壳，也不再渲染导图。
+`scalar` 只写布尔 `true`：它说的是「这一层接这一页」。要渲染哪份文档由 spec 键给（OpenAPI 写
+`oas3:`，AsyncAPI 3 写 `aas3:`）—— `static/openapi.yaml` 对应 `/openapi.yaml`，也可以写完整
+URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保留文档正文外壳，也不再渲染导图。
 框内页面只接受 spec 地址这一种入参，不支持传入内联文档。
 
-`oas3:` 不挑文档类型：写 OpenAPI 就是 OpenAPI，写 AsyncAPI 3 就是 AsyncAPI 3（判据在厂商那边
-—— Scalar 认文档里 `asyncapi:` 那一格）。AsyncAPI 3 那一版见
-[AsyncAPI 示例](./docs/scalar-asyncapi-demo.md)。
+两把 spec 键只是「文档地址」的两个出处：判据不在本层，在厂商那边 —— Scalar 认文档里
+`asyncapi:` 那一格。AsyncAPI 3 那一版见 [AsyncAPI 示例](./docs/scalar-asyncapi-demo.md)。
 
 ## 配置
 

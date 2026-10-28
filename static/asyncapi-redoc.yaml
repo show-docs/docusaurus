@@ -5,7 +5,7 @@ info:
   description: >
     这份文档只给 `docs/redoc-asyncapi-demo.md` 那一页用：frontmatter 写
 
-    `oas3: /asyncapi-redoc.yaml`，构建时它从 `static/` 复制到站点根，浏览器端按这个地址取。
+    `aas3: /asyncapi-redoc.yaml`，构建时它从 `static/` 复制到站点根，浏览器端按这个地址取。
 
     Scalar 的示例页用自己那份（`asyncapi-scalar.yaml`），两份不再共用。
 servers:

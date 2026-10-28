@@ -13,7 +13,7 @@ import {
 } from '../../lib/api-frame-entries.ts';
 
 // 命中与否只看 frontmatter 里那几条已注册的键：三条 API 层是布尔键（`scalar: true`……，
-// 渲染哪份文档另由 `oas3:` 给），`iframe:` 那一把是地址。键的形状由注册表给出，
+// 渲染哪份文档另由 spec 键（`oas3:` / `aas3:`）给），`iframe:` 那一把是地址。键的形状由注册表给出，
 // 本层不再逐包声明。
 type MDXContent = ComponentType<Record<string, unknown>> & {
   frontMatter?: Record<string, unknown>;

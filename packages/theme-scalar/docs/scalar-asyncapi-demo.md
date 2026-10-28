@@ -2,11 +2,11 @@
 id: scalar-asyncapi-demo
 sidebar_position: 7
 title: Scalar AsyncAPI 示例
-description: 'frontmatter 写 scalar: true（spec 地址由 oas3: 给），整页换成一个 iframe，框里用 Scalar 渲染那份 AsyncAPI 3 文档。'
+description: 'frontmatter 写 scalar: true（AsyncAPI 地址由 aas3: 给），整页换成一个 iframe，框里用 Scalar 渲染那份 AsyncAPI 3 文档。'
 # 命中 theme-scalar 那一层：整页换成一个 iframe，Scalar 跑在本包自己那条 /scalar-view 页面上。
 # /asyncapi-scalar.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
 scalar: true
-oas3: /asyncapi-scalar.yaml
+aas3: /asyncapi-scalar.yaml
 ---
 
 # Scalar AsyncAPI 示例
@@ -16,11 +16,13 @@ oas3: /asyncapi-scalar.yaml
 这一段是给读仓库源文件的人看的。
 
 - 取的是 `static/asyncapi-scalar.yaml`（构建产物里的 `/asyncapi-scalar.yaml`）：frontmatter 的
-  `oas3:` 给的就是这个地址，只给这一页用。
-- **spec 键不挑文档类型**：`oas3:` 给的既可以是 OpenAPI 3，也可以是 AsyncAPI 3 —— 这一页给的是
-  一份 **AsyncAPI 3.0.0** 文档（根上有 `asyncapi: 3.0.0`）。类型不由本层判断，交给渲染器自己认：
-  `@scalar/api-reference@1.76.0` 按文档里那个 `asyncapi` 字段分派（厂商那份
-  `isAsyncApiDocument()` 就是按这个字段认的，见包 `docs/internals.md` 的「AsyncAPI 3」一节）。
+  `aas3:` 给的就是这个地址，只给这一页用。
+- **AsyncAPI 走 `aas3:`、OpenAPI 走 `oas3:`**：两把都是 spec 键，给的都是一个地址，本层不判断
+  它指向哪一份文档 —— 类型判据在渲染器那边，`@scalar/api-reference@1.76.0` 按文档里那个
+  `asyncapi` 字段分派（厂商那份 `isAsyncApiDocument()` 就是按这个字段认的，见包
+  `docs/internals.md` 的「AsyncAPI 3」一节）。这一页给的就是一份 **AsyncAPI 3.0.0** 文档
+  （根上有 `asyncapi: 3.0.0`）。两把键同时写时 `oas3:` 优先（开发模式有一条告警），所以这一页
+  只写 `aas3:`。
 - **框里那份文档的形状换了**：AsyncAPI 那一套是「通道（channel）/ 操作（operation）/ 消息
   （message）」，不是 OpenAPI 的「路径 / 操作 / 响应」。所以这一页的左栏里是一条通道
   `orders/created` 与它下面那条接收操作，正文里摆的是那条消息的 payload（`id` / `item` /

@@ -96,8 +96,8 @@ const config = {
     // frame-precedence 用例。口径全在 `packages/theme-iframe/docs/iframe-protocol.md`。
     '@show-docs/docusaurus-theme-iframe',
     // 下面三条 API 层各注册自己那条框内页面与渲染器差异，外层套壳与共用约定都在 theme-iframe：
-    // 键分别是 `stoplight` / `redoc` / `scalar`（都写 `true`），渲染哪份文档统一读 `oas3:`，
-    // 口径分别在各包自己的 README。
+    // 键分别是 `stoplight` / `redoc` / `scalar`（都写 `true`），渲染哪份文档读 spec 键
+    // （OpenAPI 写 `oas3:`、AsyncAPI 3 写 `aas3:`），口径分别在各包自己的 README。
     '@show-docs/docusaurus-theme-stoplight',
     '@show-docs/docusaurus-theme-redoc',
     '@show-docs/docusaurus-theme-scalar',

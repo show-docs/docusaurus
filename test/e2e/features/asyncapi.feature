@@ -1,6 +1,7 @@
-# `oas3:` 那把 spec 键给的是一个**地址**，本层不判断它指向哪一份文档 —— 判据在渲染器那边
-# （按文档根上那个 `openapi` / `asyncapi` 字段分派）。这一份 feature 钉的就是这件事：给一份
-# **AsyncAPI 3.0.0** 文档，`theme-redoc` 与 `theme-scalar` 两层照样在框里把它渲染出来。
+# AsyncAPI 走 `aas3:`（OpenAPI 走 `oas3:`）：这一把给的也是一个**地址**，本层不判断它指向哪一份
+# 文档 —— 判据在渲染器那边（按文档根上那个 `openapi` / `asyncapi` 字段分派）。这一份 feature 钉的
+# 就是这件事：给一份 **AsyncAPI 3.0.0** 文档，`theme-redoc` 与 `theme-scalar` 两层照样在框里把它
+# 渲染出来。
 #
 # 形状与 OpenAPI 那一族一样（整页交给一个框，渲染器整个跑在框内那份文档里），但地址与形状
 # 三处都换了：框的 `src` 带的是那份 AsyncAPI 夹具、框里那份文档是通道 / 操作 / 消息、hash 段

@@ -14,7 +14,8 @@
 落空的键进 `warnings`：装机过滤把旧的「照样命中、渲染一个坏框」换成「页面看着正常但键没生效」，
 所以手误不能静默 —— `DocItem` 在开发模式把那份清单交给 `warnFrameDistribution()` 打到控制台，
 构建产物不打。四种落空各给一条：键写了但层没装（或被覆盖排除）、键写了但没给 spec 地址、
-布尔键写成了别的形状、只给了 spec 地址却没写用哪一层渲染。
+布尔键写成了别的形状、只给了 spec 地址却没写用哪一层渲染；两把 spec 键同时写时另给一条，
+说明按注册表顺序只用前一把。
 
 这里只回答顺序与启用；route、类名、参数名那些数据在 `api-frame-registry.ts`，
 键的形状与命中判据（`frameKeyWritten()` / `matchApiFrameEntry()`）也在这一份。
@@ -130,8 +131,8 @@ function findOverrideOrder(
 「写了」= 作者选了哪一层；「命中」= 这一层能不能给这一页出框。
 
 - `internal`（三条 API 层）：键写 `true` 才算「写了这一层」（`scalar: true`）；命中还要
-  另有**一把键**给 spec 地址（`oas3:`）——「用哪一层渲染」与「渲染哪份文档」是两件事。
-- `external`（`iframe:`）：键给一个非空地址，值就是框要渲染的那份页面，它不读 `oas3:`。
+  另有一组键给 spec 地址（`oas3:` / `aas3:`）——「用哪一层渲染」与「渲染哪份文档」是两件事。
+- `external`（`iframe:`）：键给一个非空地址，值就是框要渲染的那份页面，它不读 spec 键。
 
 命中时交回要送进框里的那一格地址，落空交回 `undefined`。
 */
@@ -145,13 +146,30 @@ function externalValue(
   return typeof value === 'string' && value !== '' ? value : undefined;
 }
 
-/** 内层那一格读 spec 地址的那把键（`oas3:`）的值；外层没有这一格。 */
+/** 一条 spec 键被写了：键名与地址一起交回（告警要按键名说「用的是哪一把」）。 */
+type WrittenSpec = { key: string; value: string };
+
+/** 这一页在这条层的 spec 键里写了哪几把（非空字符串），保持注册表给的优先级顺序。 */
+function writtenSpecs(
+  entry: ApiFrameEntryInternal,
+  frontMatter: Record<string, unknown> | undefined,
+): WrittenSpec[] {
+  const specs: WrittenSpec[] = [];
+  for (const key of entry.specFrontmatterKeys) {
+    const value = frontMatter?.[key];
+    if (typeof value === 'string' && value !== '') {
+      specs.push({ key, value });
+    }
+  }
+  return specs;
+}
+
+/** 内层那一格要渲染的 spec 地址：这组键里第一把非空的值；外层没有这一格。 */
 export function frameSpecUrl(
   entry: ApiFrameEntryInternal,
   frontMatter: Record<string, unknown> | undefined,
 ): string | undefined {
-  const value = frontMatter?.[entry.specFrontmatterKey];
-  return typeof value === 'string' && value !== '' ? value : undefined;
+  return writtenSpecs(entry, frontMatter)[0]?.value;
 }
 
 /**
@@ -190,11 +208,16 @@ function internalEntries(): ApiFrameEntryInternal[] {
   );
 }
 
-/** 内层读 spec 地址的那把键（去重后）。 */
+/** 内层那组 spec 键（去重后，保持注册表里的先后）。 */
 function specKeys(): string[] {
   return [
-    ...new Set(internalEntries().map((entry) => entry.specFrontmatterKey)),
+    ...new Set(internalEntries().flatMap((entry) => entry.specFrontmatterKeys)),
   ];
+}
+
+/** 告警里那组 spec 键的写法：`` `oas3:` / `aas3:` ``。 */
+function specKeyLabels(entry: ApiFrameEntryInternal): string {
+  return entry.specFrontmatterKeys.map((key) => `\`${key}:\``).join(' / ');
 }
 
 /** 告警里那把键的写法：内层是布尔键（`scalar: true`），外层是地址键（`iframe:`）。 */
@@ -293,15 +316,20 @@ export function resolveFrameDistribution(
   }
 
   // 作者要的那一层 = 参与判定的层里第一个写了自己那把键的。它若没拿到 spec 地址，
-  // 这一格出不了框（页面看着正常但框没出来），同样给一条说明。
+  // 这一格出不了框（页面看着正常但框没出来），同样给一条说明；两把 spec 键都写时
+  // 只用前一把（顺序是注册表给的），也给一条 —— 通常是手误。
   const intended = entries.find((entry) => frameKeyWritten(entry, frontMatter));
-  if (
-    intended?.kind === 'internal' &&
-    frameSpecUrl(intended, frontMatter) === undefined
-  ) {
-    warnings.push(
-      `${pagePath ?? '这一页'} 写了 \`${intended.frontmatterKey}: true\`，但没有 \`${intended.specFrontmatterKey}:\`（框里要渲染的那份文档地址），这一层不出框。`,
-    );
+  if (intended?.kind === 'internal') {
+    const [spec, ...otherSpecs] = writtenSpecs(intended, frontMatter);
+    if (spec === undefined) {
+      warnings.push(
+        `${pagePath ?? '这一页'} 写了 \`${intended.frontmatterKey}: true\`，但没有 ${specKeyLabels(intended)}（框里要渲染的那份文档地址），这一层不出框。`,
+      );
+    } else if (otherSpecs.length > 0) {
+      warnings.push(
+        `${pagePath ?? '这一页'} 的 spec 键写了不止一把（${specKeyLabels(intended)}），按注册表顺序只用 \`${spec.key}:\` 给的地址，其余被忽略 —— 两把都写通常是手误。`,
+      );
+    }
   }
 
   // 内层那几把键只认布尔：写成别的形状（老写法把 spec 地址直接写进 `scalar:`），
@@ -312,7 +340,7 @@ export function resolveFrameDistribution(
       continue;
     }
     warnings.push(
-      `${pagePath ?? '这一页'} 写了 \`${entry.frontmatterKey}:\`，但这一族的键只认布尔 \`true\`（spec 地址另由 \`${entry.specFrontmatterKey}:\` 给），那一层不参与判定。`,
+      `${pagePath ?? '这一页'} 写了 \`${entry.frontmatterKey}:\`，但这一族的键只认布尔 \`true\`（spec 地址另由 ${specKeyLabels(entry)} 给），那一层不参与判定。`,
     );
   }
 

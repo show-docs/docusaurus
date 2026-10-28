@@ -265,10 +265,10 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
     expect(dist.warnings.join('\n')).toContain('那个插件没装');
   });
 
-  it('键写了却没给 spec 地址：出不了框，给一条说明', () => {
+  it('键写了却没给 spec 地址：出不了框，给一条说明（两把 spec 键都点名）', () => {
     const dist = distributionOf(registryOrder, { scalar: true }, '/docs/a');
     expect(dist.warnings.join('\n')).toContain(
-      '/docs/a 写了 `scalar: true`，但没有 `oas3:`',
+      '/docs/a 写了 `scalar: true`，但没有 `oas3:` / `aas3:`',
     );
     expect(dist.warnings.join('\n')).toContain('这一层不出框');
     // spec 地址给了空串同样算没有
@@ -276,7 +276,45 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
       distributionOf(registryOrder, { scalar: true, oas3: '' }).warnings.join(
         '\n',
       ),
-    ).toContain('但没有 `oas3:`');
+    ).toContain('但没有 `oas3:` / `aas3:`');
+    // 一把空串、另一把有值：有值那把照用，不该有缺 spec 的说明
+    expect(
+      distributionOf(registryOrder, { scalar: true, oas3: '', aas3: '/a.yaml' })
+        .warnings,
+    ).toEqual([]);
+  });
+
+  it('两把 spec 键同时写：按注册表顺序用 `oas3:`，另给一条手误提示', () => {
+    const both = {
+      scalar: true,
+      oas3: '/openapi.yaml',
+      aas3: '/asyncapi.yaml',
+    };
+    const dist = distributionOf(registryOrder, both, '/docs/a');
+    expect(dist.warnings.join('\n')).toContain(
+      '/docs/a 的 spec 键写了不止一把（`oas3:` / `aas3:`），按注册表顺序只用 `oas3:`',
+    );
+    expect(dist.warnings.join('\n')).toContain('两把都写通常是手误');
+    // 拿不到页面地址时用不带地址的说法（`?? '这一页'` 那一格）
+    expect(distributionOf(registryOrder, both).warnings.join('\n')).toContain(
+      '这一页 的 spec 键写了不止一把',
+    );
+    expect(
+      matchApiFrameEntry(apiFrameByNamespace(SCALAR) as ApiFrameEntry, both),
+    ).toBe('/openapi.yaml');
+  });
+
+  it('只写 `aas3:` 一样出框：两把键互不依赖', () => {
+    const asyncOnly = { scalar: true, aas3: '/asyncapi.yaml' };
+    const dist = distributionOf(registryOrder, asyncOnly, '/docs/a');
+    expect(dist.entries.map((entry) => entry.namespace)).toEqual(registryOrder);
+    expect(dist.warnings).toEqual([]);
+    expect(
+      matchApiFrameEntry(
+        apiFrameByNamespace(SCALAR) as ApiFrameEntry,
+        asyncOnly,
+      ),
+    ).toBe('/asyncapi.yaml');
   });
 
   it('布尔键写成了别的形状（老写法把地址写进 `scalar:`）：那一层不参与判定', () => {
@@ -310,6 +348,12 @@ describe('resolveFrameDistribution：判定清单的分发', () => {
         stoplight: true,
       }).warnings,
     ).toEqual([]);
+    // `aas3:` 单独写也同样要配一把布尔键
+    expect(
+      distributionOf(registryOrder, { aas3: '/asyncapi.yaml' }).warnings.join(
+        '\n',
+      ),
+    ).toContain('写了 `aas3:`');
   });
 
   it('覆盖挂在一个认不出是本层的槽位上时不静默：用默认顺序并留下一条说明', () => {
@@ -332,10 +376,14 @@ describe('matchApiFrameEntry：一层在某一页上命不命中', () => {
   const entryOf = (namespace: string) =>
     apiFrameByNamespace(namespace) as ApiFrameEntry;
 
-  it('内层：键写 `true` 且 `oas3` 给了地址才命中，交回 spec 地址', () => {
+  it('内层：键写 `true` 且 spec 键给了地址才命中，交回 spec 地址', () => {
     const scalar = entryOf(SCALAR);
     expect(matchApiFrameEntry(scalar, { scalar: true, oas3: '/x.yaml' })).toBe(
       '/x.yaml',
+    );
+    // `aas3:` 是另一把 spec 键，单独写一样命中
+    expect(matchApiFrameEntry(scalar, { scalar: true, aas3: '/a.yaml' })).toBe(
+      '/a.yaml',
     );
     // 键没写、值不是布尔、spec 缺失 —— 三种都不命中
     expect(matchApiFrameEntry(scalar, { oas3: '/x.yaml' })).toBeUndefined();
@@ -362,9 +410,25 @@ describe('matchApiFrameEntry：一层在某一页上命不命中', () => {
     expect(
       frameSpecUrl(scalar as ApiFrameEntryInternal, { oas3: '/x.yaml' }),
     ).toBe('/x.yaml');
+    expect(
+      frameSpecUrl(scalar as ApiFrameEntryInternal, { aas3: '/async.yaml' }),
+    ).toBe('/async.yaml');
+    // 两把都写时按注册表顺序取 `oas3`
+    expect(
+      frameSpecUrl(scalar as ApiFrameEntryInternal, {
+        oas3: '/x.yaml',
+        aas3: '/async.yaml',
+      }),
+    ).toBe('/x.yaml');
     expect(frameSpecUrl(scalar as ApiFrameEntryInternal, { oas3: '' })).toBe(
       undefined,
     );
+    expect(
+      frameSpecUrl(scalar as ApiFrameEntryInternal, {
+        oas3: '',
+        aas3: '/async.yaml',
+      }),
+    ).toBe('/async.yaml');
     expect(frameSpecUrl(scalar as ApiFrameEntryInternal, {})).toBe(undefined);
   });
 });

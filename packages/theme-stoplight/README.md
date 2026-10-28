@@ -1,8 +1,8 @@
 # @show-docs/docusaurus-theme-stoplight
 
 用 [Stoplight Elements](https://github.com/Stoplight/elements) 渲染 OpenAPI 文档的 Docusaurus
-主题插件。frontmatter 写 `stoplight: true`（渲染哪份文档由 `oas3:` 给）时，该文档页整页换成
-一个 iframe，Elements 在框内页面 `/stoplight-view` 中渲染那份文档。
+主题插件。frontmatter 写 `stoplight: true`（渲染哪份文档由 spec 键 `oas3:` / `aas3:` 给）时，
+该文档页整页换成一个 iframe，Elements 在框内页面 `/stoplight-view` 中渲染那份文档。
 
 ## 安装
 
@@ -37,12 +37,13 @@ oas3: /openapi.yaml
 ---
 ```
 
-`stoplight` 只写布尔 `true`：它说的是「这一层接这一页」。要渲染哪份文档由 `oas3:` 给 ——
-`static/openapi.yaml` 对应 `/openapi.yaml`，也可以写完整 URL（跨域时对方需允许 CORS）。命中后
-整页换成 iframe，不保留文档正文外壳，也不再渲染导图。
+`stoplight` 只写布尔 `true`：它说的是「这一层接这一页」。要渲染哪份文档由 spec 键给（OpenAPI
+写 `oas3:`，AsyncAPI 3 写 `aas3:`）—— `static/openapi.yaml` 对应 `/openapi.yaml`，也可以写
+完整 URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保留文档正文外壳，也不再渲染导图。
 框内页面只接受 spec 地址这一种入参，不支持传入内联文档。
 
-这一层只覆盖 **OpenAPI** —— `oas3:` 给一份 AsyncAPI 3 文档过来，Elements 那边不认，本层没测过。
+这一层只覆盖 **OpenAPI** —— `oas3:`（或 `aas3:`）给一份 AsyncAPI 3 文档过来，Elements 那边
+不认，本层没测过。
 
 ## 配置
 
