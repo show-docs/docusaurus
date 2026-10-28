@@ -174,6 +174,10 @@ const config = {
   future: {
     faster: {
       lightningCssMinimizer: true,
+      swcHtmlMinimizer: true,
+      swcJsMinimizer: true,
+      mdxCrossCompilerCache: true,
+      swcJsLoader: true,
     },
   },
 
