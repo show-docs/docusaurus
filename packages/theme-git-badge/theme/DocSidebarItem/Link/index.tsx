@@ -2,15 +2,15 @@ import PrevDocSidebarItemLink from '@theme-prev/DocSidebarItem/Link';
 
 import type { ReactNode } from 'react';
 
-import { badgeOf, labelWithBadge } from '../../../components/sidebar-badge.tsx';
+import { badgeOf, labelWithBadge } from '../../../components/git-badge.tsx';
 
 /**
-站点层 swizzle：侧边栏里文档条目那一行，末尾挂一个「新建 / 更新」的徽标。
+主题层：侧边栏里文档条目那一行，末尾挂一个「新建 / 更新」的徽标。
 
 徽标走官方那条 `sidebar_custom_props` 通道：文档插件把那一页 frontmatter 里的
 `sidebar_custom_props` 抄到侧边栏项的 `customProps` 上（见
-`node_modules/@docusaurus/plugin-content-docs/lib/props.js`）。种类是站点配置算出来的，
-认种类与画点子的形状在 `src/components/sidebar-badge.tsx`。
+`node_modules/@docusaurus/plugin-content-docs/lib/props.js`）。种类是本包在构建期算出来的，
+认种类与画点子的形状在 `components/git-badge.tsx`。
 
 **为什么换的是 `label` 而不是另插一个元素**：官方那份把整个 `<li>` / `<a>` 当自己的根渲染，
 从外面插不进 `<a>` 里面；而 `label` 是渲染进一个 `<span>` 的，React 节点渲染得进去。

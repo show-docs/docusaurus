@@ -1,10 +1,10 @@
 # 「新建 / 更新」那两枚徽标画在侧边栏的文档条目上。
 #
-# 载体是官方那条 `sidebar_custom_props` 通道：站点配置把这一页是新建还是更新过的写进
-# frontmatter，官方把它抄到侧边栏项的 `customProps` 上，站点层那一格把标签文字换成
-# 「带徽标的样子」（形状见 `src/components/sidebar-badge.tsx`）。
+# 载体是官方那条 `sidebar_custom_props` 通道：`packages/theme-git-badge` 把这一页是新建还是
+# 更新过的写进 frontmatter，官方把它抄到侧边栏项的 `customProps` 上，那一层把标签文字换成
+# 「带徽标的样子」（形状见 `packages/theme-git-badge/components/git-badge.tsx`）。
 #
-# 判据是 **git**（站点自己判，不读标签）。git 判出来的那两个随提交变、CI 的 checkout 又是新的，
+# 判据是 **git**（包自己判，不读标签）。git 判出来的那两个随提交变、CI 的 checkout 又是新的，
 # 所以两枚锚点都由**页面自己写**那把键 `git_badge`：差异视图示例页写 `git_badge: update`，
 # 关系图示例页写 `git_badge: new`。那把键不是标签 —— 正文里不会因此多出芯片。
 #

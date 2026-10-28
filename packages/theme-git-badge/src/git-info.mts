@@ -20,10 +20,15 @@ function git(args: string[], cwd: string): string {
 export const RECENT_COMMITS = 5;
 
 /**
- 「最近」的第一个口径：7 天内。交给 `git log --since`，**不带 `--max-count`** ——
- 带上它就成了「最后 5 个提交里还落在窗内的」，两条口径会被悄悄并成一条。
+「最近」的第一个口径：7 天内。交给 `git log --since`，**不带 `--max-count`** ——
+带上它就成了「最后 5 个提交里还落在窗内的」，两条口径会被悄悄并成一条。
 */
 export const RECENT_WINDOW = '7 days ago';
+
+/** 「最近」的第一个口径的天数：7 天（按此刻的墙上时钟算，见 {@link isRecent}） */
+export const RECENT_DAYS = 7;
+
+const DAY = 86_400;
 
 const POSIX = (path: string) => path.replaceAll('\\', '/');
 
@@ -51,9 +56,9 @@ export interface Repo {
 export const noTimes: GitTimes = { created: undefined, updated: undefined };
 
 /**
- 仓库根：从 `cwd` 往上找，并解析软链。`/tmp` 在 macOS 上是 `/private/tmp` 的软链，
- Docusaurus 给的路径与 `git rev-parse` 给的那一条，得先站在同一套写法上才比得了。
- 不在仓库里就 `undefined` —— 那时注入整块静默关掉。
+仓库根：从 `cwd` 往上找，并解析软链。`/tmp` 在 macOS 上是 `/private/tmp` 的软链，
+Docusaurus 给的路径与 `git rev-parse` 给的那一条，得先站在同一套写法上才比得了。
+不在仓库里就 `undefined` —— 那时徽标整块静默关掉。
 */
 export function findRepoRoot(cwd: string): string | undefined {
   // git 退出 128（不在仓库里、仓库坏了）与「git 不在 PATH」是同一件事：这条构建没有 git
@@ -87,15 +92,15 @@ function splitCommits(log: string): { time: number; files: string[] }[] {
 }
 
 /**
- 初始化阶段一起读掉的那一下：HEAD 的时刻 + 最近动过的那些文件。
+初始化阶段一起读掉的那一下：HEAD 的时刻 + 最近动过的那些文件。
 
- 两次 `git log`，两条口径各一次：
+两次 `git log`，两条口径各一次：
 
- - `--max-count` 那条：全仓最后 {@link RECENT_COMMITS} 个提交，与时间无关；
- - `--since` 那条：窗口内的全部提交（**不能**同时带 `--max-count`，见常量注释）。
+- `--max-count` 那条：全仓最后 {@link RECENT_COMMITS} 个提交，与时间无关；
+- `--since` 那条：窗口内的全部提交（**不能**同时带 `--max-count`，见常量注释）。
 
- 两次都不带路径 —— 这就是「一次读所有 docs 的 git 情况」：路径只在后面逐份文件时才出现，
- 而答案大多也在这里就齐了（窗口内的文件、最后五个提交动过的文件）。
+两次都不带路径 —— 这就是「一次读所有 docs 的 git 情况」：路径只在后面逐份文件时才出现，
+而答案大多也在这里就齐了（窗口内的文件、最后五个提交动过的文件）。
 */
 export function openRepo(root: string): Repo {
   const at = (extra: string[]) =>
@@ -116,15 +121,15 @@ export function openRepo(root: string): Repo {
 /**
 把这条路径的**目录**那一段解析掉软链，文件名那一截原样留着。
 
- 两边要比的是同一件事：仓库根是解析过的（见 {@link findRepoRoot}），传进来的文件路径若
- 还带着软链，两边就不在同一种写法上 —— `relative` 算出来的差会带着 `..`，每份文件都被
- 判成「不在这个仓库里」，标签一个都补不上。
+两边要比的是同一件事：仓库根是解析过的（见 {@link findRepoRoot}），传进来的文件路径若
+还带着软链，两边就不在同一种写法上 —— `relative` 算出来的差会带着 `..`，每份文件都被
+判成「不在这个仓库里」，那一刻就都读不出来。
 
- 只解析目录：文件自己可能是个软链，而 git 记下的是**那个软链**（它的路径），不是软链
- 指向的地方 —— 把最后一截也解析掉，路径反而与 git 记的不一样了。
+只解析目录：文件自己可能是个软链，而 git 记下的是**那个软链**（它的路径），不是软链
+指向的地方 —— 把最后一截也解析掉，路径反而与 git 记的不一样了。
 
- 目录可能压根不存在（生成出来的文件）：那就找出最深的那一层存在的祖先目录，解析它，再把
- 底下那几段按原序接回去。
+目录可能压根不存在（生成出来的文件）：那就找出最深的那一层存在的祖先目录，解析它，再把
+底下那几段按原序接回去。
 */
 function realpathOfDir(filePath: string): string {
   const absolute = resolve(filePath);
@@ -162,12 +167,12 @@ export function repoPath(repo: Repo, filePath: string): string | undefined {
 }
 
 /**
- 一份文件的两个时刻，**一次 `git log` 拿到**。
+一份文件的两个时刻，**一次 `git log` 拿到**。
 
- `%ct` 一行一个提交（`git log` 默认倒序），所以行数就是「提交过几次」，第一行就是最近那次。
- 不数 `--name-only` 的文件名行：重命名那一步会同时吐新旧两个名字，而 `--follow` 更早的提交
- 里只有旧名 —— 按名字过滤计数会把历史数少，把重命名过的文件误判成「只提交过一次」。
- 只提交过一次，那一次既是「创建」也是「更新」；两次以上就只有「更新」。
+`%ct` 一行一个提交（`git log` 默认倒序），所以行数就是「提交过几次」，第一行就是最近那次。
+不数 `--name-only` 的文件名行：重命名那一步会同时吐新旧两个名字，而 `--follow` 更早的提交
+里只有旧名 —— 按名字过滤计数会把历史数少，把重命名过的文件误判成「只提交过一次」。
+只提交过一次，那一次既是「创建」也是「更新」；两次以上就只有「更新」。
 */
 function readTimes(repo: Repo, path: string): GitTimes {
   const commits = git(
@@ -188,8 +193,46 @@ function readTimes(repo: Repo, path: string): GitTimes {
 }
 
 /**
- 逐文件的两个时刻，读过一次就记住（`index` 回读时会拿着同一批路径再来问一遍）。
- 不在仓库里的文件（生成出来的、或压根不在 git 管辖下）当它没有历史。
+这份文件算不算「最近」：上次提交落在 {@link RECENT_DAYS} 天内，或那份文件在最后
+{@link RECENT_COMMITS} 个 commit 里出现过。
+
+前一条按**此刻**（墙上时钟）算，不按 HEAD 那次提交的时刻算：仓库最后一次提交可能已经很
+久以前（几个月没提交的那种），拿它当基准会把几十天前改过的文件也算成「最近」。
+后一条由 `openRepo()` 那两次 `git log` 给：`--since` 管前一条、`--max-count` 管后一条。
+*/
+export function isRecent(repo: Repo, path: string, updatedAt: number): boolean {
+  return (
+    repo.recent.has(path) ||
+    Math.floor(Date.now() / 1000) - updatedAt <= RECENT_DAYS * DAY
+  );
+}
+
+/**
+从给定目录（插件拿的是 `context.siteDir`）往上找仓库，把那个仓库读出来。**每个插件实例只读
+一次**：第一次问历史时打开，之后（含 `reloadSite()` 重跑）每个文件都在这份结果里查。
+
+读不到（站点不在 git 里、git 不在 PATH、仓库坏了）就返回 `undefined`，判定那边当「没有历史」
+处理 —— 不阻断构建：一份 README 少挂一枚徽标，不该比构建失败更糟。
+*/
+export function openRepoFrom(cwd: string): Repo | undefined {
+  const root = findRepoRoot(cwd);
+
+  if (root === undefined) {
+    return undefined;
+  }
+
+  try {
+    return openRepo(root);
+  } catch {
+    // 仓库在、但读不动：最常见的是 `git init` 之后还没有第一个提交（`git log` 以 128 退出），
+    // 其次是对象库损坏。两种都按「没有历史」处理 —— 上面那条契约不能只在文档里成立。
+    return undefined;
+  }
+}
+
+/**
+逐文件的两个时刻，读过一次就记住（`index` 回读时会拿着同一批路径再来问一遍）。
+不在仓库里的文件（生成出来的、或压根不在 git 管辖下）当它没有历史。
 */
 export function timesOf(repo: Repo, filePath: string): GitTimes {
   const path = repoPath(repo, filePath);

@@ -3,10 +3,10 @@ import { isAbsolute, relative, resolve } from 'node:path';
 import { createAbsoluteFilePathMatcher, posixPath } from '@docusaurus/utils';
 
 /**
- `@docusaurus/plugin-content-docs` 那份选项里管「扫哪些文件」的两格。
+ `@docusaurus/plugin-content-docs` 那份选项里管「扫哪些文件」的三格。
 
  站点可以把 `docs` 选项写在自己的一个预设里（本仓就是 classic 预设里那一份），插件在手
- 上拿不到 —— 所以这两格由站点转述给本插件（站点配置里点名的那一处）。
+ 上拿不到 —— 所以这三格由站点转述给本包（站点配置里点名的那一处）。
 */
 export interface DocsScope {
   /** 内容根：相对站点根（仓库根那个 `docs` 就是一格点），默认 `docs` */
@@ -20,7 +20,7 @@ export interface DocsScope {
 /** 文档插件的缺省 include，与 `plugin-content-docs` 的 `DEFAULT_OPTIONS.include` 同值 */
 export const DEFAULT_INCLUDE = ['**/*.{md,mdx}'];
 
-/** 本插件不再往哪里注入（`git-new` / `git-update` 也就不会出现在那些文件上） */
+/** 文档插件的地盘：这一份文件在站点里是不是一页 */
 export interface Scope {
   /** 内容根的绝对路径，正斜杠 */
   contentPath: string;
@@ -39,6 +39,14 @@ function normalize(path: string): string {
 */
 export function docsContentPath(from: string, { path = 'docs' }: DocsScope) {
   return normalize(resolve(from, path));
+}
+
+/**
+地盘：`covers` 用的根是内容根的绝对路径。`from` 传站点根（或仓库根，两者只差一层软链），
+与 docs 插件自己算 `contentPath` 的口径一致 —— 都是「站点根 + `docs.path`」。
+*/
+export function scopeOf(from: string, docs: DocsScope = {}): Scope {
+  return createScope(docsContentPath(from, docs), docs);
 }
 
 /**

@@ -1,7 +1,8 @@
 /* 站点自己的样式表：由 `docusaurus.config.mjs` 里 preset-classic 的 `theme.customCss` 点名收进
    站点的样式表管线（这一版 Docusaurus 没有「见到 `src/css/custom.css` 就自动加载」的约定）。
-   眼下这一格里有两样东西：主页那条链最外层的一道边界（里面三层各自带着自己的样式表，
-   见 `tools/README.md`），以及侧边栏那枚「新建 / 更新」徽标。 */
+   眼下这一格里只有一样东西：主页那条链最外层的一道边界（里面三层各自带着自己的样式表，
+   见 `tools/README.md`）。侧边栏那枚「新建 / 更新」徽标的样式归
+   `packages/theme-git-badge/styles/git-badge.css`（由那一层自己交出来）。 */
 
 /* 链的最外层（`src/theme`）：蓝 C、绿 B、红 A 之外的那一道橙色虚线 */
 .layer-site {
@@ -14,26 +15,4 @@
 .layer-site > .mark {
   color: #e8590c;
   font-weight: 700;
-}
-
-/* 侧边栏徽标：一个纯色点，颜色即语义（绿=新建、橙=更新）。形状在
-   `src/components/sidebar-badge.tsx`，那一格只画点子，样式归这里。 */
-.git-badge {
-  display: inline-block;
-  /* 官方把标签文字放在 `display: -webkit-box` 的格子里（`line-clamp: 2`），
-     点子作为那一格的子项靠 `align-self` 居中；`vertical-align` 留给不是那一格的场合。 */
-  align-self: center;
-  vertical-align: middle;
-  margin-left: 6px;
-  border-radius: 50%;
-  width: 8px;
-  height: 8px;
-}
-
-.git-badge--new {
-  background: var(--ifm-color-success);
-}
-
-.git-badge--update {
-  background: var(--ifm-color-warning);
 }

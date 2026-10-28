@@ -5,6 +5,7 @@
   "//theme-lib": "`test/api-frame-entries.test.mts` 引 theme-iframe 免编译的 `lib/` 源码（站点编译的那份，没有自己的产物项目），`test/api-frame-view.test.mts` 还引那里那份 `.tsx` 工厂 —— composite 项目要把被引的文件列进 include。",
   "//theme-src": "各包 `src/` 那几份（入口接线与 loader 判据）被 `test/package-entries.test.mts`、`test/theme-diff.test.mts`、`test/theme-erd.test.mts`、`test/theme-markmap.test.mts` 与 `test/prerequisites.test.mts` 引到 —— composite 项目要把被引的文件列进 include，所以这里收整个 `packages/theme-*/src/`。",
   "//theme-copy-button": "`test/copy-button.test.mts` 引那颗按钮的 `.tsx` 源码（它不进 `tsc`，由站点编译）；同样是 composite 项目要把被引文件列进 include。",
+  "//theme-git-badge": "那一层的 `components/` 与 `theme/` 两份 `.tsx` 是浏览器侧源码（不进 `tsc`，由站点编译）；`test/theme-git-badge.test.mts` 引了 `components/` 那一份，所以要把被引文件列进 include。",
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": true,
@@ -23,6 +24,8 @@
     "packages/theme-iframe/lib/**/*.tsx",
     "packages/theme-*/src/**/*.mts",
     "packages/theme-copy-button/components/**/*.tsx",
+    "packages/theme-git-badge/components/**/*.tsx",
+    "packages/theme-git-badge/theme/**/*.tsx",
     "scripts/**/*.mjs"
   ],
   "exclude": [

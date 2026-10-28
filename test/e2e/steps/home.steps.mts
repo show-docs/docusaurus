@@ -18,7 +18,7 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 /**
 「一格一个包」那一份清单是**扫出来的**，判据与 `sidebars.mts` 同一句：`packages/` 下有
 `README.md` 的那个目录占一顶层格，地址就是 `/<目录名>/`（内容根是 `packages/`，地址不带这一段）。
-手抄那版漏了 `plugin-frontmatter-injector`，少一张卡照样绿 —— 这一格本来就是为「别忘了某个包」
+手抄那版漏了 `theme-git-badge`，少一张卡照样绿 —— 这一格本来就是为「别忘了某个包」
 而存在的。
 */
 const packageHrefs = fs

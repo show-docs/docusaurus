@@ -528,7 +528,7 @@ describe('构建脚本与 CI 护栏', () => {
   // 「按包名加载」就退化成构建时才报的 `Cannot find module`。
   it('分包三件套齐全：package.json 存在、packages 清单收下、包名真的能解析', () => {
     // 目录清单是**扫出来的**，不是手抄的（与 `sidebars.mts` 同一口径）：手抄那版漏过
-    // `packages/plugin-frontmatter-injector` —— 站点正是按包名加载它的，漏了这条用例就正好丢
+    // `packages/theme-git-badge` —— 站点正是按包名加载它的，漏了这条用例就正好丢
     // 掉它要防的那一格（装包时红，而不是拖到 `docusaurus build` 才炸 `Cannot find module`）。
     const subpackages = ['packages', 'tools']
       .flatMap((group) =>

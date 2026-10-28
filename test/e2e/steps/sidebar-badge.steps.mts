@@ -7,8 +7,9 @@ const { Then } = createBdd();
 ## 侧边栏徽标
 
 「新建 / 更新」那两枚徽标画在侧边栏的文档条目末尾：载体是官方那条 `sidebar_custom_props`
-通道（站点配置算出种类 → 官方把它抄到侧边栏项的 `customProps` 上 → 站点层把标签文字换成
-「带徽标的样子」），形状在 `src/components/sidebar-badge.tsx`。
+通道（`packages/theme-git-badge` 算出种类 → 官方把它抄到侧边栏项的 `customProps` 上 →
+那一层把标签文字换成「带徽标的样子」），形状在
+`packages/theme-git-badge/components/git-badge.tsx`。
 
 这一句钉的是四件事：徽标在**这一页那一格**上（不是别的格子上）、看得见且有面积、
 底色是站点那份语义色、以及它**不是标签链接** —— 徽标是纯 `<span>`，不带文字也不带链接，

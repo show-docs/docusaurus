@@ -1,17 +1,13 @@
 {
-  "name": "@show-docs/docusaurus-plugin-frontmatter-injector",
+  "name": "@show-docs/docusaurus-theme-git-badge",
   "version": "0.1.0",
-  "description": "按规则给 md 注入 frontmatter，改动会走完官方那条解析路径、落到最终编译产物里",
-  "license": "UNLICENSED",
-  "author": {
-    "name": "Eric Chen"
-  },
+  "description": "侧边栏里给「新建」与「更新过」的页面挂一枚纯色点",
   "keywords": [],
-  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/plugin-frontmatter-injector",
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-git-badge",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/show-docs/docusaurus.git",
-    "directory": "packages/plugin-frontmatter-injector"
+    "directory": "packages/theme-git-badge"
   },
   "bugs": {
     "url": "https://github.com/show-docs/docusaurus/issues"
@@ -25,7 +21,10 @@
     }
   },
   "files": [
-    "dist"
+    "components",
+    "dist",
+    "styles",
+    "theme"
   ],
   "type": "module",
   "scripts": {
@@ -37,7 +36,15 @@
   },
   "peerDependencies": {
     "@docusaurus/core": "^3.9.2",
-    "@docusaurus/types": "^3.9.2"
+    "@docusaurus/types": "^3.9.2",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
+    "react": "~18.3.1"
+  },
+  "peerDependenciesMeta": {
+    "@docusaurus/types": {
+      "optional": true
+    }
   },
   "engines": {
     "node": "^24.0.0"

@@ -51,8 +51,8 @@ import DocCardList from '@theme/DocCardList';
 官方默认的那一格，站点层不再挪它。
 
 「新建 / 更新」不再走标签：站点不再注入 git 标签，那件事由侧边栏那枚纯色点说
-（判据是 git，写进官方那条 `sidebar_custom_props` 通道，形状在
-`src/components/sidebar-badge.tsx`）。
+（判据是 git，写进官方那条 `sidebar_custom_props` 通道；判与画都在
+[`theme-git-badge`](./theme-git-badge/README.md) 那一包里）。
 
 ## 文档
 

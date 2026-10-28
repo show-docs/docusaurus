@@ -191,9 +191,6 @@ importers:
       '@docusaurus/theme-common':
         specifier: ^3.9.2
         version: 3.10.2(526a10043e2bb12d97dcd57aa6136a0d)
-      '@show-docs/docusaurus-plugin-frontmatter-injector':
-        specifier: workspace:^
-        version: link:packages/plugin-frontmatter-injector
       '@show-docs/docusaurus-plugin-lazy-compilation':
         specifier: workspace:^
         version: link:packages/plugin-lazy-compilation
@@ -209,6 +206,9 @@ importers:
       '@show-docs/docusaurus-theme-erd':
         specifier: workspace:^
         version: link:packages/theme-erd
+      '@show-docs/docusaurus-theme-git-badge':
+        specifier: workspace:^
+        version: link:packages/theme-git-badge
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:packages/theme-iframe
@@ -316,18 +316,6 @@ importers:
         specifier: ^5.112.2
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
-  packages/plugin-frontmatter-injector:
-    dependencies:
-      '@docusaurus/core':
-        specifier: ^3.9.2
-        version: 3.10.2(@docusaurus/faster@3.10.2(@docusaurus/types@3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5))(@swc/helpers@0.5.23)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(postcss@8.5.29)(svgo@3.3.5))(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(@rspack/core@1.7.12(@swc/helpers@0.5.23))(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3)
-      '@docusaurus/types':
-        specifier: ^3.9.2
-        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
-      '@docusaurus/utils':
-        specifier: ^3.9.2
-        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
-
   packages/plugin-lazy-compilation:
     dependencies:
       '@docusaurus/core':
@@ -417,6 +405,27 @@ importers:
       webpack:
         specifier: ^5.112.2
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
+
+  packages/theme-git-badge:
+    dependencies:
+      '@docusaurus/core':
+        specifier: ^3.9.2
+        version: 3.10.2(@docusaurus/faster@3.10.2(@docusaurus/types@3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5))(@swc/helpers@0.5.23)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(postcss@8.5.29)(svgo@3.3.5))(@mdx-js/react@3.1.1(@types/react@18.3.31)(react@18.3.1))(@rspack/core@1.7.12(@swc/helpers@0.5.23))(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(debug@4.4.3(supports-color@10.2.2))(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)(typescript@6.0.3)
+      '@docusaurus/types':
+        specifier: ^3.9.2
+        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@docusaurus/utils':
+        specifier: ^3.9.2
+        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../plugin-prev-layer-resolver
+      '@show-docs/docusaurus-theme-iframe':
+        specifier: workspace:^
+        version: link:../theme-iframe
+      react:
+        specifier: ~18.3.1
+        version: 18.3.1
 
   packages/theme-iframe:
     dependencies:

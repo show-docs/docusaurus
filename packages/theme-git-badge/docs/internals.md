@@ -1,31 +1,82 @@
-# plugin-frontmatter-injector：实现记录（维护者文档）
+# theme-git-badge：实现记录（维护者文档）
 
 这份文件收的是**使用者不需要读**的那一半：路线的取舍、踩过的坑与实测证据、升级时要复跑的检查单。
-使用者侧的事实（接入、规则表、口径）在 [`../README.md`](../README.md)。
+使用者侧的事实（接入、判据、地盘）在 [`../README.md`](../README.md)。
 
 ## 组成
 
-四个文件，`src/` 下：
+`src/` 下五个文件，`components/` 与 `theme/` 下各两份浏览器侧源码：
 
-| 文件             | 职责                                                                                           |
-| ---------------- | ---------------------------------------------------------------------------------------------- |
-| `rules.mts`      | 规则表、「最近」的判定与 `tags` 的合并：`defaultRules` / `applyRules` / `tagsOf` / `mergeTags` |
-| `docs-scope.mts` | 地盘：文档插件的 `path` / `include` / `exclude` 折成一个 `covers()`                            |
-| `git-info.mts`   | 读 git：仓库根、HEAD、最近动过的文件、每份文件的提交时刻                                       |
-| `index.mts`      | 包装 `parseFrontMatter` 与插件接线（`loadContent()`）                                          |
+| 文件                                   | 职责                                                                |
+| -------------------------------------- | ------------------------------------------------------------------- |
+| `badge.mts`                            | 判据：git 或页面钉的那把键 → 徽标种类                               |
+| `frontmatter.mts`                      | 包装 `parseFrontMatter`，把徽标写进 `sidebar_custom_props`          |
+| `docs-scope.mts`                       | 地盘：文档插件的 `path` / `include` / `exclude` 折成一个 `covers()` |
+| `git-info.mts`                         | 读 git：仓库根、HEAD、最近动过的文件、每份文件的提交时刻            |
+| `index.mts`                            | 插件接线：层目录、客户端模块、前置检查、`loadContent()` 里的接线    |
+| `components/git-badge.tsx`             | 徽标本身：认种类、画点子、把标签文字换成「带徽标的样子」            |
+| `theme/DocSidebarItem/{Link,Category}` | 覆盖侧边栏那两格，把徽标挂到标签文字后面                            |
+| `styles/git-badge.css`                 | 点子的形状与颜色                                                    |
 
-切四份是因为 git 那一侧能独立测（真仓库），规则表是纯函数，地盘是「一堆 glob 的边角」，
-接线要假解析器 —— 几种夹具互不相干。
-对外只丢规则与 git 那几样纯函数，接线细节不外露。
-
-**类型不自己画。** 解析器的入参与结果一律从官方取：`ParseFrontMatter` 直接 import，
-结果那格写成 `Awaited<ReturnType<ParseFrontMatter>>`。留白的只有一处：包进来的是
-「`RuleContext` 里那份 frontmatter」而不是整个结果 —— 规则表只写 `frontMatter`，正文不该
-出现在它的视野里，包装层原样透传剩下的格子。
+切这几份是因为几类夹具互不相干：git 那一侧能独立测（真仓库），判据是纯函数，地盘是「一堆
+glob 的边角」，接线要假解析器，浏览器那两格要 DOM 与 e2e。**对外只丢插件本身与
+`DocsScope` 那个类型** —— 判据与画法是这一层的实现，不是给站点用的 API。
 
 源码在 `src/`，`dist/` 是编译产物（`rootDir` = `src/`），改完源码要 `pnpm build:core`。
+`components/` 与 `theme/` 是**未编译的 `.tsx`**，随包发布，由站点自己的 babel 编译。
 
-## 为什么是这条路
+## 两条半：判在哪，画在哪
+
+徽标这件事跨了两半，中间那道缝是官方那条 `sidebar_custom_props` 通道：
+
+```
+构建期（Node）                          浏览器
+─────────────                          ──────
+badge.mts     判：git → 'new' | 'update'
+frontmatter.mts   写进 frontmatter.sidebar_custom_props.gitBadge
+                      │
+                      │  文档插件把它原样抄到侧边栏项的 customProps 上
+                      │  （plugin-content-docs/lib/props.js）
+                      ▼
+components/git-badge.tsx   认种类（badgeOf）
+theme/DocSidebarItem/*    换 label，画点子
+```
+
+**为什么是这条通道**：frontmatter → 侧边栏只有这一条路（官方那份 `props.js` 把
+`sidebar_custom_props` 原样抄到侧边栏项的 `customProps` 上；分类项拿的是它链的那一页的）。
+自己造一条旁路就得改侧边栏生成器 —— 那是官方内部实现，升级即碎。
+
+**为什么不读标签**：站点不注入 git 标签，「新建 / 更新」眼下只有这一枚徽标在说。徽标要是读
+标签，就得靠页面写一条标签才能钉死，而那会在正文里多出一颗芯片、还多一个标签页。所以页面
+自己钉徽标用的是**另一把键**（`git_badge`）—— 它不是标签，写它不会在正文里多出芯片，也不
+进标签页。
+
+## 为什么换的是 `label` 而不是另插一个元素
+
+官方那份 `DocSidebarItem/Link` 把整个 `<li>` / `<a>` 当自己的根渲染，从外面插不进 `<a>`
+里面。而 `label` 是渲染进一个 `<span>` 的，React 节点渲染得进去。
+
+走这条路就不用照抄官方那一份 —— 照抄要连它的 CSS module 一起抄，而 CSS 文件不在官方别名表里
+（`createAliasesForTheme` 只枚举组件，不枚举样式表）。
+
+**标签文字不是字符串 = 已经带过徽标**：分类项在没有可见子页时会把标签原样转交给链接那一格
+（官方那份 `DocSidebarItem/Category` 干的），那一格再判一次就会画两个点。这种情形原样返回。
+
+## 这一层放在层栈的哪一格
+
+`theme/` 里的两份组件用 `@theme-prev/DocSidebarItem/Link` 拿「下面那一层」，所以本包必须是
+一个**主题层**（有 `getThemePath()`），且必须声明在
+`@show-docs/docusaurus-plugin-prev-layer-resolver` 之后。
+
+官方别名 `@theme/DocSidebarItem/Link` 是**全局赢家**：主题路径按「fallback → preset 主题 →
+用户插件 → 站点 `src/theme`」的顺序枚举，**后者覆盖前者**。所以：
+
+- 站点层 `src/theme` 若提供这一格，它赢 —— 所以站点那一层**不能**再 swizzle 这两格；
+- 本包作为用户插件声明在 preset（theme-classic）之后，于是压过官方那份，赢的是本包。
+
+前提是站点层不再提供这一格。本包接管的正是这一点：站点的两份 swizzle 删掉，改由本包提供。
+
+## 为什么是这条路（frontmatter 的注入点）
 
 frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
 
@@ -74,7 +125,7 @@ frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
    版本错位」变成两份不同的 frontmatter —— 前端一份、侧边栏一份，查起来极贵。
 5. **`reloadSite()` 会重跑插件。** dev 模式下改 `docusaurus.config.mjs` 就是这样重来的：
    `reloadPlugin()` 只重跑 `contentLoaded()`，其余阶段不重跑 —— 这就是入口两处都调同一个
-   `install()` 的原因。同一份解析器被套两次，每条规则就算两次，所以包装层带一个
+   `install()` 的原因。同一份解析器被套两次，徽标就算两次，所以包装层带一个
    `Symbol.for(...)` 记号，见到记号直接交回同一个函数，不会套第二层。
 
 ## git 那一侧：一次读，之后查表
@@ -98,12 +149,12 @@ frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
 ### 每份文件的那两个时刻
 
 ```
-git log --follow --format= --name-only -- <path>   # 数这份文件被提交过几次
-git log -1 --follow --format=%ct -- <path>         # 最后一次是什么时候
+git log --follow --format=%ct -- <path>   # 这份文件被提交过几次，每次的时刻
 ```
 
-- `--format=` 把提交头清空，只留文件名那一行；重命名那一步会吐两行（新名在前、旧名在后），
-  所以先按 `repoPath()` 把「等于这条路径」的那一行留下 —— 不留就把一次提交数成两次。
+- `%ct` 一行一个提交（`git log` 默认倒序），所以行数就是「提交过几次」，第一行就是最近那次。
+- 不数 `--name-only` 的文件名行：重命名那一步会同时吐新旧两个名字，而 `--follow` 更早的提交
+  里只有旧名 —— 按名字过滤计数会把历史数少，把重命名过的文件误判成「只提交过一次」。
 - **只提交过一次**的那份文件，`created` 与 `updated` 是同一刻，于是「新建」与「最近更新」
   同时成立（刚建的文件本来也就刚动过）。
 - 一条历史都没有（没提交过、或压根不在这个仓库里）时两个时刻都是 `undefined`：不猜。
@@ -111,37 +162,29 @@ git log -1 --follow --format=%ct -- <path>         # 最后一次是什么时候
 ### 边界
 
 - **读不到就不读。** `findRepoRoot()` 用 `spawnSync` 问 `git rev-parse`：git 退出 128（不在仓库里、
-  仓库坏了）与「git 不在 PATH」都只是 `undefined`，注入退回「只有配置里那份标签」。这条构建不该
-  因为一份 README 少两个标签而失败。
+  仓库坏了）与「git 不在 PATH」都只是 `undefined`，判定退回「不表态」。这条构建不该因为一份
+  README 少挂一枚徽标而失败。
 - **仓库根要解析软链。** `/tmp` 在 macOS 上是 `/private/tmp` 的软链；Docusaurus 给的 `filePath`
   与 `git rev-parse` 给的那条不在同一套写法上时，「这条路径在不在这个仓库里」就判错了。
 - **只看 `HEAD` 那条历史。** 工作区里未提交的改动不算「最近动过」—— 站点产物要能复现，
   拿工作区当判据就成了「谁本地改一下谁就变新」。
 
-## 规则表的三条语义
+## 注入的三条语义
 
-- **只补不覆盖**：键已经在了就不碰、算值那一步也不跑。理由是「规则表」不该变成「谁来都能改
-  站点写过的东西」。
-- **`tags` 是唯一的例外**：那一把键是并集语义 —— 页面自己写的几条与 `git-new` /
-  `git-update` 说的是不同的事，谁让位都会丢信息。所以它走 `mergeTags()`：去重、排序
-  （排序是为了「同一个组合只有一种写法」，否则页面里换个顺序也会被当成改动），
-  写进 frontmatter 的一定是数组；页面写了别的形状（数字、带对象的数组）就原样交回 ——
-  那是页面的事，本插件不替它改类型。
-  实现上要留神一处：合并前后一模一样时**不能算「补过」**，否则包装层会以为变了、白换一个对象。
-- **函数不拿原值**：上一条决定了键不存在才会算，所以函数签名里没有 `current`（`tags` 那条例外
-  由 `applyRules()` 自己取旧值，函数仍然只负责「算出注入的那一份」）。要按原文推值就
-  自己去问 `context`（`filePath`、此刻的 frontmatter、打开的那个仓库都在里面）。
-  返回 `undefined` = 不表态，那一格不写 —— 否则 frontmatter 上会多出一格 `key: undefined`
-  （`Object.keys` 数得着、`JSON.stringify` 看不见）。
-- **算值可以是异步的**：`applyRules` 收 Promise。git 那条路本质上是异步的（真的 subprocess），
-  硬写成同步会把「读不了 git 就少两个标签」变成「读不了 git 就抛」。
+- **只补不覆盖**：键（`sidebar_custom_props`）已经在了就不碰。理由与从前一样：注入不该变成
+  「谁来都能改站点写过的东西」。
+- **不表态就不写那一格**：判不出徽标时返回 `undefined`，那一格不写 —— 否则 frontmatter 上会多出
+  一格 `sidebar_custom_props: undefined`（`Object.keys` 数得着、`JSON.stringify` 看不见）。
+- **判据拿得到 frontmatter**：`git_badge` 那把钉子就在 frontmatter 里，所以判据函数看得见
+  此刻的 frontmatter —— 这与从前「函数不拿原值」那条相反：这里**要**看原值（页面自己钉的
+  那把键就是原值）。
 
 ## 地盘：为什么是「转述」
 
 页面这个概念由 `@docusaurus/plugin-content-docs` 定义（`docs.path` / `docs.include` /
-`docs.exclude`），而这三格通常写在站点自己的预设里 —— 本插件在插件选项里拿不到别人实例化后的
+`docs.exclude`），而这三格通常写在站点自己的预设里 —— 本包在插件选项里拿不到别人实例化后的
 选项（`initializedPlugins` 只有实例，`options` 不外露，且 `loadContent()` 是 `Promise.all()`
-一起跑的）。所以口径是：**站点把这三格再写一遍给本插件**。本仓的做法是把清单提成
+一起跑的）。所以口径是：**站点把这三格再写一遍给本包**。本仓的做法是把清单提成
 `docusaurus.config.mjs` 顶部的 `DOCS_INCLUDE` / `DOCS_EXCLUDE` 两个常量，两处引同一份，
 不让它漂。
 
@@ -161,18 +204,21 @@ git log -1 --follow --format=%ct -- <path>         # 最后一次是什么时候
    页面）。
 
 `exclude` 不兜官方缺省（`**/_*` / `**/__tests__`）：那几条是「扫描时顺手跳过」，不是「这些文件
-不归文档插件管」，本插件没有「反正它也不扫」的前提可用。`include` 兜官方的缺省值
+不归文档插件管」，本包没有「反正它也不扫」的前提可用。`include` 兜官方的缺省值
 （`**/*.{md,mdx}`）：站点没转述时至少「md 才算页面」这条还在。
 
-判据落在两层：包装层先问一次（`hit` 为空就原样交回，连 git 都不问），`applyRules()` 里再问一次
-（它是对外导出的纯函数，自己也得站得住）。
+判据落在两层：包装层先问一次（地盘之外的文件原样交回，连 git 都不问），`badgeKindOf()` 里再问
+一次（它是对外的纯函数，自己也得站得住）。
 
 ## 已知限制
 
 **这条路上没有任何钩子能拦住「后来者直接替换 `parseFrontMatter`」。** 插件是直接赋值的，
-docusaurus 之后也不会再回头检查。要降低风险只有一条：本插件放在 `plugins` 数组里靠前的位置，
+docusaurus 之后也不会再回头检查。要降低风险只有一条：本包放在 `plugins` 数组里靠前的位置，
 让自己的包装成为「先包的那一层」，后来者即便是替换，至少替换掉的是一份能跑的实现
 （而不是把三份全丢掉）。这是约定，不是护栏。
+
+**站点层若再 swizzle 这两格，徽标就没了。** 官方别名是全局赢家，站点层永远压过插件层 ——
+本包接管这两格的前提就是站点层不再提供它们。
 
 ## 升级检查单
 
@@ -185,16 +231,16 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本插
 2. `node_modules/@docusaurus/mdx-loader/lib/loader.js` 里 `loadMDX()` 仍读
    `options.markdownConfig.parseFrontMatter`（而不是自己 import 一份）；
 3. `@docusaurus/plugin-content-docs` 的 `doProcessDocMetadata()` 仍在 `loadContent()` 里就
-   `const { parseFrontMatter } = context.siteConfig.markdown`（**早于**本插件的 `contentLoaded`），
+   `const { parseFrontMatter } = context.siteConfig.markdown`（**早于**本包的 `contentLoaded`），
    且 `MarkdownConfigSchema` 的 `parseFrontMatter` 仍是带默认值的 Joi `function()`；
-4. `pnpm test`（`test/frontmatter-injector.test.mts` 里有一条用例真的调
+4. `pnpm test`（`test/theme-git-badge.test.mts` 里有一条用例真的调
    `@docusaurus/utils` 的 `DEFAULT_PARSE_FRONT_MATTER`，第 1、2 条漂了它会红）；
-5. `pnpm build` 之后读一眼产物：本仓站点那条规则写的 `sidebar_custom_props` 落在
+5. `pnpm build` 之后读一眼产物：本包写的那一格落在
    `.docusaurus/docusaurus-plugin-content-docs/default/*.json` 的 `frontMatter` 里，
-   `build/assets/js/*.js` 里也能找到那一格 —— 两侧同源才算真的注进去了。
+   `build/assets/js/*.js` 里也能找到那一格 —— 两侧同源才算真的注进去了；
 6. 地盘那条判据从产物回读最省事：产物里出现过的每一份 md/mdx 都出自站点扫出来的那批文件，
    而**站点里不存在的**文件（`tools/README.md`、`test/README.md`、`node_modules` 下那些
-   `README.md` 副本）不该出现在产物里；`.dbml` 那种页面同样受站点那条规则的 `match` 管。
+   `README.md` 副本）不该出现在产物里。
 
 第 5 条是唯一「从产物回读」的判据，也是唯一能证伪「注入只在 MDX 那边生效、侧边栏没跟上」
 的那条分支的判据 —— 两条路读的是同一个函数，但它们不是同一次调用（第 1、3 条讲的就是
@@ -202,18 +248,19 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本插
 
 ## 与站点的其它 markdown 手段怎么共存（谁先谁后）
 
-一句话：**本插件只给 `markdown.parseFrontMatter` 换值，`markdown` 这个对象本身没换、兄弟键
+一句话：**本包只给 `markdown.parseFrontMatter` 换值，`markdown` 这个对象本身没换、兄弟键
 一个没动，所以 `preprocessor` / `remarkPlugins` / `format` 都照旧跑。** 唯一会咬人的是
 「整体替换 `siteConfig.markdown`」那种写法 —— 那是另一件事，见后面「设计禁区」。
 
 ### 一、现状：只动一格，且是包装
 
-本插件对 `siteConfig.markdown` 只有一句写操作（`src/index.mts`）：
+本包对 `siteConfig.markdown` 只有一句写操作（`src/index.mts`）：
 
 ```js
 markdown.parseFrontMatter = wrapParseFrontMatter(
   markdown.parseFrontMatter,
-  rules
+  () => repo,
+  scope
 );
 ```
 
@@ -260,19 +307,18 @@ MDX v2 的 acorn 不认识裸 `{#custom}`，靠这一步先转义
 | 顺序 | 谁                                          | 说明                                                                                                                                                                               |
 | ---- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | 站点在 `docusaurus.config.mjs` 里写的那一份 | 可能是「接 CMS / 自己读一份」，`validateConfig()` 跑在插件实例化之前，它是底                                                                                                       |
-| 2    | 本插件                                      | `loadContent()` 里**包住**当前那一份，不替换                                                                                                                                       |
+| 2    | 本包                                        | `loadContent()` 里**包住**当前那一份，不替换                                                                                                                                       |
 | 3    | 之后的插件                                  | 如果它**直接赋值**（不包），会把 1、2 一起吞掉 —— `plugins` 数组里谁靠前，谁就先包，本仓这份写在最前就是这个理由；但这是约定，不是护栏                                             |
 | 4    | 消费方                                      | docs 插件在**它自己的** `loadContent()` 里解构一次（`const { parseFrontMatter } = ...`），之后换属性它不看；mdx-loader 是编译时才读属性。这就是接线不能晚于 `loadContent()` 的原因 |
 
 `defaultParseFrontMatter` 参数原样透传，所以站点那份拿到的一定是官方 `DEFAULT_PARSE_FRONT_MATTER`，
 不会出现「两处版本错位、两份 frontmatter」。
 
-### 四、两条「不在本插件事上」但会撞车的路
+### 四、两条「不在本包事上」但会撞车的路
 
 - **`markdown.format`**：插件在 `loadContent()` 里写 `siteConfig.markdown`，而
   `mdx-loader` 是拿 `siteConfig.markdown` **引用**的，所以这一步对那些在编译期读
-  `markdown.format` 的东西也是「说到就到」的。这也是为什么「空规则表」要早退：
-  `rules: []` 时连一个字节都不碰 `siteConfig.markdown`。
-- **站点在 `markdown.parseFrontMatter` 里顺手改正文**：本插件保留 `base` 返回的 `content`，
+  `markdown.format` 的东西也是「说到就到」的。
+- **站点在 `markdown.parseFrontMatter` 里顺手改正文**：本包保留 `base` 返回的 `content`，
   一个字都不碰，所以那种改法不会被冲掉 —— 但反过来，想让注入的键「也出现在 yaml 文本里」
   （markdown 之外的工具也看得见），只能走 `markdown.preprocessor`，那不是插件能封装的。

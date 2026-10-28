@@ -10,6 +10,7 @@ import lazyCompilationPlugin from '../packages/plugin-lazy-compilation/src/index
 import copyButtonTheme from '../packages/theme-copy-button/src/index.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
 import erdTheme from '../packages/theme-erd/src/index.mts';
+import gitBadgeTheme from '../packages/theme-git-badge/src/index.mts';
 import {
   IFRAME_PLUGIN,
   RESOLVER_PLUGIN,
@@ -279,6 +280,47 @@ describe('theme-erd 入口', () => {
   it('缺 theme-iframe：当场点名', () => {
     const missing = erdTheme(contextWith([RESOLVER_PLUGIN]));
     expect(() => loadContentOf(missing)()).toThrow(new RegExp(IFRAME_PLUGIN));
+  });
+});
+
+describe('theme-git-badge 入口：层目录、样式表与前置检查', () => {
+  /**
+  这一层要改 `siteConfig.markdown.parseFrontMatter`，所以站点上下文里得有一份 `markdown`；
+  那一格长什么样与本组断言无关，只要解析器在那儿就行。
+  */
+  const contextWithMarkdown = (plugins: unknown[]): LoadContext =>
+    ({
+      siteDir: repoRoot,
+      siteConfig: {
+        baseUrl: '/',
+        plugins,
+        themes: [],
+        future: { faster: { lightningCssMinimizer: true } },
+        markdown: {
+          parseFrontMatter: async () => ({ frontMatter: {}, content: '' }),
+        },
+      },
+    }) as unknown as LoadContext;
+
+  it('层目录与客户端模块：层是包根那份 `theme/`，样式表是包根那份', () => {
+    const plugin = gitBadgeTheme(contextWithMarkdown([RESOLVER_PLUGIN]));
+
+    expect(plugin.name).toBe('@show-docs/docusaurus-theme-git-badge');
+    expectThemePath(plugin, 'theme-git-badge');
+
+    const modules = clientModulesOf(plugin);
+    expect(modules).toEqual([
+      path.join(pkgDir('theme-git-badge'), 'styles', 'git-badge.css'),
+    ]);
+    expect(existsSync(modules[0]!)).toBe(true);
+  });
+
+  it('缺解析器：当场点名（这一层的两格覆盖靠 `@theme-prev/*`）', () => {
+    const missing = gitBadgeTheme(contextWithMarkdown([]));
+    expect(() => loadContentOf(missing)()).toThrow(new RegExp(RESOLVER_PLUGIN));
+
+    const complete = gitBadgeTheme(contextWithMarkdown([RESOLVER_PLUGIN]));
+    expect(() => loadContentOf(complete)()).not.toThrow();
   });
 });
 
