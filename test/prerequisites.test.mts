@@ -21,6 +21,21 @@ const contextWith = (
 
 const NAMESPACE = '@show-docs/docusaurus-theme-probe';
 
+/**
+只造 `future` 那一整格：老站点的 `experimental_faster`、以及两处都没写的形状，
+都不在 `contextWith` 那个 `faster` 参数能表达的范围内。
+*/
+const contextWithFuture = (future: unknown): LoadContext =>
+  ({
+    siteConfig: { plugins: [RESOLVER_PLUGIN], themes: [], future },
+  }) as unknown as LoadContext;
+
+const requiresLightningCss = (context: LoadContext) => () =>
+  assertThemePrerequisites(context, {
+    namespace: NAMESPACE,
+    lightningCssMinimizer: true,
+  });
+
 describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
   it('解析器与 theme-iframe 都在时放行', () => {
     expect(() =>
@@ -80,6 +95,45 @@ describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
       assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
         namespace: NAMESPACE,
       }),
+    ).not.toThrow();
+  });
+
+  it('老写法 `future.experimental_faster` 也认：开了就放行，没开照样报', () => {
+    // 改名前的 Docusaurus 只补全 `experimental_faster`，`faster` 那一格整个缺席；
+    // 只读 `faster` 会把这类站点误判成「没开压缩器」。
+    expect(
+      requiresLightningCss(contextWithFuture({ experimental_faster: true })),
+    ).not.toThrow();
+
+    expect(
+      requiresLightningCss(
+        contextWithFuture({
+          experimental_faster: { lightningCssMinimizer: true },
+        }),
+      ),
+    ).not.toThrow();
+
+    expect(
+      requiresLightningCss(
+        contextWithFuture({
+          experimental_faster: { lightningCssMinimizer: false },
+        }),
+      ),
+    ).toThrow(/lightningCssMinimizer/);
+  });
+
+  it('两处都没写时报错；`faster` 在场时它赢（老写法只是缺席时的兜底）', () => {
+    expect(requiresLightningCss(contextWithFuture({}))).toThrow(
+      /lightningCssMinimizer/,
+    );
+
+    expect(
+      requiresLightningCss(
+        contextWithFuture({
+          faster: true,
+          experimental_faster: { lightningCssMinimizer: false },
+        }),
+      ),
     ).not.toThrow();
   });
 

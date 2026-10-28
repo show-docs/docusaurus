@@ -109,7 +109,8 @@ frontmatter 原文，跟 YAML 把它读成什么都不影响是两回事。
 ## 用例与红线
 
 - 构建期判据：`test/theme-diff.test.mts` —— 真 git 仓库（临时目录里真提交），
-  `src/loader/` 三份挂在覆盖率红线上（`vitest.config.mts` 的 `coverage.include`）。
+  `src/` 全份（`loader/` 那三份与入口那份）挂在覆盖率红线上（`vitest.config.mts` 的
+  `coverage.include` 盖住每个包的 `src/`）。
   两份文件那条不建仓库，夹具直接放在仓库外的临时目录里，顺便钉住「这条来源不读 git 历史」。
 - 页面上那块视图：`test/e2e/features/diff.feature`。**不**断言具体改了哪几行 ——
   单份那种来源里右边是磁盘上此刻这一份，这一页改一行、或下一笔提交都会变。对照那两条只认两份文件名与

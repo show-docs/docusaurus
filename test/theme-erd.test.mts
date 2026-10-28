@@ -691,6 +691,22 @@ describe('configureWebpack：把 `.dbml` 接进 MDX 那条链', () => {
     expect(plainString.test).toBe('not-a-regexp');
   });
 
+  it('config 里没有 `module` 那一格、或那一格没有 rules：不炸，也不改任何规则', () => {
+    // 官方交来的 config 一定有 `module`；这一层不该假设它有 —— 假设错了就是一个 TypeError，
+    // 症状离原因隔着一整个构建。两种缺法（整格不在 / 格在但 rules 不在）都要活着走出去。
+    for (const config of [{}, { module: {} }]) {
+      const { utils } = createUtils();
+      expect(() =>
+        createPlugin().configureWebpack?.(
+          config as unknown as WebpackConfig,
+          false,
+          utils,
+          {} as never,
+        ),
+      ).not.toThrow();
+    }
+  });
+
   it('`.dbml` 那条规则排在最前，后面回来的两条各就各位', () => {
     const rules: unknown[] = [];
     const config = { module: { rules } } as unknown as WebpackConfig;

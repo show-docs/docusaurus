@@ -37,6 +37,34 @@ export type ThemePrerequisites = {
   lightningCssMinimizer?: boolean;
 };
 
+type SiteFuture = LoadContext['siteConfig']['future'];
+
+/** `future.faster` 被 Docusaurus 补全后的那一格。 */
+type FasterSlot = SiteFuture['faster'];
+
+/**
+改名前（`future.experimental_faster`）写下的同一开关：现行类型里没有这一格，
+站点写下的形状也不确定（`true` 简写或部分对象），所以判据与 `faster` 共用。
+*/
+type LegacyFasterSlot = { experimental_faster?: boolean | Partial<FasterSlot> };
+
+/**
+读站点是否用 lightningcss 压缩 CSS。
+
+`faster` 在前：插件拿到 `LoadContext` 时它已被 Docusaurus 补全成完整对象，所以那一格读到的是
+每个键的布尔值，而不是站点写下的 `true` / 部分对象。只有它整个缺席（改名前的站点只写
+`experimental_faster`）才落到第二处读；布尔值那一臂是 `true` 简写没被补全时的形状，
+两处共用同一条判据。
+*/
+function lightningCssMinimizerOn(future: SiteFuture | undefined): boolean {
+  const slot: boolean | Partial<FasterSlot> | undefined =
+    future?.faster ??
+    (future as LegacyFasterSlot | undefined)?.experimental_faster;
+  return typeof slot === 'boolean'
+    ? slot
+    : Boolean(slot?.lightningCssMinimizer);
+}
+
 /**
 在 `loadContent()` 阶段检查安装契约。
 
@@ -74,17 +102,16 @@ export function assertThemePrerequisites(
     );
   }
 
-  // `future.faster` 在插件拿到 `LoadContext` 时已经被 Docusaurus 补全成完整对象，
-  // 所以这一格读到的是布尔值，不是站点写下的 `true` / 部分对象。
   if (
     lightningCssMinimizer &&
-    !context.siteConfig.future?.faster?.lightningCssMinimizer
+    !lightningCssMinimizerOn(context.siteConfig.future)
   ) {
     throw new Error(
       `${namespace} 要求站点用 lightningcss 压缩 CSS：viewerjs 的样式表写的是原生嵌套，` +
         `默认的 cssnano + clean-css 会把它压坏（子规则并进父选择器、括号失衡）。` +
         `请在 docusaurus.config.mjs 里打开 \`future.faster.lightningCssMinimizer: true\` ` +
-        `（或 \`future.faster: true\`）。`,
+        `（或 \`future.faster: true\`；改名前的老写法 \`future.experimental_faster\` 也认，` +
+        `但新版 Docusaurus 的配置校验把它判成「已改名」并直接报错，请优先写 \`future.faster\`）。`,
     );
   }
 }

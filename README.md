@@ -119,11 +119,11 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 其余目录不是包，只是仓库根的一部分。原来那里还有一格 `docs/`，只装主页那一份；它现在就是
 `packages/README.md`（`slug: /` 落在根，所以主页地址不变），仓库根不再有单独的文档目录：
 
-| 目录      | 职责                                                                                                                                                           | 细节                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `test/`   | 核心包单元测试（按契约面组织）                                                                                                                                 | [README](./test/README.md)      |
-| `src/`    | 站点层 swizzle `src/theme/` 与全站样式 `src/css/`（主页由 `packages/README.md` 承担，站点侧没有页面层；原来还有一格 `src/plugins/`，现在是 `tools/` 里的分包） | [README](./src/theme/README.md) |
-| `static/` | 原样复制到站点根的静态文件（三条 API 示例页各取一份 OpenAPI 文档，图片查看器示例页那两张图在 `img/`）                                                          | —                               |
+| 目录      | 职责                                                                                                                                                                                                            | 细节                            |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `test/`   | 核心包单元测试（按契约面组织）                                                                                                                                                                                  | [README](./test/README.md)      |
+| `src/`    | 站点层 swizzle `src/theme/`、全站样式 `src/css/`、站点自己的组件 `src/components/`（侧边栏那枚徽标；主页由 `packages/README.md` 承担，站点侧没有页面层；原来还有一格 `src/plugins/`，现在是 `tools/` 里的分包） | [README](./src/theme/README.md) |
+| `static/` | 原样复制到站点根的静态文件（三条 API 示例页各取一份 OpenAPI 文档，图片查看器示例页那两张图在 `img/`）                                                                                                           | —                               |
 
 上表的 `packages/*`、`tools/*` 是 **pnpm workspace 包**（各自有 `package.json`，
 也在 `pnpm-workspace.yaml` 的 `packages:` 里）；其余是仓库根的目录，不是包 —— 判据是
@@ -233,8 +233,10 @@ eslint.config.mjs / syncpack.config.mjs / vitest.config.mts / playwright.config.
 .github/workflows/                 # CI（GitHub Actions）
 ```
 
-关于 `src/`：它现在只剩站点自己的那两种东西 —— `src/theme/` 是层栈最外圈的哨兵槽位，`src/css/`
-是全站样式。原来还有一格 `src/plugins/`（一个按相对路径加载的本地插件），它现在是
+关于 `src/`：它现在只剩站点自己的那三样东西 —— `src/theme/` 是层栈最外圈的哨兵槽位，`src/css/`
+是全站样式，`src/components/` 是站点自己的组件（侧边栏那枚「新建 / 更新」徽标，落在 `src/theme/`
+**外面** —— 那一格是 swizzle 目录，放进去就成了一层主题）。
+原来还有一格 `src/plugins/`（一个按相对路径加载的本地插件），它现在是
 `packages/plugin-lazy-compilation/` 那个分包，站点改按包名加载。
 站点不再有自己的页面层：主页就是 `packages/README.md`（配置把 docs 的路由前缀挪到根，那份
 frontmatter 写 `slug: /`，于是它同时是 `packages/` 那一格的索引页与整站主页）。历史上 `src/pages/` 在的那一格讲的是「specifier 写在层外文件里

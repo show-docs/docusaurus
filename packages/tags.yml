@@ -1,3 +1,18 @@
-git-update:
-  label: Update
-  description: 最近更新过
+# 这两条是页面自己在 frontmatter 里写的静态标签：站点**不再注入** git 标签
+# （注入器缺省那条 `tags` 规则不在这儿），「新建 / 更新」由侧边栏那枚徽标说。
+# 静态的这两条任何一次构建里都在，e2e 拿它们当「标签在文章末尾那一格」的锚点。
+homepage:
+  label: 主页
+  description: 站点主页
+
+erd-demo:
+  label: 关系图示例
+  description: 一份 .dbml 文件渲染出来的关系图
+
+# 侧边栏那枚徽标**不读标签**、也不抄这里的 label —— 它自己判 git，画的是纯色点
+# （绿=新建、橙=更新），颜色即语义，抄文案就是第二份要跟着漂的东西。
+#
+# 徽标那两条 e2e 场景的锚点另用一把**不是标签**的键：页面 frontmatter 里写
+# `git_badge: new` / `git_badge: update`（`packages/theme-diff/docs/diff-demo.md` 与
+# `packages/theme-erd/docs/erd-demo.dbml` 各写一把）。写它不会在正文里多出芯片，也不进标签页；
+# git 判出来的那两个随提交变，拿它们当锚点等于给仓库钉一个会自己过期的期望。

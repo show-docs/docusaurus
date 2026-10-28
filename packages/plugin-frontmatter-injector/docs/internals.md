@@ -189,12 +189,12 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本插
    且 `MarkdownConfigSchema` 的 `parseFrontMatter` 仍是带默认值的 Joi `function()`；
 4. `pnpm test`（`test/frontmatter-injector.test.mts` 里有一条用例真的调
    `@docusaurus/utils` 的 `DEFAULT_PARSE_FRONT_MATTER`，第 1、2 条漂了它会红）；
-5. `pnpm build` 之后读一眼产物：`.docusaurus/docusaurus-plugin-content-docs/default/*.json` 的
-   `frontMatter` 里 `tags` 带上了 `git-new` / `git-update`（数量应该接近站点里有历史的那批页），
-   `build/assets/js/*.js` 里能找到 `tags:[\"git-update\"]` 这一类的编译产物 —— 两侧同源才算真的注进去了。
-6. 地盘那条判据从产物回读最省事：产物里出现过的每一份 md/mdx 都带着 `tags`，而**站点里不存在
-   的**文件（`tools/README.md`、`test/README.md`、`node_modules` 下那些 `README.md` 副本）不该
-   出现在产物里；`.dbml` 那种非 md 页面没有 `tags` 是对的（`defaultRules` 只看后缀）。
+5. `pnpm build` 之后读一眼产物：本仓站点那条规则写的 `sidebar_custom_props` 落在
+   `.docusaurus/docusaurus-plugin-content-docs/default/*.json` 的 `frontMatter` 里，
+   `build/assets/js/*.js` 里也能找到那一格 —— 两侧同源才算真的注进去了。
+6. 地盘那条判据从产物回读最省事：产物里出现过的每一份 md/mdx 都出自站点扫出来的那批文件，
+   而**站点里不存在的**文件（`tools/README.md`、`test/README.md`、`node_modules` 下那些
+   `README.md` 副本）不该出现在产物里；`.dbml` 那种页面同样受站点那条规则的 `match` 管。
 
 第 5 条是唯一「从产物回读」的判据，也是唯一能证伪「注入只在 MDX 那边生效、侧边栏没跟上」
 的那条分支的判据 —— 两条路读的是同一个函数，但它们不是同一次调用（第 1、3 条讲的就是

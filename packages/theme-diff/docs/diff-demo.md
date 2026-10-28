@@ -4,6 +4,7 @@ sidebar_position: 11
 title: 差异视图示例
 description: 'frontmatter 写 diff，正文最上方渲染这份文件上一个版本与此刻这一份的差异视图。'
 diff: ../../README.md
+git_badge: update
 ---
 
 # 差异视图示例

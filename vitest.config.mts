@@ -35,26 +35,14 @@ export default defineConfig({
       provider: 'istanbul',
       reporter: ['lcov', 'json-summary'],
       reportsDirectory: './coverage',
-      // 红线盖住四处：核心解析器的纯逻辑、frontmatter 注入那份单文件（规则表 / 包装层 / 接线）、theme-iframe 那条框的 `lib/`（配置期的注册表 /
-      // 分发 / 入口工厂，浏览器侧的消息形状与两条同步 hook），与两条**构建期判据**
-      //（`theme-diff`：frontmatter 那把键与 git 里那一次改动；`theme-erd`：一份 `.dbml`
-      // 落成各格式导出，加上配置期那份 `exports` 清单判据）。
-      // 哪个 theme 包不在红线里、为什么，见 `test/README.md`。
+      // 红线盖住**全部构建期代码**：每个包的 `src/`（配置期接线、webpack 规则、
+      // loader 判据、纯逻辑），加上 theme-iframe 那条框的 `lib/`（配置期的注册表 /
+      // 分发 / 入口工厂，浏览器侧的消息形状与两条同步 hook，以及三条视图层共用那份外壳）。
+      // **不在**红线里的是各包 `theme/` 与 `components/` 下那些 React 视图 ——
+      // 它们由 e2e 钉住，理由见 `test/README.md`。
       // `lib/` 里浏览器那几份要 DOM，靠测试文件自己标 `@vitest-environment jsdom` 切环境，
       // 全局口径仍是 node。
-      include: [
-        'packages/plugin-frontmatter-injector/src/**/*.mts',
-        'packages/plugin-prev-layer-resolver/src/**/*.mts',
-        'packages/theme-iframe/lib/**',
-        'packages/theme-diff/src/loader/**/*.mts',
-        'packages/theme-erd/src/loader/**/*.mts',
-        'packages/theme-erd/src/options.mts',
-      ],
-      exclude: [
-        'packages/plugin-frontmatter-injector/src/**/*.d.mts',
-        'packages/plugin-prev-layer-resolver/src/**/*.d.mts',
-        'packages/theme-iframe/lib/**/*.d.ts',
-      ],
+      include: ['packages/*/src/**/*.mts', 'packages/theme-iframe/lib/**'],
       // 红线挂在产出它的那一步：`.github/workflows` 的 verify 作业跑 `pnpm verify`
       // （含 test:coverage），阈值就在那儿拦；本地只跑 `pnpm test` 不带覆盖率，
       // 会绿着把量掉下去。四项都已实测 100。

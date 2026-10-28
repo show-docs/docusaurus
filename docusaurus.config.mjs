@@ -1,3 +1,9 @@
+import {
+  isRecent,
+  repoPath,
+  timesOf,
+} from '@show-docs/docusaurus-plugin-frontmatter-injector';
+
 // 文档插件扫哪些文件。放在外面是因为有两处要**同一份**：`docs` 选项（真正生效的那份）与
 // frontmatter 注入插件的 `docs`（转述给它的地盘判据）。抄两遍迟早会漂，漂了就是「注入跑在
 // 一批站点里不存在的页面上」或者「站点里的页面一个标签都没有」。
@@ -18,6 +24,75 @@ const DOCS_INCLUDE = [
 
 const DOCS_EXCLUDE = ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'];
 
+/**
+页面自己钉住徽标的那把键：写 `git_badge: new` / `git_badge: update` 就由页面说了算，
+不写就由 git 判。它**不是标签** —— 写它不会在正文标题下多出一颗芯片，也不进标签页。
+*/
+const PINNED_BADGE_KEY = 'git_badge';
+
+/**
+git 判出来的状态与徽标的对应：**只提交过一次且最近动过**是「新建」，其余**最近动过**的是
+「更新」。没进这张表的两种（不是最近、压根没有历史）都不表态。
+
+新建蕴含更新，所以「只提交过一次且最近动过」只画一个点（一格一个点）。
+*/
+const BADGE_BY_STATE = {
+  'once/recent': 'new',
+  'many/recent': 'update',
+};
+
+/**
+git 判出来的那种徽标：与注入器包的 `tagsOf` 同一套判据（那边算成标签，这边算成徽标），
+数据用包里那份 —— `timesOf` 给两个时刻，`isRecent` 给「最近动过没有」。
+
+「最近」的两个口径都在包里：全仓最后 5 个提交，或最近 7 天（按此刻的墙上时钟算）。
+*/
+function gitBadgeKind(repo, filePath) {
+  if (!repo) {
+    return undefined;
+  }
+
+  const path = repoPath(repo, filePath);
+  if (path === undefined) {
+    return undefined;
+  }
+
+  const { created, updated } = timesOf(repo, filePath);
+  if (updated === undefined) {
+    return undefined;
+  }
+
+  const recent = isRecent(repo, path, updated);
+  const state = `${created === updated ? 'once' : 'many'}/${
+    recent ? 'recent' : 'old'
+  }`;
+  return BADGE_BY_STATE[state];
+}
+
+/**
+侧边栏徽标：这一页是「新建」还是「更新过的」，写进官方那条 `sidebar_custom_props` 通道。
+
+判据是 **git**，不是标签 —— 站点不再注入 git 标签了（正文那行芯片只放页面自己写的标签），
+「新建 / 更新」这件事眼下只有这一枚徽标在说。徽标要是读标签，就得靠页面写
+`tags: [git-new]` 才能钉死，而那会在正文里多出一颗芯片、还多一个标签页。
+页面自己写了 `git_badge` 就以页面为准（那是钉子，不是判断）。
+
+这一格不表态时返回 `undefined` —— 注入器把 `undefined` 当「不写这一格」，
+那一页在侧边栏上就没有点子。
+
+`sidebar_custom_props` 不是 `tags`，走的是注入器「只补不覆盖」那条语义：
+页面自己写了 `sidebar_custom_props` 的那一页，徽标不进去（眼下没有页面这么写）。
+*/
+function badgeOf({ filePath, frontMatter, repo }) {
+  const pinned = frontMatter[PINNED_BADGE_KEY];
+  const kind =
+    pinned === 'new' || pinned === 'update'
+      ? pinned
+      : gitBadgeKind(repo, filePath);
+
+  return kind === undefined ? undefined : { gitBadge: kind };
+}
+
 const config = {
   title: 'Docusaurus Themes',
   tagline: '主题预览',
@@ -36,13 +111,14 @@ const config = {
     },
   },
   plugins: [
-    // frontmatter 注入：给每一页 md 的 `tags` 补上 git 判出来的那两个
-    //（`git-new` 只有一次提交且就在最近，`git-update` 最近动过；「最近」= 7 天内，或全仓最后 5 个提交）。
-    // 页面自己写了 `tags` 时是**合并**（去重后排序），不是整格让位 —— 那几条与 git 判出来的是并列的。
+    // frontmatter 注入：给每一页 md 补一格 `sidebar_custom_props` —— 这一页是「新建」还是
+    // 「更新过的」，由站点自己判 git 得来（判据见上面那个 `gitBadgeKind`）。
     // 注入的是元数据，走官方 `markdown.parseFrontMatter` 那条路径，侧边栏与 MDX 产物会一起变。
     // 它**包装**站点已有的解析器而不是替换（站点自己那份可能正接在 CMS 上），且接线在
     // `loadContent()` 里（早于 docs 插件把它读走）。git 那一侧只整仓读一次，之后按文件查缓存，
-    // 读不到 git 就一个标签都不补。口径见包内 `docs/internals.md`。
+    // 读不到 git 就这一格不表态。口径见包内 `docs/internals.md`。
+    //
+    // 徽标怎么画见 `src/components/sidebar-badge.tsx` 与 `src/theme/DocSidebarItem/`。
     //
     // `docs` 那一格是**转述**：真正生效的选项在下面 classic 预设里，插件手上拿不到，所以把
     // `path` / `include` / `exclude` 在这里再写一遍 —— 注入的地盘跟着文档插件扫出来的那批文件走。
@@ -54,6 +130,17 @@ const config = {
           include: DOCS_INCLUDE,
           exclude: DOCS_EXCLUDE,
         },
+        // 规则表只有一条：注入器缺省那份（给每页补 `git-new` / `git-update`）**不在这儿** ——
+        // 站点不再注入 git 标签，「新建 / 更新」由这一条自己判 git，写进官方那条
+        // `sidebar_custom_props` 通道（侧边栏唯一一条 frontmatter → 侧边栏的路）。
+        // `match` 覆盖 `.dbml` —— 关系图示例页也是站点里的一页。
+        rules: [
+          {
+            name: 'sidebar-badge',
+            match: /\.(mdx?|dbml)$/,
+            frontMatter: { sidebar_custom_props: badgeOf },
+          },
+        ],
       },
     ],
     // 链式覆盖：新增 `@theme-prev/X` 系列 specifier，不改 `@theme-original` 官方语义。

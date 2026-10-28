@@ -2,6 +2,8 @@
 slug: /
 title: 项目说明
 description: 主页：验证的问题、常用命令，以及各主题示例页的入口。
+tags:
+  - homepage
 ---
 
 import DocCardList from '@theme/DocCardList';
@@ -42,6 +44,15 @@ import DocCardList from '@theme/DocCardList';
 链式覆盖不需要单独的示例页：判据就是这一条四层链，`pnpm build && pnpm verify:chain`
 从构建产物里回读它（并回读文档页 —— 那一页一个包裹标记都不该有），
 浏览器里的嵌套由 `pnpm test:e2e` 的主页用例钉住。
+
+## 标签
+
+这一页的标签是页面自己写在 frontmatter 里的那一条 `homepage`，画在**文章末尾的页脚里** ——
+官方默认的那一格，站点层不再挪它。
+
+「新建 / 更新」不再走标签：站点不再注入 git 标签，那件事由侧边栏那枚纯色点说
+（判据是 git，写进官方那条 `sidebar_custom_props` 通道，形状在
+`src/components/sidebar-badge.tsx`）。
 
 ## 文档
 
