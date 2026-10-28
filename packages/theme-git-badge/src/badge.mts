@@ -4,9 +4,9 @@ import { isRecent, repoPath, timesOf } from './git-info.mts';
 /**
 徽标种类：这一页是「新建」的还是「更新过的」。
 
-徽标是**纯色点**：颜色即语义（绿=新建、橙=更新），不带文字也不带链接 ——
-文字会变成第二份要跟着标签表漂的文案，链接会让「页面上每一处 `/tags/` 链接都在文章末尾那一格」
-那条断言失效。
+徽标是**纯色标记**：颜色即语义（绿=新建、橙=更新），叶子行画一个点、分类行把折叠箭头
+染成这个颜色；都不带文字也不带链接 —— 文字会变成第二份要跟着标签表漂的文案，链接会让
+「页面上每一处 `/tags/` 链接都在文章末尾那一格」那条断言失效。
 */
 export type GitBadgeKind = 'new' | 'update';
 
@@ -20,7 +20,7 @@ export const PINNED_BADGE_KEY = 'git_badge';
 git 判出来的状态与徽标的对应：**只提交过一次且最近动过**是「新建」，其余**最近动过**的是
 「更新」。没进这张表的两种（不是最近、压根没有历史）都不表态。
 
-新建蕴含更新，所以「只提交过一次且最近动过」只画一个点（一格一个点）。
+新建蕴含更新，所以「只提交过一次且最近动过」只有一个标记（一格一个）。
 */
 const BADGE_BY_STATE: Record<string, GitBadgeKind | undefined> = {
   'once/recent': 'new',
@@ -77,7 +77,7 @@ export interface BadgeContext {
 **页面自己钉了就以页面为准**（那是钉子，不是判断）：frontmatter 里写了
 `git_badge: new` / `git_badge: update` 就按它来，不问 git。没写才由 git 判。
 
-不表态时返回 `undefined` —— 那一页在侧边栏上就没有点子，而不是画成别的颜色。
+不表态时返回 `undefined` —— 那一页在侧边栏上就没有标记，而不是画成别的颜色。
 */
 export function badgeKindOf({
   filePath,

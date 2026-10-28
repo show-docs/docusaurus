@@ -14,9 +14,9 @@
 | `docs-scope.mts`                       | 地盘：文档插件的 `path` / `include` / `exclude` 折成一个 `covers()` |
 | `git-info.mts`                         | 读 git：仓库根、HEAD、最近动过的文件、每份文件的提交时刻            |
 | `index.mts`                            | 插件接线：层目录、客户端模块、前置检查、`loadContent()` 里的接线    |
-| `components/git-badge.tsx`             | 徽标本身：认种类、画点子、把标签文字换成「带徽标的样子」            |
-| `theme/DocSidebarItem/{Link,Category}` | 覆盖侧边栏那两格，把徽标挂到标签文字后面                            |
-| `styles/git-badge.css`                 | 点子的形状与颜色                                                    |
+| `components/git-badge.tsx`             | 徽标本身：认种类（分类行递归看整棵子树）                            |
+| `theme/DocSidebarItem/{Link,Category}` | 覆盖侧边栏那两格，把种类摊成 `data-git-badge` 属性                  |
+| `styles/git-badge.css`                 | 叶子行画点、分类行给折叠箭头染色                                    |
 
 切这几份是因为几类夹具互不相干：git 那一侧能独立测（真仓库），判据是纯函数，地盘是「一堆
 glob 的边角」，接线要假解析器，浏览器那两格要 DOM 与 e2e。**对外只丢插件本身与
@@ -38,8 +38,9 @@ frontmatter.mts   写进 frontmatter.sidebar_custom_props.gitBadge
                       │  文档插件把它原样抄到侧边栏项的 customProps 上
                       │  （plugin-content-docs/lib/props.js）
                       ▼
-components/git-badge.tsx   认种类（badgeOf）
-theme/DocSidebarItem/*    换 label，画点子
+components/git-badge.tsx   认种类（badgeOf / badgeOfTree）
+theme/DocSidebarItem/*    把种类摊成 data-git-badge 属性
+styles/git-badge.css      按属性画：叶子行一个点、分类行的箭头换色
 ```
 
 **为什么是这条通道**：frontmatter → 侧边栏只有这一条路（官方那份 `props.js` 把
@@ -51,16 +52,30 @@ theme/DocSidebarItem/*    换 label，画点子
 自己钉徽标用的是**另一把键**（`git_badge`）—— 它不是标签，写它不会在正文里多出芯片，也不
 进标签页。
 
-## 为什么换的是 `label` 而不是另插一个元素
+## 为什么是 `data-*` 属性加伪元素
 
-官方那份 `DocSidebarItem/Link` 把整个 `<li>` / `<a>` 当自己的根渲染，从外面插不进 `<a>`
-里面。而 `label` 是渲染进一个 `<span>` 的，React 节点渲染得进去。
+官方那两份组件都把整个 `<li>` / `<a>` 当自己的根渲染，从外面插不进 `<a>` 里面。换 `label`
+能插进文字那一格，但那是拿一个 React 节点去换 `ReactNode`，还得额外处理「分类项复用链接格」
+的那一折；而官方那两份都会把认不得的 props 原样摊到 `<a>` 上（`DocSidebarItem/Link` 的
+`<Link {...props}>`、`DocSidebarItem/Category` 的同一处），所以只需透传一个 `data-git-badge`，
+那一行就带着种类了。
 
-走这条路就不用照抄官方那一份 —— 照抄要连它的 CSS module 一起抄，而 CSS 文件不在官方别名表里
-（`createAliasesForTheme` 只枚举组件，不枚举样式表）。
+叶子行的形状交给 `styles/git-badge.css` 的 `::before` 画：行里不多一个元素，也就没有「点子
+会不会被塞进某个链接里」这一格；`order: 1` 让它排在标签文字之后，再靠 `margin-left: auto`
+推到右端，官方那两份结构一个字不改。
 
-**标签文字不是字符串 = 已经带过徽标**：分类项在没有可见子页时会把标签原样转交给链接那一格
-（官方那份 `DocSidebarItem/Category` 干的），那一格再判一次就会画两个点。这种情形原样返回。
+**分类行不画点，颜色落在折叠箭头上**：分类行本来就有折叠箭头，再挂一个点等于一行两处标记。
+箭头随 `collapsible` 有两种画法（有链接 = 同级 `<button class="menu__caret">` 的 `::before`，
+没链接 = `<a>` 自己的 `::after`），两条一起染。遮罩是必需的：官方图标是半透明的
+（`fill="rgba(0,0,0,0.5)"`），而遮罩只读 alpha —— 直接拿它做 mask 只会得到一枚 50% 透明的
+箭头，所以换一枚同形不透明的 SVG 再填色；暗色主题对旧图标做的反色要拿 `filter: none` 挡掉。
+还有一处变量传递：带链接那一类的箭头是同级按钮，`--git-badge-color` 不会从 `<a>` 继承过去，
+所以按同级选择器再给一份。
+
+**分类行看整棵子树**：分类项自己的 `customProps` 只有它链的那一页（`getCategoryLinkCustomProps`），
+子页新建或更新过时父分类也该有个说法，所以 `badgeOfTree()` 递归走 `item.items`；`new` 压过
+`update`（新建蕴含更新），一格只有一个标记。分类项在没有可见子页时会把 props 转交给链接那一格，
+那边已经算过整棵子树，所以链接那一格见到属性就用属性，不拿自己那一页盖掉。
 
 ## 这一层放在层栈的哪一格
 

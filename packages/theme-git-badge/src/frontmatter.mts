@@ -10,7 +10,7 @@ import type { Repo } from './git-info.mts';
 
 文档插件把这一页 frontmatter 里的 `sidebar_custom_props` 原样抄到侧边栏项的
 `customProps` 上（`plugin-content-docs/lib/props.js`），分类项拿的是它链的那一页的。
-所以这一格是判据与画点子之间唯一的接缝。
+所以这一格是判据与画标记之间唯一的接缝。
 */
 const CUSTOM_PROPS_KEY = 'sidebar_custom_props';
 
@@ -55,7 +55,7 @@ export function wrapParseFrontMatter(
       const { frontMatter } = parsed;
       const filePath = normalizePath(params.filePath);
 
-      // 地盘之外的文件在站点里不是页面（mdx-loader 也会路过它们），一个点子都不给；
+      // 地盘之外的文件在站点里不是页面（mdx-loader 也会路过它们），一个标记都不给；
       // 不是普通对象时连判据都不看 —— 那种 frontmatter 本来就没处写
       if (!isPlainObject(frontMatter) || !scope.covers(filePath)) {
         return parsed;

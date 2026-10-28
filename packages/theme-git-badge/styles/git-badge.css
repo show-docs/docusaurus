@@ -1,22 +1,51 @@
-/* 侧边栏徽标：一个纯色点，颜色即语义（绿=新建、橙=更新）。形状在
-   `packages/theme-git-badge/components/git-badge.tsx`，那一格只画点子，样式归这里。 */
+/* 侧边栏徽标：颜色即语义（绿=新建、橙=更新）。载体是侧边栏条目 `<a>` 上的 `data-git-badge`
+   属性，形状由这里画；认种类在 `packages/theme-git-badge/components/git-badge.tsx`。
 
-.git-badge {
-  display: inline-block;
-  /* 官方把标签文字放在 `display: -webkit-box` 的格子里（`line-clamp: 2`），
-     点子作为那一格的子项靠 `align-self` 居中；`vertical-align` 留给不是那一格的场合。 */
-  align-self: center;
-  vertical-align: middle;
-  margin-left: 6px;
+   叶子行画一个纯色点；分类行不画点 —— 那一行本来就有折叠箭头，颜色染在箭头上，
+   一行只留一处标记。 */
+
+:root {
+  /* 官方那枚箭头是半透明的（`fill="rgba(0,0,0,0.5)"`），遮罩只读 alpha，换成同形不透明的 */
+  --git-badge-caret: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="%23000" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path></svg>');
+}
+
+.menu__link[data-git-badge='new'] {
+  --git-badge-color: var(--ifm-color-success);
+}
+
+.menu__link[data-git-badge='update'] {
+  --git-badge-color: var(--ifm-color-warning);
+}
+
+/* 带链接的分类行：箭头是同级的那颗 `<button class="menu__caret">`，变量不会从 `<a>` 继承
+   过去，所以按同级选择器再给一份。 */
+.menu__link--sublist[data-git-badge='new'] ~ .menu__caret {
+  --git-badge-color: var(--ifm-color-success);
+}
+
+.menu__link--sublist[data-git-badge='update'] ~ .menu__caret {
+  --git-badge-color: var(--ifm-color-warning);
+}
+
+/* 叶子行：标签不吃剩余宽度，点子自己推到右端 */
+.menu__link[data-git-badge]:not(.menu__link--sublist)::before {
+  flex: 0 0 auto;
+  /* 官方那一行是 flex：点子排在标签文字之后，不改它那份结构 */
+  order: 1;
+  margin-right: 6px;
+  margin-left: auto;
   border-radius: 50%;
+  background: var(--git-badge-color);
   width: 8px;
   height: 8px;
+  content: '';
 }
 
-.git-badge--new {
-  background: var(--ifm-color-success);
-}
-
-.git-badge--update {
-  background: var(--ifm-color-warning);
+/* 分类行的箭头染色：两种画法（有链接 = 同级按钮的 `::before`，没链接 = `<a>` 自己的
+   `::after`）同一条规则。`filter: none` 挡掉暗色主题对旧图标做的反色。 */
+.menu__link--sublist-caret[data-git-badge]::after,
+.menu__link--sublist[data-git-badge] ~ .menu__caret::before {
+  mask: var(--git-badge-caret) 50% / 2rem 2rem no-repeat;
+  filter: none;
+  background: var(--git-badge-color);
 }

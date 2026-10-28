@@ -25,20 +25,21 @@ export interface GitBadgeOptions {
   站点把那份选项写在预设里时插件拿不到，只能由站点转述过来；不传 = 只管
   `<siteDir>/docs` 整棵。
 
-  地盘之外的文件一个点子都不给 —— 「页面」这个概念由文档插件定义，徽标跟着它走。
+  地盘之外的文件一个标记都不给 —— 「页面」这个概念由文档插件定义，徽标跟着它走。
   */
   docs?: DocsScope;
 }
 
 /**
-侧边栏徽标：给「新建」与「更新过」的页面挂一枚纯色点。
+侧边栏徽标：给「新建」与「更新过」的页面挂一枚颜色标记（叶子行一个点，分类行给折叠箭头
+染色）。
 
 这一层做两件事，缺一不可：
 
  - **判**：读 git 判出这一页是新建还是更新过（页面自己写了 `git_badge` 就以页面为准），
    写进 frontmatter 的 `sidebar_custom_props` —— 官方唯一一条 frontmatter → 侧边栏的路；
- - **画**：覆盖 `DocSidebarItem/Link` 与 `DocSidebarItem/Category` 两格，把标签文字换成
-   「带徽标的样子」。
+ - **画**：覆盖 `DocSidebarItem/Link` 与 `DocSidebarItem/Category` 两格，把种类摊成
+   `data-git-badge` 属性，形状由包里的样式表画。
 
 两件事都在包里：站点只管把它装上，以及转述 `docs` 那三格。
 
