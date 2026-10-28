@@ -28,6 +28,7 @@ import type { ApiFrameEntry } from '../lib/api-frame-registry.ts';
 import {
   externalFrameURL,
   frameViewSrc,
+  httpsOnHttpsSite,
   type FrameColorMode,
 } from '../lib/frame-messages.ts';
 import { useOuterFrameSync } from '../lib/frame-sync.ts';
@@ -100,16 +101,19 @@ function ExternalFrame({
   src: string;
   title: string;
 }): ReactNode {
+  const { siteConfig } = useDocusaurusContext();
   const { search } = useLocation();
   const isBrowser = useIsBrowser();
 
-  // 服务端渲染阶段拿不到 `window`，那时 url 就是 frontmatter 里那个原值。
+  // 服务端渲染阶段拿不到 `window`：相对写法原样交给浏览器，只按站点自己的协议把绝对 `http:`
+  // 升成 https（理由见 `httpsOnHttpsSite`）—— 这个框先加载、后由 React 改 `src`，构建产物里
+  // 留着 http 的话，线上首屏还会先撞一次混合内容。
   const url = useMemo(
     () =>
       isBrowser
         ? externalFrameURL({ src, search, origin: window.location.origin })
-        : src,
-    [isBrowser, search, src],
+        : httpsOnHttpsSite(src, siteConfig.url),
+    [isBrowser, search, siteConfig.url, src],
   );
 
   return <iframe className={frameClass} src={url} title={title} />;

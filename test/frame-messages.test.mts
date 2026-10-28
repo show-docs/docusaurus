@@ -5,6 +5,7 @@ import {
   createFrameMessages,
   externalFrameURL,
   frameViewSrc,
+  httpsOnHttpsSite,
   specUrlFromSearch,
 } from '../packages/theme-iframe/lib/frame-messages.ts';
 
@@ -132,6 +133,40 @@ describe('frameViewSrc / specUrlFromSearch：框内地址的拼与拆', () => {
       specUrlFromSearch('?src=/openapi.yaml', 'not-a-url', 'src'),
     ).toBeUndefined();
   });
+
+  it('页面是 https 时把 http 的 spec 升成 https（端口原样），只升不降', () => {
+    expect(
+      specUrlFromSearch(
+        '?src=http://api.test/openapi.yaml',
+        'https://docs.test',
+        'src',
+      ),
+    ).toBe('https://api.test/openapi.yaml');
+    expect(
+      specUrlFromSearch(
+        '?src=http://api.test:8080/openapi.yaml',
+        'https://docs.test',
+        'src',
+      ),
+    ).toBe('https://api.test:8080/openapi.yaml');
+    expect(
+      specUrlFromSearch(
+        '?src=https://api.test/openapi.yaml',
+        'http://localhost:3000',
+        'src',
+      ),
+    ).toBe('https://api.test/openapi.yaml');
+  });
+
+  it('页面不是 https 时 http 原样（本地开发那一条）', () => {
+    expect(
+      specUrlFromSearch(
+        '?src=http://api.test/openapi.yaml',
+        'http://localhost:3000',
+        'src',
+      ),
+    ).toBe('http://api.test/openapi.yaml');
+  });
 });
 
 describe('externalFrameURL：iframe: 那一层的地址三步', () => {
@@ -180,5 +215,55 @@ describe('externalFrameURL：iframe: 那一层的地址三步', () => {
         origin,
       }),
     ).toBe('https://b.test/');
+  });
+
+  it('绝对 http 跟着页面升成 https；页面是 http 时原样', () => {
+    expect(
+      externalFrameURL({ src: 'http://a.test/x', search: '', origin }),
+    ).toBe('https://a.test/x');
+    expect(
+      externalFrameURL({
+        src: 'http://a.test/x',
+        search: '',
+        origin: 'http://localhost:3000',
+      }),
+    ).toBe('http://a.test/x');
+  });
+
+  it('?path= 给的是 http 绝对地址时同样升', () => {
+    expect(
+      externalFrameURL({
+        src: '/base',
+        search: '?path=http%3A%2F%2Fb.test%2Fp',
+        origin,
+      }),
+    ).toBe('https://b.test/p');
+  });
+
+  it('不以 / 打头的相对写法原样交回（不按站点根展开）', () => {
+    expect(externalFrameURL({ src: 'handbook/', search: '', origin })).toBe(
+      'handbook/',
+    );
+  });
+});
+
+describe('httpsOnHttpsSite：服务端渲染那一遍只动绝对 http', () => {
+  it('站点是 https：绝对 http 升成 https', () => {
+    expect(httpsOnHttpsSite('http://a.test/x', 'https://docs.test')).toBe(
+      'https://a.test/x',
+    );
+  });
+
+  it('站点不是 https：一个字不动', () => {
+    expect(httpsOnHttpsSite('http://a.test/x', 'http://docs.test')).toBe(
+      'http://a.test/x',
+    );
+  });
+
+  it('相对写法与 https 地址都原样（不展开、不降级）', () => {
+    expect(httpsOnHttpsSite('/404', 'https://docs.test')).toBe('/404');
+    expect(httpsOnHttpsSite('https://a.test/x', 'https://docs.test')).toBe(
+      'https://a.test/x',
+    );
   });
 });

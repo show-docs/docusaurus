@@ -7,6 +7,9 @@ postMessage 时不会被当成自家的，而不是为了防自己。
 
 这一份只有**约定与形状**，没有 React、也没有 DOM；两条消息循环在 `frame-sync.ts`，框那一格与
 它的共用版式在 `components/api-frame.tsx` 与 `components/api-frame.css`。
+
+两条地址（spec 那条与 `iframe:` 那条）都有一条协议口径：https 页面上的 `http:` 地址升成
+https，只升不降 —— 理由见 {@link upgraded}。
 */
 
 /** 亮暗那一格的取值。形状与站点的开关相同，但**不引**它的类型：那条属性由外层送进来。 */
@@ -104,12 +107,45 @@ export function frameViewSrc(options: {
 }
 
 /**
+https 页面上的 http 地址，把协议升成 https。
+
+混合内容在 https 页面上是**必被拦**的一格（fetch / XHR / iframe 都拦）：不升，那一格只能是
+空的；升了，对方也支持 https 时就正常取到。等价于浏览器 `upgrade-insecure-requests` 的口径 ——
+域名、路径、查询与非默认端口一概不动，**只升不降**（http 页面上的 https 地址原样）。
+*/
+function upgraded(url: URL, page: URL): string {
+  if (page.protocol !== 'https:' || url.protocol !== 'http:') {
+    return url.href;
+  }
+  // 复制一份再改协议：这一条是纯函数，改参数上的属性既不必要、也会被 lint 拦。
+  const secure = new URL(url.href);
+  secure.protocol = 'https:';
+  return secure.href;
+}
+
+/**
+绝对地址那一格要过协议归一：解析得了就按 {@link upgraded}，解析不了（`handbook/` 这种相对
+写法）原样交回 —— 这一格不替调用方展开相对地址，展开的基准各家不一（`iframe:` 那条是
+「浏览器按当前页路径解」，不是站点根）。
+*/
+function upgradedAbsolute(value: string, page: URL): string {
+  try {
+    return upgraded(new URL(value), page);
+  } catch {
+    return value;
+  }
+}
+
+/**
 从框内那一页的地址里取出要渲染的 spec 地址。
 
 只认能解析成 `http:` / `https:` 的：这一格来自地址栏，任何人都能手工拼一条
 `/redoc-view?src=javascript:…` 那样的地址，而渲染器拿到的是「去取这个地址」的指令，
 不该由本层替它把非 URL 的东西喂进去。解析结果恒为绝对地址，`/openapi.yaml` 这种相对写法
 按 `base`（调用方给 `window.location.origin`）展开。
+
+协议跟着页面走：`base` 是 https 时，`http:` 那一条按 {@link upgraded} 升成 https —— 框内
+这一页自己就是 https 的，去取一个 http 的 spec 必被浏览器按混合内容拦掉。
 */
 export function specUrlFromSearch(
   search: string,
@@ -121,9 +157,10 @@ export function specUrlFromSearch(
     return undefined;
   }
   try {
-    const url = new URL(raw, base);
+    const page = new URL(base);
+    const url = new URL(raw, page);
     return url.protocol === 'http:' || url.protocol === 'https:'
-      ? url.href
+      ? upgraded(url, page)
       : undefined;
   } catch {
     // `base` 本身不是合法 URL 时才走到这里（拼错的相对地址在 `new URL` 那一格抛）
@@ -140,19 +177,36 @@ export function specUrlFromSearch(
 `/a%2Fb` 变成 `/a/b`）。
 
 `origin` 由调用方给（浏览器里就是 `window.location.origin`），与 {@link specUrlFromSearch}
-同形状：这一份没有 DOM，配置期那条链路也引得到它。服务端渲染阶段拿不到窗口，调用方直接用
-frontmatter 里的原值，不等这一步。
+同形状：这一份没有 DOM，配置期那条链路也引得到它。服务端渲染阶段拿不到窗口，见
+{@link httpsOnHttpsSite}。
+
+绝对 `http:` 地址同样按 {@link upgraded} 跟着页面升成 https：`iframe:` 那一格也是子资源，
+https 页面上它一样必被拦。
 */
 export function externalFrameURL(options: {
   src: string;
   search: string;
   origin: string;
 }): string {
+  const page = new URL(options.origin);
   const path = new URLSearchParams(options.search).get('path') ?? '';
 
   const resolved = options.src.startsWith('/')
-    ? new URL(options.src, options.origin).href
-    : options.src;
+    ? new URL(options.src, page).href
+    : upgradedAbsolute(options.src, page);
 
-  return path === '' ? resolved : new URL(path, resolved).href;
+  return path === '' ? resolved : upgraded(new URL(path, resolved), page);
+}
+
+/**
+服务端渲染那一遍替代 {@link externalFrameURL} 的一条：构建期拿不到 `window`，只知道站点
+自己的协议（`siteConfig.url` 的 origin）。
+
+只动**绝对** `http:` 地址的协议，相对写法（`/404`、`?path=` 那些）一个字不碰 —— 构建产物里
+把相对地址钉死成某个 origin，会让本地 `serve` 与 e2e 上同一个框指向站点配置里的域名。
+这一条存在是因为那个框先加载、后由 React 改 `src`：只在浏览器里归一的话，线上首屏还会先
+撞一次混合内容。
+*/
+export function httpsOnHttpsSite(value: string, siteUrl: string): string {
+  return upgradedAbsolute(value, new URL(siteUrl));
 }
