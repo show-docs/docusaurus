@@ -28,7 +28,7 @@
     "typecheck": "tsc -b tsconfig.tools.json tsconfig.test.json",
     "verify": "pnpm lint:type && pnpm typecheck && pnpm lint:eslint:check && pnpm lint:version && pnpm test:coverage && pnpm verify:chain",
     "verify:chain": "pnpm build && node tools/scripts/verify-chain.mts",
-    "version:bump": "pnpm -r exec pnpm version patch --no-git-tag-version",
+    "version:bump": "pnpm version -r patch --no-git-checks --filter=!. --filter=!./tools/*",
     "version:pin": "syncpack fix"
   },
   "dependencies": {
@@ -64,7 +64,7 @@
     "@nice-move/all-in-react": "^0.9.4",
     "@nice-move/syncpack-config": "^0.6.2",
     "@playwright/test": "~1.64.1",
-    "@types/node": "^22.18.0",
+    "@types/node": "^24.19.2",
     "@types/react": "~18.3.31",
     "@types/react-dom": "~18.3.7",
     "@vitest/coverage-istanbul": "^5.0.5",
@@ -80,10 +80,10 @@
     "vitest": "^5.0.5",
     "webpack": "^5.112.2"
   },
-  "packageManager": "pnpm@12.14.0",
+  "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": "^24.0.0",
-    "pnpm": "^12.14.0"
+    "pnpm": "^12.15.0"
   },
   "browserslist": {
     "development": [

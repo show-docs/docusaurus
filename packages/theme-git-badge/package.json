@@ -1,6 +1,7 @@
 {
+  "private": true,
   "name": "@show-docs/docusaurus-theme-git-badge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "侧边栏里给「新建」与「更新过」的页面挂一枚纯色点",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-git-badge",

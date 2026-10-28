@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-copy-button",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "页脚版权那一格右边加一颗按钮，点一下把当前页地址写进剪贴板",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-copy-button",

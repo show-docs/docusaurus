@@ -49,3 +49,9 @@ allowBuilds:
   'tuf-js': false
 
 shamefullyHoist: true
+
+# `react-dom@18.3.1` 的 Fizz 在中文串跨 2048 字节视图边界时，会把整块视图连同尾部的零填充一起写进
+# 输出流 —— 静态页里因此夹着 NUL，浏览器把 NUL 显示成 `��`（viewer 的标题就多了这个前缀）。
+# 补丁只把那一行改成 `subarray(0, writtenBytes)`，与上游 React 19 的写法一致；升级到 19 后可整块删掉。
+patchedDependencies:
+  react-dom@18.3.1: patches/react-dom@18.3.1.patch

@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-iframe",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Md 的 frontmatter 写 iframe: <目标 URL> 时把该页整页换成那个页面",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-iframe",
