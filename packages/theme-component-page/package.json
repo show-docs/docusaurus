@@ -1,0 +1,53 @@
+{
+  "name": "@show-docs/docusaurus-theme-component-page",
+  "version": "0.1.0",
+  "description": "在站点配置里给一列「frontmatter 键 → React 组件」的清单，命中那条键的页就把整个 DocItem 换成那个组件",
+  "keywords": [],
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-component-page",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
+    "directory": "packages/theme-component-page"
+  },
+  "bugs": {
+    "url": "https://github.com/show-docs/docusaurus/issues"
+  },
+  "types": "dist/index.d.mts",
+  "main": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "default": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    },
+    "./lib/*": "./lib/*",
+    "./types/*": "./types/*"
+  },
+  "files": [
+    "dist",
+    "lib",
+    "theme",
+    "types"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "@docusaurus/types": "catalog:",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "catalog:",
+    "react": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@docusaurus/types": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

@@ -1,0 +1,144 @@
+# 维护者文档：theme-component-page
+
+这份写的是**改这个包之前要知道的事**：清单怎么变成浏览器读得到的组件、各处判据住在哪一份里、
+以及失败模式的落点。使用者那一面（选项、入参、写法）在 [README](../README.md)。
+
+## 组成
+
+| 文件                                   | 谁编译它               | 管什么                                                             |
+| -------------------------------------- | ---------------------- | ------------------------------------------------------------------ |
+| `src/index.mts`                        | `tsc` → `dist/`        | 插件入口：校验清单、挂主题层、把生成模块写进 Docusaurus 的生成目录 |
+| `src/config.mts`                       | `tsc` → `dist/`        | 那一列清单的校验与归一化（配置期，红在「加载配置」那一句）         |
+| `src/contribute.mts`                   | `tsc` → `dist/`        | 别的主题包交出条目的那一格：约定、收集、与站点那一列合成           |
+| `src/registry-module.mts`              | `tsc` → `dist/`        | 生成模块的**文本**：那几行 `import` 与那份数据（配置期，纯函数）   |
+| `lib/component-page.ts`                | 用它的站点编（不编译） | 条目形状 + 命中判据 + 落空告警；不引 React、不引 DOM               |
+| `types/component-page-specifiers.d.ts` | 用它的站点编（不编译） | 告诉 TS 那份生成模块存在，并把条目形状钉成 `lib/` 那一份           |
+| `theme/DocItem/index.tsx`              | 用它的站点编（不编译） | 判清单的那一格：命中就换掉整个 `DocItem`                           |
+
+`src/` 编成 `dist/`，其余都是源码：与其余各包同一口径（谁编译、为什么不编译，记在仓库根
+`README.md` 那张表里）。覆盖率红线因此是 `src/` 那四份 + `lib/`（`vitest.config.mts` 的
+`coverage.include`），`theme/` 那一层由 e2e 钉。
+
+## 「配置 → 组件」这一跳为什么要生成一份文件
+
+`@theme/*` 是 webpack 的**构建期**别名（`@docusaurus/core/lib/webpack/aliases/index.js`：
+按层栈扫目录，一格一个精确 specifier），磁盘上没有 `@theme` 那个目录。浏览器侧那份 `DocItem`
+因此只能写死 `import`，没法 `import(变量)` —— 配置里那串字符串到不了运行时。
+
+这一包的解法是配置期把字符串**铺成源码**：`src/registry-module.mts` 出一份带静态 `import` 的
+模块文本，`contentLoaded` 把它写到
+
+```
+<generatedFilesDir>/theme-component-page/registry.ts
+```
+
+浏览器侧用 `@generated/theme-component-page/registry` 读它。三条根据都按**符号**认，不按行号认
+（行号随 Docusaurus 版本漂），读的是 `@docusaurus/core/lib/webpack/base.js`：
+
+- `resolve.alias` 里有 `'@generated': generatedFilesDir` —— 那条别名就是生成目录本身；
+- `resolve.extensions` 收了 `.mjs` / `.js` / `.jsx` / `.ts` / `.tsx` —— 所以生成文件不用写扩展名；
+- 官方那条 JS 规则 `{ test: /\.[jt]sx?$/i, exclude: excludeJS }` 里，`excludeJS()` 只对路径含
+  `node_modules` 的那一路交回 `true`（docusaurus 自己的包除外）—— 生成目录不含它，
+  所以 `.docusaurus/` 里的 `.ts` 照样进 babel。
+
+这三条一升级就该重读一遍；运行时替身是 e2e 那条「命中那把键的页整页交给组件」——
+它读不到生成模块就红，比这里任何一句描述都诚实。
+
+写这一步放在 `contentLoaded`，不放在入口调用：`generatedFilesDir` 要到插件装载完才存在，
+而客户端打包在这之后才开始。配置期与打包期之间只有 dev server 重启 / 重新 build 会再走一遍
+`contentLoaded`，正是改配置要的效果；这一份不需要 `getPathsToWatch`（它是产物，不是输入）。
+
+**代价**：生成文件的形状与 `types/component-page-specifiers.d.ts` 那份声明之间没有编译器拦着
+（那份声明就是 TS 看到的唯一真相，磁盘上那份文件在类型检查时还不存在，而 `.docusaurus/` 本身
+排在 `tsconfig.json` 的 exclude 里）。同理，入口写盘那一路径与浏览器侧那句 `@generated/…`
+是两处字面量。所以这些对齐各由一条测试钉住（都在 `test/component-page-registry.test.mts`）：
+铺出来的每一格键名 = 两份声明里的格集合，那句说明符反推的路径 = 入口真的落盘那一路径，
+运行时那一半由 e2e 钉。**新增一格要走的全程**：`types/component-page.d.ts` 的形状、
+`src/registry-module.mts` 的文本、`theme/DocItem` 里读它的那一格、上面那两条对齐的期望集合 ——
+漏了任何一处，前两条会红；只漏最后一处，才轮到静默拿到 `undefined`。
+
+## 判据住在哪一份
+
+- 条目形状与命中判据、落空告警：`lib/component-page.ts`。配置期与浏览器期引同一份，
+  于是 `match` 那两种判法只写一次。
+- 校验（什么形状的配置算写歪）：`src/config.mts`。`props` 那一格判到底（`assertPureData()`）：
+  串 / 数 / 布尔 / `null` / 普通对象 / 数组以外的一切都红在配置加载那一句，消息点名到
+  `pages[0].props.filters[1].on` 那种完整路径。判到底的理由是这一格的产物走 JSON 写法，
+  函数与 `undefined` 会静默消失、`NaN` 写成 `null`、`Date` 与 `Set` 变成另一种东西 ——
+  与其让组件收到一个悄悄没了的入参，不如红。循环引用也在这一步拦（`parents` 那一条来路），
+  否则抛在 `JSON.stringify` 里、看不出是哪一格。
+- 清单顺序 = 优先级：`lib/component-page.ts` 的文件头。本包没有「装没装」这一格：
+  清单就挂在本包的插件选项上，装了本层整列才参与判定。
+- 包交出条目那一条约定，以及两列怎么合成一列：`src/contribute.mts`。校验仍走
+  `src/config.mts` 那一条（同一份函数，只是报错里的列名换成 `pages（包名 交出的）`）；
+  判定那一侧完全不知道条目从哪儿来 —— 生成模块里只有合成后的那一列。
+
+## 条目还有第二个来源：装了的那个包自己交出
+
+站点写的那一列之外，`src/contribute.mts` 认一条约定：**插件实例上挂着 `getComponentPages()`**，
+交回的那一列就是那个包要接管的页。这一格不新造插件加载，问的是解析器插件那份推导
+（`PluginDiscovery`，本层对那个包的依赖因此从「主题别名」一条变成两条：`@theme-prev/DocItem`
+和这份推导）。
+
+三件事值得在改它之前知道：
+
+- **它只看实例上的那一个方法**，不去读 `themeConfig`、不认包名清单。`withOfficialFields`
+  会把实例自己带的自定义方法原样留着（`plugins.mts`），这是这条约定能成立的全部依据。
+  反过来，那条推导只保留**有 `getThemePath()`** 的实例（官方意义上的「主题」），所以普通
+  内容型插件挂了这个方法也不会被问 —— 受众本来就是主题层包。
+- **合成只有三条规则**（站点排前面 / 同键用站点的并留一条提示 / 两个包抢同一把键直接红）。
+  抢键那条选红不选「先到先得」：两个包各写各的，谁赢都没有合理依据，而让一个悄悄赢的话，
+  另一个包自己的键照样命中、页面却归了别人 —— 那种结果从产物里看不出来。
+- **代价是同一份配置被读两遍**：本层在 `contentLoaded` 推一遍，解析器在 `configureWebpack`
+  里自己推一遍，主题插件因此多实例化一遍。共享那一次要在进程里缓存，而那会改掉解析器
+  「重新初始化站点 = 新实例 = 新层栈」那条承诺（dev 的 `reloadSite()` 靠它，见
+  [`plugin-prev-layer-resolver` 的维护者文档](../../plugin-prev-layer-resolver/docs/internals.md)），
+  所以没共享。对主题包的既有约束（「整个模块加载期无副作用」）因此仍然够用：
+  `getComponentPages()` 也只是被多问一遍。
+
+`discover()` 交回 `null`（拿不到 core 那两个入口）时这一格交回空列：每一页仍照站点自己那一列
+判，本层不至于整层失效。告警由 `discover()` 自己报 —— 它才知道是哪一个入口取不到。
+
+钉这一格的是 `test/component-page-contrib.test.mts`：单元对合（认法、报错点名的列名、三条
+合成规则）+ 两条端到端（夹具站点里真装一个交出条目的包，跑**真的** `loadContext` +
+`loadPluginConfigs`，要求合成结果真的落进生成文件）。只有后者能证明「实例上的自定义方法
+在推导那一侧原样留着」，所以那一半没有用假列表替掉。
+
+## 与 `theme-iframe` 那一族的边界
+
+那一族把三条 API 层与 `iframe:` 那一条的清单**硬编码在自己包里**（`lib/api-frame-registry.ts`），
+判的是那四把键，命中后渲染的是自己那个 `<iframe>`。本包不认得它们中的任何一个：它的清单来自
+配置，命中后渲染的是配置点名的组件。两者的落点形状相同（都是替换整个 `DocItem`），
+判据与数据不同 —— 把那一族的清单接到这一包的机制上是一次单独的抽取，本包先把机制与那条通道
+（上面一节）立起来：真要接的是「哪几页归这个包」那一份清单，而框内那条路由、`oas3:` / `aas3:`
+那些 spec 键、`<iframe>` 的尺寸与消息循环仍然住在它自己包里，机制层一概不认。
+
+本包在 `src/index.mts` 里**不**跑 `assertThemePrerequisites()`：那条检查住在 `theme-iframe` 的
+`lib/`，引它就把那一族层变成本层的安装前提，而本层是通用机制，站点不装 `theme-iframe` 也用得上，
+它真正的安装前提只有解析器插件那一个包（README 的安装那一节）。缺解析器插件时本层那份
+`@theme-prev/DocItem` 直接解析失败，只是报错点隔着一整个构建 —— 这一取舍与「不认另一族层」
+是同一件事的两头，钉在 `test/package-entries.test.mts` 里那条「这一层没有 loadContent」上。
+
+本站把本层声明在其余各层**之后**，所以它在层栈最外、最先判（越晚声明 = 层栈越靠外 = 越先判，
+那条口径记在 [`theme-iframe` 的协议文档](../../theme-iframe/docs/iframe-protocol.md)里）；
+换个位置放就换个先后，机制本身不管这件事。
+
+**在最外的那一格因此遮住下面各族的 `DocItem`**：一页同时写中本层的键和 `theme-iframe` 那族
+的键时，本层的组件赢，而那族的告警永远不会打 —— 它的 `DocItem` 根本没被走到。两层互不认识，
+谁也报不了这条冲突，所以顺序是站点作者的判据：要那一族先判，就把本层往前提。
+
+## 失败模式与落点
+
+| 症状                                                                 | 落点                                                              |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 清单形状写歪                                                         | 配置加载那一步红，消息带 `pages[下标].哪一格`                     |
+| 两条用了同一把键                                                     | 同上（`seen` 那一条）                                             |
+| `component` 指到别名表认不出的地方                                   | 打包那一步 `Module not found`；生成文件里那条 `import` 上面有出处 |
+| `props` 深处不是纯数据（函数、`undefined`、`NaN`、`Date`、循环引用） | 配置加载那一步红，消息带完整路径 `pages[0].props.a.b`             |
+| 键写了但形状不合那条的判法                                           | dev 控制台一条告警，页面交回普通文档页                            |
+| 一页同时命中两条                                                     | dev 控制台一条告警，只用排在最前那条                              |
+| 装了本层却一条没配                                                   | 静默：生成一份空清单，每一页都原样交回下层（这是合法配置）        |
+| 某个包交出的那一列形状写歪                                           | 配置加载那一步红，消息带 `pages（包名 交出的）[下标].哪一格`      |
+| 两个包交出同一把键                                                   | 同上，红在 `contentLoaded`，把抢的两边都点出来                    |
+| 站点与某个包写了同一把键                                             | 用站点那条，构建日志一条提示（点名那个包）                        |
+| 拿不到插件列表（core 那两个入口取不到）                              | 包交出的条目全部缺席，站点那一列照旧；告警由解析器那份推导报      |

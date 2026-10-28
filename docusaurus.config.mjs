@@ -101,6 +101,25 @@ const config = {
     '@show-docs/docusaurus-theme-stoplight',
     '@show-docs/docusaurus-theme-redoc',
     '@show-docs/docusaurus-theme-scalar',
+    // 「整页交给一个组件」的通用套壳：清单挂在本层的插件选项上，一条 = 一把 frontmatter 键 +
+    // 一个组件说明符，命中就把整个 `DocItem` 换成那个组件（本站那一条指向站点自己的
+    // `src/theme/ComponentPageDemo`，示例页 `/theme-component-page/docs/component-page-demo`）。
+    //
+    // 位置在本层里判 `DocItem` 的各层**之后**，于是它是层栈上最外层的 `DocItem`：先判自己
+    // 这份清单，落空才交回 `@theme-prev/DocItem`（也就是上面那个 iframe 框的套壳）。
+    // 本站的键是 `componentPage`（认真布尔 `true`），与那四把键不撞。
+    [
+      '@show-docs/docusaurus-theme-component-page',
+      {
+        pages: [
+          {
+            key: 'componentPage',
+            component: '@theme/ComponentPageDemo',
+            props: { label: '组件接管了这一页' },
+          },
+        ],
+      },
+    ],
     // 图片查看器主题层：它不看 frontmatter，判的是正文里有没有图片。这一层覆盖的是
     // `DocItem/Content`（其余各层覆盖的是 `DocItem`），放在最里面，`@theme-prev` 那一步
     // 落到官方那份实现，正文一个字都不改。

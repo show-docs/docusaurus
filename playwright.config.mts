@@ -21,7 +21,7 @@ export default defineConfig({
     // 步骤里有句子却没实现 → 生成阶段就红，而不是跑到一半才发现漏了。
     missingSteps: 'fail-on-gen',
   }),
-  // 十一份 feature、二十七条场景共用一个 serve 进程与同一份产物；并发只会让浏览器启动来争要 CPU 的
+  // 十五份 feature、三十六条场景共用一个 serve 进程与同一份产物；并发只会让浏览器启动来争要 CPU 的
   // 构建，本仓单测已经栽过这个坑（见 vitest.config.mts 的 testTimeout 注释）。
   workers: 1,
   timeout: 60_000,

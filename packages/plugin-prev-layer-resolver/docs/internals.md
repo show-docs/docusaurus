@@ -107,6 +107,17 @@ export default {
 > （`configureWebpack(...) ?? {}`），而推导层栈要 import core 的 ESM 入口。
 > 插件初始化函数本身是被 `await` 的，因此层栈在初始化阶段算好、`configureWebpack` 直接用。
 
+`PluginDiscovery` 随包公开（`src/index.mts` 的 `export { PluginDiscovery }`），因为「装了哪些主题
+插件、实例长什么样」这一次推导本包之外也有消费者：`@show-docs/docusaurus-theme-component-page`
+用它问「哪些装着的包交出整页条目」（约定与合成规则见
+[那一包的维护者文档](../../theme-component-page/docs/internals.md)）。公开的是**这一个类**，
+不是内部实现：`derivePlugins` / `withOfficialFields` 那些仍留在包内。实例随插件回收、进程里
+不持状态那条承诺因此是**对外承诺** —— 别的消费者不能在这里加缓存，`reloadSite()` 之后拿到新层栈
+靠的就是它（上面那段「为什么分两步」与 `./plugins.mts` 的类文档）。
+
+代价是同一份配置可能被两个消费者各推一遍（各建一个 `PluginDiscovery` 实例）。这是有意的：
+共享一次推导需要一个活过插件初始化的地方，而那正好废掉上面那条承诺。
+
 ## 谁来编未编译的 TS 源码
 
 `@show-docs` 家族的主题层与组件是**未编译的 `.tsx` / `.jsx`**，随包发布 —— 由用它们的站点编译。

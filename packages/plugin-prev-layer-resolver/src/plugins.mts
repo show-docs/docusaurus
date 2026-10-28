@@ -88,9 +88,14 @@ async function importCoreModule<T>(
 /**
 一次插件初始化 = 一份「谁在链上、什么顺序」。
 
-「同一份插件列表别推两遍」的边界就是**一次插件初始化**：实例随插件回收，进程里没有
-第二个消费者，因此这里不持有任何进程级状态。`docusaurus start` 的 `reloadSite()`
-重新实例化插件 ⇒「改了配置 → 新实例 → 新层栈」是自然结果，不需要读配置、算指纹。
+「同一份插件列表别推两遍」的边界就是**一次插件初始化**：缓存只到这里，实例随插件回收，
+进程里不留任何状态。`docusaurus start` 的 `reloadSite()` 重新实例化插件 ⇒「改了配置 →
+新实例 → 新层栈」是自然结果，不需要读配置、算指纹。
+
+本包之外确实还有第二个消费者（`@show-docs/docusaurus-theme-component-page` 也新建一个实例，
+用它问「哪些装着的包交出整页条目」），各推各的、同一份配置因此被读两遍。**不跨实例共享是
+有意的**：一共享就得把这份列表放到比一次插件初始化更长的生命周期里，上面那条 `reloadSite()`
+的承诺当场作废 —— 代价记在 `./docs/internals.md`「插件如何注入 resolver」，那条承诺归承诺。
 */
 export class PluginDiscovery {
   private pending: Promise<DocusaurusPluginLike[] | null> | null = null;

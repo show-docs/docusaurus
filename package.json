@@ -38,6 +38,7 @@
     "@docusaurus/theme-common": "catalog:",
     "@show-docs/docusaurus-plugin-lazy-compilation": "workspace:^",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "catalog:",
+    "@show-docs/docusaurus-theme-component-page": "workspace:^",
     "@show-docs/docusaurus-theme-copy-button": "workspace:^",
     "@show-docs/docusaurus-theme-diff": "workspace:^",
     "@show-docs/docusaurus-theme-erd": "workspace:^",

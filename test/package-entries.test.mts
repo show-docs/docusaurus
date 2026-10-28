@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import lazyCompilationPlugin from '../packages/plugin-lazy-compilation/src/index.mts';
+import componentPageTheme from '../packages/theme-component-page/src/index.mts';
 import copyButtonTheme from '../packages/theme-copy-button/src/index.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
 import erdTheme from '../packages/theme-erd/src/index.mts';
@@ -208,6 +209,28 @@ describe('theme-iframe 入口：只交层目录，不查前置', () => {
     // 这一格是**刻意没有**的：那份检查住在未编译的 `lib/` 里，跨 `rootDir` import 会让
     // 构建在 TS6059 上停住。缺解析器的症状由这一层自己的 `@theme-prev/DocItem` 解析失败点出来。
     expect('loadContent' in iframeTheme()).toBe(false);
+  });
+});
+
+describe('theme-component-page 入口：只交层目录与一列清单', () => {
+  it('层目录与 TS 主题路径都指向包根那份 theme/', () => {
+    const plugin = componentPageTheme(contextWith(), {
+      pages: [{ key: 'report', component: '@theme/ReportPage' }],
+    });
+
+    expect(plugin.name).toBe('@show-docs/docusaurus-theme-component-page');
+    expectThemePath(plugin, 'theme-component-page');
+  });
+
+  it('这一层没有 loadContent：它不认另一族层', () => {
+    // 那条前置检查住在 `theme-iframe` 未编译的 `lib/` 里，引它就把那一族层变成本层的安装前提；
+    // 本层是通用机制，唯一的真前提是解析器插件，那条写在包 README 里（缺它时红在
+    // 本层 `theme/DocItem` 那句 `@theme-prev/DocItem` 的解析失败上）。
+    expect('loadContent' in componentPageTheme(contextWith())).toBe(false);
+  });
+
+  it('选项缺省 = 空清单：装上这一层但不配页面，站点照跑', () => {
+    expect(() => componentPageTheme(contextWith())).not.toThrow();
   });
 });
 

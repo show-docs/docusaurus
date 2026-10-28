@@ -36,13 +36,18 @@ export default defineConfig({
       reporter: ['lcov', 'json-summary'],
       reportsDirectory: './coverage',
       // 红线盖住**全部构建期代码**：每个包的 `src/`（配置期接线、webpack 规则、
-      // loader 判据、纯逻辑），加上 theme-iframe 那条框的 `lib/`（配置期的注册表 /
-      // 分发 / 入口工厂，浏览器侧的消息形状与两条同步 hook，以及三条视图层共用那份外壳）。
+      // loader 判据、纯逻辑），加上 `theme-iframe` 那条框的 `lib/`（配置期的注册表 /
+      // 分发 / 入口工厂，浏览器侧的消息形状与两条同步 hook，以及三条视图层共用那份外壳）
+      // 和 `theme-component-page` 的 `lib/`（配置期与浏览器期共用的那一条命中判据）。
       // **不在**红线里的是各包 `theme/` 与 `components/` 下那些 React 视图 ——
       // 它们由 e2e 钉住，理由见 `test/README.md`。
       // `lib/` 里浏览器那几份要 DOM，靠测试文件自己标 `@vitest-environment jsdom` 切环境，
       // 全局口径仍是 node。
-      include: ['packages/*/src/**/*.mts', 'packages/theme-iframe/lib/**'],
+      include: [
+        'packages/*/src/**/*.mts',
+        'packages/theme-iframe/lib/**',
+        'packages/theme-component-page/lib/**',
+      ],
       // 红线挂在产出它的那一步：`.github/workflows` 的 verify 作业跑 `pnpm verify`
       // （含 test:coverage），阈值就在那儿拦；本地只跑 `pnpm test` 不带覆盖率，
       // 会绿着把量掉下去。四项都已实测 100。
