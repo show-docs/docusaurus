@@ -68,6 +68,7 @@ export default function theme(context: LoadContext): Plugin {
         plugins: [
           new utils.currentBundler.instance.ProvidePlugin({
             process: processShim,
+            Buffer: ['buffer', 'Buffer'],
           }),
         ],
         resolve: {
