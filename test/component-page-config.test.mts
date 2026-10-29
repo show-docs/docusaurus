@@ -151,6 +151,20 @@ describe('normalizePages：每一种写歪都点名到那一格', () => {
     );
   });
 
+  it('component 不许写成 @theme/DocItem：那正是本层接管的那一格，会 import 回自己', () => {
+    // 站点与包交出的那一列都认这一条：生成的注册表里那条静态 import 会解析回本层自己的
+    // `DocItem`，命中那一页就递归渲染。
+    red(
+      [{ ...page, component: '@theme/DocItem' }],
+      /pages\[0\]（键「report」）的 component 是 @theme\/DocItem：那正是本层接管的那一格/u,
+    );
+    expect(() =>
+      normalizePages([{ ...page, component: '@theme/DocItem' }], {
+        column: 'pages（@x 交出的）',
+      }),
+    ).toThrow(/pages（@x 交出的）\[0\]（键「report」）/u);
+  });
+
   it('关掉一把键那一种记号只出得自站点那一列：包交出的写了就红', () => {
     expect(() =>
       normalizePages([{ key: 'embed', component: false }], {

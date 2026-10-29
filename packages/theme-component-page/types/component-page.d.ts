@@ -44,8 +44,8 @@ export type ComponentPageValue = true | string | Record<string, unknown>
 **配置里**写在一条条目上的形状：`ComponentPageEntry` 再多一格「命中后挂哪个组件」。
 
 站点把它写在插件选项的 `pages` 里（`component` 那一格还认 `false`，见 `src/index.mts`），
-别的主题包把它挂在插件实例的 `getComponentPages()` 上（那一格不认 `false`：包不能替站点
-决定自己不生效）。
+别的主题包把它放进 `loadContent()` 交回的 `ComponentPageContent`（那一格不认 `false`：
+包不能替站点决定自己不生效）。
 */
 export type ComponentPageDeclaration = Omit<ComponentPageEntry, 'match'> & {
   /** 那个组件的模块说明符，判据是 webpack 的别名表认不认它。 */
@@ -55,14 +55,17 @@ export type ComponentPageDeclaration = Omit<ComponentPageEntry, 'match'> & {
 }
 
 /**
-插件实例上那条**贡献约定**：挂了 `getComponentPages()` 的主题包，交回的那一列由本层接管。
+贡献方从 `loadContent()` 交回的那一格；**键名就是约定**。
 
-这条约定住在包的类型出口里，贡献方（比如 `theme-iframe`）引它实现那一格，形状就不会
-在贡献方与校验方各写一遍。返回 `unknown` 而不是声明形状：校验（`src/config.mts`）对
-站点那一列与包交出的那一列一视同仁，认不出的形状由它当场点名。
+本层在 `allContentLoaded` 里只看这一格：content 是对象、且身上有 `componentPages`，就算那个
+插件交出了条目；没有这一格 = 不交。形状走与站点列同一条校验（`src/config.mts`），写歪了由
+那一条点名到 `pages（<插件> 交出的）[下标].哪一格`。
+
+这条约定住在包的类型出口里，贡献方（比如 `theme-iframe`）`import type` 它来标注自己交回的
+东西，形状就不会在贡献方与校验方各写一遍；`import type` 不留运行时依赖。
 */
-export type ComponentPagesProvider = {
-  getComponentPages: () => unknown
+export type ComponentPageContent = {
+  componentPages: readonly ComponentPageDeclaration[]
 }
 
 /**

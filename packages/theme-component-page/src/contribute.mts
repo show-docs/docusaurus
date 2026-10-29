@@ -1,32 +1,31 @@
 /**
-别的主题包在配置期把条目交给本层的那一格。
+别的主题包把条目交给本层的那一格。
 
 ## 为什么要有这一格
 
 站点自己在配置里写一列已经能用；「装了那个包就自动生效」还差一步 —— 本层得知道
-**装着的哪些包各自交出了哪几条**。这一格不新造一套插件加载：复用解析器插件那次推导
-（`PluginDiscovery`，本层对它的依赖就是那条 peer），它已经按官方顺序把装着的主题插件
-实例化过一遍，而实例上挂的自定义方法原样留着。
+**装着的哪些插件各自交出了哪几条**。这一步不新造一套插件加载，走官方已有的那条路：
+贡献方在自己的 `loadContent()` 里交回 `{ componentPages }`，官方把所有插件的 content 收进
+`allContent`，本层在 `allContentLoaded` 里读 —— 那是唯一「所有 content 都已到齐」的点。
 
-**约定只有一条**：插件实例上挂着 `getComponentPages()`，交回的那一列就是那个包要接管的页。
-没有这个方法的实例本层一眼都不看；形状仍走 `./config.mts` 那一条校验，与站点写的那些一字不差。
+**约定只有一条**：content 是对象、身上有 `componentPages` 这一格，就算那个插件交出了条目；
+没有这一格本层一眼都不看。形状仍走 `./config.mts` 那一条校验，与站点写的那些一字不差，
+报错里的列名带上「谁交的」（`pages（@x 交出的）[0]`）。
 
-**认得进来的只有主题插件**：那次推导按官方意义只保留「实例上有 `getThemePath()`」的（层栈就
-建在这条判据上），所以普通内容型插件挂了 `getComponentPages()` 也不会被问。对本层的受众（主题
-层包）这正好对上；想交出条目的那个包因此得是一个主题。
+**来源 = 所有被装载的插件**：`allContent` 的形状是「插件名 → id → content」，preset 展开出来的、
+相对路径入口的、配置里直接写函数的都在里面；同一个包装了两次（不同 `id`）就是两份 content。
+问的是「这个插件实例被装载了吗」，所以没有「名字拼不出来所以发现不到」那一类缺口。
 
-## 这一格的代价
+## 这一格的边界
 
-本层在 `contentLoaded` 推一遍，解析器自己在 `configureWebpack` 里推一遍，同一份配置因此被读
-两次、主题插件因此被多实例化一遍。共享那一次推导要在进程里缓存，而那会改掉解析器「重新初始化
-站点 = 新实例 = 新层栈」那条承诺（dev 的 `reloadSite()` 靠它），所以没共享。记在
-`docs/internals.md`，别只留在这里。
+只有被装载的插件能交：装在依赖里、没注册进 `plugins` / `themes` 的包不会出现（旧方案里
+`contributors` 能点名「装了但没注册」的包，这一版没有对应物）。面也不再限于主题 —— 任何插件的
+content 都看，兜底只剩撞键红与站点 `component: false`。记在 `docs/internals.md`，别只留在这里。
 */
 
-import { PluginDiscovery } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
-import type { LoggerLike } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
+import type { AllContent } from '@docusaurus/types';
 
-import type { ComponentPagesProvider } from '../types/component-page.ts';
+import type { ComponentPageContent } from '../types/component-page.ts';
 
 import {
   normalizePages,
@@ -40,57 +39,53 @@ import {
 */
 const SITE_COLUMN = '站点配置';
 
-/** 某个包交出的那一列，已经按同一条校验走过。 */
+/** 某个插件交出的那一列，已经按同一条校验走过。 */
 export type ContributedPages = {
-  /** 哪个包交出的：包名（取实例上的 `name`），进报错文案与提示。 */
+  /** 谁交出的：插件名（同一个包装了两次时带上 `id`），进报错文案与提示。 */
   from: string;
   /** 包那一列认不得 `component: false`（见 `./config.mts`），所以这里全是真说明符。 */
   pages: EnabledPage[];
 };
 
-/** 挂着那条约定的那一种实例：本层只看这一个方法，其余格子一概不读。 */
-type Contributor = ComponentPagesProvider & { name?: unknown };
+/** content 上那一格；不是对象、或没有这一格时交回 `undefined`（= 这个插件不交）。 */
+function contentPagesOf(content: unknown): unknown {
+  if (typeof content !== 'object' || content === null) {
+    return undefined;
+  }
 
-/** 这个实例交出条目吗？只认「对象上挂着个函数」，不猜别的形状。 */
-export function isComponentPageContributor(
-  value: unknown,
-): value is Contributor {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as { getComponentPages?: unknown }).getComponentPages ===
-      'function'
-  );
+  const { componentPages } = content as Partial<ComponentPageContent>;
+
+  return componentPages;
 }
 
 /**
-把装了的那些实例里交出条目的逐条校验好。
+把 `allContent` 里交出的那些条目逐条校验好。
 
-认不出包名的实例（配置里直接写函数、没有入口的那种）用 `'<没有名字的插件>'` 顶：
-报错至少指出「第几条哪一格」，不至于只说「有一列写歪了」。
+报错与提示里的「谁交的」取插件名；同一个名字装了两次（不同 `id`）时把 `id` 也带上，
+两列撞键那条红才分得出是哪两份 content。`default` 是官方缺省 `id`，不带它。
 */
 export function collectContributedPages(
-  instances: readonly unknown[],
+  allContent: AllContent,
 ): ContributedPages[] {
   const contributed: ContributedPages[] = [];
 
-  for (const instance of instances) {
-    if (!isComponentPageContributor(instance)) {
-      continue;
+  for (const [name, byId] of Object.entries(allContent)) {
+    for (const [id, content] of Object.entries(byId)) {
+      const declared = contentPagesOf(content);
+
+      if (declared === undefined) {
+        continue;
+      }
+
+      const from = id === 'default' ? name : `${name}（id: ${id}）`;
+
+      contributed.push({
+        from,
+        pages: normalizePages(declared, {
+          column: `pages（${from} 交出的）`,
+        }),
+      });
     }
-
-    const from =
-      typeof instance.name === 'string' && instance.name !== ''
-        ? instance.name
-        : `'<没有名字的插件>'`;
-    const { getComponentPages } = instance;
-
-    contributed.push({
-      from,
-      pages: normalizePages(getComponentPages.call(instance), {
-        column: `pages（${from} 交出的）`,
-      }),
-    });
   }
 
   return contributed;
@@ -181,20 +176,4 @@ export function mergePages(
   }
 
   return { pages, notices };
-}
-
-/**
-问一遍装着的插件：有哪些包交出了条目。
-
-拿不到插件列表（`discover()` 交回 `null`）时交回空列：那时每一页仍照站点自己那一列判，本层
-不至于整层失效。告警由 `discover()` 自己报 —— 它才知道是 core 的哪个入口取不到、还是推导
-中途抛了，这里再报一条只会把同一件事说两遍。
-*/
-export async function discoverContributedPages(
-  siteDir: string,
-  logger: LoggerLike,
-): Promise<ContributedPages[]> {
-  const plugins = await new PluginDiscovery(siteDir, logger).discover();
-
-  return plugins === null ? [] : collectContributedPages(plugins);
 }

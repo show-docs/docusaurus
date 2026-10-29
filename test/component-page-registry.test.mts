@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { LoadContext } from '@docusaurus/types';
+import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import { normalizePages } from '../packages/theme-component-page/src/config.mts';
 import themeComponentPage from '../packages/theme-component-page/src/index.mts';
@@ -52,18 +52,21 @@ const pageOf = (
 ) => normalizePages([{ key, component, match, props }]);
 
 /**
-入口 context：`contentLoaded` 读 `siteDir`（问「装了哪些包交出条目」）与 `generatedFilesDir`
-（落盘点）。这里给的 `siteDir` 是个没有配置、没有 core 的空目录，那次推导因此交回 `null`
-（= 没有包交出条目），本层照旧只铺站点自己那一列 —— 这两条用例钉的就是那一份。
+入口 context：`allContentLoaded` 只读 `generatedFilesDir`（落盘点）。这里不另造 `allContent` ——
+没装别的贡献方时它就是一个空对象，那两条用例钉的正是「只有站点自己那一列」的那一份。
 */
 const contextOf = (generatedFilesDir: string): LoadContext =>
-  ({
-    generatedFilesDir,
-    siteDir: generatedFilesDir,
-  }) as unknown as LoadContext;
+  ({ generatedFilesDir }) as unknown as LoadContext;
 
-/** 那个空 `siteDir` 会让推导报一条「拿不到插件列表」的告警；这两条用例不断言告警，收掉。 */
-const silent = { logger: { warn: () => {} } };
+/** 跑一遍 `allContentLoaded`（`actions` 这一格本层不读）。 */
+const writeRegistry = (plugin: Plugin): void => {
+  const hook = plugin.allContentLoaded as unknown as (args: {
+    allContent: Record<string, Record<string, unknown>>;
+    actions: unknown;
+  }) => void;
+
+  hook({ allContent: {}, actions: {} });
+};
 
 describe('renderRegistryModule：空清单也要出一份', () => {
   it('一条没配：没有 import，pages 是空数组', () => {
@@ -137,16 +140,14 @@ describe('入口把那份模块写进 Docusaurus 的生成目录', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('contentLoaded 落的盘：目录不在就先建，文件里就是清单铺出来的那几行', async () => {
+  it('allContentLoaded 落的盘：目录不在就先建，文件里就是清单铺出来的那几行', () => {
     // 生成目录下面那一层是本包自己建的（Docusaurus 只保证 `generatedFilesDir` 在）。
     const target = join(dir, 'site');
     const plugin = themeComponentPage(contextOf(target), {
-      ...silent,
       pages: [{ key: 'report', component: '@theme/ReportPage' }],
     });
 
-    // 入口读的那两格是 `siteDir`（问包交出的条目）与 `generatedFilesDir`，其余一概不读。
-    await (plugin.contentLoaded as () => Promise<void>)();
+    writeRegistry(plugin);
 
     const source = readFileSync(join(target, REGISTRY), 'utf8');
 
@@ -154,17 +155,16 @@ describe('入口把那份模块写进 Docusaurus 的生成目录', () => {
     expect(source).toContain('key: "report",');
   });
 
-  it('浏览器侧那句 @generated 落的正是写盘那一路径', async () => {
+  it('浏览器侧那句 @generated 落的正是写盘那一路径', () => {
     // 入口写的那一格与 `theme/DocItem` 里那句说明符是**两处字面量**，靠注释约定一字不差。
     // 漂了不会红在类型上（babel 不吃类型），只会让那一层读不到清单、每页都交回下层 ——
     // 所以这里拿真实写盘的结果对：从浏览器侧那句反推路径，要求文件真的在那儿。
     const target = join(dir, 'importer');
     const plugin = themeComponentPage(contextOf(target), {
-      ...silent,
       pages: [{ key: 'report', component: '@theme/ReportPage' }],
     });
 
-    await (plugin.contentLoaded as () => Promise<void>)();
+    writeRegistry(plugin);
 
     const specifier = /from '@generated\/([^']+)';/u.exec(
       packageFile('theme/DocItem/index.tsx'),

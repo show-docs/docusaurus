@@ -21,12 +21,12 @@ import type {
 } from '../types/component-page.ts';
 
 export type {
+  ComponentPageContent,
   ComponentPageDeclaration,
   ComponentPageEntry,
   ComponentPageMatch,
   ComponentPageProps,
   ComponentPageValue,
-  ComponentPagesProvider,
 } from '../types/component-page.ts';
 
 /**

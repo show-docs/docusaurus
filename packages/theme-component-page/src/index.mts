@@ -10,7 +10,7 @@ import type { LoadContext, Plugin } from '@docusaurus/types';
 import type { ComponentPageDeclaration } from '../types/component-page.ts';
 
 import { normalizePages } from './config.mts';
-import { discoverContributedPages, mergePages } from './contribute.mts';
+import { collectContributedPages, mergePages } from './contribute.mts';
 import { renderRegistryModule } from './registry-module.mts';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
@@ -62,8 +62,9 @@ export type ComponentPageThemeOptions = {
 整个 `DocItem` 换成清单里那个组件。为什么非要生成一份文件，记在那份文件的头上。
 
 那一列有两个来源，站点自己写的那一列排前面（清单顺序就是命中优先级）：站点配置里的
-`pages`，和装了的那些主题包各自交出的条目（约定只有一条 `getComponentPages()`，合成规则、
-代价与「什么样的包认得进来」都在 `./contribute.mts`）。
+`pages`，和装着的插件各自在自己的 `loadContent()` 里交回的 `{ componentPages }`
+（官方 `allContent` 把各插件的 content 汇到一起，本层在 `allContentLoaded` 里读；约定、
+边界与合成规则都在 `./contribute.mts`）。
 
 本层唯一的安装前提就是解析器插件那一个包，`loadContent()` 里当场查它（「在不在那两份清单里」
 那条判据住在解析器包自己的 `plugin-slots`）：缺了它，本层那份 `theme/DocItem` 要到打包那一步
@@ -99,15 +100,14 @@ export default function theme(
     getTypeScriptThemePath() {
       return resolve(thisDir, '../theme');
     },
-    async contentLoaded() {
-      // 站点配置里那列清单到这里才变成浏览器读得到的东西。写在 `contentLoaded` 而不是
-      // 入口调用那一步：`generatedFilesDir` 要到插件装载完才存在，而客户端打包在那之后。
-      // 包交出的那些条目同样要在这里问 —— 问「装了哪些插件」是配置期之后的事，站点自己
-      // 那一列则已经在上面校验过（约定与合成规则见 `./contribute.mts`）。
-      const contributed = await discoverContributedPages(
-        context.siteDir,
-        logger,
-      );
+    allContentLoaded({ allContent }) {
+      // 站点配置里那列清单到这里才变成浏览器读得到的东西。写在这一步而不是入口调用或
+      // `loadContent`：`generatedFilesDir` 要到插件装载完才存在，而客户端打包在
+      // `allContentLoaded` 之后；工厂还会被解析器的 `PluginDiscovery` 再跑一次，写盘会
+      // 删掉自己的产物。包交出的那些条目同样只在这里看到 —— `allContent` 是唯一
+      // 「所有插件的 content 都已到齐」的点（约定与合成规则见 `./contribute.mts`），
+      // 站点自己那一列则已经在上面校验过。
+      const contributed = collectContributedPages(allContent);
       const { pages, notices } = mergePages(sitePages, contributed);
 
       // 站点覆写掉包交出的那一条，是「生效情况和某个包写的不一样」，不是错误：报一次，

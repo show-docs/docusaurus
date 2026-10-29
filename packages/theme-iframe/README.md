@@ -5,7 +5,8 @@
 
 `iframe:` 由本包直接处理，用来嵌外部页面；`scalar:` / `redoc:` / `stoplight:` 分别由
 theme-scalar、theme-redoc、theme-stoplight 在框内渲染，本包负责外层组件与跨 iframe 的地址、
-亮暗同步。四把键不放在本包自己的 `DocItem` 里判：本包在配置期把**装了的层**各交一页给
+亮暗同步。四把键不放在本包自己的 `DocItem` 里判：本包在自己的 `loadContent()` 里把**装了的
+层**各交一页给
 [`@show-docs/docusaurus-theme-component-page`](../theme-component-page/README.md)，由它那份
 `DocItem` 判清单、命中后挂上本包的 `theme/ApiFramePage`（所以 component-page 是本包的安装前提）。
 
@@ -124,7 +125,7 @@ oas3: /openapi.yaml
 | `themeConfig.apiFrame.order` | `string[]` | `scalar` → `redoc` → `stoplight` → `iframe` | 判定顺序与启用范围；排在前面的层优先，未列出的层不参与判定。 |
 
 覆盖不会绕过「已安装」这一条：清单里列了但 `plugins` 里没装的层仍然不参与判定。同一页写了多
-把键时，按顺序取第一个命中的已安装层。覆盖清单里拼错的名字、列了没装的层，在配置期打一条
+把键时，按顺序取第一个命中的已安装层。覆盖清单里拼错的名字、列了没装的层，在 `loadContent()` 里打一条
 告警（每类一次；默认顺序下没装的层静默跳过，那是正常状态）。
 
 四把键交给 component-page 之后，它也守着那一层的合成规则：站点若在 component-page 的
@@ -134,7 +135,7 @@ oas3: /openapi.yaml
 开发模式下，命中一页但框出不来、或用得不对劲时会告警：写了布尔键却没给 spec 地址、两把 spec
 键同时写。**键的形状不对**（例如 `scalar: 一份地址`）由 component-page 那条通用告警说 ——
 它判的就是「这把键的形状合不合清单里的判法」；`iframe:` 拿了非字符串也不会出框，交回普通
-文档页。落空的一大类现在从「框不出来」变成「键不生效、页面看起来正常」，配置期与开发模式各
+文档页。落空的一大类现在从「框不出来」变成「键不生效、页面看起来正常」，`loadContent()` 与开发模式各
 留了一条话，但**只写了 spec 键、没写任何布尔键**的页面不会再有告警：没有哪一层认领这一页，
 自然也没有谁该出框。
 

@@ -5,15 +5,15 @@
 
 ## 组成
 
-| 文件                                   | 谁编译它               | 管什么                                                                                                        |
-| -------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                        | `tsc` → `dist/`        | 插件入口：查解析器插件那条安装前提（`loadContent`）、校验清单、挂主题层、把生成模块写进 Docusaurus 的生成目录 |
-| `src/config.mts`                       | `tsc` → `dist/`        | 那一列清单的校验与归一化（配置期，红在「加载配置」那一句）                                                    |
-| `src/contribute.mts`                   | `tsc` → `dist/`        | 别的主题包交出条目的那一格：约定、收集、与站点那一列合成                                                      |
-| `src/registry-module.mts`              | `tsc` → `dist/`        | 生成模块的**文本**：那几行 `import` 与那份数据（配置期，纯函数）                                              |
-| `lib/component-page.ts`                | 用它的站点编（不编译） | 条目形状 + 命中判据 + 入参组装 + 落空告警；不引 React、不引 DOM                                               |
-| `types/component-page-specifiers.d.ts` | 用它的站点编（不编译） | 告诉 TS 那份生成模块存在，并把条目形状钉成 `lib/` 那一份                                                      |
-| `theme/DocItem/index.tsx`              | 用它的站点编（不编译） | 判清单的那一格：命中就换掉整个 `DocItem`                                                                      |
+| 文件                                   | 谁编译它               | 管什么                                                                                                                                                    |
+| -------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                        | `tsc` → `dist/`        | 插件入口：查解析器插件那条安装前提（`loadContent`）、校验清单、挂主题层、在 `allContentLoaded` 收集各插件交回的条目并把生成模块写进 Docusaurus 的生成目录 |
+| `src/config.mts`                       | `tsc` → `dist/`        | 那一列清单的校验与归一化（配置期，红在「加载配置」那一句）                                                                                                |
+| `src/contribute.mts`                   | `tsc` → `dist/`        | 别的插件交回条目的那一格：读 `allContent`、校验、与站点那一列合成                                                                                         |
+| `src/registry-module.mts`              | `tsc` → `dist/`        | 生成模块的**文本**：那几行 `import` 与那份数据（配置期，纯函数）                                                                                          |
+| `lib/component-page.ts`                | 用它的站点编（不编译） | 条目形状 + 命中判据 + 入参组装 + 落空告警；不引 React、不引 DOM                                                                                           |
+| `types/component-page-specifiers.d.ts` | 用它的站点编（不编译） | 告诉 TS 那份生成模块存在，并把条目形状钉成 `lib/` 那一份                                                                                                  |
+| `theme/DocItem/index.tsx`              | 用它的站点编（不编译） | 判清单的那一格：命中就换掉整个 `DocItem`                                                                                                                  |
 
 `src/` 编成 `dist/`，其余都是源码：与其余各包同一口径（谁编译、为什么不编译，记在仓库根
 `README.md` 那张表里）。覆盖率红线因此是 `src/` 那四份 + `lib/`（`vitest.config.mts` 的
@@ -26,7 +26,7 @@
 因此只能写死 `import`，没法 `import(变量)` —— 配置里那串字符串到不了运行时。
 
 这一包的解法是配置期把字符串**铺成源码**：`src/registry-module.mts` 出一份带静态 `import` 的
-模块文本，`contentLoaded` 把它写到
+模块文本，`allContentLoaded` 把它写到
 
 ```
 <generatedFilesDir>/theme-component-page/registry.ts
@@ -44,9 +44,13 @@
 这三条一升级就该重读一遍；运行时替身是 e2e 那条「命中那把键的页整页交给组件」——
 它读不到生成模块就红，比这里任何一句描述都诚实。
 
-写这一步放在 `contentLoaded`，不放在入口调用：`generatedFilesDir` 要到插件装载完才存在，
-而客户端打包在这之后才开始。配置期与打包期之间只有 dev server 重启 / 重新 build 会再走一遍
-`contentLoaded`，正是改配置要的效果；这一份不需要 `getPathsToWatch`（它是产物，不是输入）。
+写这一步放在 `allContentLoaded`，不放在入口调用，也不放在 `loadContent` / `contentLoaded`：
+`generatedFilesDir` 要到插件装载完才存在，而客户端打包在这之后才开始；更要紧的是
+`allContentLoaded` 是**唯一**「所有插件的 content 都已到齐」的点 —— 每个插件的
+`contentLoaded` 紧接在自己的 `loadContent` 之后跑，别人的规则可能还没交回。入口调用那一步还会
+被解析器的 `PluginDiscovery` 再跑一次，写盘会删掉自己的产物。配置期与打包期之间只有 dev server
+重启 / 重新 build 会再走一遍 `allContentLoaded`，正是改配置要的效果；这一份不需要
+`getPathsToWatch`（它是产物，不是输入）。
 
 **代价**：生成文件的形状与 `types/component-page-specifiers.d.ts` 那份声明之间没有编译器拦着
 （那份声明就是 TS 看到的唯一真相，磁盘上那份文件在类型检查时还不存在，而 `.docusaurus/` 本身
@@ -79,25 +83,28 @@
   否则抛在 `JSON.stringify` 里、看不出是哪一格。
 - 清单顺序 = 优先级：`lib/component-page.ts` 的文件头。本包没有「装没装」这一格：
   清单就挂在本包的插件选项上，装了本层整列才参与判定。
-- 包交出条目那一条约定，以及两列怎么合成一列：`src/contribute.mts`。校验仍走
-  `src/config.mts` 那一条（同一份函数，只是报错里的列名换成 `pages（包名 交出的）`）；
+- 别的插件交回条目那一条约定，以及两列怎么合成一列：`src/contribute.mts`。校验仍走
+  `src/config.mts` 那一条（同一份函数，只是报错里的列名换成 `pages（插件名 交出的）`）；
   判定那一侧完全不知道条目从哪儿来 —— 生成模块里只有合成后的那一列。
 
-## 条目还有第二个来源：装了的那个包自己交出
+## 条目还有第二个来源：装了的插件自己交回
 
-站点写的那一列之外，`src/contribute.mts` 认一条约定：**插件实例上挂着 `getComponentPages()`**，
-交回的那一列就是那个包要接管的页。这一格不新造插件加载，问的是解析器插件那份推导
-（`PluginDiscovery`，本层对那个包的依赖因此从「主题别名」一条变成两条：`@theme-prev/DocItem`
-和这份推导）。
+站点写的那一列之外，`src/contribute.mts` 认一条约定：**插件的 `loadContent()` 交回的 content
+里有 `componentPages` 这一格**，那一列就是那个插件要接管的页。这一格不新造发现机制，走的是
+官方那条 `loadContent` → `allContent` → `allContentLoaded`：官方把所有插件的 content 按
+「插件名 → id」汇进 `allContent`，本层在 `allContentLoaded` 里遍历它。
 
 四件事值得在改它之前知道：
 
-- **它只看实例上的那一个方法**，不去读 `themeConfig`、不认包名清单。`withOfficialFields`
-  会把实例自己带的自定义方法原样留着（`plugins.mts`），这是这条约定能成立的全部依据。
-  反过来，那条推导只保留**有 `getThemePath()`** 的实例（官方意义上的「主题」），所以普通
-  内容型插件挂了这个方法也不会被问 —— 受众本来就是主题层包。
+- **判据就是 content 上有没有那一格**，不看包名清单、不读 `themeConfig`、不要求实例上有哪个
+  方法。没有这一格 = 这个插件不交；有但形状写歪，红并把插件名带进列名。同一个包装了两次
+  （不同 `id`）就是两份 content，报错与提示里带上 `id` 才分得清。
+- **来源 = 所有被装载的插件**：preset 展开的、相对路径入口的、配置里直接写函数的都会走到
+  这一步。边界有两条：装在依赖里但没注册进 `plugins` / `themes` 的包不会出现（旧方案里
+  `contributors` 能点名这种包，这一版没有对应物）；面也不再限于主题 —— 任何插件的 content
+  都看，兜底只剩撞键红与站点 `component: false`。
 - **合成只有四条规则**（站点排前面 / 同键用站点的并留一条提示 / 站点写 `component: false`
-  就把那一把键整体关掉 / 两个包抢同一把键直接红）。抢键那条选红不选「先到先得」：两个包各写各的，
+  就把那一把键整体关掉 / 两个插件抢同一把键直接红）。抢键那条选红不选「先到先得」：两个包各写各的，
   谁赢都没有合理依据，而让一个悄悄赢的话，另一个包自己的键照样命中、页面却归了别人 ——
   那种结果从产物里看不出来。站点关掉那把键时它让位：两边都不再生效，红不红已经没有后果，
   而「红」反倒会让站点没法收拾一个它自己改不了的冲突（键名住在那两个包里）。
@@ -105,25 +112,21 @@
   （`siteColumn: true`）交回 `NormalizedPage`（`specifier` 可能是 `false`），包交出的那一列
   根本认不了 `false`（红），所以交回的是 `EnabledPage`。`mergePages` 把记号挑出去之后交给生成
   模块的只有 `EnabledPage`，`src/registry-module.mts` 因此不必判一种「按类型到不了」的形状。
-- **代价是同一份配置被读两遍**：本层在 `contentLoaded` 推一遍，解析器在 `configureWebpack`
-  里自己推一遍，主题插件因此多实例化一遍。共享那一次要在进程里缓存，而那会改掉解析器
-  「重新初始化站点 = 新实例 = 新层栈」那条承诺（dev 的 `reloadSite()` 靠它，见
-  [`plugin-prev-layer-resolver` 的维护者文档](../../plugin-prev-layer-resolver/docs/internals.md)），
-  所以没共享。对主题包的既有约束（「整个模块加载期无副作用」）因此仍然够用：
-  `getComponentPages()` 也只是被多问一遍。
 
-`discover()` 交回 `null`（拿不到 core 那两个入口）时这一格交回空列：每一页仍照站点自己那一列
-判，本层不至于整层失效。告警由 `discover()` 自己报 —— 它才知道是哪一个入口取不到。
+这一版还顺带还掉了一笔旧账：以前约定是实例方法 `getComponentPages()`，本层得在
+`contentLoaded` 里再建一个 `PluginDiscovery`，把主题插件多实例化一遍才问得到；现在 contribution
+就是 content 里的一格，全站读两遍配置（core + 解析器）就够了，本包对解析器只剩下安装前提
+（别名与未编译 TS 的 babel 规则），代码上不再依赖它的 `PluginDiscovery`。
 
-钉这一格的是 `test/component-page-contrib.test.mts`：单元对合（认法、报错点名的列名、四条
-合成规则）+ 两条端到端（夹具站点里真装一个交出条目的包，跑**真的** `loadContext` +
-`loadPluginConfigs`，要求合成结果真的落进生成文件）。只有后者能证明「实例上的自定义方法
-在推导那一侧原样留着」，所以那一半没有用假列表替掉。
+钉这一格的是 `test/component-page-contrib.test.mts`：单元对合（认法、报错点名的列名、多 id、
+四条合成规则、一个包多组规则）+ 一条端到端（夹具站点里真装一个交出条目的包，跑**真的**
+`loadContext` + `loadPluginConfigs`，再照 core 的口径把各插件 `loadContent()` 的结果收进
+`allContent`，要求合成结果真的落进生成文件）。
 
 ## 与 `theme-iframe` 那一族的边界
 
 `theme-iframe` 自己那份清单**硬编码在它包里**（`src/api-frame-registry.ts`），但它不再自己判：
-它在配置期通过本包的约定（`getComponentPages()`）把装了的那几层各交一页，组件是它自己的
+它在 `loadContent()` 里通过本包的约定交回装了的那几层各一页，组件是它自己的
 `@theme/ApiFramePage`，`props.namespace` 说明赢的是哪一条。于是：
 
 - 本包仍然不认得那四把键：交给它的就是普通的 `ComponentPageDeclaration`；
@@ -133,7 +136,7 @@
 - 框内那条路由、`oas3:` / `aas3:` 那些 spec 键、`<iframe>` 的尺寸与消息循环仍然住在它自己
   包里，机制层一概不认。
 
-`theme-markmap` 是这张清单上的第二个交出方，走的还是同一条约定：入口在配置期交出
+`theme-markmap` 是这张清单上的第二个交出方，走的还是同一条约定：入口的 `loadContent()` 交回
 `{ key: 'markmap', match: 'options', component: '@theme/MarkmapPage' }`，「开着、选项写在键里」
 那一格由 `options` 判法原样交给它自己的页面组件（口径在 `packages/theme-markmap/src/component-pages.mts`）。
 两边都只交条目、不碰本层的合成规则；本层也仍然不认得 `markmap` 那把键。
@@ -173,11 +176,11 @@
 | 键写了但形状不合那条的判法                                           | dev 控制台一条告警，页面交回普通文档页                                     |
 | 一页同时命中两条                                                     | dev 控制台一条告警，只用排在最前那条                                       |
 | 装了本层却一条没配                                                   | 静默：生成一份空清单，每一页都原样交回下层（这是合法配置）                 |
-| 某个包交出的那一列形状写歪                                           | 配置加载那一步红，消息带 `pages（包名 交出的）[下标].哪一格`               |
-| 两个包交出同一把键                                                   | 同上，红在 `contentLoaded`，把抢的两边都点出来                             |
-| 站点与某个包写了同一把键                                             | 用站点那条，构建日志一条提示（点名那个包）                                 |
-| 站点把某一格写成 `component: false`                                  | 那把键整体不生效（包交出的那条也丢），构建日志一条提示；不进生成模块       |
-| 包交出的那一列写了 `component: false`                                | 配置加载那一步红：关掉一把键只有站点那一列写得算                           |
+| 某个插件交回的 `componentPages` 写歪                                 | `allContentLoaded` 那一步红，消息带 `pages（插件名 交出的）[下标].哪一格`  |
+| 两个插件交出同一把键                                                 | 同上，把抢的两边都点出来                                                   |
+| 站点与某个插件写了同一把键                                           | 用站点那条，构建日志一条提示（点名那个插件）                               |
+| 站点把某一格写成 `component: false`                                  | 那把键整体不生效（插件交回的也丢），构建日志一条提示；不进生成模块         |
+| 插件交回的那一列写了 `component: false`                              | 同上那一步红：关掉一把键只有站点那一列写得算                               |
+| `component` 写成 `@theme/DocItem`                                    | 配置加载那一步红：那个别名归本层，注册表会 import 回自己                   |
 | 抢键的那两把正好被站点关掉                                           | 不红：两边都不生效，各留一条提示                                           |
-| 拿不到插件列表（core 那两个入口取不到）                              | 包交出的条目全部缺席，站点那一列照旧；告警由解析器那份推导报               |
 | 解析器插件没注册（缺 `@theme-prev/*` 那组别名）                      | 配置加载那一步红，点名那个包与 `pnpm add`；不再等打包报 `Module not found` |

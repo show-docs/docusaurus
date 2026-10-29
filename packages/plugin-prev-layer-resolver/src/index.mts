@@ -6,10 +6,9 @@ import { PrevLayerResolverPlugin } from './resolver.mts';
 import { showDocsSourceRule } from './source-js-rule.mts';
 import type { LoggerLike } from './types.mts';
 
-// 「装了哪些主题插件、它们的实例长什么样」这一次推导，本包之外也有消费者：
-// `@show-docs/docusaurus-theme-component-page` 用它问「哪些装着的包交出整页条目」。
-// 所以随包公开，而不是只留内部（实例仍随插件回收，进程级状态一条都不持 —— 理由见
-// `./plugins.mts` 里那个类的文档）。
+// 「装了哪些主题插件、它们的实例长什么样」这一次推导在包外也有用处（集成测试按真站点骨架
+// 把插件实例取出来）。所以随包公开，而不是只留内部（实例仍随插件回收，进程级状态一条都不持
+// —— 理由见 `./plugins.mts` 里那个类的文档）。
 export { PluginDiscovery } from './plugins.mts';
 export type { DocusaurusPluginLike, LoggerLike } from './types.mts';
 

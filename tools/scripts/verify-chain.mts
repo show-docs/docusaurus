@@ -148,7 +148,7 @@ console.log(`
 - @theme-original/X 保持官方语义（全局赢家），本机制没有改动它（test/layers.test.mts 钉住）。
 `);
 
-// ---- 3. 「整页交给一个组件」的那几页真的由配置期交进了 component-page 的清单 ----
+// ---- 3. 「整页交给一个组件」的那几页真的由 `loadContent()` 交进了 component-page 的清单 ----
 // 判定住在各交出方：iframe 那族（`packages/theme-iframe/src/api-frame-contribute.mts`）把装了
 // 的那几层各交出一页，`component` 全是本包的 `@theme/ApiFramePage`，顺序 = 注册表顺序
 // （命中优先级）；`theme-markmap` 交那一页 `markmap`（`src/component-pages.mts`），组件是

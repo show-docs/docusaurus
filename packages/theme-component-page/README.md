@@ -4,12 +4,12 @@
 这一页的**整个 `DocItem`** 就换成那个组件。不命中（没写键、或写的形状不合这条的判法）时
 这一层等于透明，正文原样交回下面那一层。
 
-这一包只管**机制**：清单由站点给（也可以由装了的主题包自己交出，见下面
+这一包只管**机制**：清单由站点给（也可以由装了的插件自己交回，见下面
 「让装了的那个包自己交出条目」那一节），组件由站点或别的主题包出，本包不认得任何具体页面、
 也不认得别的包。今天有两层把「整页换掉」交给本层：`@show-docs/docusaurus-theme-iframe`
-那一族「整页交给一个 `<iframe>`」在配置期交出四把框键、命中后挂上 `theme/ApiFramePage`；
-`@show-docs/docusaurus-theme-markmap` 交出一把 `markmap`、命中后挂上 `theme/MarkmapPage`。
-判键、清单、装机过滤因此只有这一份实现。
+那一族「整页交给一个 `<iframe>`」在自己的 `loadContent()` 里交回四把框键、命中后挂上
+`theme/ApiFramePage`；`@show-docs/docusaurus-theme-markmap` 交回一把 `markmap`、命中后挂上
+`theme/MarkmapPage`。判键、清单、装机过滤因此只有这一份实现。
 
 ## 安装
 
@@ -18,8 +18,7 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 ```
 
 `@theme-prev/*` 那组别名由解析器插件提供，必须装上**并注册成插件**（这一层靠它拿「下面那一层」
-的 `DocItem`）。本层问「装了哪些包、各自交出了什么条目」用的也是那个包里的同一份推导（见下面
-那一节），所以它是本层唯一一条安装前提 —— 这一条在 `loadContent()` 里当场查（判据就住在那个包，
+的 `DocItem`）。它是本层唯一一条安装前提 —— 这一条在 `loadContent()` 里当场查（判据就住在那个包，
 见它 README 的「各主题层那条「本插件注册了没有」的检查」），缺了它红在配置加载那一句，
 而不是等打包时报 `Module not found: @theme-prev/DocItem`。需要 Docusaurus `^3.9.2` 与 Node `^24`。
 
@@ -107,21 +106,31 @@ export default function ReportPage({ frontMatter, value }: ComponentPageProps) {
 
 ## 让装了的那个包自己交出条目
 
-上面那一列写在站点配置里。条目还有第二个来源：任何主题包都能在自己的插件实例上挂一个方法，
-把自己要接管的那几页交出来 —— 站点装上那个包就生效，不必再回来抄一遍清单。
+上面那一列写在站点配置里。条目还有第二个来源：任何插件的 `loadContent()` 都能在自己交回的
+content 里带一格 `componentPages` —— 站点装上那个包就生效，不必再回来抄一遍清单。
 
-约定只有一条，方法叫 `getComponentPages()`，交回的东西和站点配置里那一列一模一样：
+约定只有一条：交回 `{ componentPages: [...] }`，那一列的形状与站点配置里的一模一样。本包在
+`allContentLoaded` 里读官方汇起来的 `allContent`（插件名 → id → content），content 上有这一格
+就收下：
 
-```js
-// 某个主题包的入口：`plugins` 里那一项就是它
+```ts
+// 某个主题包的入口
+import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
+
 export default function myTheme(context, options) {
   return {
     name: 'my-theme',
     getThemePath: () => './theme',
-    getComponentPages: () => [{ key: 'embed', component: '@theme/EmbedPage' }]
+    loadContent() {
+      return {
+        componentPages: [{ key: 'embed', component: '@theme/EmbedPage' }]
+      } satisfies ComponentPageContent;
+    }
   };
 }
 ```
+
+`ComponentPageContent` 是纯类型，`import type` 取，不留运行时依赖。
 
 合起来的规则：
 
@@ -132,13 +141,18 @@ export default function myTheme(context, options) {
   那个包。这是站点唯一的「关掉」写法 —— 不想让某个包接管某一页，又不必去改那个包里的键名。
 - **两个包交出同一把键**：直接红，把抢的两边都点出来。这种局面没有合理的默认答案，
   让其中一个悄悄赢是最难查的那种结果。站点把那一把关掉时不红：两边都不生效，抢赢抢输没有后果。
+- **一个包可以交多条**：每条各带自己的 `key` / `match` / `props` / `component`，站点可以逐键
+  覆写或关掉，不牵连同包其他条目。一个包内两条写同一把键同样按重复红（「同源」不是豁免理由）。
+- **任何被装载的插件都能交**：preset 展开出来的、相对路径入口的、配置里直接写函数的都在
+  `allContent` 里；同一个包装了两次（不同 `id`）就是两份 content。装在依赖里、没注册进
+  `plugins` / `themes` 的包不会出现 —— 这一版没有「按包名点名」的入口。
 
 ```js
 // docusaurus.config.mjs：站点不想要某个包接管 `embed` 那几页
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
-    '@my-theme/with-embed', // 它交出了 { key: 'embed', component: '@theme/EmbedPage' }
+    '@my-theme/with-embed', // 它的 loadContent() 交回了 { key: 'embed', component: '@theme/EmbedPage' }
     [
       '@show-docs/docusaurus-theme-component-page',
       { pages: [{ key: 'embed', component: false }] }
@@ -150,15 +164,15 @@ export default {
 `false` 只认站点这一列：包交出的那一列写它没有意义（那个包不能替站点决定它自己不生效），
 红在配置加载那一句。
 
-- 校验与站点那一列同一条，报错点名到是哪个包、第几条、哪一格
-  （`pages（my-theme 交出的）[0].component`）。
-- **交出条目的得是个主题包**：实例上要有 `getThemePath()`。问「装了哪些包」用的是
-  [解析器插件](../plugin-prev-layer-resolver/README.md)那次推导，它只保留官方意义上的「主题」。
-  站点把那个包声明在 `plugins` 还是 `themes` 里都算 —— 拿回来的是官方合并后的那一份，顺序照旧。
-- **`getComponentPages()` 要便宜且幂等**：它可能被问好几遍（本层在配置期推一次，解析器插件在
-  打包配置那一步自己再推一次），而且同一份配置两次问必须给出同一列 —— 两遍结果不一样，
-  生成模块里就是「这一列最后一次问出来的那个样子」。所以那一格里别读文件、别算重东西、
-  别依赖调用次数；要算，算好放着。
+- 校验与站点那一列同一条，报错点名到是哪个插件、第几条、哪一格
+  （`pages（my-theme 交出的）[0].component`）。这一步发生在 `allContentLoaded`，也就是打包之前。
+- **规则在 `loadContent()` 里求值**：那一格跑在 Node 里 —— 不引 React、不引 DOM、不做副作用
+  （别在那一格里读文件或写全局）。规则是纯数据，组件在浏览器期存在，两侧只靠 `@theme/X`
+  字符串相连。
+- **提示自己打**：清单拼错、列了没装的层这类话由算规则的那一方在 `loadContent()` 里打，
+  本包不代打。
+- **组件不许写 `@theme/DocItem`**：那个别名归本层，生成的注册表会 `import` 回本层自己，
+  命中就递归；配置期直接红。
 - 站点配置里 `pages` 一个字没写也行：那是空列，包交出的条目照样生效。
 
 ## 层栈与代价
@@ -185,7 +199,8 @@ export default {
 
 配置期红掉的那些（都会点名到 `pages[下标].哪一格`）：清单不是数组、某一条不是对象、
 `key` 或 `component` 缺/空、`key` 用了官方文档页 frontmatter 的那一组键名、两条用了同一把键、
-`match` 写了那三种以外的东西、`props` 不是普通对象、`props` 深处某格不是纯数据。
+`component` 写成 `@theme/DocItem`（那正是本层自己）、`match` 写了那三种以外的东西、`props`
+不是普通对象、`props` 深处某格不是纯数据。
 
 `key` 那一格为什么挡整组：本层判的就是「这一页写了这把键」，而 `title`、`description`、`slug`、
 `sidebar_label`、`tags` 那些几乎每一页都写着，语义还归 Docusaurus 自己 —— 拿它们当键，
@@ -214,8 +229,8 @@ export default {
 
 ## 这份文档之外
 
-- 本包是基础设施链中间那一格：站点自己写一列清单是一条用法，别的主题包用
-  `getComponentPages()` 交条目是另一条（`theme-iframe` 的框页与 `theme-markmap` 的导图页就是这么
+- 本包是基础设施链中间那一格：站点自己写一列清单是一条用法，别的插件在 `loadContent()` 里
+  交回 `{ componentPages }` 是另一条（`theme-iframe` 的框页与 `theme-markmap` 的导图页就是这么
   接上的）。它是 `theme-iframe`（整页交给一个框）的一般形态 —— 上面那格用本包，本包不反过来
   依赖它。三格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
 - [示例页](./docs/component-page-demo.md)：这一层命中时长什么样。

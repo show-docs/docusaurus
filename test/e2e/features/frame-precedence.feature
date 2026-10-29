@@ -1,4 +1,4 @@
-# 「整页交给一个框」这一族的四把键经 `theme-iframe` 配置期交给 `theme-component-page` 的那份清单判
+# 「整页交给一个框」这一族的四把键经 `theme-iframe` 在自己 `loadContent()` 里交给 `theme-component-page` 的那份清单判
 # （收拢前三条 API 层各带一层 `DocItem`，先后由 `plugins` 的排列决定；现在清单默认照
 # `packages/theme-iframe/src/api-frame-registry.ts` 的条目顺序排：scalar → redoc → stoplight → iframe，
 # 命中页整个 `DocItem` 换成 `@theme/ApiFramePage`）。这一条用例钉的就是这条语义 ——

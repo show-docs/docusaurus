@@ -95,6 +95,12 @@ type DeclaredPage = {
 /** `match` 那格认的三种判法；写在这一格，校验与报错文案共用同一份。 */
 const MATCHES: readonly ComponentPageMatch[] = ['boolean', 'value', 'options'];
 
+/**
+`@theme/DocItem` 这个别名归本层（本层就是最外层那个 `DocItem` 的提供者）。清单里再指向它，
+生成的注册表就 `import` 回本层自己，命中那页会递归渲染到爆 —— 配置期直接红。
+*/
+const SELF_SPECIFIER = '@theme/DocItem';
+
 /** 那一格拿到的是什么东西，只用于报错文案（`null` 与数组各有名字，别混称 object）。 */
 function kindOf(value: unknown): string {
   if (value === null) {
@@ -321,6 +327,14 @@ export function normalizePages(
 
     seen.add(validatedKey);
 
+    const specifier = normalizeSpecifier(component, where, siteColumn);
+
+    if (specifier === SELF_SPECIFIER) {
+      throw new Error(
+        `theme-component-page 的 ${where}（键「${validatedKey}」）的 component 是 ${SELF_SPECIFIER}：那正是本层接管的那一格，生成的注册表会 import 回本层自己，命中就递归。换一个组件说明符（站点想换这一页的外观，就在 \`src/theme/DocItem\` 里覆写本层的套壳）。`,
+      );
+    }
+
     return {
       entry: {
         key: validatedKey,
@@ -328,7 +342,7 @@ export function normalizePages(
         props:
           props === undefined ? undefined : requirePropsObject(props, where),
       },
-      specifier: normalizeSpecifier(component, where, siteColumn),
+      specifier,
     };
   });
 }

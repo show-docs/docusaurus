@@ -25,7 +25,7 @@ import stoplightTheme from '../packages/theme-stoplight/src/index.mts';
 import viewerTheme from '../packages/theme-viewer/src/index.mts';
 
 /**
-## 每个包入口在配置期交出的那几格
+## 每个包入口交出的那几格
 
 入口（每个包 `src/` 下那一份 `index.mts`）是 Docusaurus 唯一看得见的那一面：层目录、客户端模块、
 webpack 那几格、以及「缺前置插件时当场点名」。这一面全是**配置期**代码，跑在 Node 里 ——
@@ -118,9 +118,13 @@ const expectThemePath = (plugin: Plugin, pkg: string): void => {
 const clientModulesOf = (plugin: Plugin): string[] =>
   plugin.getClientModules!() as string[];
 
-/** `loadContent`：前置检查那一格，缺什么当场点名。 */
-const loadContentOf = (plugin: Plugin): (() => void) =>
-  plugin.loadContent as () => void;
+/** `loadContent`：前置检查那一格，缺什么当场点名；返回贡献方交回的那份 content。 */
+const loadContentOf = (plugin: Plugin): (() => unknown) =>
+  plugin.loadContent as () => unknown;
+
+/** 交回 content 里那一列条目（component-page 按它判命中）。 */
+const componentPagesOf = (plugin: Plugin): unknown =>
+  (loadContentOf(plugin)() as { componentPages?: unknown }).componentPages;
 
 describe('plugin-lazy-compilation：开发期给客户端 webpack 开 lazyCompilation', () => {
   /** 把 `NODE_ENV` 摆成用例要的那一格，跑完恢复。 */
@@ -206,12 +210,6 @@ const REDOC = '@show-docs/docusaurus-theme-redoc';
 const STOPLIGHT = '@show-docs/docusaurus-theme-stoplight';
 
 describe('theme-iframe 入口：层目录、接管清单、两条安装前提', () => {
-  /** 本层交出的那一列（component-page 按它判命中）。 */
-  const pagesOf = (plugin: Plugin): unknown[] =>
-    (
-      plugin as unknown as { getComponentPages: () => unknown[] }
-    ).getComponentPages();
-
   it('层目录与 TS 主题路径都指向包根那份 theme/', () => {
     const plugin = iframeTheme(contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE]));
 
@@ -235,7 +233,7 @@ describe('theme-iframe 入口：层目录、接管清单、两条安装前提', 
     ).not.toThrow();
   });
 
-  it('getComponentPages：装了的层各交一页，顺序按注册表而不是声明顺序', () => {
+  it('loadContent：装了的层各交一页，顺序按注册表而不是声明顺序', () => {
     // 声明顺序是「内 → 外」，注册表顺序是「外 → 内」：判定优先级跟着注册表走。
     const plugin = iframeTheme(
       contextWith([
@@ -248,7 +246,7 @@ describe('theme-iframe 入口：层目录、接管清单、两条安装前提', 
       ]),
     );
 
-    expect(pagesOf(plugin)).toEqual([
+    expect(componentPagesOf(plugin)).toEqual([
       {
         key: 'scalar',
         match: 'boolean',
@@ -284,7 +282,7 @@ describe('theme-iframe 入口：层目录、接管清单、两条安装前提', 
     );
 
     // redoc 列了却没装：不交，并在 loadContent 里说一次（配置期说一次就够）。
-    expect(pagesOf(plugin)).toEqual([
+    expect(componentPagesOf(plugin)).toEqual([
       {
         key: 'iframe',
         match: 'value',
@@ -293,7 +291,6 @@ describe('theme-iframe 入口：层目录、接管清单、两条安装前提', 
       },
     ]);
 
-    loadContentOf(plugin)();
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining(
         '覆盖清单里的 `@show-docs/docusaurus-theme-redoc` 没装',
@@ -572,12 +569,12 @@ describe('theme-markmap 入口', () => {
     expect(rules[0]!.loader).toMatch(/[/\\]loader[/\\]md-markmap-loader\.mjs$/);
   });
 
-  it('getComponentPages：交出 markmap 那一页，组件写的是 @theme/MarkmapPage', () => {
-    const plugin = markmapTheme(contextWith()) as unknown as {
-      getComponentPages: () => unknown;
-    };
+  it('loadContent：交出 markmap 那一页，组件写的是 @theme/MarkmapPage', () => {
+    const plugin = markmapTheme(
+      contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+    );
 
-    expect(plugin.getComponentPages()).toBe(MARKMAP_COMPONENT_PAGES);
+    expect(componentPagesOf(plugin)).toBe(MARKMAP_COMPONENT_PAGES);
     // `options` 判法：`markmap: true` 与选项对象都算命中（见 component-page 的判据）。
     expect(MARKMAP_COMPONENT_PAGES).toEqual([
       { key: 'markmap', match: 'options', component: '@theme/MarkmapPage' },

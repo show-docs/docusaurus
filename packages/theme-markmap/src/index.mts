@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
 import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
@@ -18,13 +19,11 @@ const NAMESPACE = '@show-docs/docusaurus-theme-markmap';
 
 /**
 本层的入口：`getThemePath()` 挂本包那一层（里面只有 `MarkmapPage` 与它依赖的导图组件），
-`getComponentPages()` 把 `markmap` 那一把键交给 `@show-docs/docusaurus-theme-component-page` ——
+`loadContent()` 把 `markmap` 那一把键交给 `@show-docs/docusaurus-theme-component-page` ——
 命中的页由它那份 `DocItem` 判清单后整页换成 `@theme/MarkmapPage`。于是本层的前提有两个：
 共享外壳所在的 `theme-iframe`，与判清单的 `component-page`；缺了它们，页面看着正常但导图不出现。
 */
-export default function theme(
-  context: LoadContext,
-): Plugin & { getComponentPages(): unknown } {
+export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
     loadContent() {
@@ -36,6 +35,10 @@ export default function theme(
         iframe: true,
         componentPage: true,
       });
+
+      return {
+        componentPages: MARKMAP_COMPONENT_PAGES,
+      } satisfies ComponentPageContent;
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 剩下的东西（入口、loader、类型）。
@@ -73,10 +76,6 @@ export default function theme(
         },
       };
     },
-    // component-page 那条约定的实现：`markmap` 那一把键归本层，命中后挂本包的
-    // `@theme/MarkmapPage`。条目是静态的（不随装了哪几层变），见 `./component-pages.mts`。
-    getComponentPages() {
-      return MARKMAP_COMPONENT_PAGES;
-    },
+    // `markmap` 那一把键的条目写在 `./component-pages.mts`，由上面的 `loadContent()` 交回。
   };
 }

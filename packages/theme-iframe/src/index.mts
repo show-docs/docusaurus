@@ -1,9 +1,11 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
+
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
-import { contributeApiFramePages } from './api-frame-contribute.mts';
+import { apiFrameComponentPages } from './component-pages.mts';
 import { assertThemePrerequisites } from './prerequisites.mts';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
@@ -23,12 +25,13 @@ export type ApiFrameThemeOptions = {
 /**
 本层的入口：`getThemePath()` 挂本包那一层（里面只有 `ApiFramePage` 与它依赖的框），
 `contentLoaded` 按注册表注册三条 API 层的框内页面由各包自己完成，这里只做两件事 ——
-把装了的层交给 component-page（`getComponentPages()`），以及在本层缺前提时当场点名。
+`loadContent()` 把装了的那几层交给 component-page，以及在本层缺前提时当场点名。
 
-「谁来判哪一页归哪一层」不在浏览器侧了：本包把装了的层按注册表顺序交给
-`@show-docs/docusaurus-theme-component-page`，由它生成的清单判命中、再把页交给本层的
-`theme/ApiFramePage`（说法见 `src/api-frame-contribute.mts`）。于是本层的前提多了一个：
-component-page 必须装着且注册了 —— 缺了它，那几页永远不会被交给本层，页面看着正常但框不出现。
+「谁来判哪一页归哪一层」不在浏览器侧了：本包把装了的层按注册表顺序放进 `loadContent()`
+交回的 `{ componentPages }`，由 `@show-docs/docusaurus-theme-component-page` 生成的清单判命中、
+再把页交给本层的 `theme/ApiFramePage`（说法见 `src/api-frame-contribute.mts`）。于是本层的前提
+多了一个：component-page 必须装着且注册了 —— 缺了它，那几页永远不会被交给本层，页面看着正常
+但框不出现。
 
 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus 项目会用自己
 的 babel 编译它们。本包要编译的只有这一份入口。「谁来编」归
@@ -38,16 +41,7 @@ component-page 必须装着且注册了 —— 缺了它，那几页永远不会
 export default function theme(
   context: LoadContext,
   options: ApiFrameThemeOptions = {},
-): Plugin & { getComponentPages(): unknown } {
-  const declared = {
-    plugins: context.siteConfig.plugins,
-    themes: context.siteConfig.themes,
-  };
-  const contribution = contributeApiFramePages(
-    declared,
-    options.themeConfig?.apiFrame?.order,
-  );
-
+): Plugin {
   return {
     name: NAMESPACE,
     loadContent() {
@@ -59,10 +53,22 @@ export default function theme(
         componentPage: true,
       });
 
+      const contribution = apiFrameComponentPages(
+        {
+          plugins: context.siteConfig.plugins,
+          themes: context.siteConfig.themes,
+        },
+        options.themeConfig?.apiFrame?.order,
+      );
+
       // 配置级那两条（覆盖拼错、列了没装的层）说一次就够：每翻一页重算没有增量信息。
       for (const warning of contribution.warnings) {
         console.warn(`[theme-iframe] ${warning}`);
       }
+
+      return {
+        componentPages: contribution.componentPages,
+      } satisfies ComponentPageContent;
     },
     // 主题层与 `components/` 是源码，站在包根上，不经 tsc：由用它们的站点编译。
     getThemePath() {
@@ -72,10 +78,6 @@ export default function theme(
     getTypeScriptThemePath() {
       return resolve(thisDir, '../theme');
     },
-    // component-page 那条约定的实现：装了的层各接管自己那把 frontmatter 键，
-    // 交给本层的 `@theme/ApiFramePage` 渲染。
-    getComponentPages() {
-      return contribution.pages;
-    },
+    // 「装了的层各接管哪把键」那一列由上面的 `loadContent()` 交回，见 `./component-pages.mts`。
   };
 }

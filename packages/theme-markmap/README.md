@@ -28,9 +28,9 @@ export default {
 };
 ```
 
-本层在配置期把 `markmap` 那一页交给 theme-component-page（`getComponentPages()`），由它那份
-`DocItem` 判清单后整页换成 `@theme/MarkmapPage`。所以 component-page 要注册，而且要写在本层
-**之后** —— 越晚声明 = 层栈越靠外 = 越先判（见
+本层在自己的 `loadContent()` 里把 `markmap` 那一页交给 theme-component-page（交回的 content
+里带 `componentPages`），由它那份 `DocItem` 判清单后整页换成 `@theme/MarkmapPage`。所以
+component-page 要注册，而且要写在本层**之后** —— 越晚声明 = 层栈越靠外 = 越先判（见
 [`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)）。
 
 ### 写 frontmatter
@@ -50,7 +50,7 @@ markmap: true
 
 ## 层栈
 
-本层不再提供 `theme/DocItem`：它在配置期交出一把 `markmap` 条目（判法 `options`，组件指回
+本层不再提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `markmap` 条目（判法 `options`，组件指回
 `@theme/MarkmapPage`），由 theme-component-page 在最外那一格命中后把整页换掉。`MarkmapPage`
 自己也不拼外壳 —— 它向下面那一层要 `DocItem`（`@theme-prev/DocItem`），把导图摆在它前面，
 正文一格都不动；命不中时那一层等于透明，这一页看不出它存在过。
