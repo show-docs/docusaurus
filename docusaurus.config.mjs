@@ -127,8 +127,8 @@ const config = {
       },
     ],
     // 图片查看器主题层：它不看 frontmatter，判的是正文里有没有图片。这一层覆盖的是
-    // `DocItem/Content`（其余各层覆盖的是 `DocItem`），放在最里面，`@theme-prev` 那一步
-    // 落到官方那份实现，正文一个字都不改。
+    // `DocItem/Content`（其余各层覆盖的是 `DocItem`），拿的是官方那一份
+    // （`@theme-init/DocItem/Content`），正文一个字都不改。
     '@show-docs/docusaurus-theme-viewer',
     // 导航栏那颗用户头像：它覆盖的是 `ColorModeToggle`（上面几层覆盖的是 `DocItem` /
     // `Footer/Copyright`），谁都不争同一格。

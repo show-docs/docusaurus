@@ -17,7 +17,8 @@
 
 这一层**不再提供 `DocItem`**：四把键由配置期交给 `theme-component-page`（`src/api-frame-contribute.mts`），
 命中后挂的是本包的 `theme/ApiFramePage`。所以 `@theme-prev/DocItem` 那条链上，本层让位给了
-`theme-diff` 直接接 `theme-component-page`；`DocItem/Content` 那根链上仍然只有官方一份实现。
+`theme-diff` 直接接 `theme-component-page`；`DocItem/Content` 那一格只有 `theme-viewer` 一层覆盖
+（它用 `@theme-init` 拿官方那一份），没有要串的链。
 安装前提因此多了一条：`@show-docs/docusaurus-theme-component-page` 必须注册成插件，
 `loadContent()` 里与解析器插件一起当场点名。
 

@@ -531,7 +531,7 @@ describe('theme-git-badge 入口：层目录、样式表与前置检查', () => 
     expect(existsSync(modules[0]!)).toBe(true);
   });
 
-  it('缺解析器：当场点名（这一层的两格覆盖靠 `@theme-prev/*`）', () => {
+  it('缺解析器：当场点名（两格是未编译的 TS 源码，由它那条 babel 规则编）', () => {
     const missing = gitBadgeTheme(contextWithMarkdown([]));
     expect(() => loadContentOf(missing)()).toThrow(new RegExp(RESOLVER_PLUGIN));
 

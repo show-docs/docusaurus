@@ -69,8 +69,8 @@ export default {
 
 ## 工作方式
 
-- 这一层覆盖 `DocItem/Content`，正文原样交给下面的实现；它自己不放任何 DOM，
-  只在正文落位之后把里面的图片接上查看器。
+- 这一层覆盖 `DocItem/Content`，拿官方那一份（`@theme-init/DocItem/Content`）原样渲染；
+  它自己不放任何 DOM，只在正文落位之后把里面的图片接上查看器。
 - `viewerjs` 在浏览器里按需加载：正文没有图片的页面不会请求它。
 - 第三方那份样式表要过站点的样式表管线：嵌套由宿主的 lightningcss 处理，本包只把展开态的
   先后顺序改写成特异性（否则查看器打开是透明的）；实测口径见[维护者文档](./docs/internals.md)。
