@@ -5,8 +5,8 @@
 
 ## 安装
 
-`@theme-prev/*` 的别名由解析器插件提供；theme-iframe 只在构建期提供一条共享函数，装上即可，
-不必注册成插件。三个包一起安装：
+`theme/` 与 `components/` 是随包发布的未编译 TS 源码，编译它们的 babel 规则由解析器插件一处
+认领；theme-iframe 只在构建期提供一条共享函数，装上即可，不必注册成插件。三个包一起安装：
 
 ```bash
 pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-copy-button
@@ -33,9 +33,9 @@ export default {
 
 ## 层栈
 
-本层提供 `theme/Footer/Copyright/index.tsx`：它先向下面那一层要 `Footer/Copyright` 的实现
-（`@theme-prev/Footer/Copyright`），把文案原样交下去，只在它前面多摆一颗按钮。
-这一层不读 frontmatter，也没有插件选项。
+本层提供 `theme/Footer/Copyright/index.tsx`：它拿官方那一份 `Footer/Copyright`
+（`@theme-init/Footer/Copyright`；仓库里只有本层提供这一格，没有要串的链），把文案原样交下去，
+只在它前面多摆一颗按钮。这一层不读 frontmatter，也没有插件选项。
 
 层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
 [`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)；

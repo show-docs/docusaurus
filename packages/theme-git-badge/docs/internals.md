@@ -79,9 +79,11 @@ styles/git-badge.css      按属性画：叶子行一个点、分类行的箭头
 
 ## 这一层放在层栈的哪一格
 
-`theme/` 里的两份组件用 `@theme-prev/DocSidebarItem/Link` 拿「下面那一层」，所以本包必须是
-一个**主题层**（有 `getThemePath()`），且必须声明在
-`@show-docs/docusaurus-plugin-prev-layer-resolver` 之后。
+`theme/` 里的两份组件都用 `@theme-init/...` 拿官方那一份：仓库里只有本层提供这两格，没有要串的
+链（规则见仓库根 README 的「基础设施包」一节）。本包仍必须是一个**主题层**（有
+`getThemePath()`），并且仍要装并注册解析器插件 —— 后者的理由是这两份组件是随包发布的未编译
+TS 源码，编译它们的 babel 规则由它一处认领（见解析器 README 的「编译 `@show-docs` 家族未编译
+的 TS 源码」）。
 
 官方别名 `@theme/DocSidebarItem/Link` 是**全局赢家**：主题路径按「fallback → preset 主题 →
 用户插件 → 站点 `src/theme`」的顺序枚举，**后者覆盖前者**。所以：

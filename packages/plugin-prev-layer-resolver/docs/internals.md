@@ -12,6 +12,7 @@
 | ----------------------------- | ---------------------------------------------------------- |
 | `src/index.mts`               | 插件入口：推层栈 + 空层栈告警 + 注入 resolver              |
 | `src/layers.mts`              | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位  |
+| `src/plugin-slots.mts`        | 认层那两条判据 + 「本包注册了没有」那条前置检查（见下）    |
 | `src/plugins.mts`             | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表  |
 | `src/resolve.mts`             | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配    |
 | `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`）                  |
@@ -162,6 +163,27 @@ export default {
 `src/source-js-rule.mts` 一处，各主题包不再自己补 —— 护栏在
 `test/view-layer-copies.test.mts`（「TS 源码的编译规则只有一处」），判据本身的用例在
 `test/source-js-rule.test.mts`。
+
+## 认层：`src/plugin-slots.mts` 里那两条判据
+
+「`siteConfig.plugins` / `themes` 里那一项是不是某个包」（`slotIsNamespace()`，连同
+`pluginSlotName()` 认那四种原始写法）与「本包注册了没有」（`assertPrevLayerResolverInstalled()`）
+住在 `src/plugin-slots.mts`，经包出口 `./plugin-slots` 发出去。
+
+**为什么是本包的事**：后一条问的正是「提供 `@theme-prev/*` 别名的那个插件在不在」。这句话只有
+本包自己说得住。以前它住在 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，于是任何想用它的
+层都得先引那一族层，连带把「装了 `theme-iframe`」变成自己的安装前提 —— 而真正的前提只有本包
+这一个。搬过来之后，`theme-iframe` 那条继续由 `lib/prerequisites.ts` 转调（它另外两条检查确实
+属于那一族层），不依赖那一族的层（如 `theme-component-page`）直接引这一份。
+
+**为什么是纯函数、为什么单开一条 `./plugin-slots` 出口**：读者有两处，一处在配置期（Node，
+jiti 直接吃 `dist/`），另一处在浏览器里（`theme-iframe/lib/api-frame-entries.ts` 那份装机判定，
+读的是 Docusaurus 序列化进浏览器配置的**原始**那两份清单）。包根本机会引 `node:*` 与 webpack，
+浏览器侧引它会把这些一起拖进 bundle，所以走一条只含这个文件的子路径。两处读同一份判据，
+因此不存在「装机判定认路径、前置检查只认包名」那种不对称。
+
+判据本身的用例在 `test/plugin-slots.test.mts`；`test/api-frame-entries.test.mts` 与
+`test/prerequisites.test.mts` 从两侧再各跑一遍真实形状（路径写法、`themes` 那份清单）。
 
 ## 输入处理：`@theme-prev/<rest>` 怎么切、怎么校验
 
@@ -340,13 +362,14 @@ build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 
 ## 类型声明
 
-`types/theme-specifiers.d.ts` 把三条 specifier 收成一体，理由不是顺手：
+`types/theme-specifiers.d.ts` 把四条 specifier 收成一体，理由不是顺手：
 
-- Docusaurus 的 `@docusaurus/module-type-aliases` 只列了 `@theme-original/*` 与 `@theme-init/*`
-  两条**无类型**的通配，`@theme/*` 则是一串写死的组件名；
+- Docusaurus 的 `@docusaurus/module-type-aliases` 里 `@theme-original/*` 与 `@theme-init/*`
+  是两条**无类型**的通配（`@theme-init` 那份 `any` 会把包裹组件的 props 全放开，与其余三条
+  不是一个口径），`@theme/*` 则是一串写死的组件名；
 - 本仓库的 `node_modules` 布局让 `tsc` 解析不到 `@docusaurus/theme-classic`。
 
-所以这三条是一个整体，**不能只删 `@theme-prev` 那一条**。文件怎么被消费方收进 program（`files`
+所以这四条是一个整体，**不能只删 `@theme-prev` 那一条**。文件怎么被消费方收进 program（`files`
 点名）、为什么它不编译、发布要靠 `files` 带上 `types/`，是使用者要照着做的那一半，记在
 [`../README.md`](../README.md) 的「类型声明」一节。
 

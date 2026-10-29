@@ -1,4 +1,4 @@
-import PrevDocSidebarItemLink from '@theme-prev/DocSidebarItem/Link';
+import OriginalDocSidebarItemLink from '@theme-init/DocSidebarItem/Link';
 
 import type { ReactNode } from 'react';
 
@@ -35,7 +35,7 @@ export default function DocSidebarItemLink(
     badgeKindOf(props['data-git-badge']) ?? badgeOf(item.customProps);
 
   return (
-    <PrevDocSidebarItemLink
+    <OriginalDocSidebarItemLink
       {...props}
       {...(kind === undefined ? {} : { 'data-git-badge': kind })}
     />

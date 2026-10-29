@@ -1,4 +1,4 @@
-import PrevDocSidebarItemCategory from '@theme-prev/DocSidebarItem/Category';
+import OriginalDocSidebarItemCategory from '@theme-init/DocSidebarItem/Category';
 
 import type { ReactNode } from 'react';
 
@@ -20,7 +20,7 @@ export default function DocSidebarItemCategory(
   const kind = badgeOfTree(props.item);
 
   return (
-    <PrevDocSidebarItemCategory
+    <OriginalDocSidebarItemCategory
       {...props}
       {...(kind === undefined ? {} : { 'data-git-badge': kind })}
     />

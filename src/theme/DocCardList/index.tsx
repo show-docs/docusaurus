@@ -11,8 +11,9 @@ theme-c 里的 `@theme-prev` 又指向 theme-b…… 链路由此成立。
 这一层挂在 `DocCardList` 而不是 `Logo` 上，是因为整条链只在主页出现：站点里只有
 `packages/README.md` 写了 `<DocCardList />`，正文区之外不需要再多一条链来证明同一件事。
 
-站点层用官方 `@theme-original/DocCardList` 也一样成立（它本来就只在最外层安全，
-语义零改动由 test/layers.test.mts 钉住），但统一用 `@theme-prev` 可以让每层写法完全一致。
+`DocCardList` 在仓库里有四层提供（theme-a/b/c 与站点自己），所以这一格必须走链：`@theme-init`
+只会拿到最初的官方实现、把中间三层一起跳过。`@theme-original` 在这一格虽然也等价（它只在
+最外层安全，语义由 test/layers.test.mts 钉住），但真有多层覆盖的组件按规则书统一用 `@theme-prev`。
 */
 export default function SiteDocCardList(
   props: Record<string, unknown>,

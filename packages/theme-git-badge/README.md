@@ -12,10 +12,10 @@
 pnpm add @show-docs/docusaurus-theme-git-badge
 ```
 
-需要 Docusaurus `^3.9.2` 与 Node `^24`。另外这一层靠 `@theme-prev/*` 拿「下面那一层」，
-所以还得装并注册
+需要 Docusaurus `^3.9.2` 与 Node `^24`。另外 `theme/` 与 `components/` 是随包发布的未编译 TS
+源码，编译它们的 babel 规则由
 [`@show-docs/docusaurus-plugin-prev-layer-resolver`](https://www.npmjs.com/package/@show-docs/docusaurus-plugin-prev-layer-resolver)
-—— 缺了它会在构建期当场点名。
+一处认领，所以还得装并注册它 —— 缺了它会在构建期当场点名。
 
 git 那一半要求构建机上有 `git`、且站点在仓库里；读不到就静默跳过 —— 少挂一枚徽标比构建失败好。
 

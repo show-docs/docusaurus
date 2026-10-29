@@ -5,8 +5,8 @@
 
 ## 安装
 
-`@theme-prev/*` 的别名由解析器插件提供；theme-iframe 只在构建期提供一条共享函数，装上即可，
-不必注册成插件。三个包一起安装：
+`theme/` 与 `components/` 是随包发布的未编译 TS 源码，编译它们的 babel 规则由解析器插件一处
+认领；theme-iframe 只在构建期提供一条共享函数，装上即可，不必注册成插件。三个包一起安装：
 
 ```bash
 pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-avatar
@@ -65,8 +65,8 @@ export default {
 
 ## 层栈
 
-本层提供 `theme/ColorModeToggle/index.tsx`：向下面那一层要 `ColorModeToggle` 的实现
-（`@theme-prev/ColorModeToggle`），原样交下去，只在它后面多摆那颗头像。所以本站若自己
+本层提供 `theme/ColorModeToggle/index.tsx`：拿官方那一份（`@theme-init/ColorModeToggle`；
+仓库里只有本层提供这一格，没有要串的链）原样渲染，只在它后面多摆那颗头像。所以本站若自己
 swizzle 了同一格，站点那一份压过本层（官方别名「全局赢家」那条规则）。
 
 层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见

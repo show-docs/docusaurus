@@ -77,6 +77,11 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 尾部原样保留。组件名必须是安全的相对路径（不接受 `.` / `..` / 绝对路径 / `\` / 空段），越界时
 告警并交回官方解析 —— 校验口径见 [`docs/internals.md`](./docs/internals.md) 的「输入处理」一节。
 
+**没有第二层覆盖的组件别走链**：仓库里只有一个层提供 X 时，那个层用官方别名
+`@theme-init/X`（最初那一份）就够 —— 它解析到的就是同一个文件，还少一次按导入者算落点；
+有两个以上提供者才用 `@theme-prev/X`（用 `@theme-init` 会跳过下面那几层）。判据与例外写在
+仓库根 `README.md` 的「基础设施包」一节，`test/specifier-usage.test.mts` 读磁盘钉着。
+
 ### 层栈里没人提供该组件时
 
 交回官方解析。`@theme-prev/*` 是官方不认识的 specifier，所以这里**必定**是 `Module not found`。
@@ -104,11 +109,41 @@ Docusaurus 官方那条 babel 规则把整个 `node_modules` 排除在外（只�
 
 **它与层栈无关**：层栈空了这条规则照样在（那只是 `@theme-prev/*` 失效）。
 
+## 各主题层那条「本插件注册了没有」的检查
+
+缺本插件时，正常路径上要到打包那一步才报 `Module not found: @theme-prev/X` —— 报错点离真正的
+原因隔着一整个构建。所以每条主题层都在自己的 `loadContent()` 里先查一遍、缺了当场点名。
+
+那条判据（含「`plugins` / `themes` 里那一项是不是某个包」怎么认，四种原始写法：裸包名、
+`[包名, 选项]`、`[路径, 选项]`、`{name}` 对象；路径按**包目录**认，不钉具体入口文件名）住在
+本包的 `src/plugin-slots.mts`，由包出口 `./plugin-slots` 发出去：
+
+```js
+import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
+
+// 主题层入口返回的那一份
+export default function myTheme(context, options) {
+  return {
+    name: 'my-theme',
+    loadContent() {
+      assertPrevLayerResolverInstalled('my-theme', {
+        plugins: context.siteConfig.plugins,
+        themes: context.siteConfig.themes
+      });
+    }
+  };
+}
+```
+
+它只查本插件，不查别家：报错文案里点名的是**调用方**的包名，站点据此知道该回去看哪一层的文档。
+这一份是纯函数，浏览器侧也能引（`theme-iframe` 那条装机判定读的就是同一判据），
+理由与内部契约见 [`docs/internals.md`](./docs/internals.md) 的「认层」一节。
+
 ## 类型声明
 
-`types/theme-specifiers.d.ts` 给 `@theme/X`、`@theme-original/X`、`@theme-prev/X` 三条 specifier
-补类型：它们由本包在 resolve 阶段改写，磁盘上没有对应目录，`tsc` 只看得到 import 那一句。
-文件里写清了收录口径与默认导出的形状，这里不抄第二份。三条为什么收成一体，见
+`types/theme-specifiers.d.ts` 给 `@theme/X`、`@theme-original/X`、`@theme-init/X`、
+`@theme-prev/X` 四条 specifier 补类型：磁盘上都没有对应目录，`tsc` 只看得到 import 那一句。
+文件里写清了收录口径与默认导出的形状，这里不抄第二份。四条为什么收成一体，见
 [`docs/internals.md`](./docs/internals.md) 的「类型声明」。
 
 消费方在 `tsconfig.json` 的 `files` 里点名它：
@@ -231,4 +266,6 @@ Docusaurus 官方那条 babel 规则把整个 `node_modules` 排除在外（只�
 ## 相关文档
 
 - [维护者文档](./docs/internals.md)：机制为什么这样设计、输入怎么校验、层归属怎么判、内部契约与实测记录。
+- 本包是基础设施链最下面的一格：上面依次是 `theme-component-page` 与 `theme-iframe`。
+  三格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
 - `仓库根 README`：本包在仓库里的位置、构建口径与目录结构。

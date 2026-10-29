@@ -5,12 +5,12 @@
 因此 TypeScript 需要在这里被告知「这些模块存在」。
 
 收录口径 = **本仓库真的 import 过它**（`pnpm lint:type` 各项目输入的文件）：官方别名
-`@theme/X` / `@theme-original/X` 被站点层 swizzle 用到，链式的 `@theme-prev/X` 是这套方案本身。
-没人 import 的（如 `@theme-init/X`）不在这儿占位 —— 那会让「声明还在」假装「还在用」，
-而它其实从未被任何源码引用过。
+`@theme/X` / `@theme-original/X` / `@theme-init/X` 都有源码在用，链式的 `@theme-prev/X` 是这套方案本身。
 
 - `@theme/X`          → 最终生效的实现（全局赢家）
 - `@theme-original/X` → 与 `@theme/X` 同一个文件
+- `@theme-init/X`     → 最初那一份（官方别名；本仓只给「没有第二层覆盖」的组件用，
+  规矩见仓库根 README 的「基础设施包」一节）
 - `@theme-prev/X`     → 我下面最近一层提供的 X
 
 语义详见本包 README 的「工作方式」那张表。默认导出钉成 `FunctionComponent`，props 收成
@@ -24,6 +24,11 @@ declare module '@theme/*' {
 }
 
 declare module '@theme-original/*' {
+  const component: import('react').FunctionComponent<Record<string, unknown>>
+  export default component
+}
+
+declare module '@theme-init/*' {
   const component: import('react').FunctionComponent<Record<string, unknown>>
   export default component
 }

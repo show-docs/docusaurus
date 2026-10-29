@@ -138,6 +138,82 @@ Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascri
 > （判据同「有没有 `package.json`」），新增一个包不必回来改这里，也就不会漏掉某个包那一格 ——
 > 这一步因此红在 `pnpm test`，而不是拖到 `docusaurus build`。
 
+## 基础设施包：单独可用，也给别的层复用
+
+基础设施包有三格：`plugin-prev-layer-resolver`、`theme-component-page`、`theme-iframe`。判据不是
+「谁比较大」，而是**有没有别的层靠它成形**：功能层回答「这一页长什么样」，基础设施回答
+「这一类页怎么被交给别的东西」，并且只实现一次。三格按**一般到具体**排：
+
+```text
+功能层（theme-markmap、theme-erd、theme-diff、theme-redoc、theme-scalar、theme-stoplight …）
+  │  只能往下依赖
+theme-iframe                 整页交给一个框
+  │
+theme-component-page         整页交给一个组件（上面那格的一般形态）
+  │
+plugin-prev-layer-resolver   分层与 @theme-prev/*、未编译源码的编译、认槽位
+  │
+平台（Docusaurus / webpack / React）
+```
+
+越往下越一般。依赖只能从具体指向一般 —— 下面那一格不知道上面是谁。两种用法都要成立
+（单独装上 / 被别人复用），缺一条就不成基础设施：
+
+| 包                           | 单独装上                                                                                | 给别的层复用                                                                                                                                                                                                                                                                                                |
+| ---------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `plugin-prev-layer-resolver` | 注册一个实例，`@theme-prev/X` 在主题层里解析成「紧邻下一层」，层栈由 `plugins` 自动推导 | 层栈推导与 `@theme-prev/*` 改写；那条让 `@show-docs` 未编译 TS 源码被编的 babel 规则（一处认领）；`./plugin-slots` 里「这个槽位是不是某一族」「解析器装了没有」                                                                                                                                             |
+| `theme-component-page`       | 站点配置里写一列「frontmatter 键 → `@theme/` 组件」，命中的页整页换掉                   | 一条插件约定 `getComponentPages()`：别的主题包在配置期交出自己那几条键与组件，不必再各写一层 `DocItem`；命中判据与落空告警（`lib/component-page.ts`）就是这些条目共用的那一份                                                                                                                               |
+| `theme-iframe`               | frontmatter 写 `iframe:` 就把整页换成一个指向外部地址的框                               | 注册表（`lib/api-frame-registry.ts`）登记「哪把键归哪一层」；配置期工厂（`lib/api-frame-theme.mts`）替三条 API 层各建一条框内页面；跨 iframe 约定那几个纯函数（`lib/frame-messages.ts`）；视图层共用外壳（`lib/view-layer-shell.tsx` / `view-layer.ts`）；静态样式表的分流（`lib/isolate-renderer-css.ts`） |
+
+下面是这一格的规则。第 1–3 条与第 11 条读磁盘就能查：前者由
+[`test/infrastructure-rules.test.mts`](./test/infrastructure-rules.test.mts)、后者由
+[`test/specifier-usage.test.mts`](./test/specifier-usage.test.mts) 钉住；其余靠评审。
+
+1. **三格按一般度分层，依赖只从具体指向一般。** `theme-component-page` 是 `theme-iframe` 的基础设施
+   —— 整页交给一个框就是整页交给一个组件的一支特例：`theme-iframe` 可以用它，它不能用
+   `theme-iframe`；两格都可以用解析器包，解析器包一个都不用。下面那格不知道上面是谁，
+   反向依赖就是把「一般」焊死在某一支上。
+2. **功能层只能依赖基础设施，功能层之间互不依赖。** 基础设施也不 `import` 任何功能层。
+   注册表里用**字符串**登记别的层（`'@show-docs/docusaurus-theme-scalar'` 那种）是数据，
+   不是依赖 —— 只有 `import` 才算。
+3. **单独可用是硬要求。** 每格只依赖它下面那几格，所以拿掉上面任意几格都还能装：
+   解析器包对 `@show-docs` 的依赖为零，`theme-component-page` 与 `theme-iframe` 都只声明解析器包
+   （`theme-iframe` 今天没用到 `theme-component-page` 那一格 —— 方向允许，不是必需）。
+   新增依赖前先问：这条能不能只往下要？不能，就说明放错了地方。
+4. **复用要走显式出口。** 别的层引的是 `exports` 点名的子路径（`./lib/*`、`./types/*`、
+   `./plugin-slots`），不深挖 `dist/`。同一个子出口里不要混进两种运行环境：浏览器会引到的那几份
+   不许拉进 `node:*`（配置期那几份由 jiti 直接吃源码，浏览器那几份由 webpack 编译）。
+5. **一份判据一处实现。** 同一个判断只有一份，别的层引它、不抄它。视图层那三处共用外壳
+   就是这条的样板，护栏在 [`test/view-layer-copies.test.mts`](./test/view-layer-copies.test.mts)。
+6. **只收已经有两个消费者的机制。** 一个层自己只用一次的形状留在那个层里；成为基础设施要等
+   第二个消费者真的出现。提前抽象多出来的是一层要同步的东西，不是少写几行。
+7. **机制不带业务默认。** 空配置等于「没有这一层」：`theme-component-page` 的空清单不命中任何页，
+   `theme-iframe` 没写那几把键时页面照旧，解析器包没装插件时层栈就不存在。基础设施不替站点挑
+   组件、挑地址、挑文案。
+8. **失败必须可见。** 配置期能判的错在配置期红掉并点名到哪一格；只有浏览器才知道的落空给开发
+   模式告警。装上了却安静地什么都不做，是最难查的一类。
+9. **两种用法都要有文档与用例。** 单独用法写在包 README，复用契约写在包 `docs/`；`src/` 与
+   `lib/` 在覆盖率红线上，`theme/` 与 `components/` 由 e2e 钉。加一条复用契约，两边的用例一起加。
+10. **两格都换 `DocItem` 时，顺序就是优先级。** `theme-iframe` 的框与 `theme-component-page` 的
+    组件页都替换整个 `DocItem`：后声明的那层先判，命中就不再往下走。同一页不要同时依赖两格
+    —— 谁先命中由站点 `plugins` 的顺序决定，两格互不认识，谁也报不了这条冲突。
+11. **没有第二层覆盖就别走链。** 仓库里只有一个层提供某个组件时，那个层用官方别名
+    `@theme-init/X`（最初那一份）—— `@theme-prev/X` 留给真有两层以上覆盖的组件
+    （`DocItem`、`DocCardList` 那种）。多一层链没换来任何东西，只多一次按导入者算落点；
+    反过来，有多个提供者却用 `@theme-init` 会跳过下面那几层。
+
+新增一层之前先问：
+
+- **要 `@theme-prev/*` 链式覆写、认某个槽位、让未编译的 TS 源码被编？** 用解析器包，
+  别在各层各补一份。
+- **包一个组件时？** 仓库里只有你这一层提供它 → `@theme-init/X`；有两层以上 → `@theme-prev/X`。
+- **这一页整页交给一个组件？** 走 `theme-component-page` 的清单或 `getComponentPages()`，
+  别新写一层 `DocItem`。
+- **整页放进一个框？** 走 `theme-iframe` 的注册表 + 配置期工厂 + 跨 iframe 约定，
+  别自己拼 iframe 与 `postMessage`。
+- **只在正文上方加一块视图？** 用 `theme-iframe/lib/view-layer-shell.tsx` 那份外壳
+  （`theme-markmap` / `theme-erd` / `theme-diff` 三条都引它）。
+
 ## 方案在哪份文档里
 
 - **多主题链式覆盖**（`@theme-prev/X` 怎么解析、怎么接入、有哪些约束）：
