@@ -1,8 +1,9 @@
-# 「整页交给一个框」这一族的**四把键现在由一份 `DocItem` 判**（收拢前三条 API 层各带一层
-# `DocItem`，先后由 `plugins` 的排列决定；现在先后钉在 `packages/theme-iframe/lib/api-frame-registry.ts`
-# 的条目顺序上：scalar → redoc → stoplight → iframe）。这一条用例钉的就是这条语义 ——
-# 同一页写多把键时，注册表里排前面的赢，其余键一概轮不到（口径见
-# `packages/theme-iframe/docs/iframe-protocol.md` 的「注册表」一节）。
+# 「整页交给一个框」这一族的四把键经 `theme-iframe` 配置期交给 `theme-component-page` 的那份清单判
+# （收拢前三条 API 层各带一层 `DocItem`，先后由 `plugins` 的排列决定；现在清单默认照
+# `packages/theme-iframe/src/api-frame-registry.ts` 的条目顺序排：scalar → redoc → stoplight → iframe，
+# 命中页整个 `DocItem` 换成 `@theme/ApiFramePage`）。这一条用例钉的就是这条语义 ——
+# 同一页写多把键时，清单里排前面的赢，其余键一概轮不到（口径见
+# `packages/theme-iframe/docs/iframe-protocol.md` 的「注册表与分发」一节）。
 # 三条 API 层的键是布尔（`scalar: true`……），spec 地址由两把 spec 键给（`oas3:` 摆 OpenAPI、
 # `aas3:` 摆 AsyncAPI 3）；`iframe:` 嵌外部页面，与这两把无关。
 Feature: theme-iframe 注册表 —— 同页多把键按注册表顺序判

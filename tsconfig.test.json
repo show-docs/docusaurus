@@ -23,6 +23,7 @@
     "packages/theme-iframe/lib/**/*.ts",
     "packages/theme-iframe/lib/**/*.mts",
     "packages/theme-iframe/lib/**/*.tsx",
+    "packages/theme-iframe/src/**/*.ts",
     "packages/theme-*/src/**/*.mts",
     "packages/theme-component-page/lib/**/*.ts",
     "packages/theme-component-page/types/**/*.d.ts",

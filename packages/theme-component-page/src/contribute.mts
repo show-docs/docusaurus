@@ -26,6 +26,8 @@
 import { PluginDiscovery } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
 import type { LoggerLike } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
 
+import type { ComponentPagesProvider } from '../types/component-page.ts';
+
 import {
   normalizePages,
   type EnabledPage,
@@ -47,10 +49,7 @@ export type ContributedPages = {
 };
 
 /** 挂着那条约定的那一种实例：本层只看这一个方法，其余格子一概不读。 */
-type Contributor = {
-  name?: unknown;
-  getComponentPages: () => unknown;
-};
+type Contributor = ComponentPagesProvider & { name?: unknown };
 
 /** 这个实例交出条目吗？只认「对象上挂着个函数」，不猜别的形状。 */
 export function isComponentPageContributor(

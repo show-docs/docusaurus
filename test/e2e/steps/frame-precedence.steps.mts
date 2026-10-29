@@ -7,8 +7,9 @@ import { watchPageErrors } from '../helpers.mts';
 const { Given, Then } = createBdd();
 
 /**
-四把键同写一页时，赢的那一把由注册表顺序定（`packages/theme-iframe/lib/api-frame-registry.ts`：
-scalar → redoc → stoplight → iframe）。两份夹具页各钉一头：全写上验「第一个命中就换框」，
+四把键同写一页时，赢的那一把由配置期交给 `theme-component-page` 的那份清单的顺序定
+（默认照 `packages/theme-iframe/src/api-frame-registry.ts`：scalar → redoc → stoplight → iframe）。
+两份夹具页各钉一头：全写上验「第一个命中就换框」，
 拿掉 scalar 验「判定真的在逐条走」。判据都按**页面上只有一个框**来量 —— 落败的键要是
 还渲染出自己的框，数量这一句就红。
 */

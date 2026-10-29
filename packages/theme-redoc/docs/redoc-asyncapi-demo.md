@@ -11,8 +11,9 @@ aas3: /asyncapi-redoc.yaml
 
 # Redoc AsyncAPI 示例
 
-下面这些正文在渲染后的页面上**看不到**：theme-iframe 那一份 `DocItem` 按注册表命中 `redoc` 时
-把整个 `DocItem` 换成 iframe，整页换成一个 iframe，所以也没有文档外壳、不会再有导图。
+下面这些正文在渲染后的页面上**看不到**：theme-iframe 在配置期交给 theme-component-page 的那份清单
+命中 `redoc` 时，这一页的整个 `DocItem` 换成 theme-iframe 的 `theme/ApiFramePage`，整页换成一个
+iframe，所以也没有文档外壳、不会再有导图。
 这一段是给读仓库源文件的人看的。
 
 - 取的是 `static/asyncapi-redoc.yaml`（构建产物里的 `/asyncapi-redoc.yaml`）：frontmatter 的

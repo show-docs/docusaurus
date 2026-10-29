@@ -7,7 +7,7 @@ import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-p
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
-import type { ComponentPageMatch } from '../types/component-page.ts';
+import type { ComponentPageDeclaration } from '../types/component-page.ts';
 
 import { normalizePages } from './config.mts';
 import { discoverContributedPages, mergePages } from './contribute.mts';
@@ -26,9 +26,10 @@ const NAMESPACE = '@show-docs/docusaurus-theme-component-page';
 const REGISTRY_FILE = join('theme-component-page', 'registry.ts');
 
 /** 配置里的一条：一把键 + 命中后要挂进去的那个组件 + 给它的静态入参。 */
-export type ComponentPageConfigEntry = {
-  /** md frontmatter 里那把键。 */
-  key: string;
+export type ComponentPageConfigEntry = Omit<
+  ComponentPageDeclaration,
+  'component'
+> & {
   /**
   那个组件的模块说明符，判据是 webpack 的别名表认不认它。推荐写 `@theme/X`：那条别名跟着
   层栈走，站点在 `src/theme/X` 放一份就覆写掉它，不必回来改本层的配置。
@@ -37,10 +38,6 @@ export type ComponentPageConfigEntry = {
   见 `./contribute.mts` 的合成规则。只有站点这一列认这一格。
   */
   component: string | false;
-  /** 这把键怎么算命中；缺它按 `boolean`（只认真布尔 `true`）。 */
-  match?: ComponentPageMatch;
-  /** 并交进组件的静态入参；纯数据（函数留不进生成模块）。 */
-  props?: Record<string, unknown>;
 };
 
 /** 本层的插件选项。 */

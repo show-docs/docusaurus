@@ -5,11 +5,12 @@
 
 条目的形状不在这里，在 `../types/component-page.d.ts`（两侧共用那一份；为什么单独占一格，
 记在那份的头上）。这一份只放函数与转出的类型：不引 React、不引 DOM，和
-`theme-iframe/lib/api-frame-registry.ts` 同一个约束（配置期那份类型检查没有 DOM）。
+`theme-iframe/src/api-frame-registry.ts` 同一个约束（配置期那份类型检查没有 DOM）。
 
 清单的**顺序 = 优先级**：一页同时写中两条键时，排在前面那条赢（和那族 iframe 框同一口径）。
-这一族没有「装没装」那一格 —— 清单就挂在本包的插件选项上，本包装了整列才参与判定，所以
-`theme-iframe` 那套装机过滤在这里不存在，判定只看键写没写、写得对不对形状。
+这一族没有「装没装」那一格 —— 清单由站点与交出条目的包给，本包装了整列才参与判定；
+「哪一层装了才交页」是交出方的事（`theme-iframe` 在 `src/api-frame-contribute.mts` 里做），
+机制层只看键写没写、写得对不对形状。
 */
 
 import type {
@@ -20,10 +21,12 @@ import type {
 } from '../types/component-page.ts';
 
 export type {
+  ComponentPageDeclaration,
   ComponentPageEntry,
   ComponentPageMatch,
   ComponentPageProps,
   ComponentPageValue,
+  ComponentPagesProvider,
 } from '../types/component-page.ts';
 
 /**

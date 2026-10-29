@@ -4,8 +4,10 @@
 `redoc: true` 或 `stoplight: true` 时，命中的页面保留站点 navbar，正文区换成一个 iframe。
 
 `iframe:` 由本包直接处理，用来嵌外部页面；`scalar:` / `redoc:` / `stoplight:` 分别由
-theme-scalar、theme-redoc、theme-stoplight 在框内渲染，本包负责外层套壳与跨 iframe 的地址、
-亮暗同步。
+theme-scalar、theme-redoc、theme-stoplight 在框内渲染，本包负责外层组件与跨 iframe 的地址、
+亮暗同步。四把键不放在本包自己的 `DocItem` 里判：本包在配置期把**装了的层**各交一页给
+[`@show-docs/docusaurus-theme-component-page`](../theme-component-page/README.md)，由它那份
+`DocItem` 判清单、命中后挂上本包的 `theme/ApiFramePage`（所以 component-page 是本包的安装前提）。
 
 **用哪一层渲染**与**渲染哪份文档**是两件事：前者由那三把布尔键决定（`scalar: true`……），
 后者由 spec 键决定 —— `oas3:` 摆 OpenAPI、`aas3:` 摆 AsyncAPI 3（三条 API 层读同一组，按顺序
@@ -13,10 +15,13 @@ theme-scalar、theme-redoc、theme-stoplight 在框内渲染，本包负责外�
 
 ## 安装
 
-`@theme-prev/*` 的别名由解析器插件提供，两个包一起安装：
+`@theme-prev/*` 的别名由解析器插件提供；交出去的框页由 `theme-component-page` 挂上，两个包
+一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver \
+  @show-docs/docusaurus-theme-component-page \
+  @show-docs/docusaurus-theme-iframe
 ```
 
 ## 使用
@@ -28,7 +33,9 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
-    '@show-docs/docusaurus-theme-iframe'
+    '@show-docs/docusaurus-theme-iframe',
+    // 框页由这一层挂上去；放在最后 = 层栈最外 = 最先判
+    '@show-docs/docusaurus-theme-component-page'
   ]
 };
 ```
@@ -41,7 +48,8 @@ export default {
   '@show-docs/docusaurus-theme-iframe',
   '@show-docs/docusaurus-theme-stoplight',
   '@show-docs/docusaurus-theme-redoc',
-  '@show-docs/docusaurus-theme-scalar'
+  '@show-docs/docusaurus-theme-scalar',
+  '@show-docs/docusaurus-theme-component-page'
 ];
 ```
 
@@ -116,12 +124,24 @@ oas3: /openapi.yaml
 | `themeConfig.apiFrame.order` | `string[]` | `scalar` → `redoc` → `stoplight` → `iframe` | 判定顺序与启用范围；排在前面的层优先，未列出的层不参与判定。 |
 
 覆盖不会绕过「已安装」这一条：清单里列了但 `plugins` 里没装的层仍然不参与判定。同一页写了多
-把键时，按顺序取第一个命中的已安装层。开发模式下，写了键却没有层接收会在控制台给出告警
-（键的形状不对、没给 spec 地址、只给了 spec 地址没写用哪一层、两把 spec 键同时写，各给一条）。
+把键时，按顺序取第一个命中的已安装层。覆盖清单里拼错的名字、列了没装的层，在配置期打一条
+告警（每类一次；默认顺序下没装的层静默跳过，那是正常状态）。
+
+四把键交给 component-page 之后，它也守着那一层的合成规则：站点若在 component-page 的
+`pages` 里写了同一把键，以站点那条为准（构建日志留一句提示）；写成 `component: false` 就把
+那一把键整体关掉。
+
+开发模式下，命中一页但框出不来、或用得不对劲时会告警：写了布尔键却没给 spec 地址、两把 spec
+键同时写。**键的形状不对**（例如 `scalar: 一份地址`）由 component-page 那条通用告警说 ——
+它判的就是「这把键的形状合不合清单里的判法」；`iframe:` 拿了非字符串也不会出框，交回普通
+文档页。落空的一大类现在从「框不出来」变成「键不生效、页面看起来正常」，配置期与开发模式各
+留了一条话，但**只写了 spec 键、没写任何布尔键**的页面不会再有告警：没有哪一层认领这一页，
+自然也没有谁该出框。
 
 ## 工作方式
 
-- 命中时用 iframe 替换整个 `DocItem`：不渲染面包屑、正文、右侧目录和翻页，站点 navbar 保留。
+- 命中时 `theme-component-page` 把整个 `DocItem` 换成本包的 `theme/ApiFramePage`，后者渲染
+  iframe：不渲染面包屑、正文、右侧目录和翻页，站点 navbar 保留。
 - 页面占满 navbar 以下的一屏，并隐藏站点页脚；框的版式由四条层共用一份样式。
 - 三个 API 包的框内页面（`/scalar-view`、`/redoc-view`、`/stoplight-view`）与本包通过
   `postMessage` 同步地址栏 `#` 段和亮暗模式；`iframe:` 嵌外部站点时没有这条通道。
@@ -136,15 +156,15 @@ oas3: /openapi.yaml
   站点默认值，不读该页的 `title:` / `description:`。
 - 承载 iframe 的容器会通过 `.container:has(iframe)` 去掉内边距；正文里手写的 iframe 同样命中
   这条样式。
-- 对应插件未安装时，frontmatter 里的键不生效，页面按普通文档渲染。
-- 三条 API 层写了布尔键却没给 spec 地址（`oas3:` / `aas3:`）时同样不生效（那一层出不了框）；
-  键写成非布尔值（老写法把地址写进 `scalar:`）也不生效。两种都有开发模式的告警。
+- 对应插件未安装时，frontmatter 里的键不生效，页面按普通文档渲染（那一层根本不会交页）。
+- 三条 API 层写了布尔键却没给 spec 地址（`oas3:` / `aas3:`）时同样不生效（那一层出不了框），
+  这一条有开发模式的告警；键写成非布尔值（老写法把地址写进 `scalar:`）也不生效，告警由
+  component-page 那条通用判据说。
 
 ## 相关文档
 
-- 本包是基础设施链最上面的一格：单独装上就能用 `iframe:` 换整页；下面那格
-  `theme-component-page` 是「整页交给一个组件」的一般形态，最下面是解析器包。三格的规矩写在
-  仓库根 `README.md` 的「基础设施包」一节。
+- 本包是基础设施链最上面的一格（依赖下一格 `theme-component-page` 把页挂上去）；最下面是
+  解析器包。三格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
 - [维护者文档](./docs/internals.md)：包内组成、编译方式、新增一条 API 层的步骤。
 - [跨 iframe 协议](./docs/iframe-protocol.md)：地址与亮暗同步的消息形状、两侧的监听。
 - [iframe 示例](./docs/iframe-demo.md)。

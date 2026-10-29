@@ -22,7 +22,7 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
 
 跨 iframe 的那一套（外层套壳、地址怎么拼、三条消息的形状、来源校验、两侧的监听）**不在本包**，
-在 `@show-docs/docusaurus-theme-iframe`：外层归它的 `DocItem` 与 `components/api-frame.tsx`，
+在 `@show-docs/docusaurus-theme-iframe`：外层归 `theme-component-page` 那份清单（命中后换成本包的 `theme/ApiFramePage`）与 `components/api-frame.tsx`，
 约定归 `lib/`（口径见 [`iframe-protocol.md`](../../theme-iframe/docs/iframe-protocol.md)）；本包交出的只有注册表里那个命名空间、iframe 那一格自己的尺寸，
 以及「值送到框内之后落到哪条属性上」这一格。为什么两侧各推一次消息、为什么框内 → 外层不听
 `hashchange`、为什么外层写地址用替换而不是新增，那几条理由记在共享层的文档，这里不抄第二遍

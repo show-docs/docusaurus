@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -197,18 +197,108 @@ describe('plugin-lazy-compilation：开发期给客户端 webpack 开 lazyCompil
   });
 });
 
-describe('theme-iframe 入口：只交层目录，不查前置', () => {
+/** component-page 的包名：本层交出的那几页由它判清单后挂上来。 */
+const COMPONENT_PAGE = '@show-docs/docusaurus-theme-component-page';
+
+const SCALAR = '@show-docs/docusaurus-theme-scalar';
+const REDOC = '@show-docs/docusaurus-theme-redoc';
+const STOPLIGHT = '@show-docs/docusaurus-theme-stoplight';
+
+describe('theme-iframe 入口：层目录、接管清单、两条安装前提', () => {
+  /** 本层交出的那一列（component-page 按它判命中）。 */
+  const pagesOf = (plugin: Plugin): unknown[] =>
+    (
+      plugin as unknown as { getComponentPages: () => unknown[] }
+    ).getComponentPages();
+
   it('层目录与 TS 主题路径都指向包根那份 theme/', () => {
-    const plugin = iframeTheme();
+    const plugin = iframeTheme(contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE]));
 
     expect(plugin.name).toBe('@show-docs/docusaurus-theme-iframe');
     expectThemePath(plugin, 'theme-iframe');
   });
 
-  it('这一层没有 loadContent：缺解析器时让它在别处点名', () => {
-    // 这一格是**刻意没有**的：那份检查住在未编译的 `lib/` 里，跨 `rootDir` import 会让
-    // 构建在 TS6059 上停住。缺解析器的症状由这一层自己的 `@theme-prev/DocItem` 解析失败点出来。
-    expect('loadContent' in iframeTheme()).toBe(false);
+  it('loadContent：缺解析器、缺 component-page 都当场点名，装齐了才放行', () => {
+    // 解析器那条判据住在它自己的包里；component-page 那条是本层这次多出来的前提 ——
+    // 缺了它，那几页永远不会被交给本层的 `@theme/ApiFramePage`，页面看着正常但框不出现。
+    expect(loadContentOf(iframeTheme(contextWith([])))).toThrow(
+      new RegExp(RESOLVER_PLUGIN),
+    );
+    expect(loadContentOf(iframeTheme(contextWith([RESOLVER_PLUGIN])))).toThrow(
+      COMPONENT_PAGE,
+    );
+    expect(() =>
+      loadContentOf(
+        iframeTheme(contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE])),
+      )(),
+    ).not.toThrow();
+  });
+
+  it('getComponentPages：装了的层各交一页，顺序按注册表而不是声明顺序', () => {
+    // 声明顺序是「内 → 外」，注册表顺序是「外 → 内」：判定优先级跟着注册表走。
+    const plugin = iframeTheme(
+      contextWith([
+        RESOLVER_PLUGIN,
+        COMPONENT_PAGE,
+        IFRAME_PLUGIN,
+        STOPLIGHT,
+        REDOC,
+        SCALAR,
+      ]),
+    );
+
+    expect(pagesOf(plugin)).toEqual([
+      {
+        key: 'scalar',
+        match: 'boolean',
+        component: '@theme/ApiFramePage',
+        props: { namespace: SCALAR },
+      },
+      {
+        key: 'redoc',
+        match: 'boolean',
+        component: '@theme/ApiFramePage',
+        props: { namespace: REDOC },
+      },
+      {
+        key: 'stoplight',
+        match: 'boolean',
+        component: '@theme/ApiFramePage',
+        props: { namespace: STOPLIGHT },
+      },
+      {
+        key: 'iframe',
+        match: 'value',
+        component: '@theme/ApiFramePage',
+        props: { namespace: IFRAME_PLUGIN },
+      },
+    ]);
+  });
+
+  it('插件选项里的覆盖清单换顺序、只启用列出的层，装机过滤照样生效', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const plugin = iframeTheme(
+      contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE, IFRAME_PLUGIN, SCALAR]),
+      { themeConfig: { apiFrame: { order: [IFRAME_PLUGIN, REDOC] } } },
+    );
+
+    // redoc 列了却没装：不交，并在 loadContent 里说一次（配置期说一次就够）。
+    expect(pagesOf(plugin)).toEqual([
+      {
+        key: 'iframe',
+        match: 'value',
+        component: '@theme/ApiFramePage',
+        props: { namespace: IFRAME_PLUGIN },
+      },
+    ]);
+
+    loadContentOf(plugin)();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '覆盖清单里的 `@show-docs/docusaurus-theme-redoc` 没装',
+      ),
+    );
+    warn.mockRestore();
   });
 });
 

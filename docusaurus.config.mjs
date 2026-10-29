@@ -87,10 +87,11 @@ const config = {
     ],
     // 差异视图主题层：md 里 `diff: true`（或一个路径）即在正文上方渲染这份文件最近一次提交的差异
     '@show-docs/docusaurus-theme-diff',
-    // iframe 主题层：它是「整页交给一个框」这一族的**唯一外层套壳** —— 那份 `DocItem` 判四把键
-    // （`scalar` / `redoc` / `stoplight` / `iframe`；前三把是布尔、后一把是地址），命中就把正文区
-    // 换成通用框。默认顺序与启用范围在
-    // `packages/theme-iframe/lib/api-frame-registry.ts`（未安装的层不参与判定），站点可在这一项自己的
+    // iframe 主题层：「整页交给一个框」这一族的外层组件与共用约定。四条匹配键
+    // （`scalar` / `redoc` / `stoplight` 是布尔、`iframe` 是地址）不再由它自己那份 `DocItem` 判：
+    // 它在配置期把**装了的那几层**各交出一页给 component-page（下面的套壳），组件是它自己的
+    // `theme/ApiFramePage`。默认顺序与启用范围在
+    // `packages/theme-iframe/src/api-frame-registry.ts`（未安装的层不参与判定），站点可在这一项自己的
     // 插件选项里覆盖 `{ themeConfig: { apiFrame: { order: [命名空间…] } } }`：顺序即优先级、
     // 列出的即启用范围。本站不配这一格 = 走注册表默认（scalar 优先），判据在 e2e 的
     // frame-precedence 用例。口径全在 `packages/theme-iframe/docs/iframe-protocol.md`。
@@ -106,7 +107,9 @@ const config = {
     // `src/theme/ComponentPageDemo`，示例页 `/theme-component-page/docs/component-page-demo`）。
     //
     // 位置在本层里判 `DocItem` 的各层**之后**，于是它是层栈上最外层的 `DocItem`：先判自己
-    // 这份清单，落空才交回 `@theme-prev/DocItem`（也就是上面那个 iframe 框的套壳）。
+    // 这份清单，落空才交回 `@theme-prev/DocItem`（再往下是三条视图层的 `DocItem`）。
+    // 上面 iframe 那四条框页也走这一份清单（它在配置期交进来，排在本站这一条后面），
+    // 命中后由 `@theme/ApiFramePage` 渲染 —— 这一层因此是「整页交给谁」的唯一套壳。
     // 本站的键是 `componentPage`（认真布尔 `true`），与那四把键不撞。
     [
       '@show-docs/docusaurus-theme-component-page',

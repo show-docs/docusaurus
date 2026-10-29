@@ -148,83 +148,76 @@ console.log(`
 - @theme-original/X 保持官方语义（全局赢家），本机制没有改动它（test/layers.test.mts 钉住）。
 `);
 
-// ---- 3. 「整页交给一个框」一族的判定清单还拿得到名字 ----
-// packages/theme-iframe/lib/api-frame-entries.ts 读的是浏览器侧 `siteConfig.plugins` 里
-// **包名的原样字符串**（装机过滤与站点覆盖都靠它；认法住在解析器包的
-// `src/plugin-slots.mts`）。这依赖 Docusaurus 的一个实现细节：
-// 生成 `.docusaurus/docusaurus.config.mjs` 时 `plugins` 保留**原始配置形状**，而不是归一化成
-// 只剩元数据。哪天真被归一化掉，那一层的判定会静默退化成「什么都没装」（页面看起来正常、
-// 键不生效），所以在这里钉住：四条层的包名必须还出现在浏览器配置的 plugins 数组里。
-const FRAME_LAYERS = [
-  '@show-docs/docusaurus-theme-scalar',
-  '@show-docs/docusaurus-theme-redoc',
-  '@show-docs/docusaurus-theme-stoplight',
-  '@show-docs/docusaurus-theme-iframe',
-];
-const browserConfigFile = path.join(root, '.docusaurus/docusaurus.config.mjs');
-console.log('\n浏览器侧 plugins 数组（api-frame-entries.ts 的立足点）：');
-if (fs.existsSync(browserConfigFile)) {
-  const rawConfig = fs.readFileSync(browserConfigFile, 'utf8');
-  // 顶层数组以「换行 + 两格缩进的 ]」收尾；数组里嵌的 [包名, 选项] 元组缩进更深，不会被提前截断
-  const pluginsSection = /"plugins": \[[\s\S]*?\n {2}\]/.exec(rawConfig)?.[0];
-  if (pluginsSection === undefined) {
+// ---- 3. 「整页交给一个框」的那四页真的由配置期交进了 component-page 的清单 ----
+// 判定住在配置期（`packages/theme-iframe/src/api-frame-contribute.mts`）：装了的那几层各交出
+// 一页，`component` 全是本包的 `@theme/ApiFramePage`，顺序 = 注册表顺序（命中优先级）。浏览器侧
+// 不再读 `siteConfig.plugins`，所以这里看的是 component-page 那份生成模块，而不是生成的浏览器
+// 配置。这一条同时钉住「本站按包名声明的那几条真的被认成了装了」——认槽位读的是站点配置的
+// 原始 `plugins` / `themes`，形状变了或某一层没声明，清单里就少一条。
+const FRAME_KEYS = ['scalar', 'redoc', 'stoplight', 'iframe'];
+const FRAME_MATCHES = ['boolean', 'boolean', 'boolean', 'value'];
+const registryFile = path.join(
+  root,
+  '.docusaurus/theme-component-page/registry.ts',
+);
+console.log('\ncomponent-page 的生成清单（api-frame-contribute 的落点）：');
+if (fs.existsSync(registryFile)) {
+  const source = fs.readFileSync(registryFile, 'utf8');
+  // 生成模块里每条是 `key` / `match` / `props` / `Component` 四行，`Component` 指回文件头的
+  // 那句 `import` —— 认组件说明符要看那张表，不能只看键名。
+  const imports = new Map(
+    source
+      .matchAll(/^import (ComponentPage\d+) from "([^"]+)";$/gm)
+      .map(([, local, specifier]) => [local!, specifier!]),
+  );
+  const frames = source
+    .matchAll(
+      /key: "([^"]+)",\n\s+match: "([^"]+)",\n\s+props: (\{[^}]*\}),\n\s+Component: (ComponentPage\d+),/g,
+    )
+    .map(([, key, match, props, component]) => ({
+      key: key!,
+      match: match!,
+      namespace: (JSON.parse(props!) as { namespace?: unknown }).namespace,
+      specifier: imports.get(component!),
+    }))
+    .filter((entry) => entry.specifier === '@theme/ApiFramePage')
+    .toArray();
+
+  const keysOk =
+    frames.length === FRAME_KEYS.length &&
+    frames.every((entry, index) => entry.key === FRAME_KEYS[index]);
+  console.log(
+    `   ${keysOk ? '✅' : '❌'} 交出的页（顺序 = 命中优先级）：${frames.map((entry) => entry.key).join(' > ') || '(无)'}`,
+  );
+  if (!keysOk) {
     console.log(
-      '   ❌ 在浏览器配置里认不出 `"plugins": [...]` 这一段 —— 序列化形状变了，',
+      `   → 期望 ${FRAME_KEYS.join(' > ')}：注册表顺序，且每一条都指向 \`@theme/ApiFramePage\`。`,
     );
     console.log(
-      '      这一族的装机过滤与覆盖大概率同时失效，去看 api-frame-entries.ts 的 readPluginSlot。',
+      '      少了哪一条，先看站点 `plugins` 里那一层还在不在；判定与过滤住在 packages/theme-iframe/src/api-frame-contribute.mts。',
     );
     isOk = false;
-  } else {
-    const missing = FRAME_LAYERS.filter(
-      (namespace) => !pluginsSection.includes(`"${namespace}"`),
-    );
-    for (const namespace of FRAME_LAYERS) {
-      console.log(
-        `   ${missing.includes(namespace) ? '❌' : '✅'} ${namespace}`,
-      );
-    }
-    if (missing.length > 0) {
-      console.log(
-        '   → 包名在浏览器侧的 plugins 里找不到了；`resolveFrameDistribution()` 会把这些层判成「没装」，键静默落空。',
-      );
-      isOk = false;
-    }
+  }
 
-    // 注册表那条清单的顺序是「越靠外越先判」的默认值（`api-frame-registry.ts` 的顺序，
-    // 上面 FRAME_LAYERS 就是照它抄的）。层栈里越靠外 = 在 plugins 里声明越晚，
-    // 所以本站这四条的声明顺序应当是注册表顺序的**逆序**。
-    // 两边没有机制上的绑定（站点可以不装、也可以覆盖），这条钉的是「本站的默认优先级
-    // 与注册表说的是同一件事」：谁单独挪了一边，这里就红。
-    const declaredOrder = FRAME_LAYERS.map((namespace) => ({
-      namespace,
-      at: pluginsSection.indexOf(`"${namespace}"`),
-    }))
-      .filter(({ at }) => at >= 0)
-      .toSorted((a, b) => a.at - b.at)
-      .map(({ namespace }) => namespace);
-    const expectedOrder = FRAME_LAYERS.toReversed();
-    const orderOk =
-      declaredOrder.length === expectedOrder.length &&
-      declaredOrder.every(
-        (namespace, index) => namespace === expectedOrder[index],
-      );
+  const shapeOkAt = (entry: (typeof frames)[number], index: number): boolean =>
+    entry.match === FRAME_MATCHES[index] &&
+    entry.namespace === `@show-docs/docusaurus-theme-${entry.key}`;
+  const shapesOk = frames.every((entry, index) => shapeOkAt(entry, index));
+  for (const [index, entry] of frames.entries()) {
+    const ok = shapeOkAt(entry, index);
     console.log(
-      `   ${orderOk ? '✅' : '❌'} 声明顺序（在 plugins 里，外 → 内）：${declaredOrder.join(' > ') || '(无)'}`,
+      `   ${ok ? '✅' : '❌'} ${entry.key}  match=${entry.match}  namespace=${String(entry.namespace)}`,
     );
-    if (!orderOk) {
+    if (!ok) {
       console.log(
-        `   → 期望 ${expectedOrder.join(' > ')}：越晚声明 = 层栈越靠外 = 默认越先判。`,
+        `      → 期望 match=${FRAME_MATCHES[index]}、namespace=@show-docs/docusaurus-theme-${entry.key}`,
       );
-      console.log(
-        '      真要改优先级，写在 `themeConfig.apiFrame.order` 里，别只挪声明顺序。',
-      );
-      isOk = false;
     }
   }
+  isOk &&= shapesOk;
 } else {
   console.log(
-    '   ❌ 没找到 .docusaurus/docusaurus.config.mjs（pnpm build 应当生成它）',
+    '   ❌ 没找到 .docusaurus/theme-component-page/registry.ts（pnpm build 应当生成它）',
   );
   isOk = false;
 }

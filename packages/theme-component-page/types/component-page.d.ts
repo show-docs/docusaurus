@@ -39,6 +39,31 @@ export type ComponentPageEntry = {
 export type ComponentPageValue = true | string
 
 /**
+**配置里**写在一条条目上的形状：`ComponentPageEntry` 再多一格「命中后挂哪个组件」。
+
+站点把它写在插件选项的 `pages` 里（`component` 那一格还认 `false`，见 `src/index.mts`），
+别的主题包把它挂在插件实例的 `getComponentPages()` 上（那一格不认 `false`：包不能替站点
+决定自己不生效）。
+*/
+export type ComponentPageDeclaration = Omit<ComponentPageEntry, 'match'> & {
+  /** 那个组件的模块说明符，判据是 webpack 的别名表认不认它。 */
+  component: string
+  /** 这把键怎么算命中；缺它按 `boolean`。 */
+  match?: ComponentPageMatch
+}
+
+/**
+插件实例上那条**贡献约定**：挂了 `getComponentPages()` 的主题包，交回的那一列由本层接管。
+
+这条约定住在包的类型出口里，贡献方（比如 `theme-iframe`）引它实现那一格，形状就不会
+在贡献方与校验方各写一遍。返回 `unknown` 而不是声明形状：校验（`src/config.mts`）对
+站点那一列与包交出的那一列一视同仁，认不出的形状由它当场点名。
+*/
+export type ComponentPagesProvider = {
+  getComponentPages: () => unknown
+}
+
+/**
 交进那个组件的入参：本层给的三份 + 配置里 `props` 那格并进来的其余各份。
 三份和后者的次序由 `lib/component-page.ts` 的 `componentPageProps()` 定一次：**同名的键那三份赢**。
 

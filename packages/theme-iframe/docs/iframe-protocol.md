@@ -1,13 +1,17 @@
-# 跨 iframe 共享约定（`packages/theme-iframe/lib/`）
+# 跨 iframe 共享约定（`packages/theme-iframe/` 的 `lib/` 与 `src/`）
 
-共享层，两件事住在这一份 `lib/` 里：
+共享层，两件事住在本包的 `lib/` 与 `src/` 里：
 
-1. **「整页交给一个框」这一族的注册表、分发与配置期工厂** —— 判哪几把 frontmatter 键、框的地址
-   怎么拼、框内那条路由注册在哪，都由这一份给出（见下面「注册表与分发」一节）；
+1. **「整页交给一个框」这一族的注册表与配置期工厂** —— 判哪几把 frontmatter 键、框的地址
+   怎么拼、框内那条路由注册在哪，都由这一份给出（注册表在 `src/api-frame-registry.ts`，
+   浏览器侧经 `lib/` 那条转出引同一份源码）；「装了的那几层各接管哪一页」由本包在配置期交给
+   `@show-docs/docusaurus-theme-component-page`（`src/api-frame-contribute.mts`，见下面
+   「注册表与分发」一节）；
 2. **两侧要说的那几句话** —— iframe 地址、三条 postMessage 的形状与两侧的消息循环。
 
-源码住在 [`theme-iframe`](../README.md) 包的 `lib/` 里，
-`exports` 用 `./lib/*` 直接把源码交给用它的包。
+源码分两处：浏览器侧共用的约定住在 [`theme-iframe`](../README.md) 包的 `lib/` 里
+（`exports` 用 `./lib/*` 直接把源码交给用它的包）；注册表与交出清单那一格住在 `src/` 里
+（本包入口要用，得进 `tsc`）。
 
 [`theme-redoc`](../../theme-redoc/README.md)、[`theme-stoplight`](../../theme-stoplight/README.md) 与
 [`theme-scalar`](../../theme-scalar/README.md) 用的是同一套：站点的文档页里只放一个 `<iframe>`（那一个框由
@@ -21,23 +25,24 @@
 三个 API 包把它当普通依赖 import（`"@show-docs/docusaurus-theme-iframe": "workspace:^"`，写在
 `peerDependencies` —— 那份版本契约见下面「注册表与分发」末了；浏览器侧 import 写
 `@show-docs/docusaurus-theme-iframe/lib/index.ts`）；配置期那份工厂（`api-frame-theme.mts`）
-由各包入口按全 specifier 引。同包的 `theme/DocItem` 与 `components/api-frame.tsx`
-（frontmatter `iframe:` 那一层的外壳）**用的就是这一份注册表** —— 四把键由那一份 `DocItem`
-按注册表**与站点插件选项**判（`api-frame-entries.ts`）；`iframe:` 那条嵌的是**外部站点**，跨源，
-注册表里是一条 `external` 条目，没有这条消息通道。
+由各包入口按全 specifier 引。本包的 `theme/ApiFramePage`（命中后替换整个 `DocItem` 的那一格）
+**用的就是这一份注册表**；四把键「归谁」由配置期交出的清单判（`src/api-frame-contribute.mts`），
+`iframe:` 那条嵌的是**外部站点**，跨源，注册表里是一条 `external` 条目，没有这条消息通道。
 
 ## 组成
 
-| 文件                        | 编译吗      | 职责                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lib/index.ts`              | ❌ 站点编译 | 浏览器侧出口，把下面几份再导出去一次；**不含** `api-frame-theme.mts`（那份引 `node:path`，进不了浏览器 bundle）                                                                                                                                                                                                                                                           |
-| `lib/api-frame-registry.ts` | ❌ 站点编译 | 注册表：四条形同的条目（命名空间、frontmatter 键、类名、路由名……），纯数据、零 import，配置期与浏览器期引同一份                                                                                                                                                                                                                                                           |
-| `lib/api-frame-entries.ts`  | ❌ 站点编译 | 判定清单的分发 `resolveFrameDistribution({ plugins, themes }, frontMatter, pagePath)`：装了的层参与判定，注册表顺序为默认，插件选项 `themeConfig.apiFrame.order` 可覆盖顺序与子集；落空原因进 `warnings`（页面级那几条带页面地址），同在这份里的 `warnFrameDistribution()` 把它们去重后打到控制台（开发模式由 `DocItem` 调）；两边都不引 React，单测与 `DocItem` 引同一份 |
-| `lib/api-frame-messages.ts` | ❌ 站点编译 | 按命名空间造那三条消息的名字，带缓存（同一命名空间每次拿到同一个对象）                                                                                                                                                                                                                                                                                                    |
-| `lib/api-frame-view.tsx`    | ❌ 站点编译 | 框内那份**页面工厂** `createApiFrameView()`：三条 API 层的 `theme/XxxPage` 各调它一次，交「包名 + 渲染接线（静态 `view`，或按需取的 `loadView`）+ 亮暗的落法（`modeAttribute` 或 `onMode`）」。注册表守卫、从地址取 spec、`useInnerFrameSync`、`ready` 那一句、报回外层全在这一份里；单测 `test/api-frame-view.test.mts`                                                  |
-| `lib/api-frame-theme.mts`   | ❌ 配置期   | 入口工厂：三条 API 层的 `src/index.mts` 调它拿 Plugin 形状（挂层目录、注册框内路由、接各自的 webpack 差异）；`.mts` 按上游 lint preset 标 Node 环境                                                                                                                                                                                                                       |
-| `lib/frame-messages.ts`     | ❌ 站点编译 | 约定与形状：iframe 地址怎么拼（框内那条 `frameViewSrc` / `specUrlFromSearch`、`iframe:` 那条 `externalFrameURL`）、三条消息怎么造怎么认（**纯函数，不引 React、不引 DOM**）                                                                                                                                                                                               |
-| `lib/frame-sync.ts`         | ❌ 站点编译 | 两侧的消息循环：`useOuterFrameSync`（外层那份文档里）、`useInnerFrameSync` 与 `createRouteReporter`（框内那份文档里），加两边都过的来源校验 `isTrustedMessage`（引 DOM 类型的只有这一份，注册表那条配置期链路碰不到 `Window`）                                                                                                                                            |
+| 文件                           | 编译吗              | 职责                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `lib/index.ts`                 | ❌ 站点编译         | 浏览器侧出口，把下面几份再导出去一次；**不含** `api-frame-theme.mts`（那份引 `node:path`，进不了浏览器 bundle）                                                                                                                                                                                                          |
+| `src/api-frame-registry.ts`    | ✅ `src/` → `dist/` | 注册表：四条形同的条目（命名空间、frontmatter 键、类名、路由名……），纯数据、零 import，配置期与浏览器期引同一份源码                                                                                                                                                                                                      |
+| `lib/api-frame-registry.ts`    | ❌ 站点编译         | 注册表的浏览器侧转出：`export * from '../src/api-frame-registry.ts'`（`src/` 进 `tsc`，不能反过来引未编译的 `lib/`）                                                                                                                                                                                                     |
+| `src/api-frame-contribute.mts` | ✅ `src/` → `dist/` | **配置期**那一格：装了的那几层按注册表顺序各交一页给 component-page；站点插件选项 `themeConfig.apiFrame.order` 换顺序、取子集；拼错的名字与列了没装的层进 `warnings`，入口在 `loadContent()` 打一次                                                                                                                      |
+| `lib/api-frame-entries.ts`     | ❌ 站点编译         | **页面侧**那一格：一页归了本层之后，框里渲染哪份文档、写歪了怎么提示（缺 spec 地址 / 两把 spec 键同时写）；`warnFramePages()` 去重后打到控制台（开发模式由 `ApiFramePage` 调）；不引 React，单测与组件引同一份                                                                                                           |
+| `lib/api-frame-messages.ts`    | ❌ 站点编译         | 按命名空间造那三条消息的名字，带缓存（同一命名空间每次拿到同一个对象）                                                                                                                                                                                                                                                   |
+| `lib/api-frame-view.tsx`       | ❌ 站点编译         | 框内那份**页面工厂** `createApiFrameView()`：三条 API 层的 `theme/XxxPage` 各调它一次，交「包名 + 渲染接线（静态 `view`，或按需取的 `loadView`）+ 亮暗的落法（`modeAttribute` 或 `onMode`）」。注册表守卫、从地址取 spec、`useInnerFrameSync`、`ready` 那一句、报回外层全在这一份里；单测 `test/api-frame-view.test.mts` |
+| `lib/api-frame-theme.mts`      | ❌ 配置期           | 入口工厂：三条 API 层的 `src/index.mts` 调它拿 Plugin 形状（挂层目录、注册框内路由、接各自的 webpack 差异）；`.mts` 按上游 lint preset 标 Node 环境                                                                                                                                                                      |
+| `lib/frame-messages.ts`        | ❌ 站点编译         | 约定与形状：iframe 地址怎么拼（框内那条 `frameViewSrc` / `specUrlFromSearch`、`iframe:` 那条 `externalFrameURL`）、三条消息怎么造怎么认（**纯函数，不引 React、不引 DOM**）                                                                                                                                              |
+| `lib/frame-sync.ts`            | ❌ 站点编译         | 两侧的消息循环：`useOuterFrameSync`（外层那份文档里）、`useInnerFrameSync` 与 `createRouteReporter`（框内那份文档里），加两边都过的来源校验 `isTrustedMessage`（引 DOM 类型的只有这一份，注册表那条配置期链路碰不到 `Window`）                                                                                           |
 
 「编译吗」那一列的判据是谁编译 —— 口径的产地在仓库根 README 的「构建包的编译口径」。这一格的特别之处
 是**没有编译产物**：本包的构建项目（`tsconfig.build.json`）只收 `src/`，`lib/` 不进 `tsc`，
@@ -47,7 +52,8 @@
 
 ## 注册表与分发：四把匹配键、两把 spec 键、一份默认顺序
 
-`lib/api-frame-registry.ts` 是这一族唯一的**形状**来源。每个条目两种 `kind`：
+`src/api-frame-registry.ts`（浏览器侧经 `lib/api-frame-registry.ts` 转出）是这一族唯一的**形状**来源。
+每个条目两种 `kind`：
 
 - `internal`（scalar / redoc / stoplight）：命名空间、**布尔** frontmatter 键（`scalar: true` /
   `redoc: true` / `stoplight: true` —— 只说「这一层接这一页」）、**spec 键**（有序的一组：
@@ -64,15 +70,17 @@
   走 `httpsOnHttpsSite()`：相对写法原样写进 html，只把绝对 `http:` 按 `siteConfig.url` 的协议
   升掉（这个框先加载、后由 React 改 `src`，html 里留着 http 的话线上首屏还会先撞一次混合内容）。
 
-**一把键「写了没有」与「命中没有」是两件事**（判据在 `lib/api-frame-entries.ts` 的
-`frameKeyWritten()` 与 `matchApiFrameEntry()`，`DocItem` 与单测引同一份）：
+**命中之后，这一页还要能出框**（判据在 `lib/api-frame-entries.ts` 的 `framePageUrl()` /
+`framePageWarnings()`，`ApiFramePage` 与单测引同一份）：
 
-- 三条 API 层：键写 `true` 才算「作者选了哪一层」；命中还要**另有** spec 键给了地址（`oas3:` /
-  `aas3:` 里第一把非空的）——「用哪一层渲染」与「渲染哪份文档」是两件事。两把都缺（或只有
-  空串），这一层出不了框。
-- `iframe:`：键给一个非空地址即命中，值就是框要渲染的那份页面，它**不读** spec 键。
+- 三条 API 层：component-page 按 `match: 'boolean'` 判「键写没写 `true`」；命中只说明「用这一层
+  渲染」，框里要渲染的文档还要**另有** spec 键给地址（`oas3:` / `aas3:` 里第一把非空的）——
+  「用哪一层渲染」与「渲染哪份文档」是两件事。两把都缺（或只有空串），这一页交回普通文档页，
+  开发模式告警。
+- `iframe:`：component-page 按 `match: 'value'` 判，值就是框要渲染的那份页面，它**不读** spec 键。
+  拿到的不像地址（站点覆写组件时什么样都可能传进来）同样交回普通文档页。
 
-判定按注册表顺序逐条走，**第一个能出框的层赢**；spec 键里第一把非空地址被送进框里那条路由的
+spec 键里第一把非空地址被送进框里那条路由的
 `src` 参数（`frameViewSrc()` 那一步），框内那页按它取文档。
 
 `frameViewSrc()` 还按 `siteConfig.trailingSlash` 定路径末尾那条斜杠：`false` 时产物是
@@ -94,50 +102,51 @@ Redoc 认 `asyncapi.startsWith('3.')`）。两把同时写时按注册表顺序�
 被忽略 —— 开发模式有一条「两把都写通常是手误」的告警。实测过 AsyncAPI 3 的是 scalar 与 redoc
 两层，stoplight 那一层没测。
 
-**条目的排列顺序是判定优先级的默认值**，但决定权在站点，分发在 `lib/api-frame-entries.ts`
-（`resolveFrameDistribution({ plugins, themes }, frontMatter)`，交出 `{ entries, warnings }`）。
-规则**只有一条**：参与判定的层 = 装了的层（`plugins` 或 `themes` 里有其包名、或其包目录内入口路径的
-那一项，认法见下面「槽位怎么认层」那一段——判据住在解析器包的 `./plugin-slots`；两份清单合并后与 Docusaurus 的真实插件表一致）；站点可在本层那一项的
+**条目在注册表里的排列顺序 = 判定优先级的默认值**，但「装了的那几层各接管哪一页」由本包在
+**配置期**算好、交给 `theme-component-page`（`src/api-frame-contribute.mts`，交出
+`{ pages, warnings }`）：component-page 按交出的顺序逐条判，第一条命中的赢。规则只有一条：
+参与交出的层 = 装了的层（`plugins` 或 `themes` 里有其包名、或其包目录内入口路径的
+那一项，认法见下面「槽位怎么认层」那一段——判据住在解析器包的 `./plugin-slots`；两份清单合并后
+与 Docusaurus 的真实插件表一致）；站点可在本层那一项的
 插件选项 `['@show-docs/docusaurus-theme-iframe', { themeConfig: { apiFrame: { order: [...] } } }]`
-里用命名空间数组覆盖参与判定的**顺序与子集**。覆盖不放宽装机过滤 —— 列了没装的层照样不判，
+里用命名空间数组覆盖参与判定的**顺序与子集**。覆盖不放宽装机过滤 —— 列了没装的层照样不交，
 否则「框指向不存在路由」这个失败模式会在覆盖下被重新引入。两个推论：
 
 - 没装的层不再像以前那样照样命中、渲染出一个指向不存在路由的框（浏览器里 `…-view` 回 404
-  一片空白），而是那一格落空，交回普通文档页。实测：注释掉 `plugins` 里 scalar 那一条重建，
+  一片空白），而是那一页落空，交回普通文档页。实测：注释掉 `plugins` 里 scalar 那一条重建，
   `build/theme-scalar/docs/scalar-demo/index.html` 里 `<iframe>` 数从 1 变 0，写了四把键的夹具页换成 redoc 框。
-- 落空从「坏框」（肉眼可见）变成「页面看起来正常但键没生效」（看不见），所以分发把每一次落空
-  的原因收进 `warnings`（键写了但层没装 / 被覆盖清单排除 / 覆盖里写了注册表认不出的命名空间 /
-  覆盖挂在认不出是本层的槽位上 / 布尔键写了却没给 spec 地址 / 布尔键写成了别的形状 /
-  只给了 spec 地址没写用哪一层渲染 / 两把 spec 键同时写；**页面级那几条带页面地址** —— 去重按
-  文本判等，不带地址的话十个页面上的同一个手误只报第一个），`DocItem` 在**开发模式**把它们交给
-  `warnFrameDistribution()` 用 `console.warn` 打出来，每条一次 dev server 会话只打一遍（配置级
-  那几条否则每翻一页都重放）；构建产物不打，那种页面对读者没有可修的东西。
+- 落空从「坏框」（肉眼可见）变成「页面看起来正常但键没生效」（看不见）。配置级那几类
+  （覆盖清单里拼错的名字、列了没装的层）在 `loadContent()` 里说一次；页面级那两类
+  （命中了却没给 spec 地址、两把 spec 键同时写）由 `ApiFramePage` 在**开发模式**交给
+  `warnFramePages()`，每条一次 dev server 会话只打一遍，构建产物不打。**不再有**的三类：
+  「布尔键写了但那一层没装」（那一层根本不交页）、「只给了 spec 键没写布尔键」（没有哪一层认领
+  这一页）、「覆盖挂在认不出本层的槽位上」（选项现在由本层自己拿到，孤立的覆盖不再存在）。
+  「布尔键写成了别的形状」由 component-page 那条通用告警说（`test/component-page-entries.test.mts`）。
 
-为什么覆盖挂在**插件选项**而不是站点 `themeConfig`：实测浏览器侧那份 `themeConfig`
-（`pnpm build` 后 `.docusaurus/docusaurus.config.mjs` 的顶层那格）只来自官方 merge，而 merge
-只收 `themes` 注册表 —— 本层注册在 `plugins` 里，插件选项进不了那格。原始 `plugins` 是选项
-唯一到得了浏览器侧的位置；它的每一项是**原始配置形状**，四种写法都要认：裸字符串（包名或路径）、
-`[包名, 选项]`、`[路径, 选项]`、`{name}` 对象（`siteVersion` 那类归一化元数据是另一格）。
+为什么覆盖挂在**插件选项**里而不是站点 `themeConfig`：`apiFrame.order` 是本层自己的配置，
+Docusaurus 把插件选项校验好后原样交给入口工厂，配置期就能算完 —— 这条链不再依赖浏览器侧生成
+配置的序列化形状，也不再需要在浏览器里读 `siteConfig.plugins`。那两份清单仍是**原始配置形状**，
+四种写法都要认：裸字符串（包名或路径）、`[包名, 选项]`、`[路径, 选项]`、`{name}` 对象
+（`siteVersion` 那类归一化元数据是另一格）。
 
 **槽位怎么认层**：那两条判据（`pluginSlotName()` 认形状、`slotIsNamespace()` 认名字与层的对应）
-住在解析器包的 `./plugin-slots`，本层的 `readPluginSlot()` 只是在这一格之外多取选项那一份。
+住在解析器包的 `./plugin-slots`，本包里只调 `declaredNamespaces()` + `slotIsNamespace()`。
 放在那儿而不是留在这里，是因为各层配置期那句「缺了解析器就当场点名」用的是同一条判据 ——
-判据住在解析器包，任何一层都能问这一句，不必先装 `theme-iframe`。浏览器侧与配置期读同一份，
-所以**不存在**「本层认路径、三条 API 层只认包名」的不对称：裸包名相等，或路径落在该包的目录段内
+判据住在解析器包，任何一层都能问这一句，不必先装 `theme-iframe`。所以**不存在**「本层认路径、
+三条 API 层只认包名」的不对称：裸包名相等，或路径落在该包的目录段内
 （`docusaurus-theme-x` 与去 `docusaurus-` 前缀的 `theme-x` 两种目录段都认，`dist/index.mjs`、
 `src/index.mts` 都可以），路径声明的层照样算装机。本站全部按包名声明。
 
-这一格有三道门禁钉着：分支语义（默认、覆盖、过滤、每一条 `warnings`）由
-`test/api-frame-entries.test.mts` 在单测里钉（纯函数，不需要浏览器），判据本身由
-`test/plugin-slots.test.mts` 钉；`lib/` 十四份文件的每个分支
-都在覆盖率红线上（见 `vitest.config.mts` 的 `coverage.include`，浏览器那两份靠 jsdom，
-见 `test/frame-sync.test.mts`）；而「浏览器侧 `plugins`
-原样保留包名、插件选项到得了浏览器」是 Docusaurus 的**实现细节而非公开承诺**，由
-`tools/scripts/verify-chain.mts` 第 3 节对真实生成的 `.docusaurus/docusaurus.config.mjs` 钉 ——
-升级后序列化形状变了会判红，而不是静默退化成「什么都没装」。同一节还钉了本站的一条约定：
-四条层在 `plugins` 里的**声明顺序是注册表顺序的逆序**（越晚声明 = 层栈越靠外 = 默认越先判）。
-两边没有机制上的绑定，改优先级请改 `apiFrame.order`，别只挪声明顺序 —— 只挪一边的话这条会红。
-用例「同一页写两把键时，注册表里排前面的赢」钉默认分发的端到端行为。
+这一格有几道门禁钉着：分支语义（默认、覆盖、过滤、每一条 `warnings`）由
+`test/api-frame-contribute.test.mts` 在单测里钉（纯函数，不需要浏览器），判据本身由
+`test/plugin-slots.test.mts` 钉；本层入口交出的形状与两条安装前提由
+`test/package-entries.test.mts` 钉；页面侧那两条告警与框地址的取法由
+`test/api-frame-entries.test.mts` 钉。覆盖率红线盖住 `src/` 与 `lib/` 的每个分支（见
+`vitest.config.mts` 的 `coverage.include`，浏览器那两份靠 jsdom，见 `test/frame-sync.test.mts`）。
+真实 build 里「四条页真的交到了 component-page 的清单里」由
+`tools/scripts/verify-chain.mts` 第 3 节读那份生成模块钉 —— 少了哪一层或交出的形状变了会判红，
+而不是静默退化成「什么都没装」。
+用例「同一页写两把键时，注册表里排前面的赢」钉这条配置期清单的端到端行为。
 
 新增一条 API 层 = 注册表加一条 + 新包写两份（入口调一次 `createApiFrameTheme()`、框内那一页
 `theme/XxxPage` 调一次 `createApiFrameView()`，各家那个渲染用的 UI 组件作为参数交给它），

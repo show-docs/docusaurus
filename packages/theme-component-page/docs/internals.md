@@ -122,12 +122,16 @@
 
 ## 与 `theme-iframe` 那一族的边界
 
-那一族把三条 API 层与 `iframe:` 那一条的清单**硬编码在自己包里**（`lib/api-frame-registry.ts`），
-判的是那四把键，命中后渲染的是自己那个 `<iframe>`。本包不认得它们中的任何一个：它的清单来自
-配置，命中后渲染的是配置点名的组件。两者的落点形状相同（都是替换整个 `DocItem`），
-判据与数据不同 —— 把那一族的清单接到这一包的机制上是一次单独的抽取，本包先把机制与那条通道
-（上面一节）立起来：真要接的是「哪几页归这个包」那一份清单，而框内那条路由、`oas3:` / `aas3:`
-那些 spec 键、`<iframe>` 的尺寸与消息循环仍然住在它自己包里，机制层一概不认。
+`theme-iframe` 自己那份清单**硬编码在它包里**（`src/api-frame-registry.ts`），但它不再自己判：
+它在配置期通过本包的约定（`getComponentPages()`）把装了的那几层各交一页，组件是它自己的
+`@theme/ApiFramePage`，`props.namespace` 说明赢的是哪一条。于是：
+
+- 本包仍然不认得那四把键：交给它的就是普通的 `ComponentPageDeclaration`；
+- 「哪一层装了」「默认顺序」「站点覆盖」都在交出方算（`src/api-frame-contribute.mts`），
+  本包只管自己那四条合成规则（站点排前面 / 同键站点赢并留提示 / `component: false` 关掉 /
+  两包抢同一把键直接红）；
+- 框内那条路由、`oas3:` / `aas3:` 那些 spec 键、`<iframe>` 的尺寸与消息循环仍然住在它自己
+  包里，机制层一概不认。
 
 本包在 `src/index.mts` 里只跑**一条**前置检查：解析器插件在不在那两份清单里，走的是那个包自己
 发出来的 `assertPrevLayerResolverInstalled()`（`@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots`）。
@@ -145,9 +149,11 @@
 那条口径记在 [`theme-iframe` 的协议文档](../../theme-iframe/docs/iframe-protocol.md)里）；
 换个位置放就换个先后，机制本身不管这件事。
 
-**在最外的那一格因此遮住下面各族的 `DocItem`**：一页同时写中本层的键和 `theme-iframe` 那族
-的键时，本层的组件赢，而那族的告警永远不会打 —— 它的 `DocItem` 根本没被走到。两层互不认识，
-谁也报不了这条冲突，所以顺序是站点作者的判据：要那一族先判，就把本层往前提。
+**在最外的那一格因此遮住下面各层的 `DocItem`**：一页同时写中本层的键和下面某条视图层的键时，
+本层的组件赢，那条视图层的 `DocItem` 根本不会被走到、它的告警也不会打。两层互不认识，
+谁也报不了这条冲突，所以顺序是站点作者的判据。`theme-iframe` 那四条框键不再有这个问题 ——
+它们本来就在本层的清单里，命中后由 `ApiFramePage` 渲染（一页只交出一个组件这一点没变：
+本层清单里排前面的那条赢）。
 
 ## 失败模式与落点
 

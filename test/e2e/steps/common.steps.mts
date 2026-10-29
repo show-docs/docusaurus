@@ -125,9 +125,10 @@ Then(
 );
 
 /**
-整页替换那一族（`theme-iframe` 的 `DocItem` 按 `lib/api-frame-registry.ts` 的顺序判四把键：
-`scalar:`、`redoc:`、`stoplight:`、`iframe:`）命中时**不包**下层 `DocItem`，
-所以那一页连文档正文外壳都没有。四把键判的是同一件事，句子就一份。
+整页替换那一族：`theme-iframe` 在配置期把装了的各层四把键（`scalar:`、`redoc:`、`stoplight:`、
+`iframe:`）交给 `theme-component-page`，命中的那一页整个 `DocItem` 换成 `@theme/ApiFramePage`
+（顺序 = 那份清单的顺序，默认照 `src/api-frame-registry.ts` 的条目排），所以那一页连文档正文外壳
+都没有。四把键判的是同一件事，句子就一份。
 */
 Then('这一页没有文档正文外壳', async ({ page }) => {
   await expect(page.locator('article'), '整页没交给外部渲染器').toHaveCount(0);
