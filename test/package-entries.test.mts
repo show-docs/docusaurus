@@ -12,6 +12,7 @@ import { PLUGIN_NAME as AVATAR_PLUGIN_NAME } from '../packages/theme-avatar/src/
 import avatarTheme from '../packages/theme-avatar/src/index.mts';
 import componentPageTheme from '../packages/theme-component-page/src/index.mts';
 import copyButtonTheme from '../packages/theme-copy-button/src/index.mts';
+import { DIFF_COMPONENT_PAGES } from '../packages/theme-diff/src/component-pages.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
 import erdTheme from '../packages/theme-erd/src/index.mts';
 import gitBadgeTheme from '../packages/theme-git-badge/src/index.mts';
@@ -476,9 +477,35 @@ describe('theme-diff 入口', () => {
     expect(rules[0]!.loader).toMatch(/[/\\]loader[/\\]md-diff-loader\.mjs$/);
   });
 
-  it('缺 theme-iframe：当场点名（这一层要用那份共享外壳）', () => {
-    const missing = diffTheme(contextWith([RESOLVER_PLUGIN]));
-    expect(() => loadContentOf(missing)()).toThrow(new RegExp(IFRAME_PLUGIN));
+  it('loadContent：交出 diff 那一页，组件写的是 @theme/DiffPage', () => {
+    const plugin = diffTheme(
+      contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+    );
+
+    expect(componentPagesOf(plugin)).toBe(DIFF_COMPONENT_PAGES);
+    // `any` 判法：`diff:` 那三种写下的开关形状（`true` / 路径 / `{ old, new }`）都算命中
+    // （见 component-page 的判据）。
+    expect(DIFF_COMPONENT_PAGES).toEqual([
+      { key: 'diff', match: 'any', component: '@theme/DiffPage' },
+    ]);
+  });
+
+  it('缺 theme-iframe、缺 component-page 都当场点名；装齐了才放行', () => {
+    expect(() =>
+      loadContentOf(diffTheme(contextWith([RESOLVER_PLUGIN])))(),
+    ).toThrow(new RegExp(IFRAME_PLUGIN));
+
+    expect(() =>
+      loadContentOf(diffTheme(contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN])))(),
+    ).toThrow(COMPONENT_PAGE);
+
+    expect(() =>
+      loadContentOf(
+        diffTheme(
+          contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+        ),
+      )(),
+    ).not.toThrow();
   });
 });
 

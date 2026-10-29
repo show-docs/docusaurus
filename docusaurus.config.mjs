@@ -87,7 +87,9 @@ const config = {
         ],
       },
     ],
-    // 差异视图主题层：md 里 `diff: true`（或一个路径）即在正文上方渲染这份文件最近一次提交的差异
+    // 差异视图主题层：md 里 `diff: true`（或一个路径 / `{ old, new }`）即在正文上方渲染差异。
+    // 它不提供 `DocItem`：`diff` 那一页在自己的 `loadContent()` 里交给 component-page，
+    // 命中后挂本包的 `theme/DiffPage`（与 markmap 同一形态）。
     '@show-docs/docusaurus-theme-diff',
     // iframe 主题层：「整页交给一个框」这一族的外层组件与共用约定。四条匹配键
     // （`scalar` / `redoc` / `stoplight` 是布尔、`iframe` 是地址）不再由它自己那份 `DocItem` 判：
@@ -110,10 +112,10 @@ const config = {
     // `src/theme/ComponentPageDemo`，示例页 `/theme-component-page/docs/component-page-demo`）。
     //
     // 位置在本层里判 `DocItem` 的各层**之后**，于是它是层栈上最外层的 `DocItem`：先判自己
-    // 这份清单，落空才交回 `@theme-prev/DocItem`（再往下是 erd / diff 那两份 `DocItem`）。
-    // 上面 iframe 那四条框页与 markmap 那一页也走这一份清单（各自在 `loadContent()` 里交进来，
-    // 排在本站这一条后面），命中后分别由 `@theme/ApiFramePage` / `@theme/MarkmapPage` 渲染 ——
-    // 这一层因此是「整页交给谁」的唯一套壳。
+    // 这份清单，落空才交回 `@theme-prev/DocItem`（再往下是 erd 那份 `DocItem`）。
+    // 上面 iframe 那四条框页与 markmap / diff 那两页也走这一份清单（各自在 `loadContent()` 里
+    // 交进来，排在本站这一条后面），命中后分别由 `@theme/ApiFramePage` / `@theme/MarkmapPage` /
+    // `@theme/DiffPage` 渲染 —— 这一层因此是「整页交给谁」的唯一套壳。
     // 本站的键是 `componentPage`（认真布尔 `true`），与那几把交来的键都不撞。
     [
       '@show-docs/docusaurus-theme-component-page',

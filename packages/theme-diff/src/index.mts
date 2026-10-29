@@ -2,25 +2,43 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
 import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
+
+import { DIFF_COMPONENT_PAGES } from './component-pages.mts';
 
 const require = createRequire(import.meta.url);
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
 
+/** 本包的包名。 */
+const NAMESPACE = '@show-docs/docusaurus-theme-diff';
+
+/**
+本层的入口：`getThemePath()` 挂本包那一层（里面只有 `DiffPage` 与它依赖的差异视图），
+`loadContent()` 把 `diff` 那一把键交给 `@show-docs/docusaurus-theme-component-page` ——
+命中的页由它那份 `DocItem` 判清单后整页换成 `@theme/DiffPage`。于是本层的前提有两个：
+共享外壳所在的 `theme-iframe`，与判清单的 `component-page`；缺了它们，页面看着正常但差异视图不出现。
+*/
 export default function theme(context: LoadContext): Plugin {
   return {
-    name: '@show-docs/docusaurus-theme-diff',
+    name: NAMESPACE,
     loadContent() {
-      // 本层的 `ViewLayerDocItem` 住在 theme-iframe 未编译的 `lib/` 里：那个包没装，
-      // 站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。
+      // 本层的 `DiffPage` 与共享外壳的 `ViewLayerDocItem` 都住在 theme-iframe 未编译的 `lib/` 里：
+      // 那个包没装，站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。component-page 缺了
+      // 则是另一头的症状：那一页永远不会被交给 `@theme/DiffPage`。
       assertThemePrerequisites(context, {
-        namespace: '@show-docs/docusaurus-theme-diff',
+        namespace: NAMESPACE,
         iframe: true,
+        componentPage: true,
       });
+
+      return {
+        componentPages: DIFF_COMPONENT_PAGES,
+      } satisfies ComponentPageContent;
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 剩下的东西（入口、loader、类型）。
@@ -57,5 +75,6 @@ export default function theme(context: LoadContext): Plugin {
         },
       };
     },
+    // `diff` 那一把键的条目写在 `./component-pages.mts`，由上面的 `loadContent()` 交回。
   };
 }

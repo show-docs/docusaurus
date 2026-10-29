@@ -8,12 +8,13 @@
 
 | 文件                            | 编译吗              | 职责                                                                                                                                                                              |
 | ------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：给出层目录、把那条 `enforce: 'post'` loader 挂到 `.md` 上、交出样式表                                                                                                       |
+| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：查两条安装前提（theme-iframe 与 component-page）、在 `loadContent()` 里交出 `diff` 那一页、给出层目录、把那条 `enforce: 'post'` loader 挂到 `.md` 上、交出样式表            |
+| `src/component-pages.mts`       | ✅ `src/` → `dist/` | 本层交出的那一列条目：一把 `diff` 键、判法 `any`（`true` / 路径 / `{ old, new }` 都算命中）、组件写 `@theme/DiffPage`                                                             |
 | `src/loader/diff-decision.mts`  | ✅                  | 纯函数三把：frontmatter 里 `diff:` 那把键的读法（`true` / 路径 / 引号 / `false`，值折到下面几行时把续行收回来）、值是**一份文件还是 `{old:, new:}` / 块式那两条**、目标路径怎么解 |
 | `src/loader/git-diff.mts`       | ✅                  | `git` 调用：找仓库根、问仓库相对路径、取「上一个版本 → 此刻这一份」的 diff 与左边那一份内容；另有一次 `diff --no-index`，比磁盘上的两份文件                                       |
 | `src/loader/md-diff-loader.mts` | ✅                  | `enforce: 'post'` 那一步：从磁盘上的源文件读判据，按两种来源算出差异，追加成一条 `export const diff`                                                                              |
 | `src/types.mts`                 | ✅（只出类型）      | `DiffData`（追加的那条导出的形状，带 `source` 与 `caption`）与 `LoaderContextExtras`                                                                                              |
-| `theme/DocItem/index.tsx`       | ❌ 站点编译         | 本层那一格：命中就把视图摆在 `DocItem` **前面**，命不中原样交回                                                                                                                   |
+| `theme/DiffPage/index.tsx`      | ❌ 站点编译         | 本层那一页：component-page 判中后把整个 `DocItem` 换成它，它把视图摆在 `DocItem` **前面**，正文交回下面那一层                                                                     |
 | `components/diff-view.tsx`      | ❌ 站点编译         | 浏览器侧：把 `git diff` 原文交给 `@git-diff-view/react`，配色跟站点的亮暗模式，说明行按 `source` 给两种说法                                                                       |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
@@ -115,8 +116,9 @@ frontmatter 原文，跟 YAML 把它读成什么都不影响是两回事。
 - 页面上那块视图：`test/e2e/features/diff.feature`。**不**断言具体改了哪几行 ——
   单份那种来源里右边是磁盘上此刻这一份，这一页改一行、或下一笔提交都会变。对照那两条只认两份文件名与
   「有改动行」这一格。
-- 共用外壳：三条视图层（本包、`theme-markmap`、`theme-erd`）的兜底、视图那一格、宽度补丁与本层 `DocItem` 的
+- 共用外壳：三条视图层（本包、`theme-markmap`、`theme-erd`）的兜底、视图那一格、宽度补丁与页面组件的
   全部内容都只有一份实现，住在 `packages/theme-iframe/lib/view-layer-shell.tsx`，每个包只留
-  「交哪把键、交哪个组件、交哪段说法」（markmap 那边承接它的是清单挂上的 `MarkmapPage`）；
+  「交哪把键、交哪个组件、交哪段说法」——本包与 markmap 承接它的是清单挂上的 `DiffPage` /
+  `MarkmapPage`（两页结构逐行相同），erd 仍是层栈里那份 `theme/DocItem`；
   `test/view-layer-copies.test.mts` 钉「三处引的是同一份」，`test/view-layer-shell.test.mts`
   量共享实现自己的分支，另钉两条 md loader 的 frontmatter 正则同口径、「键名 = 追加的导出名」。

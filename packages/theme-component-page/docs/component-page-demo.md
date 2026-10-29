@@ -37,7 +37,7 @@ export default {
 不必回来改这里。判法、入参形状与「为什么非要生成一份文件」都记在
 [本包的使用者文档](../README.md) 与[维护者文档](./internals.md)里。
 
-上面那一条来自站点配置。装了的插件也可以自己交回条目：`theme-iframe` 的四把框键与
-`theme-markmap` 的 `markmap` 就是这么来的 —— 各自在 `loadContent()` 里交回
-`{ componentPages }`，命中后分别由 `@theme/ApiFramePage` / `@theme/MarkmapPage` 渲染，
-不必再抄到站点这一列里。
+上面那一条来自站点配置。装了的插件也可以自己交回条目：`theme-iframe` 的四把框键、
+`theme-markmap` 的 `markmap` 与 `theme-diff` 的 `diff` 就是这么来的 —— 各自在 `loadContent()`
+里交回 `{ componentPages }`，命中后分别由 `@theme/ApiFramePage` / `@theme/MarkmapPage` /
+`@theme/DiffPage` 渲染，不必再抄到站点这一列里。

@@ -92,8 +92,13 @@ type DeclaredPage = {
   props?: unknown;
 };
 
-/** `match` 那格认的三种判法；写在这一格，校验与报错文案共用同一份。 */
-const MATCHES: readonly ComponentPageMatch[] = ['boolean', 'value', 'options'];
+/** `match` 那格认的四种判法；写在这一格，校验与报错文案共用同一份。 */
+const MATCHES: readonly ComponentPageMatch[] = [
+  'boolean',
+  'value',
+  'options',
+  'any',
+];
 
 /**
 `@theme/DocItem` 这个别名归本层（本层就是最外层那个 `DocItem` 的提供者）。清单里再指向它，

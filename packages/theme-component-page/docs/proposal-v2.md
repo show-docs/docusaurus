@@ -118,6 +118,7 @@ export const FOO_COMPONENT_PAGES = [...fooPageRules, ...fooErrorPageRules];
 - 站点写 `component: false` 关掉某包交的键。
 - 两个包交同一把键：直接红；同一个包内撞键走同一条判据，不因「同源」放过。
 - 命中的判定（`boolean` / `value` / `options`）、入参组装次序、开发期落空告警：一字不改。
+  （`any` 是迁 `theme-diff` 时补的第四种判法，见 README 的判法表。）
 
 也就是说，这一版换的是**条目从哪来**，不是**条目怎么用**。
 
@@ -143,8 +144,9 @@ dev：改贡献方的规则文件触发整站重载，或（若它把它声明�
 
 ### 替换语义（目标 3）
 
-判定注册表、整页替换只发生在本包这一层；`theme-diff` / `theme-erd` 那两份 `DocItem` 是
-**包裹**（在正文上方加一个兄弟视图），不判命中，不在「谁替换」之列。
+判定注册表、整页替换只发生在本包这一层；`theme-diff` 的 `DiffPage` 与 `theme-erd` 那份
+`DocItem` 是**包裹**（在正文上方加一个兄弟视图），不判命中，不在「谁替换」之列 —— 前者已经
+是清单上的一页，后者仍靠层栈覆盖。
 
 组件收到 `{ ...配置 props, frontMatter, value, content }`，与它是不是 DocItem 无关（目标 2）。
 命中时本层不再往下走，会丢掉 `DocItem` 内部那层壳 —— 这条两版都有，记在「代价」最后一节。
@@ -162,7 +164,7 @@ dev：改贡献方的规则文件触发整站重载，或（若它把它声明�
 - **时机不对**：preset 在 `loadPluginConfigs` 最前面跑，拿到的只有原始 `siteConfig`，返回
   `{ plugins, themes }`；那时没有任何插件实例，也看不到别的 preset 展开出了什么。
 - **位置反了**：preset 交出的配置排在站点自己那两份清单前面，而主题层序是后者盖前者 ——
-  preset 里的本包会成为**最内层**，它的 `DocItem` 被 erd / diff 那份盖掉，永远不跑。
+  preset 里的本包会成为**最内层**，它的 `DocItem` 被更外层的 `DocItem` 盖掉，永远不跑。
   preset 没有「排最后」的旋钮。
 - **想自己枚举插件就会递归**：在 preset 工厂里调 `loadContext` + `loadPluginConfigs`，
   会重新调用所有 preset（含自己）。解析器能这么干，正因为它是插件不是 preset。
@@ -182,14 +184,14 @@ preset 能做的只有**打包**：把解析器与某一整套层栈装成一个
 ### 落空那一跳改用 `@theme-init/DocItem`
 
 先把前提说清：`@theme-prev/DocItem` 需要存在，是因为 component-page **下面**还有别的
-`DocItem` 提供者（本仓库是 `theme-diff`、`theme-erd`）。如果它们迁走，component-page 就是
+`DocItem` 提供者（本仓库现在是 `theme-erd`）。如果它也迁走，component-page 就是
 唯一提供者，按仓库那条规矩确实该改用 `@theme-init/DocItem`。但这个「迁走」有两个前提，
 而且省不下解析器：
 
-- **迁移不是换个入口就完**：diff / erd 要在普通文档页**上方**摆一个视图、正文与页面结构原样
-  保留；规则通道是「整页换掉 `DocItem`」，所以它们的页面组件仍得在内部渲染一份 `DocItem`
-  （markmap 就是这么写的）。改完之后它们内部那句可以从 `@theme-prev` 换成 `@theme-init`，
-  链确实断了 —— 但只是把 `DocItem` 依赖挪了个位置，没有消失。
+- **迁移不是换个入口就完**：erd 要在普通文档页**上方**摆一个视图、正文与页面结构原样
+  保留；规则通道是「整页换掉 `DocItem`」，所以它的页面组件仍得在内部渲染一份 `DocItem`
+  （markmap 与 diff 就是这么写的）。改完之后它内部那句可以从 `@theme-prev` 换成
+  `@theme-init`，链确实断了 —— 但只是把 `DocItem` 依赖挪了个位置，没有消失。
 - **解析器不会因此退场**：本族随包发布的是**未编译**的 `theme/*.tsx` 与 `lib/*.ts`，官方 babel
   规则把整个 `node_modules` 排除在外，要靠解析器那条 `node_modules/@show-docs/**` 规则才编得动
   （工作区里 pnpm 软链把源码解析到 `packages/` 之外，所以本地看不出来）。这条与别名无关；
@@ -259,6 +261,19 @@ DocVersionRoot
   「前提断言 + 交回上面那份」。
 - 它的四把框键本来就是一列条目的四行（同一个组件、不同 `namespace`）；以后若再加一个组件
   （比如错误页），在同一列追加，发现一侧不动。
+
+### `@show-docs/docusaurus-theme-diff`
+
+- 新增 `src/component-pages.mts`：一列常量
+  `{ key: 'diff', match: 'any', component: '@theme/DiffPage' }`。判法要 `any` —— `diff:` 的三种
+  写法（`true` / 路径 / `{ old, new }`）都算命中，写下的那一格原样交进组件；`diff:` 那种
+  「开关本身还能写参数」的形状，`boolean` / `value` / `options` 各自都盖不全。
+- `theme/DocItem/index.tsx` 换成 `theme/DiffPage/index.tsx`：外壳、`lazy`、本层说法原样，
+  只把「正文从哪来」换成 component-page 交进来的 `content`，正文由这一页自己转给
+  `@theme-prev/DocItem`（与 markmap 同一形态）。
+- `src/index.mts`：`loadContent()` 里补前提断言（theme-iframe 的共享外壳 + 本包的清单），
+  交回上面那份；`theme/DocItem` 那一份删掉。
+- `package.json`：peer 依赖加本包。
 
 ### 站点
 
@@ -338,7 +353,8 @@ DocVersionRoot
    `contentLoaded`（`PluginDiscovery` 依赖一并删）。
 2. `theme-markmap`：最简单，先验证通道。
 3. `theme-iframe`：验证「包自己解释自己的选项、自己的提示自己打」。
-4. 测试、文档、门禁。
+4. `theme-diff`：验证「一把键有多种命中写法」，补上 `any` 判法。
+5. 测试、文档、门禁。
 
 ## 已确认的取舍（2026-10-29）
 

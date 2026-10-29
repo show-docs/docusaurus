@@ -23,22 +23,36 @@ const read = (...segments: string[]): string =>
 `view-layer.ts`，随包发出去），各包只留「交哪把键、交哪个组件、交哪段说法」。
 所以这里钉的从「三份逐字相同」换成了「三处引的是同一份、只差本层自己的名字与说法」。
 
-三处入口的**文件名**现在不齐：`theme-markmap` 的 `markmap` 那一页由
-`@show-docs/docusaurus-theme-component-page` 判中后挂上（它交的条目见
-`packages/theme-markmap/src/component-pages.mts`），入口因此叫 `theme/MarkmapPage`；
-`theme-erd` 与 `theme-diff` 仍在层栈里挂 `theme/DocItem`。外壳本身三处一样。
+三处入口的**文件名**现在已经不齐，分两族：`theme-markmap` 与 `theme-diff` 的页面由
+`@show-docs/docusaurus-theme-component-page` 判中后挂上（条目见各包的
+`src/component-pages.mts`），入口因此叫 `theme/MarkmapPage` / `theme/DiffPage`；
+`theme-erd` 仍是层栈里那份 `theme/DocItem`（它不判键、每次都在正文上方摆一块）。
+外壳本身三处一样。
 */
 const viewPackages = ['theme-markmap', 'theme-erd', 'theme-diff'] as const;
 
-/** 走层栈 `DocItem` 的那两份：以 `theme-erd` 为参照。 */
-const docItemPackages = ['theme-erd', 'theme-diff'] as const;
-const reference = 'theme-erd';
+/** 由 component-page 挂上的那两份页面组件：以 `theme-markmap` 为参照。 */
+const pageComponentPackages = ['theme-markmap', 'theme-diff'] as const;
+const reference = 'theme-markmap';
 
-/** 注释是每个包自己的话，不参与比较；比较的是代码那一格。 */
+/**
+注释是每个包自己的话，不参与比较；比较的是代码那一格。`//` 逐行跳过，`/** … *\/` 成块跳过
+（整块注释各包长短不同，行数差在注释上不算漂移）。
+*/
 function codeLines(source: string): string[] {
-  const lines = source
-    .split('\n')
-    .filter((line) => !line.trimStart().startsWith('//'));
+  let inBlock = false;
+  const lines = source.split('\n').filter((line) => {
+    const trimmed = line.trimStart();
+    if (inBlock) {
+      inBlock = !trimmed.includes('*/');
+      return false;
+    }
+    if (trimmed.startsWith('/*')) {
+      inBlock = !trimmed.includes('*/');
+      return false;
+    }
+    return !trimmed.startsWith('//');
+  });
   const indentOf = (line: string) => line.length - line.trimStart().length;
 
   // prettier 按显示宽度决定一个属性值要不要另起一行，而 CJK 那点宽度差（`markmap` 比 `dbml`
@@ -68,12 +82,14 @@ function codeLines(source: string): string[] {
 只让一边匹配，等于拿两行不相干的内容蒙过这一格。
 */
 function expectSameSkeleton(
+  referencePkg: string,
+  refRelativeFile: string,
   pkg: string,
-  relativeFile: string,
+  pkgRelativeFile: string,
   allowed: RegExp[],
 ): void {
-  const refFile = path.join(reference, relativeFile);
-  const pkgFile = path.join(pkg, relativeFile);
+  const refFile = path.join(referencePkg, refRelativeFile);
+  const pkgFile = path.join(pkg, pkgRelativeFile);
   for (const file of [refFile, pkgFile]) {
     expect(
       fs.existsSync(path.join(siteDir, 'packages', file)),
@@ -101,7 +117,7 @@ function expectSameSkeleton(
     );
     if (!permitted) {
       drifted.push(
-        `第 ${index + 1} 行\n  ${reference}: ${lineAtRef}\n  ${pkg}: ${lineAtPkg}`,
+        `第 ${index + 1} 行\n  ${referencePkg}: ${lineAtRef}\n  ${pkg}: ${lineAtPkg}`,
       );
     }
   });
@@ -160,7 +176,8 @@ describe('三条视图层共用的那一份外壳', () => {
     'data-theme-view-layer-hack',
   ];
 
-  const docItemVariation: RegExp[] = [
+  /** 页面组件（component-page 判中后挂上的那一份）之间允许差的那几格。 */
+  const pageComponentVariation: RegExp[] = [
     // 本地那份数据类型的声明（各包 `src/types.mts` 是产地，这里只留名字）
     /^type \w+ = never;$/,
     // 懒加载的那块视图：组件名与组件文件名
@@ -169,7 +186,7 @@ describe('三条视图层共用的那一份外壳', () => {
     // frontmatter 那把键挂在 MDX 组件上的属性
     /^ {2}\w+\?: \w+;$/,
     // 本层那个导出名
-    /^export default function DocItem\w+\(props: Props\): ReactNode \{$/,
+    /^export default function \w+Page\(\{ content \}: Props\): ReactNode \{$/,
     // 交给外壳的那把键
     /^ {6}data=\{content\?\.\w+\}$/,
     // 控制台前缀 = 包名
@@ -182,67 +199,83 @@ describe('三条视图层共用的那一份外壳', () => {
     /^ {6}view=\{\w+\}$/,
   ];
 
-  it('theme/DocItem/index.tsx：两份都交给共享实现，只差键名与本层说法', () => {
-    for (const pkg of docItemPackages) {
-      const source = read(pkg, 'theme', 'DocItem', 'index.tsx');
-      expect(
-        source,
-        `${pkg} 的 DocItem 没引共享实现（应当是 ${shellImport}）`,
-      ).toContain(shellImport);
-
-      for (const echo of shellEchoes) {
-        expect(
-          source,
-          `${pkg} 的 DocItem 自己又写了一遍外壳里的 ${echo}`,
-        ).not.toContain(echo);
-      }
-
-      expectSameSkeleton(
-        pkg,
-        path.join('theme', 'DocItem', 'index.tsx'),
-        docItemVariation,
-      );
-    }
-  });
-
   /**
-  `theme-markmap` 的入口在 component-page 那边（`theme/MarkmapPage`）：判键、命中后换页都由
-  component-page 做，这一页只剩两件事 —— 把导图摆在正文上方，把正文转给下层 `DocItem`。
+  `theme-erd` 仍是层栈里那份 `theme/DocItem`：它不判键，每次都在正文上方摆一块关系图，
+  没数据时交回正文（`<DocItem {...props} />`）。
   */
-  it('theme-markmap 的 MarkmapPage：同样交给共享实现，正文转给下层 DocItem', () => {
-    const source = read('theme-markmap', 'theme', 'MarkmapPage', 'index.tsx');
+  it('theme/DocItem/index.tsx：只剩 erd 一处，同样交给共享实现', () => {
+    const source = read('theme-erd', 'theme', 'DocItem', 'index.tsx');
 
     expect(
       source,
-      `theme-markmap 的 MarkmapPage 没引共享实现（应当是 ${  shellImport  }）`,
+      `theme-erd 的 DocItem 没引共享实现（应当是 ${shellImport}）`,
     ).toContain(shellImport);
-    // component-page 命中时不再往下走，正文只能由这一层转给下层 `DocItem`。
-    expect(source).toContain("import DocItem from '@theme-prev/DocItem';");
-    expect(source).toContain('<DocItem content={content} />');
-    expect(source).toContain('data={content?.markmap}');
-    expect(source).toContain("name: 'theme-markmap',");
+    expect(source).toContain('data={content?.dbml_json}');
+    expect(source).toContain("name: 'theme-erd',");
+    expect(source).toContain('<DocItem {...props} />');
 
     for (const echo of shellEchoes) {
       expect(
         source,
-        `theme-markmap 的 MarkmapPage 自己又写了一遍外壳里的 ${echo}`,
+        `theme-erd 的 DocItem 自己又写了一遍外壳里的 ${echo}`,
       ).not.toContain(echo);
     }
+  });
 
-    // 这一层不再自己挂 `DocItem`：判键已经交给 component-page 的清单，留一份就是两处判同一把键。
-    expect(
-      fs.existsSync(
-        path.join(
-          siteDir,
-          'packages',
-          'theme-markmap',
-          'theme',
-          'DocItem',
-          'index.tsx',
+  /**
+  另外两处入口在 component-page 那边（`theme/MarkmapPage` / `theme/DiffPage`）：判键、命中后换页
+  都由 component-page 做，这一页只剩两件事 —— 把视图摆在正文上方，把正文转给下层 `DocItem`。
+  两页结构逐行相同，只差在那把键、组件名与本层说法上。
+  */
+  it('MarkmapPage / DiffPage：都交给共享实现，正文转给下层 DocItem', () => {
+    const pages = {
+      'theme-markmap': { file: 'MarkmapPage', key: 'markmap' },
+      'theme-diff': { file: 'DiffPage', key: 'diff' },
+    } as const;
+
+    for (const pkg of pageComponentPackages) {
+      const { file, key } = pages[pkg];
+      const source = read(pkg, 'theme', file, 'index.tsx');
+
+      expect(
+        source,
+        `${pkg} 的 ${file} 没引共享实现（应当是 ${shellImport}）`,
+      ).toContain(shellImport);
+      // component-page 命中时不再往下走，正文只能由这一层转给下层 `DocItem`。
+      expect(source).toContain("import DocItem from '@theme-prev/DocItem';");
+      expect(source).toContain('<DocItem content={content} />');
+      expect(source).toContain(`data={content?.${key}}`);
+      expect(source).toContain(`name: '${pkg}',`);
+
+      for (const echo of shellEchoes) {
+        expect(
+          source,
+          `${pkg} 的 ${file} 自己又写了一遍外壳里的 ${echo}`,
+        ).not.toContain(echo);
+      }
+
+      if (pkg !== reference) {
+        expectSameSkeleton(
+          reference,
+          path.join('theme', pages[reference].file, 'index.tsx'),
+          pkg,
+          path.join('theme', file, 'index.tsx'),
+          pageComponentVariation,
+        );
+      }
+    }
+  });
+
+  // 这两层不再自己挂 `DocItem`：判键已经交给 component-page 的清单，留一份就是两处判同一把键。
+  it('MarkmapPage / DiffPage 那两层不再自带 theme/DocItem', () => {
+    for (const pkg of pageComponentPackages) {
+      expect(
+        fs.existsSync(
+          path.join(siteDir, 'packages', pkg, 'theme', 'DocItem', 'index.tsx'),
         ),
-      ),
-      'packages/theme-markmap/theme/DocItem/index.tsx 又出现了：那一页现在由 component-page 的清单挂 `theme/MarkmapPage`',
-    ).toBe(false);
+        `packages/${pkg}/theme/DocItem/index.tsx 又出现了：那一页现在由 component-page 的清单挂`,
+      ).toBe(false);
+    }
   });
 });
 

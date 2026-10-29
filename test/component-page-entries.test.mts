@@ -27,6 +27,8 @@ const valueEntry: ComponentPageEntry = { key: 'embed', match: 'value' };
 
 const optionsEntry: ComponentPageEntry = { key: 'diagram', match: 'options' };
 
+const anyEntry: ComponentPageEntry = { key: 'diff', match: 'any' };
+
 describe('matchComponentPage：boolean 那臂只认真布尔 true', () => {
   it('true 命中，其余形状都落空', () => {
     expect(matchComponentPage(booleanEntry, { report: true })).toBe(true);
@@ -74,6 +76,24 @@ describe('matchComponentPage：options 那臂要 true 或一个选项对象', ()
       expect(
         matchComponentPage(optionsEntry, { diagram: written }),
       ).toBeUndefined();
+    }
+  });
+});
+
+describe('matchComponentPage：any 那臂三种写法都认，写下的那一格原样交回', () => {
+  it('true、一串非空文本与选项对象各自命中', () => {
+    expect(matchComponentPage(anyEntry, { diff: true })).toBe(true);
+    expect(matchComponentPage(anyEntry, { diff: '../../README.md' })).toBe(
+      '../../README.md',
+    );
+
+    const pair = { old: 'a.md', new: 'b.md' };
+    expect(matchComponentPage(anyEntry, { diff: pair })).toBe(pair);
+  });
+
+  it('没开的那几种与数字、数组都落空', () => {
+    for (const written of [false, null, undefined, '', 1, ['a.md']]) {
+      expect(matchComponentPage(anyEntry, { diff: written })).toBeUndefined();
     }
   });
 });
@@ -172,6 +192,14 @@ describe('componentPageWarnings：写了键却没命中要给一条', () => {
       componentPageWarnings([optionsEntry], { diagram: 'yes' }, '/docs/c'),
     ).toEqual([
       '/docs/c 写了 `diagram:`，但清单里这一条按 `options` 判，要的是真布尔 `true` 或一个选项对象，这一条不参与，交回普通文档页。',
+    ]);
+  });
+
+  it('any 那条写了 false（「没开」的写法）：说的是那三种形状', () => {
+    expect(
+      componentPageWarnings([anyEntry], { diff: false }, '/docs/d'),
+    ).toEqual([
+      '/docs/d 写了 `diff:`，但清单里这一条按 `any` 判，要的是真布尔 `true`、一串非空文本或一个选项对象，这一条不参与，交回普通文档页。',
     ]);
   });
 

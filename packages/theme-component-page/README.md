@@ -6,10 +6,11 @@
 
 这一包只管**机制**：清单由站点给（也可以由装了的插件自己交回，见下面
 「让装了的那个包自己交出条目」那一节），组件由站点或别的主题包出，本包不认得任何具体页面、
-也不认得别的包。今天有两层把「整页换掉」交给本层：`@show-docs/docusaurus-theme-iframe`
+也不认得别的包。今天有三层把「整页换掉」交给本层：`@show-docs/docusaurus-theme-iframe`
 那一族「整页交给一个 `<iframe>`」在自己的 `loadContent()` 里交回四把框键、命中后挂上
 `theme/ApiFramePage`；`@show-docs/docusaurus-theme-markmap` 交回一把 `markmap`、命中后挂上
-`theme/MarkmapPage`。判键、清单、装机过滤因此只有这一份实现。
+`theme/MarkmapPage`；`@show-docs/docusaurus-theme-diff` 交回一把 `diff`、命中后挂上
+`theme/DiffPage`。判键、清单、装机过滤因此只有这一份实现。
 
 ## 安装
 
@@ -68,16 +69,28 @@ report: true
 
 `match: 'value'` 那条写成 `embed: https://example.com/board` —— 命中的那串文本会作为 `value`
 交进组件。还有第三种判法 `match: 'options'`：那把键写 `true` 或一个选项对象都算命中，对象原样
-交进组件（`markmap:` 那种「开着，选项写在键里」的写法用它）。
+交进组件（`markmap:` 那种「开着，选项写在键里」的写法用它）。第四种 `match: 'any'` 三者都认：
+`true`、一串非空文本、一个选项对象都算命中，写下的那一格原样交进组件 —— 用于「开关本身还能
+写参数，而每种写法各是一种含义」的那把键（`diff:` 就是：`true` 比本文自己、路径比那一份、
+`{ old, new }` 比磁盘上那两份）。
+
+| `match`   | 命中的写法                         |
+| --------- | ---------------------------------- |
+| `boolean` | 只有 `true`                        |
+| `value`   | 一串非空文本                       |
+| `options` | `true` 或一个选项对象              |
+| `any`     | `true`、一串非空文本或一个选项对象 |
+
+不写 `match` 等于 `boolean`。`false`、`null`、空串、数字、数组一律不命中。
 
 ## 组件拿到什么
 
-| 入参           | 从哪来                                                                                              |
-| -------------- | --------------------------------------------------------------------------------------------------- |
-| `frontMatter`  | 这一页的整份 frontmatter（没写时是一个空对象）                                                      |
-| `value`        | 命中的那把键写下的值：`boolean` 恒为 `true`；`value` 是那串文本；`options` 是 `true` 或那个选项对象 |
-| `content`      | 这一页的正文组件（MDX 编译出来的那一份），想留正文才用得上                                          |
-| `props` 那一格 | 配置里与上面三份同名字典并交进来，同名的键**以本页那三份为准**                                      |
+| 入参           | 从哪来                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------- |
+| `frontMatter`  | 这一页的整份 frontmatter（没写时是一个空对象）                                                    |
+| `value`        | 命中的那把键写下的值：`boolean` 恒为 `true`；`value` 是那串文本；`options` / `any` 是写下的那一格 |
+| `content`      | 这一页的正文组件（MDX 编译出来的那一份），想留正文才用得上                                        |
+| `props` 那一格 | 配置里与上面三份同名字典并交进来，同名的键**以本页那三份为准**                                    |
 
 入参的类型由包发出来，站点侧写组件时可以直接引：
 
@@ -189,17 +202,18 @@ export default {
 的 swizzle 更合适，本包不代替它。
 
 **放在最外那一格会遮住下面各层的 `DocItem`**。本层命中时不再往下走，所以下面那些层
-（`theme-erd`、`theme-diff` 这两处仍靠换掉 `DocItem` 挂上的视图）根本不会被走到 ——
+（`theme-erd` 仍靠覆盖 `DocItem` 挂视图）对命中的页根本不会被走到 ——
 它们自己的那些开发模式告警因此一条都不打，从控制台看不出「这一页本来归它」。层与层互不认识，
 谁也报不了这条冲突，所以**顺序是站点作者的判据**：要那一层先判，就把本层往它之前声明。
-`theme-iframe` 交来的四条框键与 `theme-markmap` 交来的 `markmap` 没有这个问题：它们走的就是
-本层的这份清单，命中后分别由 `ApiFramePage` / `MarkmapPage` 渲染，不再经过第二份 `DocItem`。
+`theme-iframe` 交来的四条框键，以及 `theme-markmap` / `theme-diff` 交来的 `markmap` / `diff`
+没有这个问题：它们走的就是本层的这份清单，命中后分别由 `ApiFramePage` / `MarkmapPage` /
+`DiffPage` 渲染，渲染时自己向下一层要一份 `DocItem`。
 
 ## 校验与提示
 
 配置期红掉的那些（都会点名到 `pages[下标].哪一格`）：清单不是数组、某一条不是对象、
 `key` 或 `component` 缺/空、`key` 用了官方文档页 frontmatter 的那一组键名、两条用了同一把键、
-`component` 写成 `@theme/DocItem`（那正是本层自己）、`match` 写了那三种以外的东西、`props`
+`component` 写成 `@theme/DocItem`（那正是本层自己）、`match` 写了那四种以外的东西、`props`
 不是普通对象、`props` 深处某格不是纯数据。
 
 `key` 那一格为什么挡整组：本层判的就是「这一页写了这把键」，而 `title`、`description`、`slug`、

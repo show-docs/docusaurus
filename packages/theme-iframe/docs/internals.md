@@ -18,8 +18,9 @@
 这一层**不再提供 `DocItem`**：四把键由本层在 `loadContent()` 里交给 `theme-component-page`
 （`src/component-pages.mts` 调 `src/api-frame-contribute.mts`），
 命中后挂的是本包的 `theme/ApiFramePage`。所以 `@theme-prev/DocItem` 那条链上，本层让位给了
-`theme-diff` 直接接 `theme-component-page`；`DocItem/Content` 那一格只有 `theme-viewer` 一层覆盖
-（它用 `@theme-init` 拿官方那一份），没有要串的链。
+`theme-erd`（`theme-diff` 也已经改成清单上的一页，它的 `DiffPage` 自己接 `@theme-prev/DocItem`）；
+`DocItem/Content` 那一格只有 `theme-viewer` 一层覆盖（它用 `@theme-init` 拿官方那一份），
+没有要串的链。
 安装前提因此多了一条：`@show-docs/docusaurus-theme-component-page` 必须注册成插件，
 `loadContent()` 里与解析器插件一起当场点名。
 
@@ -52,7 +53,7 @@
 | `lib/frame-messages.ts`        | ❌ 站点编译         | 约定与形状：iframe 地址（框内那条拼与拆、`iframe:` 那条 `externalFrameURL()`）、三条 postMessage（纯函数，不引 React、不引 DOM）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `lib/frame-sync.ts`            | ❌ 站点编译         | 两侧的消息循环：`useOuterFrameSync` / `useInnerFrameSync` / `createRouteReporter`，含两边都过的来源校验 `isTrustedMessage`（引 DOM 类型的只有这一份，注册表那条配置期链路碰不到 `Window`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `lib/location-mirror.tsx`      | ❌ 站点编译         | 「把框内这份文档地址里 `#` 那一段报给外层」那一格：`createLocationMirror(useLocation)` 收成工厂，由 redoc 与 stoplight 各自交自己那条路由包的 `useLocation`（两边的路由包不同，不能在这里 import 任意一个）；换一条接口靠路由变化而不是 `hashchange`（那两条走 `history.pushState`），挂载那一次不报                                                                                                                                                                                                                                                                                                                                                                |
-| `lib/view-layer-shell.tsx`     | ❌ 站点编译         | 三条「在正文上方多插一块视图」的层（`theme-markmap` / `theme-erd` / `theme-diff`）共用的整份外壳：`ErrorBoundary(labels)` 按调用方给的包名与文案造各自那一份类组件（初始化失败退回一条 `Admonition`），`ViewLayer` 落「视图 → 分隔线 → 装正文的 `.container`」那一格，`ViewLayerDocItem` 把这两样与本层数据、本层那句说法接成各包 `DocItem` / `MarkmapPage` 的全部内容 —— 三条层因此只剩「交哪把键、交哪个组件、交哪段说法」。单测 `test/view-layer-shell.test.mts`                                                                                                                                                                                                 |
+| `lib/view-layer-shell.tsx`     | ❌ 站点编译         | 三条「在正文上方多插一块视图」的层（`theme-markmap` / `theme-erd` / `theme-diff`）共用的整份外壳：`ErrorBoundary(labels)` 按调用方给的包名与文案造各自那一份类组件（初始化失败退回一条 `Admonition`），`ViewLayer` 落「视图 → 分隔线 → 装正文的 `.container`」那一格，`ViewLayerDocItem` 把这两样与本层数据、本层那句说法接成各包 `DocItem` / `MarkmapPage` / `DiffPage` 的全部内容 —— 三条层因此只剩「交哪把键、交哪个组件、交哪段说法」。单测 `test/view-layer-shell.test.mts`                                                                                                                                                                                    |
 | `lib/view-layer-labels.ts`     | ❌ 站点编译         | 本层那句说法的形状（包名 / 提示标题 / 提示正文）。落成 `.ts` 只为让两个 `.tsx` 引同一份时 `react-refresh` 不必开例外                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `lib/view-layer.ts`            | ❌ 站点编译         | 那三条层共用的宽度补丁 `.container:has(.fake) { max-width: 100% !important }`（导出成一段 CSS 字符串）：由 `ViewLayer` 渲染成视图自己子树里的 `<style>`，命中页的 HTML 里就有它、离开时随卸载消失；选择器用 `:has()` 把作用域限定在「包着视图容器」的 `.container` 上                                                                                                                                                                                                                                                                                                                                                                                               |
 | `docs/iframe-protocol.md`      | ——                  | 那份共享约定的口径与踩过的坑（含注册表一节）（原 `theme/frame-kit/README.md`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -83,12 +84,12 @@
 - `src/api-frame-registry.ts` 是**真的注册表**：几条 API 层同形（一条 = 命名空间 + 一把
   frontmatter 键 + 一条框内路由），站点还真的会挑 —— `themeConfig.apiFrame.order` 能换判定顺序
   与子集（见 [`iframe-protocol.md`](./iframe-protocol.md) 的「注册表与分发」）。
-- 三条视图层（`theme-markmap` / `theme-erd` / `theme-diff`）**没有**这张表，也**不要**加。erd 与
-  diff 仍只有自己那一份 `theme/DocItem/index.tsx`，markmap 换成清单里那一页的
-  `theme/MarkmapPage/index.tsx`：都是一句 `lazy(() => import('…/components/x.tsx'))`、
-  一把 `data` 键、两句文案；壳与接线全在 `lib/view-layer-shell.tsx` 那一份里。这些键名、组件名
-  与说法都不需要被谁枚举出来（markmap 那把键在 `theme-markmap/src/component-pages.mts` 里，
-  是交给 component-page 的条目，不是视图注册表）。
+- 三条视图层（`theme-markmap` / `theme-erd` / `theme-diff`）**没有**这张表，也**不要**加。erd 仍
+  只有自己那一份 `theme/DocItem/index.tsx`，另两条是清单里那两页的 `theme/MarkmapPage` /
+  `theme/DiffPage`：都是一句 `lazy(() => import('…/components/x.tsx'))`、一把 `data` 键、
+  两句文案；壳与接线全在 `lib/view-layer-shell.tsx` 那一份里。这些键名、组件名与说法都不需要
+  被谁枚举出来（`markmap` / `diff` 那两把键在各自包的 `src/component-pages.mts` 里，是交给
+  component-page 的条目，不是视图注册表）。
 
 不做的理由，按「换表能拿到什么」逐条算：
 
@@ -113,16 +114,18 @@
 
 还有一条得说清：**表跟层栈推导没有关系**。`plugin-prev-layer-resolver` 的
 `findIssuerLayerIndex` 认的是「发 `@theme-prev/*` 请求的文件的真实路径」，而那些请求来自
-`packages/<包>/theme/DocItem/index.tsx`（erd / diff）与 `packages/theme-markmap/theme/MarkmapPage/index.tsx`
-（markmap 改由清单整页换掉之后）—— 表里既没有 `@theme-prev` 字样、`load` 又只指向组件文件，
+`packages/theme-erd/theme/DocItem/index.tsx`，以及改由清单整页换掉之后的
+`packages/theme-markmap/theme/MarkmapPage/index.tsx` 与 `packages/theme-diff/theme/DiffPage/index.tsx`
+—— 表里既没有 `@theme-prev` 字样、`load` 又只指向组件文件，
 判层那一格一点不变，各层那份薄壳照旧在 `main.js` 里、照旧是同步组件。反过来也成立：
 **视图层是「摆在正文上方的一格」，不是「一层一层地包」**，包不包得住下一层仍然只由各层文件的
 位置决定 —— 这份决定本来就不适合外包给一张数据表。
 
 这一族的形状因此只落在两格里：说法的形状在 `lib/view-layer-labels.ts`，壳与接线在
-`lib/view-layer-shell.tsx`；各层那份 `DocItem` 按 `test/view-layer-copies.test.mts` 的允许清单
-只许差在键名、组件名与本层说法上。**新增一条视图层 = 一个包 + 一份照抄形状的 `DocItem`**，
-不必先来这里登记 —— 没有登记表可写，这就是这一档的选择。
+`lib/view-layer-shell.tsx`；各层那一份页面组件（`DocItem` / `MarkmapPage` / `DiffPage`）按
+`test/view-layer-copies.test.mts` 的允许清单只许差在键名、组件名与本层说法上。
+**新增一条视图层 = 一个包 + 一份照抄形状的页面组件**，不必先来这里登记 —— 没有登记表可写，
+这就是这一档的选择。
 
 ## 落点：component-page 的 `ApiFramePage`
 

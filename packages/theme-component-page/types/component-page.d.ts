@@ -19,8 +19,11 @@
 - `value`：那把键写一串非空文本才算命中，命中的那串文本交进组件（`myPage: '/some/path'`）；
 - `options`：那把键写 `true` 或一个选项对象才算命中，命中的那个值原样交进组件
   （`myPage: true` / `myPage: { color: 'red' }`）—— 「开关，开关上还可以带选项」的那一种写法。
+- `any`：那把键写 `true`、一串非空文本或一个选项对象都算命中，写下的值原样交进组件
+  （`myPage: true` / `myPage: '/some/path'` / `myPage: { old: 'a', new: 'b' }`）——
+  「开关本身还能写参数」的那一种写法，三种形状各有含义时用它。
 */
-export type ComponentPageMatch = 'boolean' | 'value' | 'options'
+export type ComponentPageMatch = 'boolean' | 'value' | 'options' | 'any'
 
 /** 清单里的一条：一把 frontmatter 键 + 判法 + 给那个组件的静态入参。 */
 export type ComponentPageEntry = {
@@ -37,7 +40,7 @@ export type ComponentPageEntry = {
   props?: Record<string, unknown>
 }
 
-/** 命中那把键写下的值：`boolean` 恒为 `true`，`value` 是那串非空文本，`options` 是 `true` 或那个选项对象。 */
+/** 命中那把键写下的值：`boolean` 恒为 `true`，`value` 是那串非空文本，`options` / `any` 是写下的那一格。 */
 export type ComponentPageValue = true | string | Record<string, unknown>
 
 /**

@@ -33,8 +33,8 @@ export type {
 这一条在某一页上命不命中：命中交回那把键写下的值，落空交回 `undefined`。
 
 「写了这把键」与「这条命中」是两件事，后者还看形状（`boolean` 那臂只认真布尔 `true`；
-`value` 那臂要非空串；`options` 那臂要 `true` 或一个选项对象）—— 写歪了不静默，理由见下面
-`componentPageWarnings`。
+`value` 那臂要非空串；`options` 那臂要 `true` 或一个选项对象；`any` 那臂三者都认）——
+写歪了不静默，理由见下面 `componentPageWarnings`。
 */
 export function matchComponentPage(
   entry: ComponentPageEntry,
@@ -46,13 +46,18 @@ export function matchComponentPage(
     return typeof written === 'string' && written !== '' ? written : undefined;
   }
 
-  if (entry.match === 'options') {
-    return written === true ||
-      (typeof written === 'object' &&
-        written !== null &&
-        !Array.isArray(written))
-      ? (written as true | Record<string, unknown>)
-      : undefined;
+  // `options` 与 `any` 都认选项对象；`any` 只是多认一串非空文本（见下面的分支）。
+  if (
+    (entry.match === 'options' || entry.match === 'any') &&
+    typeof written === 'object' &&
+    written !== null &&
+    !Array.isArray(written)
+  ) {
+    return written as Record<string, unknown>;
+  }
+
+  if (entry.match === 'any' && typeof written === 'string' && written !== '') {
+    return written;
   }
 
   return written === true ? true : undefined;
@@ -89,6 +94,10 @@ function expectedShape(match: ComponentPageMatch): string {
     return '一串非空文本';
   }
 
+  if (match === 'any') {
+    return '真布尔 `true`、一串非空文本或一个选项对象';
+  }
+
   return match === 'options' ? '真布尔 `true` 或一个选项对象' : '真布尔 `true`';
 }
 
@@ -99,7 +108,7 @@ function expectedShape(match: ComponentPageMatch): string {
 两种落空各给一条：
 
 - 键写了但形状不合判法（`boolean` 那条写了串文本、`value` 那条写了 `true`、`options` 那条
-  写了数组或 `null`）；
+  写了数组或 `null`、`any` 那条写了数字或数组）；
 - 清单里几条同时命中（通常是同一页上写了不止一把键），只用排在最前那条。
 
 页面地址带在每条里：同一毛病的两页各打一条，不带地址就会把后面那页吞掉。

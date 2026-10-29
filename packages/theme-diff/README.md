@@ -6,10 +6,11 @@
 
 ## 安装
 
-本层的共享外壳住在 theme-iframe，`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
+「整页换成差异页」这一格由 theme-component-page 判，本层的共享外壳住在 theme-iframe，
+`@theme-prev/*` 的别名由解析器插件提供，四个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-diff
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-diff
 ```
 
 ## 使用
@@ -22,10 +23,16 @@ export default {
   plugins: [
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-iframe',
-    '@show-docs/docusaurus-theme-diff'
+    '@show-docs/docusaurus-theme-diff',
+    '@show-docs/docusaurus-theme-component-page'
   ]
 };
 ```
+
+本层在自己的 `loadContent()` 里把 `diff` 那一页交给 theme-component-page（交回的 content 里带
+`componentPages`），由它那份 `DocItem` 判清单后整页换成 `@theme/DiffPage`。所以
+component-page 要注册，而且要写在本层**之后** —— 越晚声明 = 层栈越靠外 = 越先判（见
+[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)）。
 
 ### 写 frontmatter
 
@@ -42,9 +49,11 @@ diff: true
 
 ## 层栈
 
-本层提供 `theme/DocItem/index.tsx`：它先向下面那一层要 `DocItem` 的实现
-（`@theme-prev/DocItem`），把差异视图摆在它前面，正文那一格照常交下去。命不中（frontmatter
-没写 `diff`，或写了却没取到差异）时原样交回，这一页看不出这一层存在过。
+本层不再提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `diff` 条目（判法 `any` ——
+`true`、一串路径或 `{ old, new }` 都算命中，组件指回 `@theme/DiffPage`），由 theme-component-page
+在最外那一格命中后把整页换掉。`DiffPage` 自己也不拼外壳 —— 它向下面那一层要 `DocItem`
+（`@theme-prev/DocItem`），把差异视图摆在它前面，正文一格都不动；frontmatter 没写 `diff`、
+或写了却没取到差异时清单不命中，这一页看不出这一层存在过。
 
 层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
 [`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)；
@@ -79,8 +88,8 @@ git 仓库里，也可以只是站点里的静态资源；两份内容一模一�
 - 构建时由 webpack loader 从磁盘上的源文件读 frontmatter，再调用本机的 `git` 取差异：单份时先看
   工作区里这一份与它上一次被提交时是否一致 —— 不一致就比「这一次提交 → 工作区」，一致才去找动过
   这份文件的最后两个提交、比这两者之间的差异；问 `git` 时路径只圈这一份文件，别的提交没动过它
-  就不会进来。两份时直接让 `git` 比这两份文件本身。结果都追加到 md 模块的导出上，差异组件在
-  `DocItem` 前渲染。
+  就不会进来。两份时直接让 `git` 比这两份文件本身。结果都追加到 md 模块的导出上，`DiffPage`
+  拿到本层数据后把差异视图摆在 `DocItem` 前面。
 - 差异视图按站点亮暗模式取色；展开与并排视图（GitHub 的分栏样式）在组件里写死。
 - 差异数据在构建时就算好了，成品站点里的这一页不再需要 `git`。
 - 视图初始化失败时显示一条提示，正文继续渲染。

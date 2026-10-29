@@ -152,7 +152,8 @@ console.log(`
 // 判定住在各交出方：iframe 那族（`packages/theme-iframe/src/api-frame-contribute.mts`）把装了
 // 的那几层各交出一页，`component` 全是本包的 `@theme/ApiFramePage`，顺序 = 注册表顺序
 // （命中优先级）；`theme-markmap` 交那一页 `markmap`（`src/component-pages.mts`），组件是
-// `@theme/MarkmapPage`。浏览器侧不再读 `siteConfig.plugins`，所以这里看的是 component-page
+// `@theme/MarkmapPage`；`theme-diff` 交那一页 `diff`（同样在 `src/component-pages.mts`），
+// 组件是 `@theme/DiffPage`。浏览器侧不再读 `siteConfig.plugins`，所以这里看的是 component-page
 // 那份生成模块，而不是生成的浏览器配置。这一条同时钉住「本站按包名声明的那几条真的被认成了
 // 装了」——认槽位读的是站点配置的原始 `plugins` / `themes`，形状变了或某一层没声明，清单里就少一条。
 const FRAME_KEYS = ['scalar', 'redoc', 'stoplight', 'iframe'];
@@ -222,19 +223,27 @@ if (fs.existsSync(registryFile)) {
   }
   isOk &&= shapesOk;
 
-  // 视图层那一页：`markmap` 是「开关或选项对象」那一种判法，命中的页由 `@theme/MarkmapPage` 接。
-  const markmap = entries.find((entry) => entry.key === 'markmap');
-  const markmapOk =
-    markmap?.match === 'options' && markmap.specifier === '@theme/MarkmapPage';
-  console.log(
-    `   ${markmapOk ? '✅' : '❌'} markmap  match=${String(markmap?.match)}  → ${String(markmap?.specifier)}`,
-  );
-  if (!markmapOk) {
+  // 两处视图层：`markmap` 按「开关或选项对象」判，`diff` 按「开关还能写参数」判（`true` /
+  // 路径 / `{ old, new }` 都算命中），命中的页各由本包的页面组件接。
+  const viewPages = [
+    { key: 'markmap', match: 'options', specifier: '@theme/MarkmapPage' },
+    { key: 'diff', match: 'any', specifier: '@theme/DiffPage' },
+  ];
+  for (const page of viewPages) {
+    const entry = entries.find((candidate) => candidate.key === page.key);
+    const ok =
+      entry?.match === page.match && entry.specifier === page.specifier;
     console.log(
-      '      → 期望 match=options 且指向 `@theme/MarkmapPage`：站点 `plugins` 里还该有 theme-markmap，',
+      `   ${ok ? '✅' : '❌'} ${page.key}  match=${String(entry?.match)}  → ${String(entry?.specifier)}`,
+    );
+    if (ok) {
+      continue;
+    }
+    console.log(
+      `      → 期望 match=${page.match} 且指向 \`${page.specifier}\`：站点 \`plugins\` 里还该有 theme-${page.key}，`,
     );
     console.log(
-      '        条目由 packages/theme-markmap/src/component-pages.mts 交出。',
+      `        条目由 packages/theme-${page.key}/src/component-pages.mts 交出。`,
     );
     isOk = false;
   }
