@@ -110,8 +110,9 @@ export default [
     rules: { 'unicorn/filename-case': 0 },
   },
   {
-    // 配置期的共享帮手（`lib/api-frame-theme.mts`、`lib/prerequisites.ts`）跑在 Node 里，
+    // 配置期的共享帮手（`lib/api-frame-theme.mts`）跑在 Node 里，
     // 引 `node:path` 是它们的职责；浏览器那一份（`lib/index.ts`）不在这一条里。
+    // （`src/prerequisites.mts` 不再住这里 —— 它进 `tsc`，由 `.mts` 那份 Node 口径覆盖。）
     files: ['packages/*/lib/api-frame-*.{mts,ts}'],
     rules: { 'import-x/no-nodejs-modules': 0 },
   },

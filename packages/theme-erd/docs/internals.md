@@ -66,6 +66,6 @@ Docusaurus 读，DBML 解析器只收 `---` 块之后的部分 —— 所以那�
 - 页面上那张图与那一串页签：`test/e2e/features/erd.feature`。
 - 共用外壳：三条视图层（本包、`theme-markmap`、`theme-diff`）的兜底、视图那一格、宽度补丁与本层 `DocItem` 的
   全部内容都只有一份实现，住在 `packages/theme-iframe/lib/view-layer-shell.tsx`，每个包只留
-  「交哪把键、交哪个组件、交哪段说法」。收在一处之前它们是每个包
+  「交哪把键、交哪个组件、交哪段说法」（markmap 那边承接它的是清单挂上的 `MarkmapPage`）。收在一处之前它们是每个包
   各抄一遍的副本；`test/view-layer-copies.test.mts` 现在钉的是「三处引的是同一份」，
   `test/view-layer-shell.test.mts` 量共享实现自己的分支。

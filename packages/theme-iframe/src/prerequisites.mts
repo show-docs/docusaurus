@@ -8,16 +8,23 @@ import type { LoadContext } from '@docusaurus/types';
 
 /**
 本层那一族主题层的安装前提：链式覆盖的别名（由解析器插件提供，那条检查住在它自己的包里，
-这里只是转过去）、以及部分层要的共享外壳与压缩器。
+这里只是转过去）、以及部分层要的共享外壳、清单套壳与压缩器。
 
 这些包都按 `peerDependencies` 发给站点 —— 它们必须是**站点自己装、自己注册**的那一份，
 不能由主题包各自带一份副本。正常路径上缺了它们，webpack 会停在 `Module not found` /
 `Module parse failed`，报错点离真正的原因隔着一整个构建；所以各层在 `loadContent()` 里
 先查一遍，缺什么就当场点名。
+
+住在 `src/` 而不是 `lib/`：这一份只在配置期（Node）跑，由 `tsc` 编进 `dist/`，包出口用
+`./prerequisites` 交给别的主题包；本包入口也引这一份，不必绕回自己那份未编译的 `lib/`。
 */
 
 /** 共享外壳所在的包；视图三层与 API 三层还要求它注册成插件。 */
 export const IFRAME_PLUGIN = '@show-docs/docusaurus-theme-iframe';
+
+/** 判清单后挂上各层交出的那几页的套壳；交条目的层都要求它注册成插件。 */
+export const COMPONENT_PAGE_PLUGIN =
+  '@show-docs/docusaurus-theme-component-page';
 
 export type ThemePrerequisites = {
   /** 本包的包名，只用于报错时点名。 */
@@ -31,6 +38,11 @@ export type ThemePrerequisites = {
   （判据见它的 `src/source-js-rule.mts`）。
   */
   iframe?: boolean;
+  /**
+  是否必须**注册** `component-page`：本层交出的那几页由它那份 `DocItem` 判清单后挂上来，
+  缺了它，条目永远不会被用到 —— 页面看着正常，框 / 视图却不出现。
+  */
+  componentPage?: boolean;
   /**
   是否必须用 lightningcss 压缩 CSS：`viewerjs` 那份样式表写的是原生嵌套，Docusaurus
   默认的 cssnano + clean-css 会把它压坏（子规则并进父选择器、括号总账为负）。
@@ -79,6 +91,7 @@ export function assertThemePrerequisites(
   {
     namespace,
     iframe = false,
+    componentPage = false,
     lightningCssMinimizer = false,
   }: ThemePrerequisites,
 ): void {
@@ -96,6 +109,13 @@ export function assertThemePrerequisites(
     throw new Error(
       `${namespace} 需要同时注册 ${IFRAME_PLUGIN}：本层的共享外壳由它发布并编译。` +
         `请先 \`pnpm add ${IFRAME_PLUGIN}\`，再把它加进 \`plugins\`（顺序在本层之前后均可）。`,
+    );
+  }
+
+  if (componentPage && !installed(COMPONENT_PAGE_PLUGIN)) {
+    throw new Error(
+      `${namespace} 需要同时注册 ${COMPONENT_PAGE_PLUGIN}：本层交出的那几页由它那份 \`DocItem\` 判清单后挂上来。` +
+        `请先 \`pnpm add ${COMPONENT_PAGE_PLUGIN}\`，再把它加进 \`plugins\`（一个实例即可）。`,
     );
   }
 

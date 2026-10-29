@@ -145,7 +145,9 @@ oas3: /openapi.yaml
 - 页面占满 navbar 以下的一屏，并隐藏站点页脚；框的版式由四条层共用一份样式。
 - 三个 API 包的框内页面（`/scalar-view`、`/redoc-view`、`/stoplight-view`）与本包通过
   `postMessage` 同步地址栏 `#` 段和亮暗模式；`iframe:` 嵌外部站点时没有这条通道。
-- 与 `theme-markmap` 同页使用且两把键都命中时，导图渲染在 iframe 上方。
+- 与 `theme-markmap` 同页使用且两把键都命中时**不会叠**：两边都把各自那一页交给
+  `theme-component-page`，一页只挂清单里排在最前的那一个组件（清单顺序 = 站点那一列在前、
+  包交出的按声明顺序接在后面），落败那把键会在开发模式留一条「一页同时命中多条」的告警。
 
 ## 已知限制
 

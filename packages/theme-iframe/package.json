@@ -19,13 +19,18 @@
       "default": "./dist/index.mjs",
       "types": "./dist/index.d.mts"
     },
-    "./lib/*": "./lib/*"
+    "./lib/*": "./lib/*",
+    "./prerequisites": {
+      "default": "./dist/prerequisites.mjs",
+      "types": "./dist/prerequisites.d.mts"
+    }
   },
   "files": [
     "components",
     "dist",
     "lib",
     "src/api-frame-registry.ts",
+    "src/prerequisites.mts",
     "theme"
   ],
   "type": "module",

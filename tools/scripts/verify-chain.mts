@@ -148,46 +148,52 @@ console.log(`
 - @theme-original/X 保持官方语义（全局赢家），本机制没有改动它（test/layers.test.mts 钉住）。
 `);
 
-// ---- 3. 「整页交给一个框」的那四页真的由配置期交进了 component-page 的清单 ----
-// 判定住在配置期（`packages/theme-iframe/src/api-frame-contribute.mts`）：装了的那几层各交出
-// 一页，`component` 全是本包的 `@theme/ApiFramePage`，顺序 = 注册表顺序（命中优先级）。浏览器侧
-// 不再读 `siteConfig.plugins`，所以这里看的是 component-page 那份生成模块，而不是生成的浏览器
-// 配置。这一条同时钉住「本站按包名声明的那几条真的被认成了装了」——认槽位读的是站点配置的
-// 原始 `plugins` / `themes`，形状变了或某一层没声明，清单里就少一条。
+// ---- 3. 「整页交给一个组件」的那几页真的由配置期交进了 component-page 的清单 ----
+// 判定住在各交出方：iframe 那族（`packages/theme-iframe/src/api-frame-contribute.mts`）把装了
+// 的那几层各交出一页，`component` 全是本包的 `@theme/ApiFramePage`，顺序 = 注册表顺序
+// （命中优先级）；`theme-markmap` 交那一页 `markmap`（`src/component-pages.mts`），组件是
+// `@theme/MarkmapPage`。浏览器侧不再读 `siteConfig.plugins`，所以这里看的是 component-page
+// 那份生成模块，而不是生成的浏览器配置。这一条同时钉住「本站按包名声明的那几条真的被认成了
+// 装了」——认槽位读的是站点配置的原始 `plugins` / `themes`，形状变了或某一层没声明，清单里就少一条。
 const FRAME_KEYS = ['scalar', 'redoc', 'stoplight', 'iframe'];
 const FRAME_MATCHES = ['boolean', 'boolean', 'boolean', 'value'];
 const registryFile = path.join(
   root,
   '.docusaurus/theme-component-page/registry.ts',
 );
-console.log('\ncomponent-page 的生成清单（api-frame-contribute 的落点）：');
+console.log('\ncomponent-page 的生成清单（各交出方的落点）：');
 if (fs.existsSync(registryFile)) {
   const source = fs.readFileSync(registryFile, 'utf8');
   // 生成模块里每条是 `key` / `match` / `props` / `Component` 四行，`Component` 指回文件头的
-  // 那句 `import` —— 认组件说明符要看那张表，不能只看键名。
+  // 那句 `import` —— 认组件说明符要看那张表，不能只看键名。`props` 也可能是 `undefined`
+  // （不带静态入参的条目，比如 markmap 交的那一页）。
   const imports = new Map(
     source
       .matchAll(/^import (ComponentPage\d+) from "([^"]+)";$/gm)
       .map(([, local, specifier]) => [local!, specifier!]),
   );
-  const frames = source
+  const entries = source
     .matchAll(
-      /key: "([^"]+)",\n\s+match: "([^"]+)",\n\s+props: (\{[^}]*\}),\n\s+Component: (ComponentPage\d+),/g,
+      /key: "([^"]+)",\n\s+match: "([^"]+)",\n\s+props: (\{[^}]*\}|undefined),\n\s+Component: (ComponentPage\d+),/g,
     )
     .map(([, key, match, props, component]) => ({
       key: key!,
       match: match!,
-      namespace: (JSON.parse(props!) as { namespace?: unknown }).namespace,
+      namespace: props!.startsWith('{')
+        ? (JSON.parse(props!) as { namespace?: unknown }).namespace
+        : undefined,
       specifier: imports.get(component!),
     }))
-    .filter((entry) => entry.specifier === '@theme/ApiFramePage')
     .toArray();
+  const frames = entries.filter(
+    (entry) => entry.specifier === '@theme/ApiFramePage',
+  );
 
   const keysOk =
     frames.length === FRAME_KEYS.length &&
     frames.every((entry, index) => entry.key === FRAME_KEYS[index]);
   console.log(
-    `   ${keysOk ? '✅' : '❌'} 交出的页（顺序 = 命中优先级）：${frames.map((entry) => entry.key).join(' > ') || '(无)'}`,
+    `   ${keysOk ? '✅' : '❌'} 框页（顺序 = 命中优先级）：${frames.map((entry) => entry.key).join(' > ') || '(无)'}`,
   );
   if (!keysOk) {
     console.log(
@@ -215,6 +221,23 @@ if (fs.existsSync(registryFile)) {
     }
   }
   isOk &&= shapesOk;
+
+  // 视图层那一页：`markmap` 是「开关或选项对象」那一种判法，命中的页由 `@theme/MarkmapPage` 接。
+  const markmap = entries.find((entry) => entry.key === 'markmap');
+  const markmapOk =
+    markmap?.match === 'options' && markmap.specifier === '@theme/MarkmapPage';
+  console.log(
+    `   ${markmapOk ? '✅' : '❌'} markmap  match=${String(markmap?.match)}  → ${String(markmap?.specifier)}`,
+  );
+  if (!markmapOk) {
+    console.log(
+      '      → 期望 match=options 且指向 `@theme/MarkmapPage`：站点 `plugins` 里还该有 theme-markmap，',
+    );
+    console.log(
+      '        条目由 packages/theme-markmap/src/component-pages.mts 交出。',
+    );
+    isOk = false;
+  }
 } else {
   console.log(
     '   ❌ 没找到 .docusaurus/theme-component-page/registry.ts（pnpm build 应当生成它）',

@@ -173,7 +173,7 @@ export default {
 **为什么是本包的事**：后一条问的正是「提供 `@theme-prev/*` 别名的那个插件在不在」。这句话只有
 本包自己说得住。以前它住在 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，于是任何想用它的
 层都得先引那一族层，连带把「装了 `theme-iframe`」变成自己的安装前提 —— 而真正的前提只有本包
-这一个。搬过来之后，`theme-iframe` 那条继续由 `lib/prerequisites.ts` 转调（它另外两条检查确实
+这一个。搬过来之后，`theme-iframe` 那条继续由它的 `src/prerequisites.mts` 转调（它另外两条检查确实
 属于那一族层），不依赖那一族的层（如 `theme-component-page`）直接引这一份。
 
 **为什么是纯函数、为什么单开一条 `./plugin-slots` 出口**：读者有两处，一处在配置期（Node，

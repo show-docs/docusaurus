@@ -25,6 +25,8 @@ const booleanEntry: ComponentPageEntry = {
 
 const valueEntry: ComponentPageEntry = { key: 'embed', match: 'value' };
 
+const optionsEntry: ComponentPageEntry = { key: 'diagram', match: 'options' };
+
 describe('matchComponentPage：boolean 那臂只认真布尔 true', () => {
   it('true 命中，其余形状都落空', () => {
     expect(matchComponentPage(booleanEntry, { report: true })).toBe(true);
@@ -52,6 +54,25 @@ describe('matchComponentPage：value 那臂要一串非空文本', () => {
     for (const written of ['', true, 42, {}]) {
       expect(
         matchComponentPage(valueEntry, { embed: written }),
+      ).toBeUndefined();
+    }
+  });
+});
+
+describe('matchComponentPage：options 那臂要 true 或一个选项对象', () => {
+  it('true 原样交回；选项对象原样交回（开关与选项是同一条判法）', () => {
+    expect(matchComponentPage(optionsEntry, { diagram: true })).toBe(true);
+
+    const options = { color: 'red', initialExpandLevel: 2 };
+    expect(matchComponentPage(optionsEntry, { diagram: options })).toBe(
+      options,
+    );
+  });
+
+  it('其余形状都落空（含数组：选项只认一个对象）', () => {
+    for (const written of [false, null, undefined, '', 'yes', 1, ['color']]) {
+      expect(
+        matchComponentPage(optionsEntry, { diagram: written }),
       ).toBeUndefined();
     }
   });
@@ -143,6 +164,14 @@ describe('componentPageWarnings：写了键却没命中要给一条', () => {
   it('value 那条写了 true：说的是另一种形状，页面地址缺时用一个通用说法', () => {
     expect(componentPageWarnings([valueEntry], { embed: true })).toEqual([
       '这一页 写了 `embed:`，但清单里这一条按 `value` 判，要的是一串非空文本，这一条不参与，交回普通文档页。',
+    ]);
+  });
+
+  it('options 那条写了别的真值：说的是「true 或一个选项对象」', () => {
+    expect(
+      componentPageWarnings([optionsEntry], { diagram: 'yes' }, '/docs/c'),
+    ).toEqual([
+      '/docs/c 写了 `diagram:`，但清单里这一条按 `options` 判，要的是真布尔 `true` 或一个选项对象，这一条不参与，交回普通文档页。',
     ]);
   });
 

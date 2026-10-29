@@ -2,24 +2,39 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/lib/prerequisites.ts';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
+
+import { MARKMAP_COMPONENT_PAGES } from './component-pages.mts';
 
 const require = createRequire(import.meta.url);
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
 
-export default function theme(context: LoadContext): Plugin {
+/** 本包的包名。 */
+const NAMESPACE = '@show-docs/docusaurus-theme-markmap';
+
+/**
+本层的入口：`getThemePath()` 挂本包那一层（里面只有 `MarkmapPage` 与它依赖的导图组件），
+`getComponentPages()` 把 `markmap` 那一把键交给 `@show-docs/docusaurus-theme-component-page` ——
+命中的页由它那份 `DocItem` 判清单后整页换成 `@theme/MarkmapPage`。于是本层的前提有两个：
+共享外壳所在的 `theme-iframe`，与判清单的 `component-page`；缺了它们，页面看着正常但导图不出现。
+*/
+export default function theme(
+  context: LoadContext,
+): Plugin & { getComponentPages(): unknown } {
   return {
-    name: '@show-docs/docusaurus-theme-markmap',
+    name: NAMESPACE,
     loadContent() {
-      // 本层的 `ViewLayerDocItem` 住在 theme-iframe 未编译的 `lib/` 里：那个包没装，
-      // 站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。
+      // 共享外壳的 `ViewLayerDocItem` 住在 theme-iframe 未编译的 `lib/` 里：那个包没装，
+      // 站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。component-page 缺了则是
+      // 另一头的症状：那一页永远不会被交给 `@theme/MarkmapPage`。
       assertThemePrerequisites(context, {
-        namespace: '@show-docs/docusaurus-theme-markmap',
+        namespace: NAMESPACE,
         iframe: true,
+        componentPage: true,
       });
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
@@ -57,6 +72,11 @@ export default function theme(context: LoadContext): Plugin {
           ],
         },
       };
+    },
+    // component-page 那条约定的实现：`markmap` 那一把键归本层，命中后挂本包的
+    // `@theme/MarkmapPage`。条目是静态的（不随装了哪几层变），见 `./component-pages.mts`。
+    getComponentPages() {
+      return MARKMAP_COMPONENT_PAGES;
     },
   };
 }

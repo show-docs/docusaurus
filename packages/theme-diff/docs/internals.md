@@ -117,6 +117,6 @@ frontmatter 原文，跟 YAML 把它读成什么都不影响是两回事。
   「有改动行」这一格。
 - 共用外壳：三条视图层（本包、`theme-markmap`、`theme-erd`）的兜底、视图那一格、宽度补丁与本层 `DocItem` 的
   全部内容都只有一份实现，住在 `packages/theme-iframe/lib/view-layer-shell.tsx`，每个包只留
-  「交哪把键、交哪个组件、交哪段说法」；
+  「交哪把键、交哪个组件、交哪段说法」（markmap 那边承接它的是清单挂上的 `MarkmapPage`）；
   `test/view-layer-copies.test.mts` 钉「三处引的是同一份」，`test/view-layer-shell.test.mts`
   量共享实现自己的分支，另钉两条 md loader 的 frontmatter 正则同口径、「键名 = 追加的导出名」。

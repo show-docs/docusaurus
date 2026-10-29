@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/lib/prerequisites.ts';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 

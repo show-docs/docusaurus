@@ -510,6 +510,9 @@ importers:
       '@show-docs/docusaurus-plugin-prev-layer-resolver':
         specifier: workspace:^
         version: link:../plugin-prev-layer-resolver
+      '@show-docs/docusaurus-theme-component-page':
+        specifier: workspace:^
+        version: link:../theme-component-page
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:../theme-iframe

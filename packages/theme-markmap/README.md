@@ -5,10 +5,11 @@
 
 ## 安装
 
-本层的共享外壳住在 theme-iframe，`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
+「整页换成导图页」这一格由 theme-component-page 判，本层的共享外壳住在 theme-iframe，
+`@theme-prev/*` 的别名由解析器插件提供，四个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-markmap
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-markmap
 ```
 
 ## 使用
@@ -21,10 +22,16 @@ export default {
   plugins: [
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-iframe',
-    '@show-docs/docusaurus-theme-markmap'
+    '@show-docs/docusaurus-theme-markmap',
+    '@show-docs/docusaurus-theme-component-page'
   ]
 };
 ```
+
+本层在配置期把 `markmap` 那一页交给 theme-component-page（`getComponentPages()`），由它那份
+`DocItem` 判清单后整页换成 `@theme/MarkmapPage`。所以 component-page 要注册，而且要写在本层
+**之后** —— 越晚声明 = 层栈越靠外 = 越先判（见
+[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)）。
 
 ### 写 frontmatter
 
@@ -43,13 +50,14 @@ markmap: true
 
 ## 层栈
 
-本层提供 `theme/DocItem/index.tsx`：它先向下面那一层要 `DocItem` 的实现
-（`@theme-prev/DocItem`），把导图摆在它前面，正文一格都不动。命不中（frontmatter 没写
-`markmap`）时原样交回，这一页看不出这一层存在过。
+本层不再提供 `theme/DocItem`：它在配置期交出一把 `markmap` 条目（判法 `options`，组件指回
+`@theme/MarkmapPage`），由 theme-component-page 在最外那一格命中后把整页换掉。`MarkmapPage`
+自己也不拼外壳 —— 它向下面那一层要 `DocItem`（`@theme-prev/DocItem`），把导图摆在它前面，
+正文一格都不动；命不中时那一层等于透明，这一页看不出它存在过。
 
 层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
 [`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)；
-这一层自己只负责「摆在哪一格」。
+这一层自己只负责「交哪一把键、摆在哪一格」。
 
 ## 配置
 
@@ -66,8 +74,8 @@ markmap: true
 
 ## 工作方式
 
-- 构建时由 webpack loader 解析 markdown，把导图数据追加到 md 模块的导出上；导图组件在
-  `DocItem` 前渲染。
+- 构建时由 webpack loader 解析 markdown，把导图数据追加到 md 模块的导出上；`MarkmapPage`
+  拿到本层数据后把导图摆在 `DocItem` 前面。
 - 导图跟随站点亮暗模式；工具条不提供暗色切换按钮。
 - 导图内的链接在新标签页打开。
 - 导图初始化失败时显示一条提示，正文继续渲染。
@@ -77,6 +85,11 @@ markmap: true
 - 只处理 `.md` 文件，`.mdx` 不触发。
 - 导图在浏览器端渲染，静态 HTML 里没有导图内容，对搜索引擎不可见。
 - frontmatter 必须是文件开头的 YAML 块；写在正文里的 `markmap:` 不会生效。
+- 必须同时注册 theme-component-page：本层交出的那一页由它判清单后挂上（缺了它，
+  `loadContent()` 当场点名，不会等到页面一片空白才被发现）。它还要写在本层之后，
+  否则判不到这一页。
+- 一页只挂一个整页组件：同一页既写 `markmap:` 又写 `iframe:`（或别的清单键）时，
+  按清单顺序只用排在前面那条，导图不一定赢。
 
 ## 相关文档
 

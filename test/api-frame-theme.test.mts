@@ -7,7 +7,7 @@ import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import { createApiFrameTheme } from '../packages/theme-iframe/lib/api-frame-theme.mts';
-import { IFRAME_PLUGIN } from '../packages/theme-iframe/lib/prerequisites.ts';
+import { IFRAME_PLUGIN } from '../packages/theme-iframe/src/prerequisites.mts';
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
 

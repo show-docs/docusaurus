@@ -13,7 +13,7 @@ const read = (...segments: string[]): string =>
 ## 三条视图层共用的那一份外壳
 
 `theme-markmap`、`theme-erd`、`theme-diff` 各把一块视图挂在正文上方，靠的是同一套外壳：
-一层 `DocItem`（命中才在正文前面插一块视图，不命中原样交给下层）、一个兜底
+一层入口（命中才在正文前面插一块视图，不命中/没数据就交回正文）、一个兜底
 （渲染失败退回可见提示）、一句宽度补丁（正文容器的 `max-width`）、一层那一格
 （视图 + 分隔线 + 装正文的 `.container`）。
 
@@ -22,11 +22,17 @@ const read = (...segments: string[]): string =>
 仍然要三处一起改。现在整族只剩一份实现（`theme-iframe/lib/view-layer-shell.tsx` 与
 `view-layer.ts`，随包发出去），各包只留「交哪把键、交哪个组件、交哪段说法」。
 所以这里钉的从「三份逐字相同」换成了「三处引的是同一份、只差本层自己的名字与说法」。
+
+三处入口的**文件名**现在不齐：`theme-markmap` 的 `markmap` 那一页由
+`@show-docs/docusaurus-theme-component-page` 判中后挂上（它交的条目见
+`packages/theme-markmap/src/component-pages.mts`），入口因此叫 `theme/MarkmapPage`；
+`theme-erd` 与 `theme-diff` 仍在层栈里挂 `theme/DocItem`。外壳本身三处一样。
 */
 const viewPackages = ['theme-markmap', 'theme-erd', 'theme-diff'] as const;
 
-/** 以 `theme-markmap` 那一份为参照（这一族里最先有形状的那一个）。 */
-const reference = 'theme-markmap';
+/** 走层栈 `DocItem` 的那两份：以 `theme-erd` 为参照。 */
+const docItemPackages = ['theme-erd', 'theme-diff'] as const;
+const reference = 'theme-erd';
 
 /** 注释是每个包自己的话，不参与比较；比较的是代码那一格。 */
 function codeLines(source: string): string[] {
@@ -71,7 +77,7 @@ function expectSameSkeleton(
   for (const file of [refFile, pkgFile]) {
     expect(
       fs.existsSync(path.join(siteDir, 'packages', file)),
-      `packages/${file} 不在了：这三份副本是各包自带的一份，要合并就得同时改本用例与三个包的文档`,
+      `packages/${file} 不在了：这两份副本是各包自带的一份，要合并就得同时改本用例与两个包的文档`,
     ).toBe(true);
   }
 
@@ -144,6 +150,16 @@ describe('三条视图层共用的那一份外壳', () => {
   const shellImport =
     "import { ViewLayerDocItem } from '@show-docs/docusaurus-theme-iframe/lib/view-layer-shell.tsx';";
 
+  /** 外壳那几层结构只该来自 `lib/`：本层再拼一遍就是第二份实现。 */
+  const shellEchoes = [
+    '<hr />',
+    'padding-top--md',
+    'Admonition',
+    'Suspense',
+    'ErrorBoundary',
+    'data-theme-view-layer-hack',
+  ];
+
   const docItemVariation: RegExp[] = [
     // 本地那份数据类型的声明（各包 `src/types.mts` 是产地，这里只留名字）
     /^type \w+ = never;$/,
@@ -166,23 +182,15 @@ describe('三条视图层共用的那一份外壳', () => {
     /^ {6}view=\{\w+\}$/,
   ];
 
-  it('theme/DocItem/index.tsx：三份都交给共享实现，只差键名与本层说法', () => {
-    for (const pkg of viewPackages) {
+  it('theme/DocItem/index.tsx：两份都交给共享实现，只差键名与本层说法', () => {
+    for (const pkg of docItemPackages) {
       const source = read(pkg, 'theme', 'DocItem', 'index.tsx');
       expect(
         source,
         `${pkg} 的 DocItem 没引共享实现（应当是 ${shellImport}）`,
       ).toContain(shellImport);
 
-      // 外壳那几层结构现在只该来自 lib/：本层再拼一遍就是第二份实现
-      for (const echo of [
-        '<hr />',
-        'padding-top--md',
-        'Admonition',
-        'Suspense',
-        'ErrorBoundary',
-        'data-theme-view-layer-hack',
-      ]) {
+      for (const echo of shellEchoes) {
         expect(
           source,
           `${pkg} 的 DocItem 自己又写了一遍外壳里的 ${echo}`,
@@ -195,6 +203,46 @@ describe('三条视图层共用的那一份外壳', () => {
         docItemVariation,
       );
     }
+  });
+
+  /**
+  `theme-markmap` 的入口在 component-page 那边（`theme/MarkmapPage`）：判键、命中后换页都由
+  component-page 做，这一页只剩两件事 —— 把导图摆在正文上方，把正文转给下层 `DocItem`。
+  */
+  it('theme-markmap 的 MarkmapPage：同样交给共享实现，正文转给下层 DocItem', () => {
+    const source = read('theme-markmap', 'theme', 'MarkmapPage', 'index.tsx');
+
+    expect(
+      source,
+      `theme-markmap 的 MarkmapPage 没引共享实现（应当是 ${  shellImport  }）`,
+    ).toContain(shellImport);
+    // component-page 命中时不再往下走，正文只能由这一层转给下层 `DocItem`。
+    expect(source).toContain("import DocItem from '@theme-prev/DocItem';");
+    expect(source).toContain('<DocItem content={content} />');
+    expect(source).toContain('data={content?.markmap}');
+    expect(source).toContain("name: 'theme-markmap',");
+
+    for (const echo of shellEchoes) {
+      expect(
+        source,
+        `theme-markmap 的 MarkmapPage 自己又写了一遍外壳里的 ${echo}`,
+      ).not.toContain(echo);
+    }
+
+    // 这一层不再自己挂 `DocItem`：判键已经交给 component-page 的清单，留一份就是两处判同一把键。
+    expect(
+      fs.existsSync(
+        path.join(
+          siteDir,
+          'packages',
+          'theme-markmap',
+          'theme',
+          'DocItem',
+          'index.tsx',
+        ),
+      ),
+      'packages/theme-markmap/theme/DocItem/index.tsx 又出现了：那一页现在由 component-page 的清单挂 `theme/MarkmapPage`',
+    ).toBe(false);
   });
 });
 

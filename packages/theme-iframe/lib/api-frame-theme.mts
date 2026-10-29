@@ -18,11 +18,15 @@ import { fileURLToPath } from 'node:url';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
+// 安装前提那一份住在 `src/`（入口与它同处 `tsc` 的 `rootDir`），这里走相对路径取源码：
+// `lib/` 不归本包编译，指向哪一份 `.ts` 都行；别的主题层则按包出口 `./prerequisites` 引
+// 编好的那一份。包发布时 `src/prerequisites.mts` 随 `files` 一起发（与注册表同一口径）。
+import { assertThemePrerequisites } from '../src/prerequisites.mts';
+
 import {
   apiFrameByNamespace,
   type ApiFrameEntryInternal,
 } from './api-frame-registry.ts';
-import { assertThemePrerequisites } from './prerequisites.ts';
 
 export type ApiFrameThemeOptions = {
   /** 包名，同时是注册表的键；表里没有这一族就直接失败。 */

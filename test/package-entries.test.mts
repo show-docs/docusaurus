@@ -15,8 +15,9 @@ import copyButtonTheme from '../packages/theme-copy-button/src/index.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
 import erdTheme from '../packages/theme-erd/src/index.mts';
 import gitBadgeTheme from '../packages/theme-git-badge/src/index.mts';
-import { IFRAME_PLUGIN } from '../packages/theme-iframe/lib/prerequisites.ts';
 import iframeTheme from '../packages/theme-iframe/src/index.mts';
+import { IFRAME_PLUGIN } from '../packages/theme-iframe/src/prerequisites.mts';
+import { MARKMAP_COMPONENT_PAGES } from '../packages/theme-markmap/src/component-pages.mts';
 import markmapTheme from '../packages/theme-markmap/src/index.mts';
 import redocTheme from '../packages/theme-redoc/src/index.mts';
 import scalarTheme from '../packages/theme-scalar/src/index.mts';
@@ -571,9 +572,36 @@ describe('theme-markmap 入口', () => {
     expect(rules[0]!.loader).toMatch(/[/\\]loader[/\\]md-markmap-loader\.mjs$/);
   });
 
-  it('缺 theme-iframe：当场点名', () => {
-    const missing = markmapTheme(contextWith([RESOLVER_PLUGIN]));
-    expect(() => loadContentOf(missing)()).toThrow(new RegExp(IFRAME_PLUGIN));
+  it('getComponentPages：交出 markmap 那一页，组件写的是 @theme/MarkmapPage', () => {
+    const plugin = markmapTheme(contextWith()) as unknown as {
+      getComponentPages: () => unknown;
+    };
+
+    expect(plugin.getComponentPages()).toBe(MARKMAP_COMPONENT_PAGES);
+    // `options` 判法：`markmap: true` 与选项对象都算命中（见 component-page 的判据）。
+    expect(MARKMAP_COMPONENT_PAGES).toEqual([
+      { key: 'markmap', match: 'options', component: '@theme/MarkmapPage' },
+    ]);
+  });
+
+  it('缺 theme-iframe、缺 component-page 都当场点名；装齐了才放行', () => {
+    expect(() =>
+      loadContentOf(markmapTheme(contextWith([RESOLVER_PLUGIN])))(),
+    ).toThrow(new RegExp(IFRAME_PLUGIN));
+
+    expect(() =>
+      loadContentOf(
+        markmapTheme(contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN])),
+      )(),
+    ).toThrow(COMPONENT_PAGE);
+
+    expect(() =>
+      loadContentOf(
+        markmapTheme(
+          contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+        ),
+      )(),
+    ).not.toThrow();
   });
 });
 

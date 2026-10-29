@@ -1,24 +1,16 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import {
-  assertPrevLayerResolverInstalled,
-  declaredNamespaces,
-  slotIsNamespace,
-} from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
-
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import { contributeApiFramePages } from './api-frame-contribute.mts';
+import { assertThemePrerequisites } from './prerequisites.mts';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
 
 /** 本包的包名。 */
 const NAMESPACE = '@show-docs/docusaurus-theme-iframe';
-
-/** 本层交出的那几页由它判清单后挂上来（约定见本包的 `README.md` 与 component-page 的入口）。 */
-const COMPONENT_PAGE = '@show-docs/docusaurus-theme-component-page';
 
 /**
 本层的插件选项。顺序与启用范围写在 `themeConfig.apiFrame.order` 里：顺序即优先级、列出的即
@@ -60,19 +52,12 @@ export default function theme(
     name: NAMESPACE,
     loadContent() {
       // 两条前提都在这里点名：正常路径上缺了它们，症状都在打包那一步（`@theme-prev/DocItem`
-      // 解析失败 / 那几页没人判），报错点离真正的原因隔着一整个构建。
-      assertPrevLayerResolverInstalled(NAMESPACE, declared);
-
-      const installed = declaredNamespaces(declared).some((name) =>
-        slotIsNamespace(name, COMPONENT_PAGE),
-      );
-
-      if (!installed) {
-        throw new Error(
-          `${NAMESPACE} 需要 ${COMPONENT_PAGE}：本层交出的那几页由它那份 \`DocItem\` 判清单后挂上来。` +
-            `请先 \`pnpm add ${COMPONENT_PAGE}\`，再把它加进 \`plugins\`（一个实例即可）。`,
-        );
-      }
+      // 解析失败 / 那几页没人判），报错点离真正的原因隔着一整个构建。判据住在
+      // `./prerequisites.mts`（包出口 `./prerequisites`），与各视图层引的是同一份。
+      assertThemePrerequisites(context, {
+        namespace: NAMESPACE,
+        componentPage: true,
+      });
 
       // 配置级那两条（覆盖拼错、列了没装的层）说一次就够：每翻一页重算没有增量信息。
       for (const warning of contribution.warnings) {

@@ -17,7 +17,7 @@ describe('needsShowDocsSourceRule()：这条规则认领哪些文件', () => {
     // 开例外），装机之后包里随包发布的 `.ts` / `.tsx` 没人编 —— 这一格归这条规则。
     expect(
       needsShowDocsSourceRule(
-        '/site/node_modules/@show-docs/docusaurus-theme-markmap/theme/DocItem/index.tsx',
+        '/site/node_modules/@show-docs/docusaurus-theme-markmap/theme/MarkmapPage/index.tsx',
       ),
     ).toBe(true);
     expect(
@@ -31,7 +31,7 @@ describe('needsShowDocsSourceRule()：这条规则认领哪些文件', () => {
     // 再命中一次就是同一份文件跑两遍 babel。
     expect(
       needsShowDocsSourceRule(
-        '/repo/packages/theme-markmap/theme/DocItem/index.tsx',
+        '/repo/packages/theme-markmap/theme/MarkmapPage/index.tsx',
       ),
     ).toBe(false);
     expect(
@@ -89,7 +89,7 @@ describe('needsShowDocsSourceRule()：这条规则认领哪些文件', () => {
   it('分隔符两种都认：Windows 的 `\\` 与 posix 的 `/`', () => {
     expect(
       needsShowDocsSourceRule(
-        String.raw`C:\site\node_modules\@show-docs\docusaurus-theme-markmap\theme\DocItem\index.tsx`,
+        String.raw`C:\site\node_modules\@show-docs\docusaurus-theme-markmap\theme\MarkmapPage\index.tsx`,
       ),
     ).toBe(true);
   });
@@ -97,7 +97,7 @@ describe('needsShowDocsSourceRule()：这条规则认领哪些文件', () => {
   it('pnpm 的隔离布局也认：`node_modules/@show-docs/` 那一段照样在', () => {
     expect(
       needsShowDocsSourceRule(
-        '/site/node_modules/.pnpm/@show-docs+docusaurus-theme-markmap@1.0.0/node_modules/@show-docs/docusaurus-theme-markmap/theme/DocItem/index.tsx',
+        '/site/node_modules/.pnpm/@show-docs+docusaurus-theme-markmap@1.0.0/node_modules/@show-docs/docusaurus-theme-markmap/theme/MarkmapPage/index.tsx',
       ),
     ).toBe(true);
   });
@@ -105,7 +105,7 @@ describe('needsShowDocsSourceRule()：这条规则认领哪些文件', () => {
   it('只有目录名像、路径里没有 node_modules 那一段的不认领', () => {
     expect(
       needsShowDocsSourceRule(
-        '/repo/packages/@show-docs/theme-markmap/theme/DocItem/index.tsx',
+        '/repo/packages/@show-docs/theme-markmap/theme/MarkmapPage/index.tsx',
       ),
     ).toBe(false);
   });
@@ -122,11 +122,11 @@ describe('showDocsSourceRule()：规则那几格的形状', () => {
 
     expect(
       rule.include(
-        '/site/node_modules/@show-docs/docusaurus-theme-markmap/theme/DocItem/index.tsx',
+        '/site/node_modules/@show-docs/docusaurus-theme-markmap/theme/MarkmapPage/index.tsx',
       ),
     ).toBe(true);
     expect(
-      rule.include('/repo/packages/theme-markmap/theme/DocItem/index.tsx'),
+      rule.include('/repo/packages/theme-markmap/theme/MarkmapPage/index.tsx'),
     ).toBe(false);
 
     expect(rule.use).toEqual([{ loader: 'js-loader:false' }]);

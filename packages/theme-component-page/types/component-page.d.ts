@@ -16,9 +16,11 @@
 一把键怎么算命中：
 
 - `boolean`：那把键写 `true` 才算命中（`myPage: true`）；
-- `value`：那把键写一串非空文本才算命中，命中的那串文本交进组件（`myPage: '/some/path'`）。
+- `value`：那把键写一串非空文本才算命中，命中的那串文本交进组件（`myPage: '/some/path'`）；
+- `options`：那把键写 `true` 或一个选项对象才算命中，命中的那个值原样交进组件
+  （`myPage: true` / `myPage: { color: 'red' }`）—— 「开关，开关上还可以带选项」的那一种写法。
 */
-export type ComponentPageMatch = 'boolean' | 'value'
+export type ComponentPageMatch = 'boolean' | 'value' | 'options'
 
 /** 清单里的一条：一把 frontmatter 键 + 判法 + 给那个组件的静态入参。 */
 export type ComponentPageEntry = {
@@ -35,8 +37,8 @@ export type ComponentPageEntry = {
   props?: Record<string, unknown>
 }
 
-/** 命中那把键写下的值：`boolean` 恒为 `true`，`value` 是那串非空文本。 */
-export type ComponentPageValue = true | string
+/** 命中那把键写下的值：`boolean` 恒为 `true`，`value` 是那串非空文本，`options` 是 `true` 或那个选项对象。 */
+export type ComponentPageValue = true | string | Record<string, unknown>
 
 /**
 **配置里**写在一条条目上的形状：`ComponentPageEntry` 再多一格「命中后挂哪个组件」。

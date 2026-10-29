@@ -12,7 +12,7 @@ markmap: true
 
 ### 顺序 = plugins 声明顺序
 
-### 最外层的 DocItem 覆盖生效
+### 最外一层的清单命中，整页换成 MarkmapPage
 
 ## @theme-prev
 

@@ -55,6 +55,12 @@ describe('normalizePages：整列通过的样子', () => {
     ]);
   });
 
+  it('options 判法原样通过（「开关，开关上还可以带选项」那一种写法）', () => {
+    expect(
+      normalizePages([{ ...page, match: 'options' }])[0]!.entry.match,
+    ).toBe('options');
+  });
+
   it('顺序原样保留：那一串就是命中优先级', () => {
     const [first, second] = normalizePages([
       { key: 'a', component: '@theme/A' },
@@ -167,14 +173,14 @@ describe('normalizePages：每一种写歪都点名到那一格', () => {
     ).toThrow(/pages\[1\]\.key「embed」和前面某一条撞了/);
   });
 
-  it('match 只认那两种判法', () => {
+  it('match 只认那三种判法', () => {
     red(
       [{ ...page, match: 42 }],
-      /pages\[0\]\.match 只认 'boolean' \/ 'value'，拿到的是 number/,
+      /pages\[0\]\.match 只认 'boolean' \/ 'value' \/ 'options'，拿到的是 number/,
     );
     red(
       [{ ...page, match: 'url' }],
-      /pages\[0\]\.match 只认 'boolean' \/ 'value'，拿到的是 string/,
+      /pages\[0\]\.match 只认 'boolean' \/ 'value' \/ 'options'，拿到的是 string/,
     );
   });
 

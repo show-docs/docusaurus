@@ -1,6 +1,6 @@
 /**
 「这一页整页交给一个组件」的**命中判据与落空告警**：配置期（`../src/` 校验清单、铺出生成模块）
-与浏览器期（`../theme/DocItem/index.tsx` 判键、组装入参）引的是这同一份，那两条判法因此
+与浏览器期（`../theme/DocItem/index.tsx` 判键、组装入参）引的是这同一份，那几种判法因此
 不会在编译边界两侧各写一遍。
 
 条目的形状不在这里，在 `../types/component-page.d.ts`（两侧共用那一份；为什么单独占一格，
@@ -33,7 +33,8 @@ export type {
 这一条在某一页上命不命中：命中交回那把键写下的值，落空交回 `undefined`。
 
 「写了这把键」与「这条命中」是两件事，后者还看形状（`boolean` 那臂只认真布尔 `true`；
-`value` 那臂要非空串）—— 写歪了不静默，理由见下面 `componentPageWarnings`。
+`value` 那臂要非空串；`options` 那臂要 `true` 或一个选项对象）—— 写歪了不静默，理由见下面
+`componentPageWarnings`。
 */
 export function matchComponentPage(
   entry: ComponentPageEntry,
@@ -43,6 +44,15 @@ export function matchComponentPage(
 
   if (entry.match === 'value') {
     return typeof written === 'string' && written !== '' ? written : undefined;
+  }
+
+  if (entry.match === 'options') {
+    return written === true ||
+      (typeof written === 'object' &&
+        written !== null &&
+        !Array.isArray(written))
+      ? (written as true | Record<string, unknown>)
+      : undefined;
   }
 
   return written === true ? true : undefined;
@@ -75,7 +85,11 @@ export function componentPageProps(
 
 /** 一条判法的说法，用在告警里：它要的是哪一种形状。 */
 function expectedShape(match: ComponentPageMatch): string {
-  return match === 'value' ? '一串非空文本' : '真布尔 `true`';
+  if (match === 'value') {
+    return '一串非空文本';
+  }
+
+  return match === 'options' ? '真布尔 `true` 或一个选项对象' : '真布尔 `true`';
 }
 
 /**
@@ -84,7 +98,8 @@ function expectedShape(match: ComponentPageMatch): string {
 为什么不能静默：命中不了就交回普通文档页，页面看着一切正常，坏的是站点作者的那次配置。
 两种落空各给一条：
 
-- 键写了但形状不对（`boolean` 那条写了串文本、`value` 那条写了 `true`）；
+- 键写了但形状不合判法（`boolean` 那条写了串文本、`value` 那条写了 `true`、`options` 那条
+  写了数组或 `null`）；
 - 清单里几条同时命中（通常是同一页上写了不止一把键），只用排在最前那条。
 
 页面地址带在每条里：同一毛病的两页各打一条，不带地址就会把后面那页吞掉。

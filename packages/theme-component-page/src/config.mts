@@ -92,8 +92,8 @@ type DeclaredPage = {
   props?: unknown;
 };
 
-/** `match` 那格认的两种判法；写在这一格，校验与报错文案共用同一份。 */
-const MATCHES: readonly ComponentPageMatch[] = ['boolean', 'value'];
+/** `match` 那格认的三种判法；写在这一格，校验与报错文案共用同一份。 */
+const MATCHES: readonly ComponentPageMatch[] = ['boolean', 'value', 'options'];
 
 /** 那一格拿到的是什么东西，只用于报错文案（`null` 与数组各有名字，别混称 object）。 */
 function kindOf(value: unknown): string {
@@ -215,7 +215,7 @@ function requirePropsObject(
   return props;
 }
 
-/** `match` 那一格：缺它按 `boolean`，写了就必须是 `MATCHES` 里那两种之一。 */
+/** `match` 那一格：缺它按 `boolean`，写了就必须是 `MATCHES` 里那三种之一。 */
 function normalizeMatch(value: unknown, where: string): ComponentPageMatch {
   if (value === undefined) {
     return 'boolean';

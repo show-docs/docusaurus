@@ -5,8 +5,9 @@ import type { LoadContext } from '@docusaurus/types';
 import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import {
   assertThemePrerequisites,
+  COMPONENT_PAGE_PLUGIN,
   IFRAME_PLUGIN,
-} from '../packages/theme-iframe/lib/prerequisites.ts';
+} from '../packages/theme-iframe/src/prerequisites.mts';
 import viewerTheme from '../packages/theme-viewer/src/index.mts';
 
 /** 只造两份原始插件清单与 `future.faster`：检查器不读别的（`LoadContext` 本身没有 `plugins` 字段）。 */
@@ -69,6 +70,35 @@ describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
         assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
           namespace: NAMESPACE,
           iframe,
+        }),
+      ).not.toThrow();
+    }
+  });
+
+  it('要求注册 component-page 而它不在：报出缺的是哪一条', () => {
+    expect(() =>
+      assertThemePrerequisites(contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN]), {
+        namespace: NAMESPACE,
+        componentPage: true,
+      }),
+    ).toThrow(
+      new RegExp(String.raw`${NAMESPACE}[\s\S]*${COMPONENT_PAGE_PLUGIN}`),
+    );
+  });
+
+  it('component-page 在时放行；不要求它的层缺它也放行（默认值与显式 false 两条）', () => {
+    expect(() =>
+      assertThemePrerequisites(
+        contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE_PLUGIN]),
+        { namespace: NAMESPACE, componentPage: true },
+      ),
+    ).not.toThrow();
+
+    for (const componentPage of [undefined, false]) {
+      expect(() =>
+        assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
+          namespace: NAMESPACE,
+          componentPage,
         }),
       ).not.toThrow();
     }

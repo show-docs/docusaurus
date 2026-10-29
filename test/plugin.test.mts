@@ -162,11 +162,11 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
     expect(rule.use).toEqual([{ loader: 'js-loader' }]);
     expect(
       rule.include(
-        '/site/node_modules/@show-docs/docusaurus-theme-markmap/theme/DocItem/index.tsx',
+        '/site/node_modules/@show-docs/docusaurus-theme-markmap/theme/MarkmapPage/index.tsx',
       ),
     ).toBe(true);
     expect(
-      rule.include('/repo/packages/theme-markmap/theme/DocItem/index.tsx'),
+      rule.include('/repo/packages/theme-markmap/theme/MarkmapPage/index.tsx'),
     ).toBe(false);
   });
 

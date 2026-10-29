@@ -1,3 +1,4 @@
+import type { ComponentPageProps } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
 import { ViewLayerDocItem } from '@show-docs/docusaurus-theme-iframe/lib/view-layer-shell.tsx';
 import DocItem from '@theme-prev/DocItem';
 
@@ -23,15 +24,21 @@ type MDXContent = ComponentType<Record<string, unknown>> & {
   markmap?: MarkmapData;
 };
 
-type Props = { content?: MDXContent };
+// `content` 是 component-page 交进来的正文组件；`frontMatter` / `value` 这一页不用 ——
+// 导图的数据由 loader 追加上来（含选项），命不命中已经由 component-page 判过。
+type Props = ComponentPageProps & { content?: MDXContent };
 
-export default function DocItemMarkmap(props: Props): ReactNode {
-  const { content } = props;
+/**
+本层交给 `@show-docs/docusaurus-theme-component-page` 的那一页（`src/component-pages.mts` 交出的
+`markmap` 那一把键）：它判中后整页换成这个组件，所以这里**不再判键**，只把导图摆在正文上方。
 
+导图是正文的**前一个兄弟节点**：正文原样交给下面那一层 `DocItem`，页面结构（标题、目录、
+面包屑、页脚导航）都不受影响。`content` 来自 component-page（命中时它不再往下走），
+所以正文只能从这里拿。
+*/
+export default function MarkmapPage({ content }: Props): ReactNode {
   // post loader 给命中 frontmatter 的 md 追加 `export const markmap`，
   // Docusaurus 把它和其他模块导出一起挂到 MDX 组件上。
-  // 导图是 DocItem 的**前一个兄弟节点**，不塞进 `content`：正文原样交给下层 DocItem，
-  // 页面结构（标题、目录、面包屑、页脚导航）都不受影响。
   return (
     <ViewLayerDocItem
       data={content?.markmap}
@@ -43,7 +50,7 @@ export default function DocItemMarkmap(props: Props): ReactNode {
       }}
       view={MindChart}
     >
-      <DocItem {...props} />
+      <DocItem content={content} />
     </ViewLayerDocItem>
   );
 }
