@@ -37,8 +37,8 @@
   "peerDependencies": {
     "@docusaurus/core": "catalog:",
     "@docusaurus/types": "catalog:",
-    "@show-docs/docusaurus-plugin-prev-layer-resolver": "catalog:",
-    "@show-docs/docusaurus-theme-iframe": "catalog:",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "react": "catalog:"
   },
   "peerDependenciesMeta": {

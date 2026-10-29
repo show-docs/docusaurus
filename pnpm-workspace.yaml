@@ -7,12 +7,14 @@ configDependencies:
 
 # 重复依赖集中到 catalog：同一份版本只写一次，
 # 各工作区包的 dependencies / peerDependencies 用 `catalog:` 引用，便于统一升降级。
+#
+# 只放**外部**依赖：本仓库自己的工作区包（`@show-docs/*`）不进这里 —— `pnpm lint:version` 用的
+# 那份 preset 把「Pin pnpm workspace」排在 catalog 那几组前面，一个名字同时是工作区包又在 catalog 里时，
+# 它要的是各包 `package.json` 里直接写 `workspace:^`，写 `catalog:` 会被判成 DiffersToPin。
 catalog:
   '@docusaurus/core': '^3.9.2'
   '@docusaurus/theme-common': '^3.9.2'
   '@docusaurus/types': '^3.9.2'
-  '@show-docs/docusaurus-plugin-prev-layer-resolver': 'workspace:^'
-  '@show-docs/docusaurus-theme-iframe': 'workspace:^'
   react: '~18.3.1'
   webpack: '^5.112.2'
 
