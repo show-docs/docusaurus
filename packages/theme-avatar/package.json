@@ -2,15 +2,55 @@
   "private": true,
   "name": "@show-docs/docusaurus-theme-avatar",
   "version": "0.0.0",
-  "main": "index.mjs",
-  "exports": {
-    "default": "./index.mjs"
+  "description": "导航栏亮暗切换旁边挂一颗当前用户头像：站点给一个用户信息接口，取到用户才出现，下拉里两条菜单地址各自可配",
+  "keywords": [],
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-avatar",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
+    "directory": "packages/theme-avatar"
   },
+  "bugs": {
+    "url": "https://github.com/show-docs/docusaurus/issues"
+  },
+  "types": "dist/index.d.mts",
+  "main": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "default": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": [
+    "components",
+    "dist",
+    "theme",
+    "types"
+  ],
   "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
   "dependencies": {
     "ahooks": "^3.10.0"
   },
   "peerDependencies": {
+    "@docusaurus/types": "catalog:",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
+    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "react": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@docusaurus/types": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

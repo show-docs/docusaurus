@@ -124,6 +124,13 @@ const config = {
     // `DocItem/Content`（其余各层覆盖的是 `DocItem`），放在最里面，`@theme-prev` 那一步
     // 落到官方那份实现，正文一个字都不改。
     '@show-docs/docusaurus-theme-viewer',
+    // 导航栏那颗用户头像：它覆盖的是 `ColorModeToggle`（上面几层覆盖的是 `DocItem` /
+    // `Footer/Copyright`），谁都不争同一格。
+    //
+    // 本站**故意不给 `userApi`**：这一层的开关就是那一格，不给时头像不出现、亮暗切换照旧，
+    // 于是这一层在这里只被编译、被渲染一次「什么都没有」。真接上用户接口要写的那几格与
+    // 「为什么本站看不到头像」，记在 `packages/theme-avatar/docs/avatar-demo.md`。
+    '@show-docs/docusaurus-theme-avatar',
     // 页脚复制按钮：它覆盖的是 `Footer/Copyright`（上面几层覆盖的是 `DocItem` /
     // `DocItem/Content`），谁都不争同一格，放在层栈最外面。判据不是 frontmatter，
     // 而是站点有没有写 `themeConfig.footer.copyright`。

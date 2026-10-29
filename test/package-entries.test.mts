@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest';
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import lazyCompilationPlugin from '../packages/plugin-lazy-compilation/src/index.mts';
+import { PLUGIN_NAME as AVATAR_PLUGIN_NAME } from '../packages/theme-avatar/src/config.mts';
+import avatarTheme from '../packages/theme-avatar/src/index.mts';
 import componentPageTheme from '../packages/theme-component-page/src/index.mts';
 import copyButtonTheme from '../packages/theme-copy-button/src/index.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
@@ -231,6 +233,104 @@ describe('theme-component-page 入口：只交层目录与一列清单', () => {
 
   it('选项缺省 = 空清单：装上这一层但不配页面，站点照跑', () => {
     expect(() => componentPageTheme(contextWith())).not.toThrow();
+  });
+});
+
+describe('theme-avatar 入口', () => {
+  /**
+  跑一遍 `contentLoaded`，把那一格里 `actions.setGlobalData()` 交出去的数据收回来。
+
+  这一格是这一层唯一的配置出口，也是它最容易静默失灵的地方：`setGlobalData` 不是生命周期方法
+  （是 `actions` 上的那一个），而 `actions` 只在插件**定义了** `contentLoaded` 时才创建。
+  */
+  const globalDataOf = (plugin: Plugin): unknown => {
+    let captured: unknown;
+
+    (
+      plugin.contentLoaded as unknown as (args: {
+        actions: { setGlobalData(data: unknown): void };
+      }) => void
+    )({
+      actions: {
+        setGlobalData(data: unknown): void {
+          captured = data;
+        },
+      },
+    });
+
+    return captured;
+  };
+
+  it('层目录两条都指向包根那份 `theme/`，且没有自己的样式表', () => {
+    const plugin = avatarTheme(contextWith());
+
+    expect(plugin.name).toBe(AVATAR_PLUGIN_NAME);
+    expectThemePath(plugin, 'theme-avatar');
+    // 这一层用的全是 Infima 已有的类名，不交客户端模块 = 它确实没有一份要交给站点的样式表。
+    expect(plugin.getClientModules).toBeUndefined();
+  });
+
+  it('contentLoaded 交出的是配置期校验并补齐过的那一份', () => {
+    const plugin = avatarTheme(contextWith(), {
+      userApi: '/api/me',
+      request: { debounceWait: 0 },
+    });
+
+    expect(globalDataOf(plugin)).toEqual({
+      enableHostname: '',
+      userApi: '/api/me',
+      anonymousName: '未命名',
+      defaultAvatar: '',
+      request: {
+        debounceLeading: true,
+        debounceWait: 0,
+        throttleWait: 300,
+        cacheKey: 'avatar-user',
+      },
+      fields: {
+        id: 'id',
+        name: 'name',
+        displayName: 'displayName',
+        avatar: 'avatar',
+      },
+      menu: {
+        profileLabelPrefix: '用户：',
+        profileHref: '',
+        logoutText: '退出登录',
+        logoutHref: '',
+        logoutTarget: '_self',
+      },
+    });
+  });
+
+  it('选项写歪红在入口，不红在浏览器里那颗头像', () => {
+    expect(() =>
+      avatarTheme(contextWith(), { userAPI: '/api/me' } as never),
+    ).toThrow(/userAPI/);
+  });
+
+  it('缺解析器：当场点名；装齐了就放行（这一层不要求注册 theme-iframe）', () => {
+    const missing = avatarTheme(contextWith([]));
+    expect(() => loadContentOf(missing)()).toThrow(new RegExp(RESOLVER_PLUGIN));
+
+    const complete = avatarTheme(contextWith([RESOLVER_PLUGIN]));
+    expect(() => loadContentOf(complete)()).not.toThrow();
+  });
+
+  it('两处包名字面量对齐：主题层里那句就是入口那个常量', () => {
+    // 浏览器侧那一层不能引 `src/`（那里是 Node 侧的编译产物），于是包名在两个文件里各写一次。
+    // 漂了的症状是「头像静默消失」：全局数据里取到的那一格是 `undefined`。
+    const layer = readFileSync(
+      path.join(
+        pkgDir('theme-avatar'),
+        'theme',
+        'ColorModeToggle',
+        'index.tsx',
+      ),
+      'utf8',
+    );
+
+    expect(layer).toContain(`const PLUGIN_NAME = '${AVATAR_PLUGIN_NAME}'`);
   });
 });
 

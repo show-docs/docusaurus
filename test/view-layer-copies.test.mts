@@ -218,6 +218,7 @@ describe('TS 源码的编译规则只有一处', () => {
     'theme-viewer',
     'theme-copy-button',
     'theme-component-page',
+    'theme-avatar',
     'theme-iframe',
     'theme-redoc',
     'theme-scalar',
