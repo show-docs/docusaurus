@@ -5,9 +5,9 @@
 # `data-git-badge` 属性。叶子行由包的 CSS 伪元素画一个纯色点；分类行不画点 —— 颜色染在那一行
 # 本来就有的折叠箭头上（见 `packages/theme-git-badge/styles/git-badge.css`）。
 #
-# 判据是 **git**（包自己判，不读标签）。git 判出来的那两个随提交变、CI 的 checkout 又是新的，
+# 判据是 **git**（包自己判）。git 判出来的那两个随提交变、CI 的 checkout 又是新的，
 # 所以两枚锚点都由**页面自己写**那把键 `git_badge`：差异视图示例页写 `git_badge: update`，
-# 关系图示例页写 `git_badge: new`。那把键不是标签 —— 正文里不会因此多出芯片。
+# 关系图示例页写 `git_badge: new`。那把键只影响侧边栏那一格，正文里不会因此多出东西。
 #
 # 两页分属两个包，在侧边栏里各占一格，所以「哪一个是哪一个」也顺带被钉住。
 Feature: 侧边栏徽标

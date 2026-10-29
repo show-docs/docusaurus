@@ -29,5 +29,5 @@
 理由与证据（载体是哪条通道、为什么换 `label` 而不是另插一个元素、层栈顺序怎么定的）在
 [`packages/theme-git-badge/docs/internals.md`](../../packages/theme-git-badge/docs/internals.md)。
 
-**判据用 git，不读标签**；页面自己钉徽标用的是 `git_badge: new` / `git_badge: update`（它**不是
-标签** —— 写它不会在正文里多出芯片，也不进标签页）。徽标与标签彻底解耦：标签归标签，徽标归徽标。
+**判据用 git**；页面自己钉徽标用的是 `git_badge: new` / `git_badge: update`，写它只改侧边栏
+那一格，正文里不会多出任何东西。
