@@ -71,7 +71,8 @@ if (pages.length === 0) {
   process.exit(1);
 }
 
-const WRAPPER = /data-(?:site|theme)-wrapper="([^"]+)"/g;
+// swc 那份压缩（`future.faster.swcHtmlMinimizer`）把属性写成不带引号的，两种都要认得。
+const WRAPPER = /data-(?:site|theme)-wrapper="?([^" >]+)"?/g;
 const markersOf = (html: string): string[] =>
   // 那条正则只有一个捕获组，`matchAll` 交回的每项都带着它
   html
