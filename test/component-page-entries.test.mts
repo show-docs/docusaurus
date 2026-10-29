@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  componentPageProps,
   componentPageWarnings,
   matchComponentPage,
   warnComponentPages,
@@ -53,6 +54,75 @@ describe('matchComponentPage：value 那臂要一串非空文本', () => {
         matchComponentPage(valueEntry, { embed: written }),
       ).toBeUndefined();
     }
+  });
+});
+
+describe('componentPageProps：配置那格垫底，本页那三份盖在上面', () => {
+  it('同名的键以本页那三份为准（配置盖不掉本页事实）', () => {
+    const entry: ComponentPageEntry = {
+      key: 'embed',
+      match: 'value',
+      props: {
+        frontMatter: '假的',
+        value: '假的',
+        content: '假的',
+        height: '480',
+      },
+    };
+
+    expect(
+      componentPageProps(entry, '/board/1', { embed: '/board/1' }, undefined),
+    ).toEqual({
+      frontMatter: { embed: '/board/1' },
+      value: '/board/1',
+      height: '480',
+    });
+  });
+
+  it('不冲突的那些键原样并进来；props 缺席时只有那三份', () => {
+    expect(
+      componentPageProps(
+        { key: 'report', match: 'boolean', props: { title: '报表' } },
+        true,
+        { report: true },
+        'MDX',
+      ),
+    ).toEqual({
+      frontMatter: { report: true },
+      value: true,
+      content: 'MDX',
+      title: '报表',
+    });
+
+    expect(
+      componentPageProps(
+        { key: 'report', match: 'boolean' },
+        true,
+        { report: true },
+        'MDX',
+      ),
+    ).toEqual({ frontMatter: { report: true }, value: true, content: 'MDX' });
+  });
+
+  it('这一页没写 frontmatter 时交一个空对象，而不是 undefined', () => {
+    expect(
+      componentPageProps(
+        { key: 'report', match: 'boolean' },
+        true,
+        undefined,
+        undefined,
+      ),
+    ).toEqual({ frontMatter: {}, value: true });
+  });
+
+  it('配置那格不是复制出来的：改入参不影响条目', () => {
+    const props = { height: '480' };
+    const entry: ComponentPageEntry = { key: 'embed', match: 'value', props };
+
+    const result = componentPageProps(entry, '/b', { embed: '/b' }, undefined);
+    result.height = '600';
+
+    expect(props).toEqual({ height: '480' });
   });
 });
 

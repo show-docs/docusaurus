@@ -150,7 +150,8 @@ console.log(`
 
 // ---- 3. 「整页交给一个框」一族的判定清单还拿得到名字 ----
 // packages/theme-iframe/lib/api-frame-entries.ts 读的是浏览器侧 `siteConfig.plugins` 里
-// **包名的原样字符串**（装机过滤与站点覆盖都靠它）。这依赖 Docusaurus 的一个实现细节：
+// **包名的原样字符串**（装机过滤与站点覆盖都靠它；认法住在解析器包的
+// `src/plugin-slots.mts`）。这依赖 Docusaurus 的一个实现细节：
 // 生成 `.docusaurus/docusaurus.config.mjs` 时 `plugins` 保留**原始配置形状**，而不是归一化成
 // 只剩元数据。哪天真被归一化掉，那一层的判定会静默退化成「什么都没装」（页面看起来正常、
 // 键不生效），所以在这里钉住：四条层的包名必须还出现在浏览器配置的 plugins 数组里。

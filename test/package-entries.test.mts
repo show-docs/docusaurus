@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import lazyCompilationPlugin from '../packages/plugin-lazy-compilation/src/index.mts';
+import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import { PLUGIN_NAME as AVATAR_PLUGIN_NAME } from '../packages/theme-avatar/src/config.mts';
 import avatarTheme from '../packages/theme-avatar/src/index.mts';
 import componentPageTheme from '../packages/theme-component-page/src/index.mts';
@@ -14,10 +15,7 @@ import copyButtonTheme from '../packages/theme-copy-button/src/index.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
 import erdTheme from '../packages/theme-erd/src/index.mts';
 import gitBadgeTheme from '../packages/theme-git-badge/src/index.mts';
-import {
-  IFRAME_PLUGIN,
-  RESOLVER_PLUGIN,
-} from '../packages/theme-iframe/lib/prerequisites.ts';
+import { IFRAME_PLUGIN } from '../packages/theme-iframe/lib/prerequisites.ts';
 import iframeTheme from '../packages/theme-iframe/src/index.mts';
 import markmapTheme from '../packages/theme-markmap/src/index.mts';
 import redocTheme from '../packages/theme-redoc/src/index.mts';
@@ -214,7 +212,7 @@ describe('theme-iframe 入口：只交层目录，不查前置', () => {
   });
 });
 
-describe('theme-component-page 入口：只交层目录与一列清单', () => {
+describe('theme-component-page 入口：层目录、一列清单、以及本层那一条安装前提', () => {
   it('层目录与 TS 主题路径都指向包根那份 theme/', () => {
     const plugin = componentPageTheme(contextWith(), {
       pages: [{ key: 'report', component: '@theme/ReportPage' }],
@@ -224,11 +222,15 @@ describe('theme-component-page 入口：只交层目录与一列清单', () => {
     expectThemePath(plugin, 'theme-component-page');
   });
 
-  it('这一层没有 loadContent：它不认另一族层', () => {
-    // 那条前置检查住在 `theme-iframe` 未编译的 `lib/` 里，引它就把那一族层变成本层的安装前提；
-    // 本层是通用机制，唯一的真前提是解析器插件，那条写在包 README 里（缺它时红在
-    // 本层 `theme/DocItem` 那句 `@theme-prev/DocItem` 的解析失败上）。
-    expect('loadContent' in componentPageTheme(contextWith())).toBe(false);
+  it('loadContent 只查解析器插件：缺了当场点名，装了才放行', () => {
+    // 本层不引另一族层那份 `assertThemePrerequisites()`（那会把 `theme-iframe` 变成自己的前提）；
+    // 它唯一的真前提是解析器插件，那条判据住在解析器包自己那里。
+    expect(loadContentOf(componentPageTheme(contextWith([])))).toThrow(
+      new RegExp(RESOLVER_PLUGIN),
+    );
+    expect(() =>
+      loadContentOf(componentPageTheme(contextWith()))(),
+    ).not.toThrow();
   });
 
   it('选项缺省 = 空清单：装上这一层但不配页面，站点照跑', () => {

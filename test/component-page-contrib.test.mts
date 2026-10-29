@@ -21,8 +21,9 @@ import { makePluginSite, warnSink, type PluginSite } from './helpers.mts';
 ## 别的主题包把条目交给本层那一格
 
 站点自己在配置里写一列已经能用（`component-page-registry.test.mts` 钉的就是那一列）；这里钉的是
-「装了那个包就自动生效」那一步：约定只有一条（实例上挂着 `getComponentPages()`），合成规则三条
-（站点的排前面、同一把键站点覆写会留一条提示、两个包抢同一把键直接红）。
+「装了那个包就自动生效」那一步：约定只有一条（实例上挂着 `getComponentPages()`），合成规则四条
+（站点的排前面、同一把键站点覆写会留一条提示、站点写 `component: false` 就把那把键关掉、
+两个包抢同一把键直接红）。
 
 问「装了哪些包」用的是解析器插件那次推导，所以这里既有用假站点的单元对合，也有一条**真跑一遍
 官方插件加载路径**的端到端：只有后者能证明「实例上的自定义方法在推导那一侧原样留着」。
@@ -31,6 +32,10 @@ import { makePluginSite, warnSink, type PluginSite } from './helpers.mts';
 /** 一条归一化好的页：与站点那一列同款，只是来源不同。 */
 const pageOf = (key: string, component: string) =>
   normalizePages([{ key, component }])[0]!;
+
+/** 站点那一列里「关掉这把键」的那一条：只有站点写得出来。 */
+const offOf = (key: string) =>
+  normalizePages([{ key, component: false }], { siteColumn: true })[0]!;
 
 /** 某个包交出的那一列（已经按同一条校验走过）。 */
 const columnOf = (from: string, ...keys: [string, string][]) => ({
@@ -182,6 +187,55 @@ describe('mergePages：站点那一列排前面，同一把键站点说了算', 
 
     expect(keysOf(merged)).toEqual(['mine', 'a1', 'b2']);
     expect(merged.notices).toHaveLength(1);
+  });
+});
+
+describe('mergePages：站点把一把键关掉（component: false）', () => {
+  const keysOf = (merged: { pages: Array<{ entry: { key: string } }> }) =>
+    merged.pages.map((page) => page.entry.key);
+
+  it('包交出的那一条不生效，留一条点名那个包的提示', () => {
+    const merged = mergePages(
+      [offOf('embed')],
+      [columnOf('pkg-a', ['embed', '@theme/Embed'], ['keep', '@theme/Keep'])],
+    );
+
+    expect(keysOf(merged)).toEqual(['keep']);
+    expect(merged.notices).toEqual([
+      'theme-component-page：键「embed」在站点配置里被关掉了（`component: false`），pkg-a 交出的那一条不生效。',
+    ]);
+  });
+
+  it('关掉记号自己不进生成模块：交得出的每一格都有真说明符', () => {
+    const merged = mergePages([offOf('embed'), pageOf('a', '@theme/A')], []);
+
+    expect(keysOf(merged)).toEqual(['a']);
+    expect(
+      merged.pages.every((page) => typeof page.specifier === 'string'),
+    ).toBe(true);
+    expect(merged.notices).toEqual([]);
+  });
+
+  it('两个包抢的那把键正好被站点关掉：不红 —— 两边都不生效，抢赢抢输没有后果', () => {
+    const merged = mergePages(
+      [offOf('report')],
+      [
+        columnOf('pkg-a', ['report', '@theme/A']),
+        columnOf('pkg-b', ['report', '@theme/B']),
+      ],
+    );
+
+    expect(keysOf(merged)).toEqual([]);
+    expect(merged.notices).toHaveLength(2);
+  });
+
+  it('关掉只影响那一把键：其余各包条目照常', () => {
+    const merged = mergePages(
+      [offOf('embed'), pageOf('site', '@theme/Site')],
+      [columnOf('pkg-a', ['pkg', '@theme/Pkg'])],
+    );
+
+    expect(keysOf(merged)).toEqual(['site', 'pkg']);
   });
 });
 

@@ -1,6 +1,6 @@
 /**
 本层那份清单的**形状**：配置期写它（`src/config.mts` 校验成这个样子），浏览器期读它
-（`lib/component-page.ts` 按它判命中，`theme/DocItem` 按它组装入参）。
+（`lib/component-page.ts` 按它判命中、组装入参，`theme/DocItem` 只负责挂上去）。
 
 形状为什么单独占一份 `.d.ts`，而不是和判据一起留在 `lib/`：`src/` 要过 `tsc`
 （`rootDir` 是 `src/`），相对路径引到 `lib/` 里的源码会让构建停在 TS6059 —— 兄弟包因此把
@@ -27,7 +27,9 @@ export type ComponentPageEntry = {
   /** 这条键怎么算命中；缺它按 `boolean`（见 `src/config.mts` 的归一化）。 */
   match: ComponentPageMatch
   /**
-  配置里 `props` 那一格，原样并交进组件的入参（与下面那三份同名字典时以这一格为准）。
+  配置里 `props` 那一格，原样并交进组件的入参。与下面那三份（`frontMatter` / `value` /
+  `content`）同名时**以本页那三份为准** —— 那一格是每一页共用的入参，不该盖掉本页的事实；
+  次序住在 `lib/component-page.ts` 的 `componentPageProps()`。
   它随生成模块进产物，所以要能写成 JS 字面量：站点配置里就是普通对象与字符串，不放函数。
   */
   props?: Record<string, unknown>
@@ -38,6 +40,7 @@ export type ComponentPageValue = true | string
 
 /**
 交进那个组件的入参：本层给的三份 + 配置里 `props` 那格并进来的其余各份。
+三份和后者的次序由 `lib/component-page.ts` 的 `componentPageProps()` 定一次：**同名的键那三份赢**。
 
 `content` 这一格是这一层「替换 `DocItem`」的出口而不是入口：整页交出去之后，那个组件想留
 正文就自己渲染它（命中时本层不再往下走，下层那份 `DocItem` 给不了它）。

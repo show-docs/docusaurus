@@ -50,7 +50,8 @@ export default function theme(
   return {
     name: PLUGIN_NAME,
     loadContent() {
-      // `@theme-prev/ColorModeToggle` 的别名由解析器插件提供，缺了它要等整个构建才炸。
+      // 本层的 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领；
+      // 缺了它要等整个构建才炸。
       assertThemePrerequisites(context, { namespace: PLUGIN_NAME });
     },
     contentLoaded({ actions }) {

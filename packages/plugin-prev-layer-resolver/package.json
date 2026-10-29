@@ -22,6 +22,10 @@
     ".": {
       "default": "./dist/index.mjs",
       "types": "./dist/index.d.mts"
+    },
+    "./plugin-slots": {
+      "default": "./dist/plugin-slots.mjs",
+      "types": "./dist/plugin-slots.d.mts"
     }
   },
   "files": [

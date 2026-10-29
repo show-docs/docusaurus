@@ -8,6 +8,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import type { LoadContext, ParseFrontMatter } from '@docusaurus/types';
 import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
 
+import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import {
   badgeKindOf,
   PINNED_BADGE_KEY,
@@ -37,7 +38,6 @@ import {
   type Repo,
 } from '../packages/theme-git-badge/src/git-info.mts';
 import gitBadgeTheme from '../packages/theme-git-badge/src/index.mts';
-import { RESOLVER_PLUGIN } from '../packages/theme-iframe/lib/prerequisites.ts';
 
 import { canLinkDir, mkdtempReal } from './helpers.mts';
 

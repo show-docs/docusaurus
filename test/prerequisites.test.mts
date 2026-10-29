@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { LoadContext } from '@docusaurus/types';
 
+import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import {
   assertThemePrerequisites,
   IFRAME_PLUGIN,
-  RESOLVER_PLUGIN,
 } from '../packages/theme-iframe/lib/prerequisites.ts';
 import viewerTheme from '../packages/theme-viewer/src/index.mts';
 

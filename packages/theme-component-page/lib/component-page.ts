@@ -15,6 +15,7 @@
 import type {
   ComponentPageEntry,
   ComponentPageMatch,
+  ComponentPageProps,
   ComponentPageValue,
 } from '../types/component-page.ts';
 
@@ -42,6 +43,31 @@ export function matchComponentPage(
   }
 
   return written === true ? true : undefined;
+}
+
+/**
+组装交进那个组件的入参：配置里 `props` 那一格垫底，本页那三份（`frontMatter` / `value` /
+`content`）盖在上面。
+
+次序只在这里定一次，`../theme/DocItem` 里不写第二份 spread —— 于是「配置里同名那一格被本页
+事实盖掉」这条由这里的用例钉着，而不是靠 JSX 里两行的先后。理由：那三份是**这一页的事实**，
+配置写的是**每一页共用的入参**，前者赢才说得通（`props: { frontMatter: 42 }` 那种配置盖掉本页
+frontmatter，组件收到的就是一个假的本页数据）。
+
+`frontMatter` 没写时交一个空对象：组件那一侧不必每处判 `undefined`。
+*/
+export function componentPageProps(
+  entry: ComponentPageEntry,
+  value: ComponentPageValue,
+  frontMatter: Record<string, unknown> | undefined,
+  content: unknown,
+): ComponentPageProps {
+  return {
+    ...entry.props,
+    frontMatter: frontMatter ?? {},
+    value,
+    content,
+  };
 }
 
 /** 一条判法的说法，用在告警里：它要的是哪一种形状。 */

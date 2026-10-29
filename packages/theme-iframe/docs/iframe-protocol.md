@@ -97,7 +97,7 @@ Redoc 认 `asyncapi.startsWith('3.')`）。两把同时写时按注册表顺序�
 **条目的排列顺序是判定优先级的默认值**，但决定权在站点，分发在 `lib/api-frame-entries.ts`
 （`resolveFrameDistribution({ plugins, themes }, frontMatter)`，交出 `{ entries, warnings }`）。
 规则**只有一条**：参与判定的层 = 装了的层（`plugins` 或 `themes` 里有其包名、或其包目录内入口路径的
-那一项，认法见下面 `slotIsNamespace` 一段；两份清单合并后与 Docusaurus 的真实插件表一致）；站点可在本层那一项的
+那一项，认法见下面「槽位怎么认层」那一段——判据住在解析器包的 `./plugin-slots`；两份清单合并后与 Docusaurus 的真实插件表一致）；站点可在本层那一项的
 插件选项 `['@show-docs/docusaurus-theme-iframe', { themeConfig: { apiFrame: { order: [...] } } }]`
 里用命名空间数组覆盖参与判定的**顺序与子集**。覆盖不放宽装机过滤 —— 列了没装的层照样不判，
 否则「框指向不存在路由」这个失败模式会在覆盖下被重新引入。两个推论：
@@ -118,13 +118,18 @@ Redoc 认 `asyncapi.startsWith('3.')`）。两把同时写时按注册表顺序�
 只收 `themes` 注册表 —— 本层注册在 `plugins` 里，插件选项进不了那格。原始 `plugins` 是选项
 唯一到得了浏览器侧的位置；它的每一项是**原始配置形状**，四种写法都要认：裸字符串（包名或路径）、
 `[包名, 选项]`、`[路径, 选项]`、`{name}` 对象（`siteVersion` 那类归一化元数据是另一格）。
-名字与层的对应（`slotIsNamespace`）**装机判定与覆盖槽位认法同一条规则**：裸包名相等，或路径
-落在该包的目录段内（`docusaurus-theme-x` 与去 `docusaurus-` 前缀的 `theme-x` 两种目录段都认，
-`dist/index.mjs`、`src/index.mts` 都可以）—— 不存在「本层认路径、三条 API 层只认包名」的
-不对称，路径声明的层照样算装机。本站全部按包名声明。
+
+**槽位怎么认层**：那两条判据（`pluginSlotName()` 认形状、`slotIsNamespace()` 认名字与层的对应）
+住在解析器包的 `./plugin-slots`，本层的 `readPluginSlot()` 只是在这一格之外多取选项那一份。
+放在那儿而不是留在这里，是因为各层配置期那句「缺了解析器就当场点名」用的是同一条判据 ——
+判据住在解析器包，任何一层都能问这一句，不必先装 `theme-iframe`。浏览器侧与配置期读同一份，
+所以**不存在**「本层认路径、三条 API 层只认包名」的不对称：裸包名相等，或路径落在该包的目录段内
+（`docusaurus-theme-x` 与去 `docusaurus-` 前缀的 `theme-x` 两种目录段都认，`dist/index.mjs`、
+`src/index.mts` 都可以），路径声明的层照样算装机。本站全部按包名声明。
 
 这一格有三道门禁钉着：分支语义（默认、覆盖、过滤、每一条 `warnings`）由
-`test/api-frame-entries.test.mts` 在单测里钉（纯函数，不需要浏览器）；`lib/` 十四份文件的每个分支
+`test/api-frame-entries.test.mts` 在单测里钉（纯函数，不需要浏览器），判据本身由
+`test/plugin-slots.test.mts` 钉；`lib/` 十四份文件的每个分支
 都在覆盖率红线上（见 `vitest.config.mts` 的 `coverage.include`，浏览器那两份靠 jsdom，
 见 `test/frame-sync.test.mts`）；而「浏览器侧 `plugins`
 原样保留包名、插件选项到得了浏览器」是 Docusaurus 的**实现细节而非公开承诺**，由

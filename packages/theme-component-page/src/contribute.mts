@@ -26,7 +26,11 @@
 import { PluginDiscovery } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
 import type { LoggerLike } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
 
-import { normalizePages, type NormalizedPage } from './config.mts';
+import {
+  normalizePages,
+  type EnabledPage,
+  type NormalizedPage,
+} from './config.mts';
 
 /**
 报错与提示里怎么称呼站点自己那一列。它同时是归属表里「这条键站点此过」的那个记号，
@@ -38,7 +42,8 @@ const SITE_COLUMN = '站点配置';
 export type ContributedPages = {
   /** 哪个包交出的：包名（取实例上的 `name`），进报错文案与提示。 */
   from: string;
-  pages: NormalizedPage[];
+  /** 包那一列认不得 `component: false`（见 `./config.mts`），所以这里全是真说明符。 */
+  pages: EnabledPage[];
 };
 
 /** 挂着那条约定的那一种实例：本层只看这一个方法，其余格子一概不读。 */
@@ -83,62 +88,95 @@ export function collectContributedPages(
 
     contributed.push({
       from,
-      pages: normalizePages(
-        getComponentPages.call(instance),
-        `pages（${from} 交出的）`,
-      ),
+      pages: normalizePages(getComponentPages.call(instance), {
+        column: `pages（${from} 交出的）`,
+      }),
     });
   }
 
   return contributed;
 }
 
-/** 合起来的那份清单，与「发生过覆写」的那些提示。 */
+/** 合起来的那份清单，与「发生过覆写／关掉」的那些提示。 */
 export type MergedPages = {
-  /** 要铺进生成模块的那一列：站点的排前面，包交出的接在后面。 */
-  pages: NormalizedPage[];
-  /** 站点把哪几条盖在了包交出的那条上面：本层不静默改别人的生效情况。 */
+  /** 要铺进生成模块的那一列：站点的排前面，包交出的接在后面，关掉记号不在里面。 */
+  pages: EnabledPage[];
+  /** 站点把哪几条盖在／关在了包交出的那条上面：本层不静默改别人的生效情况。 */
   notices: string[];
 };
+
+/**
+站点那一列里那些「关掉一把键」的记号（`component: false`）对应的键名。
+
+那一格不进生成模块，它说的是一件别的事：这把键谁交来都不生效 —— 包括另一个包抢同一把键那种
+本来要红的局面。站点是唯一能替这件事作主的一方，所以抢键的红在这里让位给关掉。
+*/
+function disabledKeys(site: readonly NormalizedPage[]): Set<string> {
+  const keys = new Set<string>();
+
+  for (const page of site) {
+    if (page.specifier === false) {
+      keys.add(page.entry.key);
+    }
+  }
+
+  return keys;
+}
 
 /**
 站点那一列与各包交出的那些列怎么合成一列。
 
 - **站点的那一列排前面**：清单顺序就是命中优先级，站点写的比包默认交出的更先判；
 - **同一把键站点写过一次**：用站点的，并留一条提示 —— 覆写是站点作者的本意，不该没人知道；
+- **同一把键站点写了 `component: false`**：那一条不生效，包交出的也不接（留一条提示）。
+  这是站点唯一的「关掉」写法：不想要那个包接管某一页，又不必去改那个包的键名；
 - **同一把键两个包各交出一条**：红。两族抢同一把 frontmatter 键没有合理的默认答案，
   让其中一个悄悄赢才是最坏的那种结果（另一族的键在它自己那侧照样会命中，页面却归了这个包）。
+  站点把那一把关掉时不红 —— 两边都不生效，抢赢抢输已经没有后果。
 */
 export function mergePages(
   site: readonly NormalizedPage[],
   contributed: readonly ContributedPages[],
 ): MergedPages {
-  const pages = [...site];
+  const pages = site.filter(
+    (page): page is EnabledPage => page.specifier !== false,
+  );
   const notices: string[] = [];
+  const disabled = disabledKeys(site);
   /** 每把键现在归谁：站点的先占，包的一条不许抢走站点那条。 */
   const owners = new Map<string, string>(
-    site.map((page) => [page.entry.key, SITE_COLUMN]),
+    pages.map((page) => [page.entry.key, SITE_COLUMN]),
   );
 
   for (const { from, pages: list } of contributed) {
     for (const page of list) {
-      const owner = owners.get(page.entry.key);
+      const { key } = page.entry;
 
-      if (owner !== undefined) {
-        if (owner !== SITE_COLUMN) {
-          throw new Error(
-            `theme-component-page 的键「${page.entry.key}」被 ${owner} 和 ${from} 各交出一条；同一把键只能有一个包接管，要两份都留着，给其中一条换一把键`,
-          );
-        }
-
+      if (disabled.has(key)) {
         notices.push(
-          `theme-component-page：键「${page.entry.key}」本来由 ${from} 交出，站点配置里也写了这一把，用站点那一条。`,
+          `theme-component-page：键「${key}」在站点配置里被关掉了（\`component: false\`），${from} 交出的那一条不生效。`,
         );
 
         continue;
       }
 
-      owners.set(page.entry.key, from);
+      const owner = owners.get(key);
+
+      if (owner !== undefined) {
+        if (owner !== SITE_COLUMN) {
+          throw new Error(
+            `theme-component-page 的键「${key}」被 ${owner} 和 ${from} 各交出一条；同一把键只能有一个包接管，要两份都留着，给其中一条换一把键，或在站点配置里把这一把关掉（\`{ key: '${key}', component: false }\`）`,
+          );
+        }
+
+        notices.push(
+          `theme-component-page：键「${key}」本来由 ${from} 交出，站点配置里也写了这一把，用站点那一条。`,
+        );
+
+        continue;
+      }
+
+      owners.set(key, from);
       pages.push(page);
     }
   }

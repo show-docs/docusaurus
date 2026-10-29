@@ -82,8 +82,8 @@ export default function gitBadgeTheme(
   return {
     name: PLUGIN_NAME,
     loadContent() {
-      // 本层的两格覆盖都靠 `@theme-prev/*` 拿「下面那一层」，缺了解析器插件时
-      // 症状是构建期才炸的 `Module not found` —— 当场点名更省事
+      // 本层的 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，
+      // 缺了它症状是构建期才炸的 `Module parse failed` —— 当场点名更省事
       assertThemePrerequisites(context, { namespace: PLUGIN_NAME });
       install();
     },

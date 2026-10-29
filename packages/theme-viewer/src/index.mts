@@ -15,8 +15,8 @@ export default function theme(context: LoadContext): Plugin {
   return {
     name: '@show-docs/docusaurus-theme-viewer',
     loadContent() {
-      // 本层只在构建期引 theme-iframe 的一条纯函数，不需要它的插件规则；但 `@theme-prev/*`
-      // 的别名仍由解析器插件提供，缺了它同样是构建期才炸。
+      // 本层只在构建期引 theme-iframe 的一条纯函数，不需要它的插件规则；但 `theme/` 是
+      // 未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，缺了它同样是构建期才炸。
       //
       // CSS 压缩器也只在这一步点名：`viewerjs` 那份样式表写的是原生嵌套，默认的
       // cssnano + clean-css 会把它压坏，而本包不再替宿主全站摊平 —— 那件事交给 lightningcss。

@@ -142,6 +142,9 @@ oas3: /openapi.yaml
 
 ## 相关文档
 
+- 本包是基础设施链最上面的一格：单独装上就能用 `iframe:` 换整页；下面那格
+  `theme-component-page` 是「整页交给一个组件」的一般形态，最下面是解析器包。三格的规矩写在
+  仓库根 `README.md` 的「基础设施包」一节。
 - [维护者文档](./docs/internals.md)：包内组成、编译方式、新增一条 API 层的步骤。
 - [跨 iframe 协议](./docs/iframe-protocol.md)：地址与亮暗同步的消息形状、两侧的监听。
 - [iframe 示例](./docs/iframe-demo.md)。

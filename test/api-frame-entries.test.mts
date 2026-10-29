@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  declaredNamespaces,
   frameKeyWritten,
   frameSpecUrl,
   matchApiFrameEntry,
@@ -35,17 +34,6 @@ const namespacesOf = (
   frontMatter?: Record<string, unknown>,
 ): string[] =>
   distributionOf(plugins, frontMatter).entries.map((entry) => entry.namespace);
-
-describe('declaredNamespaces：两份清单合起来报名字', () => {
-  it('两份都缺时是空数组；认不出名字的槽位略过', () => {
-    expect(declaredNamespaces({})).toEqual([]);
-    expect(
-      declaredNamespaces({
-        plugins: ['a', ['b', { x: 1 }], () => undefined, {}, { name: 3 }],
-      }),
-    ).toEqual(['a', 'b']);
-  });
-});
 
 describe('resolveFrameDistribution：判定清单的分发', () => {
   it('无覆盖时按注册表顺序，且只留装了的层', () => {

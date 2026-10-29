@@ -6,6 +6,7 @@ import { useLocation } from '@docusaurus/router';
 import { pages } from '@generated/theme-component-page/registry';
 
 import {
+  componentPageProps,
   componentPageWarnings,
   matchComponentPage,
   warnComponentPages,
@@ -27,8 +28,9 @@ type Props = { content?: MDXContent };
 `DocItem/Metadata`（页面标题与描述因此退回站点名）、`DocItem/Layout`（面包屑、正文外壳、
 翻页、右侧目录）。剩下的是文档页那层壳：navbar、footer，还有包着正文的那个 `.container`。
 
-组件拿到的入参是三份本页数据（`frontMatter` / `value` / `content`）并上配置里 `props` 那一格；
-`content` 只在它想自己留正文时用得上 —— 命中时本层不再往下走，下层那份 `DocItem` 给不了它。
+组件拿到的入参是三份本页数据（`frontMatter` / `value` / `content`）并上配置里 `props` 那一格，
+**同名的键以本页那三份为准**（次序在 `componentPageProps()` 里，不在这里）；`content` 只在它想
+自己留正文时用得上 —— 命中时本层不再往下走，下层那份 `DocItem` 给不了它。
 */
 export default function DocItemComponentPage(props: Props): ReactNode {
   const frontMatter = props.content?.frontMatter;
@@ -45,13 +47,10 @@ export default function DocItemComponentPage(props: Props): ReactNode {
       continue;
     }
 
-    // 这一页没写 frontmatter 时交一个空对象：组件那一侧不必每处判 undefined。
+    // 入参的组装次序（配置那格垫底、本页三份盖在上面）住在 lib 里，这一格只负责挂上去。
     return (
       <page.Component
-        {...(page.props ?? {})}
-        content={props.content}
-        frontMatter={frontMatter ?? {}}
-        value={value}
+        {...componentPageProps(page, value, frontMatter, props.content)}
       />
     );
   }

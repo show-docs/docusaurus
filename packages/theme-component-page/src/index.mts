@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { LoggerLike } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
+import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -31,8 +32,11 @@ export type ComponentPageConfigEntry = {
   /**
   那个组件的模块说明符，判据是 webpack 的别名表认不认它。推荐写 `@theme/X`：那条别名跟着
   层栈走，站点在 `src/theme/X` 放一份就覆写掉它，不必回来改本层的配置。
+
+  写 `false` 是另一件事：这一把键**谁交来都不生效**（包括装了的主题包交出的那一条），
+  见 `./contribute.mts` 的合成规则。只有站点这一列认这一格。
   */
-  component: string;
+  component: string | false;
   /** 这把键怎么算命中；缺它按 `boolean`（只认真布尔 `true`）。 */
   match?: ComponentPageMatch;
   /** 并交进组件的静态入参；纯数据（函数留不进生成模块）。 */
@@ -64,11 +68,11 @@ export type ComponentPageThemeOptions = {
 `pages`，和装了的那些主题包各自交出的条目（约定只有一条 `getComponentPages()`，合成规则、
 代价与「什么样的包认得进来」都在 `./contribute.mts`）。
 
-本层不在这里跑 `assertThemePrerequisites()`：那条检查住在 `theme-iframe` 未编译的 `lib/` 里，
-引它等于把**另一族层**变成本层的安装前提 —— 本层是通用机制，站点不装 `theme-iframe` 也该用得上，
-它真正的安装前提只有解析器插件那一个包（写在本层 README 的安装那一节）。缺它时症状仍落在
-本次命中的这一层：本层那份 `theme/DocItem` 会直接撞 `@theme-prev/DocItem` 解析失败，
-只是报错点隔着一整个构建。
+本层唯一的安装前提就是解析器插件那一个包，`loadContent()` 里当场查它（「在不在那两份清单里」
+那条判据住在解析器包自己的 `plugin-slots`）：缺了它，本层那份 `theme/DocItem` 要到打包那一步
+才撞 `@theme-prev/DocItem` 的 `Module not found`，报错点离真正的原因隔着一整个构建。
+本层**不**引另一族层那份 `assertThemePrerequisites()` —— 通用机制不该把 `theme-iframe`
+变成自己的前提。
 
 主题层与 `types/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus 项目会用自己的
 babel 编译它们。「谁来编」归 `@show-docs/docusaurus-plugin-prev-layer-resolver`（它按
@@ -80,11 +84,17 @@ export default function theme(
 ): Plugin {
   // 校验放在入口调用这一步：配置写歪时红在「加载配置」那一句，报错里带着
   // `pages[下标].哪一格`，而不是等构建到某个页面才炸。
-  const sitePages = normalizePages(options.pages);
+  const sitePages = normalizePages(options.pages, { siteColumn: true });
   const logger = options.logger ?? console;
 
   return {
     name: NAMESPACE,
+    loadContent() {
+      assertPrevLayerResolverInstalled(NAMESPACE, {
+        plugins: context.siteConfig.plugins,
+        themes: context.siteConfig.themes,
+      });
+    },
     getThemePath() {
       return resolve(thisDir, '../theme');
     },

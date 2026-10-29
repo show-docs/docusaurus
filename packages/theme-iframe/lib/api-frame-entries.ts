@@ -23,6 +23,12 @@
 */
 
 import {
+  pluginSlotName,
+  slotIsNamespace,
+  type PluginSlots,
+} from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
+
+import {
   apiFrameByNamespace,
   apiFrameEntriesOrdered,
   type ApiFrameEntry,
@@ -39,60 +45,20 @@ type ApiFramePluginOptions = {
 };
 
 /**
-从 `siteConfig.plugins` / `siteConfig.themes` 的一项里取「名字 + 选项」。浏览器侧拿到的是
-**原始配置形状**，四种写法：
-- 字符串（裸包名或路径 —— 名字与层的对应关系见 `slotIsNamespace`）；
-- `[包名, 选项]`；
-- `[路径, 选项]`；
-- `{name}` 对象（归一化形状，兼容 `siteVersion` 那类元数据）。
-
-`plugins` 与 `themes` 是两份清单：Docusaurus 会把它们合并成真实插件表，但生成的浏览器配置里
-仍然分开。装机判定两边都要看 —— 用 `themes: ['…']` 声明的层照样参与判定。
+从 `siteConfig.plugins` / `siteConfig.themes` 的一项里取「名字 + 选项」。那四种原始写法怎么认
+名字住在解析器包的 `pluginSlotName()`（装机判定与前置检查共用同一份），这里只多取选项那一格
+（`{ themeConfig: { apiFrame: { order } } }`）；归一化形状 `{name}` 那一格没有选项可取。
 */
 function readPluginSlot(plugin: unknown): {
   name: string | undefined;
   options: ApiFramePluginOptions | undefined;
 } {
-  if (typeof plugin === 'string') {
-    return { name: plugin, options: undefined };
-  }
-  if (Array.isArray(plugin)) {
-    return {
-      name: typeof plugin[0] === 'string' ? plugin[0] : undefined,
-      options: plugin[1] as ApiFramePluginOptions | undefined,
-    };
-  }
-  const name =
-    typeof plugin === 'object' && plugin !== null
-      ? (plugin as { name?: unknown }).name
-      : undefined;
   return {
-    // 归一化形状那一格只认字符串：配置里塞了别的类型就当认不出名字，
-    // 而不是把一个数字一路带到 `slotIsNamespace()` 的 `replaceAll` 上。
-    name: typeof name === 'string' ? name : undefined,
-    options: undefined,
+    name: pluginSlotName(plugin),
+    options: Array.isArray(plugin)
+      ? (plugin[1] as ApiFramePluginOptions | undefined)
+      : undefined,
   };
-}
-
-/**
-一个槽位的名格是不是这条层：裸包名相等，或**该包目录内任何入口**的绝对路径
-（`docusaurus-theme-x` 与去前缀的 `theme-x` 两种目录段都认 —— 按包目录认，不钉具体
-入口文件名；钉文件名会把「产物改名」变成静默失效）。装机判定与覆盖槽位识别共用这一条，
-两边不存在「一层认路径、另一层只认包名」的不对称。
-*/
-export function slotIsNamespace(name: string, namespace: string): boolean {
-  if (name === namespace) {
-    return true;
-  }
-  const pathForm = name.replaceAll('\\', '/');
-  // 去掉 `@scope/` 前缀：没有斜杠时 lastIndexOf 给 -1，slice(0) 就是原样 —— 写成一条无分支的
-  // 算式，因为 `split('/').pop() ?? namespace` 那个 `??` 的兜底只有类型层面存在，运行时永远
-  // 走不到，是量不到的分支。
-  const unscoped = namespace.slice(namespace.lastIndexOf('/') + 1);
-  const shortForm = unscoped.replace(/^docusaurus-/, '');
-  return (
-    pathForm.includes(`/${unscoped}/`) || pathForm.includes(`/${shortForm}/`)
-  );
 }
 
 /** 站点给本层的那份覆盖清单；顺带认出「写了覆盖但挂的槽位认不出本层」这一种手误。 */
@@ -242,25 +208,11 @@ export type FrameDistribution = {
 };
 
 /**
-站点声明层的两个入口。`themes:` 与 `plugins:` 在 Docusaurus 里是两份清单，装机判定不能只看一份。
+输入的清单形状直接是解析器包那份 `PluginSlots`：装机判定与前置检查（`prerequisites.ts`）读
+同一格，`themes:` 与 `plugins:` 两份清单都算，形状不在这里抄第二份。
 */
-export type ApiFrameSlots = {
-  plugins?: readonly unknown[] | null;
-  themes?: readonly unknown[] | null;
-};
-
-/**
-`plugins` 与 `themes` 两份清单里每个槽位的名字（认不出的槽位直接略过）。
-装机判定与前置检查（`prerequisites.ts`）共用这一条，免得两边各写一套「四种写法怎么认」。
-*/
-export function declaredNamespaces(declared: ApiFrameSlots): string[] {
-  return [...(declared.plugins ?? []), ...(declared.themes ?? [])]
-    .map((slot) => readPluginSlot(slot).name)
-    .filter((name): name is string => name !== undefined);
-}
-
 export function resolveFrameDistribution(
-  declared: ApiFrameSlots,
+  declared: PluginSlots,
   frontMatter: Record<string, unknown> | undefined,
   pagePath?: string,
 ): FrameDistribution {

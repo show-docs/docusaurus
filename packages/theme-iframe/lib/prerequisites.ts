@@ -1,19 +1,20 @@
+import {
+  assertPrevLayerResolverInstalled,
+  declaredNamespaces,
+  slotIsNamespace,
+} from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
+
 import type { LoadContext } from '@docusaurus/types';
 
-import { declaredNamespaces, slotIsNamespace } from './api-frame-entries.ts';
-
 /**
-所有主题层共同的两条安装前提：`@theme-prev/*` 的别名、以及部分层要的共享外壳。
+本层那一族主题层的安装前提：链式覆盖的别名（由解析器插件提供，那条检查住在它自己的包里，
+这里只是转过去）、以及部分层要的共享外壳与压缩器。
 
-这两个包都按 `peerDependencies` 发给站点 —— 它们必须是**站点自己装、自己注册**的那一份，
+这些包都按 `peerDependencies` 发给站点 —— 它们必须是**站点自己装、自己注册**的那一份，
 不能由主题包各自带一份副本。正常路径上缺了它们，webpack 会停在 `Module not found` /
 `Module parse failed`，报错点离真正的原因隔着一整个构建；所以各层在 `loadContent()` 里
 先查一遍，缺什么就当场点名。
 */
-
-/** 链式覆盖的别名由这条插件提供；没有它，所有主题的 `@theme-prev/*` 都解析不到。 */
-export const RESOLVER_PLUGIN =
-  '@show-docs/docusaurus-plugin-prev-layer-resolver';
 
 /** 共享外壳所在的包；视图三层与 API 三层还要求它注册成插件。 */
 export const IFRAME_PLUGIN = '@show-docs/docusaurus-theme-iframe';
@@ -70,8 +71,8 @@ function lightningCssMinimizerOn(future: SiteFuture | undefined): boolean {
 
 读的是**站点配置**里那两份原始清单（`siteConfig.plugins` / `siteConfig.themes`），不是
 `context.plugins` —— `LoadContext` 没有那个字段。原始清单也正好是站点作者写下的形状：
-裸包名、`[包名, 选项]`、`require.resolve()` 出来的路径都认得（认法同装机判定，
-见 `api-frame-entries.ts` 的 `slotIsNamespace`）。
+裸包名、`[包名, 选项]`、`require.resolve()` 出来的路径都认得（认法住在解析器包，
+见它的 `plugin-slots`）。
 */
 export function assertThemePrerequisites(
   context: LoadContext,
@@ -81,19 +82,15 @@ export function assertThemePrerequisites(
     lightningCssMinimizer = false,
   }: ThemePrerequisites,
 ): void {
-  const declared = declaredNamespaces({
+  const declared = {
     plugins: context.siteConfig.plugins,
     themes: context.siteConfig.themes,
-  });
-  const installed = (name: string): boolean =>
-    declared.some((slot) => slotIsNamespace(slot, name));
+  };
 
-  if (!installed(RESOLVER_PLUGIN)) {
-    throw new Error(
-      `${namespace} 需要 ${RESOLVER_PLUGIN}：所有主题的 \`@theme-prev/*\` 都由它提供别名。` +
-        `请先 \`pnpm add ${RESOLVER_PLUGIN}\`，再把它加进 \`plugins\`（一个实例即可）。`,
-    );
-  }
+  assertPrevLayerResolverInstalled(namespace, declared);
+
+  const installed = (name: string): boolean =>
+    declaredNamespaces(declared).some((slot) => slotIsNamespace(slot, name));
 
   if (iframe && !installed(IFRAME_PLUGIN)) {
     throw new Error(

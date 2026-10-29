@@ -1,6 +1,11 @@
+import { createRequire } from 'node:module';
+
 import { describe, expect, it } from 'vitest';
 
-import { normalizePages } from '../packages/theme-component-page/src/config.mts';
+import {
+  normalizePages,
+  RESERVED_FRONTMATTER_KEYS,
+} from '../packages/theme-component-page/src/config.mts';
 
 /**
 ## 站点配置里那一列清单怎么变成条目
@@ -92,6 +97,74 @@ describe('normalizePages：每一种写歪都点名到那一格', () => {
       [page, { ...page, component: '@theme/Other' }],
       /key「report」和前面某一条撞了/,
     );
+  });
+
+  it('官方 frontmatter 那一组键名一把都不放过：两种判法都红', () => {
+    for (const key of RESERVED_FRONTMATTER_KEYS) {
+      red(
+        [{ key, component: '@theme/A' }],
+        new RegExp(
+          String.raw`pages\[0\]\.key「${key}」是官方文档页 frontmatter 的那一组键名之一`,
+        ),
+      );
+      red(
+        [{ key, component: '@theme/A', match: 'value' }],
+        new RegExp(
+          String.raw`pages\[0\]\.key「${key}」是官方文档页 frontmatter`,
+        ),
+      );
+    }
+  });
+
+  it('包交出的那一列撞了官方键名：报错点名到是哪个包', () => {
+    expect(() =>
+      normalizePages([{ key: 'title', component: '@theme/A' }], {
+        column: 'pages（@x 交出的）',
+      }),
+    ).toThrow(/pages（@x 交出的）\[0\]\.key「title」是官方文档页 frontmatter/);
+  });
+
+  it('自己的键名撞不上那一组就放过：前缀像官方也算自己的', () => {
+    expect(
+      normalizePages([{ key: 'report_title', component: '@theme/A' }]).length,
+    ).toBe(1);
+    expect(
+      normalizePages([{ key: 'componentPage', component: '@theme/A' }]).length,
+    ).toBe(1);
+  });
+
+  it('component 只有 `false` 那一种布尔放过，`true` 仍按「要一个字符串」红', () => {
+    expect(
+      normalizePages([{ key: 'embed', component: false }], {
+        siteColumn: true,
+      })[0]!.specifier,
+    ).toBe(false);
+    red(
+      [{ key: 'embed', component: true }],
+      /\.component 要一个字符串，拿到的是 boolean/,
+    );
+  });
+
+  it('关掉一把键那一种记号只出得自站点那一列：包交出的写了就红', () => {
+    expect(() =>
+      normalizePages([{ key: 'embed', component: false }], {
+        column: 'pages（@x 交出的）',
+      }),
+    ).toThrow(
+      /pages（@x 交出的）\[0\]\.component 是 false：关掉一把键只有站点那一列写得算/,
+    );
+  });
+
+  it('同一把键既开又关：撞键那一条先红，不留两种说法并存', () => {
+    expect(() =>
+      normalizePages(
+        [
+          { key: 'embed', component: '@theme/A' },
+          { key: 'embed', component: false },
+        ],
+        { siteColumn: true },
+      ),
+    ).toThrow(/pages\[1\]\.key「embed」和前面某一条撞了/);
   });
 
   it('match 只认那两种判法', () => {
@@ -186,5 +259,32 @@ describe('normalizePages：每一种写歪都点名到那一格', () => {
         },
       ])[0]?.entry.props?.list,
     ).toEqual([1, 'two', { three: [false] }]);
+  });
+});
+
+/**
+上面那条护栏里那份名单，是从装的这个 Docusaurus 里抄来的 —— 抄来的东西会漂。
+这一条不测行为，只把名单对回它抄的那一份：升级 Docusaurus 时官方多加一把键名，这里就红，
+提醒去看那条护栏是不是漏了一格（而不是等某个站点用新键名把整站正文换掉）。
+*/
+describe('保留键名单与装的这份 Docusaurus 对齐', () => {
+  it('schema 里的每一把官方键名都在名单里，名单里也没有多余的那一把', () => {
+    const require = createRequire(import.meta.url);
+    const { DocFrontMatterSchema } =
+      require('@docusaurus/plugin-content-docs/lib/frontMatter.js') as {
+        DocFrontMatterSchema: {
+          describe(): { keys?: Record<string, unknown> };
+        };
+      };
+
+    // 按码位排，不按 locale：这一组键名都带下划线，locale 会把下划线吞掉再比，顺序与另一侧不一致。
+    const byCodeUnit = (a: string, b: string): number =>
+      a < b ? -1 : a > b ? 1 : 0;
+
+    expect(RESERVED_FRONTMATTER_KEYS.toSorted(byCodeUnit)).toEqual(
+      Object.keys(DocFrontMatterSchema.describe().keys ?? {}).toSorted(
+        byCodeUnit,
+      ),
+    );
   });
 });
