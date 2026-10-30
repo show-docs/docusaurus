@@ -1,298 +1,240 @@
 import { describe, expect, it } from 'vitest';
 
-import { apiFrameMessages } from '../packages/theme-iframe/lib/api-frame-messages.ts';
 import {
-  createFrameMessages,
-  externalFrameURL,
-  frameViewSrc,
-  httpsOnHttpsSite,
-  specUrlFromSearch,
-} from '../packages/theme-iframe/lib/frame-messages.ts';
+  FRAME_HASH_TYPE,
+  FRAME_INIT_TYPE,
+  FRAME_MODE_TYPE,
+  FRAME_READY_TYPE,
+  frameDataError,
+  frameInitPayload,
+  frameMessages,
+  isFrameHash,
+  isFrameInit,
+  isFrameMode,
+  isFrameReady,
+} from '../packages/theme-component-page/lib/frame-messages.ts';
 
-const REDOC = '@show-docs/docusaurus-theme-redoc';
-const SCALAR = '@show-docs/docusaurus-theme-scalar';
+/**
+## 那四条消息与「送得出去」的那道门槛
 
-describe('createFrameMessages：三条消息的形状与接受规则', () => {
-  const messages = createFrameMessages(REDOC);
-  const other = createFrameMessages(SCALAR);
+文档页与框内那份独立文档之间只有一套消息名（这一族共用一条框内路由，组件由数据里的登记名区分），
+所以这里的判据是**通道级**的：形状对不对、取值在不在那两格里。真正的「是不是自家窗口发的」归
+`frame-sync.tsx` 的 `isTrustedMessage`，两边各管一段：这一份管收进来之后能不能直接用。
 
-  it('type 由命名空间拼出，三条各归各的', () => {
-    expect(messages.route('#/paths/users')).toEqual({
-      type: `${REDOC}/route`,
-      hash: '#/paths/users',
+**数据必须是 JSON**：`frameDataError()` 那条走到底的判据与配置期 `src/config.mts` 对 `props`
+那一格做的是同一件事，只是这里读的是某一页的 frontmatter —— 配置期看不到它。
+*/
+
+describe('frameMessages：四条消息的形状', () => {
+  it('type 都挂在同一套约定下面，各自的载荷各占一格', () => {
+    expect(frameMessages.ready()).toEqual({ type: FRAME_READY_TYPE });
+    expect(frameMessages.init('scalar', { value: 1 })).toEqual({
+      type: FRAME_INIT_TYPE,
+      componentId: 'scalar',
+      data: { value: 1 },
     });
-    expect(messages.ready()).toEqual({ type: `${REDOC}/ready` });
-    expect(messages.mode('dark')).toEqual({
-      type: `${REDOC}/mode`,
+    expect(frameMessages.mode('dark')).toEqual({
+      type: FRAME_MODE_TYPE,
       mode: 'dark',
     });
-  });
-
-  it('命名空间不同的两份互不认', () => {
-    expect(other.isRoute(messages.route('#x'))).toBe(false);
-    expect(other.isReady(messages.ready())).toBe(false);
-    expect(other.isMode(messages.mode('dark'))).toBe(false);
-  });
-
-  it('isRoute 只认空串与 # 打头的 hash，其余形状一律不算', () => {
-    expect(messages.isRoute({ type: `${REDOC}/route`, hash: '' })).toBe(true);
-    expect(messages.isRoute({ type: `${REDOC}/route`, hash: '#/x' })).toBe(
-      true,
-    );
-    // 不带 # 的字符串不往地址里塞
-    expect(messages.isRoute({ type: `${REDOC}/route`, hash: 'x' })).toBe(false);
-    expect(messages.isRoute({ type: `${REDOC}/route` })).toBe(false);
-    expect(messages.isRoute({ type: 'other', hash: '#x' })).toBe(false);
-    expect(messages.isRoute(null)).toBe(false);
-    expect(messages.isRoute('route')).toBe(false);
-    expect(messages.isRoute([])).toBe(false);
-  });
-
-  it('isMode 只认 light / dark 两个值', () => {
-    expect(messages.isMode({ type: `${REDOC}/mode`, mode: 'light' })).toBe(
-      true,
-    );
-    expect(messages.isMode({ type: `${REDOC}/mode`, mode: 'dark' })).toBe(true);
-    // 取值不在这两格就不往 <html> 上写 —— 地址栏与第三方脚本都能送形状对上的对象
-    expect(messages.isMode({ type: `${REDOC}/mode`, mode: 'auto' })).toBe(
-      false,
-    );
-    expect(messages.isMode({ type: `${REDOC}/mode` })).toBe(false);
-    expect(messages.isMode({ type: `${REDOC}/ready` })).toBe(false);
-    // 连对象都不是的（第三方脚本与手工拼的地址栏都能送进来）走的是同一句拒绝
-    expect(messages.isMode(null)).toBe(false);
-    expect(messages.isMode(undefined)).toBe(false);
-    expect(messages.isMode('mode')).toBe(false);
-    expect(messages.isMode(0)).toBe(false);
-  });
-
-  it('isReady 只看 type 这一格', () => {
-    expect(messages.isReady({ type: `${REDOC}/ready` })).toBe(true);
-    expect(messages.isReady({ type: `${REDOC}/ready`, extra: 1 })).toBe(true);
-    expect(messages.isReady({ type: `${REDOC}/mode`, mode: 'dark' })).toBe(
-      false,
-    );
-  });
-});
-
-describe('apiFrameMessages：注册表那条层的约定带缓存', () => {
-  it('同一命名空间反复取是同一个引用，不同命名空间各一份', () => {
-    const direct = createFrameMessages(REDOC);
-    // 两条 hook 把它放在 effect 依赖里：引用换了就多一轮监听器拆装
-    expect(apiFrameMessages(REDOC)).toBe(apiFrameMessages(REDOC));
-    expect(apiFrameMessages(REDOC)).not.toBe(apiFrameMessages(SCALAR));
-    expect(apiFrameMessages(REDOC).ready()).toEqual(direct.ready());
-    expect(apiFrameMessages(SCALAR).isMode(direct.mode('dark'))).toBe(false);
-  });
-});
-
-describe('frameViewSrc / specUrlFromSearch：框内地址的拼与拆', () => {
-  it('spec 编码进查询参数，hash 不进去（服务端与客户端算出同一个字符串）', () => {
-    const src = frameViewSrc({
-      baseUrl: '/',
-      route: 'scalar-view',
-      specParam: 'src',
-      specUrl: '/openapi.yaml',
-      trailingSlash: undefined,
+    expect(frameMessages.hash('#/paths/users')).toEqual({
+      type: FRAME_HASH_TYPE,
+      hash: '#/paths/users',
     });
-    expect(src).toBe('/scalar-view/?src=%2Fopenapi.yaml');
-    expect(src).not.toContain('#');
   });
 
-  it('没配 trailingSlash 与配 true 都走目录形式，配 false 才不补那条斜杠', () => {
-    const build = (trailingSlash: boolean | undefined): string =>
-      frameViewSrc({
-        baseUrl: '/',
-        route: 'redoc-view',
-        specParam: 'src',
-        specUrl: '/openapi.yaml',
-        trailingSlash,
-      });
-    // 目录形式的产物是 `{route}/index.html`：带上尾斜杠直接落到文件上，
-    // 不经过静态服务器那条补斜杠的 301（它的 Location 可能是 http://）
-    expect(build(undefined)).toBe('/redoc-view/?src=%2Fopenapi.yaml');
-    expect(build(true)).toBe('/redoc-view/?src=%2Fopenapi.yaml');
-    // 产物是 `{route}.html`，地址保持无斜杠
-    expect(build(false)).toBe('/redoc-view?src=%2Fopenapi.yaml');
-    // baseUrl 不是 `/` 时斜杠只落在路由末尾，不重复
+  it('那一份数据原样带走（外层已经并好，这里不做第二次）', () => {
+    const data = { frontMatter: { title: 'x' }, value: true, height: '480' };
+
+    expect(frameMessages.init('widget', data).data).toBe(data);
+  });
+});
+
+describe('isFrameReady：只看 type 这一格', () => {
+  it('自家的算，别的一律不算', () => {
+    expect(isFrameReady({ type: FRAME_READY_TYPE })).toBe(true);
+    expect(isFrameReady({ type: FRAME_READY_TYPE, extra: 1 })).toBe(true);
+    expect(isFrameReady(frameMessages.mode('dark'))).toBe(false);
+    expect(isFrameReady(null)).toBe(false);
+    expect(isFrameReady(undefined)).toBe(false);
+    expect(isFrameReady('ready')).toBe(false);
+    expect(isFrameReady(0)).toBe(false);
+  });
+});
+
+describe('isFrameInit：登记名与那一份数据要一起认', () => {
+  it('一条真的 init 认下来', () => {
+    expect(isFrameInit(frameMessages.init('scalar', { value: 1 }))).toBe(true);
     expect(
-      frameViewSrc({
-        baseUrl: '/docs/',
-        route: 'redoc-view',
-        specParam: 'src',
-        specUrl: '/openapi.yaml',
-        trailingSlash: undefined,
-      }),
-    ).toBe('/docs/redoc-view/?src=%2Fopenapi.yaml');
+      isFrameInit({ type: FRAME_INIT_TYPE, componentId: 'a', data: {} }),
+    ).toBe(true);
   });
 
-  it('拼出去的值能原样拆回来', () => {
-    const src = frameViewSrc({
-      baseUrl: '/',
-      route: 'redoc-view',
-      specParam: 'src',
-      specUrl: '/openapi.yaml',
-      trailingSlash: undefined,
+  it('登记名缺席、空串或不是串都不算', () => {
+    for (const componentId of [undefined, '', 42, {}, null]) {
+      expect(
+        isFrameInit({ type: FRAME_INIT_TYPE, componentId, data: {} }),
+      ).toBe(false);
+    }
+  });
+
+  it('那一份数据缺席、null 或数组都不算（框里拿到那种东西只会渲染成空白）', () => {
+    for (const data of [undefined, null, 42, ['a']]) {
+      expect(
+        isFrameInit({ type: FRAME_INIT_TYPE, componentId: 'a', data }),
+      ).toBe(false);
+    }
+  });
+
+  it('type 对不上时一个字都不看（第三方脚本能拼出内容，拼不出这套约定）', () => {
+    expect(
+      isFrameInit({ type: 'other/init', componentId: 'a', data: {} }),
+    ).toBe(false);
+    expect(isFrameInit(null)).toBe(false);
+    expect(isFrameInit('init')).toBe(false);
+    expect(isFrameInit([])).toBe(false);
+  });
+});
+
+describe('isFrameMode：亮暗只认那两个值', () => {
+  it('light / dark 各自认下', () => {
+    expect(isFrameMode({ type: FRAME_MODE_TYPE, mode: 'light' })).toBe(true);
+    expect(isFrameMode({ type: FRAME_MODE_TYPE, mode: 'dark' })).toBe(true);
+  });
+
+  it('取值不在这两格就不往这份文档上写 —— 地址栏与第三方脚本都能送形状对上的对象', () => {
+    expect(isFrameMode({ type: FRAME_MODE_TYPE, mode: 'auto' })).toBe(false);
+    expect(isFrameMode({ type: FRAME_MODE_TYPE })).toBe(false);
+    expect(isFrameMode({ type: FRAME_MODE_TYPE, mode: true })).toBe(false);
+    expect(isFrameMode({ type: FRAME_READY_TYPE })).toBe(false);
+    expect(isFrameMode(null)).toBe(false);
+    expect(isFrameMode(undefined)).toBe(false);
+    expect(isFrameMode('mode')).toBe(false);
+    expect(isFrameMode(0)).toBe(false);
+  });
+});
+
+describe('isFrameHash：只认空串与 # 打头的那些', () => {
+  it('空串（「把 # 整段去掉」）与带 # 的都算', () => {
+    expect(isFrameHash({ type: FRAME_HASH_TYPE, hash: '' })).toBe(true);
+    expect(isFrameHash({ type: FRAME_HASH_TYPE, hash: '#/x' })).toBe(true);
+  });
+
+  it('不带 # 的字符串不往地址里塞，别的形状同样不算自家消息', () => {
+    expect(isFrameHash({ type: FRAME_HASH_TYPE, hash: 'x' })).toBe(false);
+    expect(isFrameHash({ type: FRAME_HASH_TYPE })).toBe(false);
+    expect(isFrameHash({ type: FRAME_HASH_TYPE, hash: 42 })).toBe(false);
+    expect(isFrameHash({ type: 'other/hash', hash: '#x' })).toBe(false);
+    expect(isFrameHash(null)).toBe(false);
+    expect(isFrameHash('hash')).toBe(false);
+    expect(isFrameHash([])).toBe(false);
+  });
+});
+
+describe('frameInitPayload：并好的那一份，与 page 那一侧同次序', () => {
+  it('静态入参垫底，本页那两格盖在上面（配置盖不掉本页事实）', () => {
+    expect(
+      frameInitPayload('/openapi.yaml', { title: 'x' }, { height: '480' }),
+    ).toEqual({
+      height: '480',
+      frontMatter: { title: 'x' },
+      value: '/openapi.yaml',
     });
-    const query = src.slice(src.indexOf('?'));
-    expect(specUrlFromSearch(query, 'https://example.com', 'src')).toBe(
-      'https://example.com/openapi.yaml',
+  });
+
+  it('同名时本页那两格赢：那一格是这一页的事实，配置写的是每一页共用的入参', () => {
+    const payload = frameInitPayload(
+      true,
+      { title: 'x' },
+      {
+        frontMatter: '假的',
+        value: '假的',
+      },
     );
+
+    expect(payload.frontMatter).toEqual({ title: 'x' });
+    expect(payload.value).toBe(true);
   });
 
-  it('只认能解析成 http: / https: 的地址， javascript: 这类一律不算', () => {
-    expect(
-      specUrlFromSearch(
-        '?src=javascript:alert(1)',
-        'https://example.com',
-        'src',
-      ),
-    ).toBeUndefined();
-    expect(
-      specUrlFromSearch('?src=data:text/html,x', 'https://example.com', 'src'),
-    ).toBeUndefined();
+  it('这一页没有 frontmatter 时交一个空对象，而不是 undefined', () => {
+    expect(frameInitPayload(true, undefined, undefined)).toEqual({
+      frontMatter: {},
+      value: true,
+    });
   });
 
-  it('缺参数、换错参数名、base 本身不合法，都交回 undefined 而不是抛', () => {
-    expect(specUrlFromSearch('', 'https://example.com', 'src')).toBeUndefined();
-    expect(
-      specUrlFromSearch('?url=/openapi.yaml', 'https://example.com', 'src'),
-    ).toBeUndefined();
-    expect(
-      specUrlFromSearch('?src=/openapi.yaml', 'not-a-url', 'src'),
-    ).toBeUndefined();
-  });
+  it('静态入参不是复制出来的：改送出去的那一份不影响规则里那一格', () => {
+    const props = { height: '480' };
+    const payload = frameInitPayload(true, {}, props);
 
-  it('页面是 https 时把 http 的 spec 升成 https（端口原样），只升不降', () => {
-    expect(
-      specUrlFromSearch(
-        '?src=http://api.test/openapi.yaml',
-        'https://docs.test',
-        'src',
-      ),
-    ).toBe('https://api.test/openapi.yaml');
-    expect(
-      specUrlFromSearch(
-        '?src=http://api.test:8080/openapi.yaml',
-        'https://docs.test',
-        'src',
-      ),
-    ).toBe('https://api.test:8080/openapi.yaml');
-    expect(
-      specUrlFromSearch(
-        '?src=https://api.test/openapi.yaml',
-        'http://localhost:3000',
-        'src',
-      ),
-    ).toBe('https://api.test/openapi.yaml');
-  });
-
-  it('页面不是 https 时 http 原样（本地开发那一条）', () => {
-    expect(
-      specUrlFromSearch(
-        '?src=http://api.test/openapi.yaml',
-        'http://localhost:3000',
-        'src',
-      ),
-    ).toBe('http://api.test/openapi.yaml');
+    payload.height = '600';
+    expect(props).toEqual({ height: '480' });
   });
 });
 
-describe('externalFrameURL：iframe: 那一层的地址三步', () => {
-  const origin = 'https://docs.example.com';
+describe('frameDataError：只有写得成 JSON 的东西送得进框里', () => {
+  it('纯数据一路到底都不说话', () => {
+    for (const data of [
+      'x',
+      '',
+      42,
+      0,
+      -1.5,
+      true,
+      false,
+      null,
+      {},
+      [],
+      { a: 1, b: { c: ['d', null, false] } },
+      Object.assign(Object.create(null), { deep: 1 }),
+    ]) {
+      expect(frameDataError(data)).toBeUndefined();
+    }
+  });
 
-  it('/ 打头的本站写法补上 origin，绝对写法原样', () => {
-    expect(externalFrameURL({ src: '/404', search: '', origin })).toBe(
-      'https://docs.example.com/404',
+  it('函数、symbol、undefined 会静默消失：这里点名，不静默删字段', () => {
+    expect(frameDataError(() => undefined)).toMatch(/data 是 function/);
+    expect(frameDataError(Symbol('x'))).toMatch(/data 是 symbol/);
+    expect(frameDataError(undefined)).toMatch(/data 是 undefined/);
+  });
+
+  it('NaN 与 Infinity 写成 null：点名到那一条并说要的是有限的数字', () => {
+    expect(frameDataError(NaN)).toBe(
+      'data 是 NaN：送进框里会变成 null（要的是有限的那个数字）',
     );
-    expect(
-      externalFrameURL({ src: 'https://a.test/x', search: '', origin }),
-    ).toBe('https://a.test/x');
-  });
-
-  it('带 ?path= 时在 src 之下再解一层', () => {
-    expect(
-      externalFrameURL({ src: '/base', search: '?path=/deep', origin }),
-    ).toBe('https://docs.example.com/deep');
-    expect(
-      externalFrameURL({
-        src: 'https://a.test/base/',
-        search: '?path=deep',
-        origin,
-      }),
-    ).toBe('https://a.test/base/deep');
-  });
-
-  it('只对 ?path= 那一段解码，不对整串二次解码（地址里合法的 % 序列不被解坏）', () => {
-    expect(externalFrameURL({ src: '/search?a=%25', search: '', origin })).toBe(
-      'https://docs.example.com/search?a=%25',
-    );
-    expect(externalFrameURL({ src: '/a%2Fb', search: '', origin })).toBe(
-      'https://docs.example.com/a%2Fb',
-    );
-    // 这一格只有 ?path= 会被解 —— 它是查询参数，本来就该是编码形式
-    expect(
-      externalFrameURL({ src: '/base', search: '?path=%2Fa%2Fb', origin }),
-    ).toBe('https://docs.example.com/a/b');
-  });
-
-  it('path 是绝对地址时直接换成它，src 不参与', () => {
-    expect(
-      externalFrameURL({
-        src: '/base',
-        search: '?path=https%3A%2F%2Fb.test%2F',
-        origin,
-      }),
-    ).toBe('https://b.test/');
-  });
-
-  it('绝对 http 跟着页面升成 https；页面是 http 时原样', () => {
-    expect(
-      externalFrameURL({ src: 'http://a.test/x', search: '', origin }),
-    ).toBe('https://a.test/x');
-    expect(
-      externalFrameURL({
-        src: 'http://a.test/x',
-        search: '',
-        origin: 'http://localhost:3000',
-      }),
-    ).toBe('http://a.test/x');
-  });
-
-  it('?path= 给的是 http 绝对地址时同样升', () => {
-    expect(
-      externalFrameURL({
-        src: '/base',
-        search: '?path=http%3A%2F%2Fb.test%2Fp',
-        origin,
-      }),
-    ).toBe('https://b.test/p');
-  });
-
-  it('不以 / 打头的相对写法原样交回（不按站点根展开）', () => {
-    expect(externalFrameURL({ src: 'handbook/', search: '', origin })).toBe(
-      'handbook/',
-    );
-  });
-});
-
-describe('httpsOnHttpsSite：服务端渲染那一遍只动绝对 http', () => {
-  it('站点是 https：绝对 http 升成 https', () => {
-    expect(httpsOnHttpsSite('http://a.test/x', 'https://docs.test')).toBe(
-      'https://a.test/x',
+    expect(frameDataError({ ratio: Infinity })).toBe(
+      'data.ratio 是 Infinity：送进框里会变成 null（要的是有限的那个数字）',
     );
   });
 
-  it('站点不是 https：一个字不动', () => {
-    expect(httpsOnHttpsSite('http://a.test/x', 'http://docs.test')).toBe(
-      'http://a.test/x',
+  it('Date / Map / Set 那种对象写成串或空对象：不是「送得到」', () => {
+    expect(frameDataError({ since: new Date(0) })).toMatch(
+      /data\.since 是另一种对象/,
+    );
+    expect(frameDataError({ tags: new Set(['a']) })).toMatch(
+      /data\.tags 是另一种对象/,
     );
   });
 
-  it('相对写法与 https 地址都原样（不展开、不降级）', () => {
-    expect(httpsOnHttpsSite('/404', 'https://docs.test')).toBe('/404');
-    expect(httpsOnHttpsSite('https://a.test/x', 'https://docs.test')).toBe(
-      'https://a.test/x',
+  it('自己绕回自己：红在来路那一步，不是等 postMessage 抛', () => {
+    const loop: Record<string, unknown> = { a: 1 };
+    loop.self = loop;
+
+    expect(frameDataError(loop)).toMatch(/data\.self 绕回了自己/);
+  });
+
+  it('深处那一格点名到完整路径（数组用下标，对象用键名）', () => {
+    expect(frameDataError({ a: { b: [undefined] } })).toMatch(
+      /data\.a\.b\[0\] 是 undefined/,
+    );
+    expect(frameDataError({ onClick() {} })).toMatch(
+      /data\.onClick 是 function/,
+    );
+  });
+
+  it('调用方给的名字进得了那句报错（外层按 frontmatter 那一格报时用它自己的名字）', () => {
+    expect(frameDataError({ fn() {} }, 'frontMatter')).toMatch(
+      /frontMatter\.fn 是 function/,
     );
   });
 });

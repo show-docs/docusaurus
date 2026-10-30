@@ -2,26 +2,32 @@
 // `src/index.mts` 给这一条路径配了 webpack 的 `asset/resource` 规则，并把它从 Docusaurus 的 css
 // 规则里摘了出去 —— 否则它会并进全站那一份 `styles.<hash>.css`（实测那是 348 KB 里的 220 KB），
 // 每个页面都 `<link>` Scalar 那套 Tailwind 工具类与配色变量。口径与另两条 API 层同一份，记在
-// `@show-docs/docusaurus-theme-iframe/lib/isolate-renderer-css.ts` 的文件头。
+// `@show-docs/docusaurus-theme-component-page/lib/isolate-renderer-css.ts` 的文件头。
 
 import scalarStylesUrl from '@scalar/api-reference/style.css';
 
 import './scalar-ui.css';
 
 import { createApiReference } from '@scalar/api-reference';
-// 渲染要用的那份文档地址，加上「选中了哪条接口」报给框外那一份文档 ——
-// 这一格的形状由 theme-iframe 那份框内工厂给出（`ApiFrameViewProps`），三份渲染接线共用一份。
-import type { ApiFrameViewProps as Props } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
 
 import { useEffect, useRef } from 'react';
 
 import { isDarkColorModeAtLoad } from './scalar-color-mode.ts';
 
+/**
+这一格渲染接线的入参：要渲染的那份文档地址，加上「选中了哪条接口」报给框外那一份文档那一句。
+形状由 `theme/ScalarView` 给（它是框内那份文档按登记名 `scalar` 挂上的那一格）。
+*/
+export type ScalarUIProps = {
+  onRouteChange: (hash: string) => void;
+  url: string;
+};
+
 // 为什么是**默认**导入：`asset/resource` 那份规则交出的 `module.exports` 就是产物地址那一格字符串
 // （`css-loader` 的 `esModule: false` 也在这里，那块「模块」没有真正的 default 命名导出）。
 // 命名空间导入（`import * as`）在站点构建里会被优化成 `__webpack_require__.t(...)` —— 那是个
 // null 原型的 Module 对象，`String()` 它直接抛 `TypeError: Cannot convert object to primitive value`，
-// 于是整个渲染器挂不上（实测：`/scalar-view` 控制台报这一句，框里 `.scalar-app` 数为 0）。
+// 于是整个渲染器挂不上（实测：框内那份文档的控制台报这一句，框里 `.scalar-app` 数为 0）。
 // theme-stoplight 那份第三方样式表走的也是默认导入，两条 API 层同一形状。
 
 /**
@@ -30,7 +36,7 @@ import { isDarkColorModeAtLoad } from './scalar-color-mode.ts';
 挂载走 `@scalar/api-reference` 那份面向非 Vue 宿主的 `createApiReference(元素, 配置)`：它在里面
 `createApp(…)` 再 `mount(元素)`，本层因此不需要直接引 `vue`；句柄里的 `destroy()` 收掉整棵 Vue 树。
 
-两头的地址各转一次（协议见 theme-iframe 的 `docs/iframe-protocol.md`）。**框内 → 外层**用配置里的
+两头的地址各转一次（协议见 component-page 的 `docs/iframe-protocol.md`）。**框内 → 外层**用配置里的
 `onSidebarClick`，它拿到的正是 Scalar 刚往历史里写的那条完整地址，本层只取 `#` 那一段报出去；不能
 监听 `hashchange` —— Scalar 换接口走 `history.pushState`，那一步**不触发**它（theme-redoc 与
 theme-stoplight 栽过同一格）。**外层 → 框内**反过来：共享层收到那一段就写本份文档的 `location.hash`，
@@ -38,7 +44,7 @@ theme-stoplight 栽过同一格）。**外层 → 框内**反过来：共享层�
 所以这里把前者转成后者，由它自己取那条接口、展开左栏、滚过去。这一转不成环：Scalar 写历史用的
 `pushState` / `replaceState` 两条都不触发 `hashchange`。
 */
-export function ScalarUI(props: Props) {
+export function ScalarUI(props: ScalarUIProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const { onRouteChange, url } = props;
 
@@ -54,7 +60,7 @@ export function ScalarUI(props: Props) {
       // 框里有 1 颗文案为「Ask AI」的按钮，线上没有）。钉死＝本地与线上同一个形状。
       agent: { disabled: true },
       // 挂载那一刻给一个明确的布尔，不给 `undefined`（那条退到操作系统偏好）。
-      // 运行时那一格由外层送，见 `scalar-color-mode.ts` 与 theme-iframe 那份框内工厂。
+      // 运行时那一格由外层送，见 `scalar-color-mode.ts` 与 component-page 那份握手循环。
       darkMode: isDarkColorModeAtLoad(),
       // 正文顶上那一格「下载 OpenAPI 文档」的两颗按钮（JSON 与 YAML 各一颗，厂商那份
       // `DownloadLink` 按这个取值决定摆不摆：`yaml` / `json` / `both` 才渲染，`direct` 要有 spec 地址，
@@ -90,7 +96,7 @@ export function ScalarUI(props: Props) {
       // 钉的是 DOM 里那一颗是谁。
       mcp: { disabled: true },
       onSidebarClick: (href: string): void => {
-        // 只要 `#` 那一段：外层地址栏里别的什么都不该被框里改掉（见共享层 `useOuterFrameSync`）。
+        // 只要 `#` 那一段：外层地址栏里别的什么都不该被框里改掉（见 `@show-docs/docusaurus-theme-component-page` 的 `useFrameHandshake`）。
         onRouteChange(new URL(href, window.location.href).hash);
       },
       // 厂商默认值是 `localhost`：hostname 是本机时正文顶上多出一条开发者工具栏（本层没有 `workspace`，

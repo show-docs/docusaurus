@@ -3,15 +3,16 @@
 # 就是这件事：给一份 **AsyncAPI 3.0.0** 文档，`theme-redoc` 与 `theme-scalar` 两层照样在框里把它
 # 渲染出来。
 #
-# 形状与 OpenAPI 那一族一样（整页交给一个框，渲染器整个跑在框内那份文档里），但地址与形状
-# 三处都换了：框的 `src` 带的是那份 AsyncAPI 夹具、框里那份文档是通道 / 操作 / 消息、hash 段
-# 两层各按各的写法（Redoc 有前导斜杠、Scalar 没有）。口径见
-# `packages/theme-iframe/docs/iframe-protocol.md` 的「注册表与分发」一节。
+# 形状与 OpenAPI 那一族一样（整页交给一个框，渲染器整个跑在框内那份文档里），差别在两处：
+# 框里那份文档是通道 / 操作 / 消息，hash 段两层各按各的写法（Redoc 有前导斜杠、Scalar 没有）。
+# 框的 `src` 反而**没有**差别 —— 那一份数据（含 `aas3:` 那个地址）由握手送进框内，地址里不带
+# 本页的信息。口径见
+# `packages/theme-component-page/docs/iframe-protocol.md` 的「规则表」一节。
 Feature: AsyncAPI 文档
 
   Scenario: redoc 那一层把 AsyncAPI 3 文档渲染出来
     Given 我打开 redoc 的 AsyncAPI 示例页
-    Then 这一页放的是一个 iframe，指向 redoc 那条 AsyncAPI 页面
+    Then 这一页放的是一个 iframe，框里是本仓那条通用框内页面
     And Redoc 在框里渲染的是那份 AsyncAPI 文档
     And Redoc 左栏里摆的是那条通道
     And Redoc 那一格下载不出现
@@ -26,7 +27,7 @@ Feature: AsyncAPI 文档
 
   Scenario: scalar 那一层把 AsyncAPI 3 文档渲染出来
     Given 我打开 scalar 的 AsyncAPI 示例页
-    Then 这一页放的是一个 iframe，指向 scalar 那条 AsyncAPI 页面
+    Then 这一页放的是一个 iframe，框里是本仓那条通用框内页面
     And Scalar 在框里渲染的是那份 AsyncAPI 文档
     And Scalar 左栏里摆的是那条通道
     And Scalar 那一格下载不出现

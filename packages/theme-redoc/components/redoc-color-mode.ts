@@ -3,9 +3,9 @@
 // （调色板变量、那些 `tag-*` 与 `card-*` 的配色、滚动条滑块）全挂在 `:root.dark` 开头。站点自己
 // 也有亮暗开关，两处各判各的就打架 —— 实测「站点亮色 + 操作系统深色」时这一页会自己变暗。
 //
-// 这里只做一件事：把暗色表开头那一格换成本层自己那条属性。它的值由外层送进来（共享层
-// `useOuterFrameSync` 发、`useInnerFrameSync` 收，见
-// `@show-docs/docusaurus-theme-iframe/lib/index.ts`），于是驱动配色的只有一个来源：站点那个开关。
+// 这里只做一件事：把暗色表开头那一格换成本层自己那条属性。它的值由外层送进来（component-page
+// 那条握手循环，落到这一份文档上由 `theme/RedocView` 经 `useFrameMode` 调用下面的
+// `applyRedocColorMode`），于是驱动配色的只有一个来源：站点那个开关。
 //
 // 为什么这件事还得在**运行期**改：Redoc 的样式是 styled-components 在运行时插进 `<head>` 的，
 // 构建期那一遍（PostCSS）拿不到那份文件；`StyleSheetManager` 的 `stylisPlugins` 正是
@@ -13,17 +13,30 @@
 //
 // 本层曾经在这条链上多做两件事（给裸标签选择器加 `:where(.redoc-root)` 前缀、把 `:root` 里
 // 那三条真属性挪进 `.redoc-root`），为的是不让 Redoc 的样式漏到站点的壳上。现在 Redoc 整个跑在
-// 本包那条插件路由（`/redoc-view`）自己的文档里，「不漏出去」由浏览器给的文档边界负责，
-// 圈定没有对象可圈了，于是删掉。口径见包 `docs/internals.md` 的「样式」一节。
+// 框内那份文档（component-page 那条 `render: iframe` 的通用框页）里，「不漏出去」由浏览器给的
+// 文档边界负责，圈定没有对象可圈了，于是删掉。口径见包 `docs/internals.md` 的「样式」一节。
+
+import type { FrameColorMode } from '@show-docs/docusaurus-theme-component-page/lib/frame-messages.ts';
 
 /**
 框内那份文档的 `<html>` 上，代表当前亮暗模式的那条属性。
 
-写它的是本包 `theme/RedocPage` 那一份框内页面（值从外层那条消息里来），读它的是下面那条选择器 ——
-两边都在本包，但一个在 DOM 一个在 CSSOM，所以给个名字，别拼两串字面量。为什么不借站点自己那条
-`data-theme`，见 theme-iframe 的 `docs/iframe-protocol.md` 的「为什么不用框架的那条存储同步」一节。
+写它的是本包 `theme/RedocView`（值从外层那条消息里来，见下面 `applyRedocColorMode`），读它的是
+下面那条选择器 —— 两边都在本包，但一个在 DOM 一个在 CSSOM，所以给个名字，别拼两串字面量。
+为什么不借站点自己那条 `data-theme`，见 component-page 的 `docs/iframe-protocol.md`
+的「为什么不用框架的那条存储同步」一节。
 */
 export const COLOR_MODE_ATTRIBUTE = 'data-redoc-mode';
+
+/**
+把外层送来的亮暗写成上面那条属性。
+
+`theme/RedocView` 把它交给 component-page 的 `useFrameMode`，于是每一次送达都只动这一条属性；
+Redoc 那套暗色规则读的是它（改写后的选择器），不是自己那套按操作系统判出来的类名。
+*/
+export function applyRedocColorMode(mode: FrameColorMode): void {
+  document.documentElement.setAttribute(COLOR_MODE_ATTRIBUTE, mode);
+}
 
 /** 这条属性在 CSS 里代表暗色的那一格，用来换掉 Redoc 自己那个 `:root.dark`。 */
 const DARK_SELECTOR = `:root[${COLOR_MODE_ATTRIBUTE}="dark"]`;

@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import type { FrameLocator, Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-import { layerFrame, layerFrameDoc, watchPageErrors } from '../helpers.mts';
+import { componentFrameDoc, layerRoot, watchPageErrors } from '../helpers.mts';
 
 const { Given, When, Then } = createBdd();
 
@@ -16,11 +16,11 @@ const { Given, When, Then } = createBdd();
 两层各有一条示例页（`packages/theme-redoc/docs/redoc-asyncapi-demo.md` 与
 `packages/theme-scalar/docs/scalar-asyncapi-demo.md`），各取自己那份夹具
 （`static/asyncapi-redoc.yaml` / `static/asyncapi-scalar.yaml`）。与 OpenAPI 那一族同样的形状：
-命中页整页交给一个框，渲染器整个跑在框内那份文档里（`/redoc-view` / `/scalar-view`）。
+命中页整页交给一个框，渲染器整个跑在框内那份文档里（component-page 那条通用框内路由
+`/__component-frame`）。
 
-**地址与形状三处都换了**，所以这一份不抄 OpenAPI 那几条句子：
+**框的 `src` 这一处没换**（那一份数据由握手送，地址里本来就不带 spec），换的是另两处：
 
-- 框的 `src`：那份 spec 地址从 `/openapi-<层名>.yaml` 换成 `/asyncapi-<层名>.yaml`；
 - 框里那份文档：通道 / 操作 / 消息，不是路径 / 操作 / 响应；
 - hash 段：Redoc 是 `#/channels/<通道>`（**有**前导斜杠，与 OpenAPI 那一族同形），Scalar 是
   `#channel/<通道>`（**没有**前导斜杠，与它自己那一族同形）。
@@ -48,10 +48,6 @@ const asyncApiLayers: Record<
   {
     /** 示例页的地址（包 `docs/` 下那一页）。 */
     demoUrl: string;
-    /** 夹具在站点根下的地址（`static/` 复制过去的那一份）。 */
-    spec: string;
-    /** 框内那条路由。 */
-    route: string;
     /** 文档标题：钉「框里真取到了那份文档」。 */
     title: string;
     /** 左栏里那条通道的 href。 */
@@ -60,33 +56,26 @@ const asyncApiLayers: Record<
 > = {
   redoc: {
     demoUrl: '/theme-redoc/docs/redoc-asyncapi-demo',
-    spec: '/asyncapi-redoc.yaml',
-    route: '/redoc-view',
     title: 'Redoc 演示事件 API',
     channelHref: '#/channels/ordercreated',
   },
   scalar: {
     demoUrl: '/theme-scalar/docs/scalar-asyncapi-demo',
-    spec: '/asyncapi-scalar.yaml',
-    route: '/scalar-view',
     title: 'Scalar 演示事件 API',
     channelHref: '#channel/ordercreated',
   },
 };
 
-/** 框内那份文档的框（按层名认，与 `../helpers.mts` 里那几条同一条口径）。 */
-const frameDoc = (page: Page, layer: AsyncApiLayer): FrameLocator =>
-  layerFrameDoc(page, layer);
+/** 框内那份文档的框（三层共用 component-page 那一个框，与 `../helpers.mts` 同一条口径）。 */
+const frameDoc = (page: Page): FrameLocator => componentFrameDoc(page);
 
-/** Redoc 那一层的布局根；Scalar 那一层认的是厂商自己那两格类名。 */
-const redocRoot = (page: Page): Locator =>
-  frameDoc(page, 'redoc').locator('.redoc-root');
+/** Redoc 那一层的布局根；Scalar 那一层认的是厂商自己那两格类名（都收在 `helpers.mts` 那张表里）。 */
+const redocRoot = (page: Page): Locator => layerRoot(page, 'redoc');
 
 const redocMenu = (page: Page): Locator =>
   redocRoot(page).locator('.menu-content');
 
-const scalarRoot = (page: Page): Locator =>
-  frameDoc(page, 'scalar').locator('.scalar-app.scalar-api-reference');
+const scalarRoot = (page: Page): Locator => layerRoot(page, 'scalar');
 
 const scalarMenu = (page: Page): Locator => scalarRoot(page).locator('aside');
 
@@ -99,34 +88,6 @@ Given('我打开 scalar 的 AsyncAPI 示例页', async ({ page }) => {
   watchPageErrors(page);
   await page.goto(asyncApiLayers.scalar.demoUrl);
 });
-
-/**
-命中页放的就那一个 iframe，`src` 指向本包那条插件路由，参数里带的是**那份 AsyncAPI 文档**的
-地址（编码成 `src` 参数）。与 OpenAPI 那一族同形，只是地址换了那份夹具。
-*/
-Then(
-  '这一页放的是一个 iframe，指向 redoc 那条 AsyncAPI 页面',
-  async ({ page }) => {
-    const frame = layerFrame(page, 'redoc');
-    await expect(frame, '命中页没有那一个 iframe').toHaveCount(1);
-    await expect(frame).toHaveAttribute(
-      'src',
-      `${asyncApiLayers.redoc.route}/?src=${encodeURIComponent(asyncApiLayers.redoc.spec)}`,
-    );
-  },
-);
-
-Then(
-  '这一页放的是一个 iframe，指向 scalar 那条 AsyncAPI 页面',
-  async ({ page }) => {
-    const frame = layerFrame(page, 'scalar');
-    await expect(frame, '命中页没有那一个 iframe').toHaveCount(1);
-    await expect(frame).toHaveAttribute(
-      'src',
-      `${asyncApiLayers.scalar.route}/?src=${encodeURIComponent(asyncApiLayers.scalar.spec)}`,
-    );
-  },
-);
 
 /**
 框里真的把那份 AsyncAPI 文档渲染出来了：布局根在（`redoc:` / `scalar:` 那一步没命中，或框内那份
@@ -211,14 +172,12 @@ Then('Redoc 那一格下载不出现', async ({ page }) => {
 
 Then('Scalar 那一格下载不出现', async ({ page }) => {
   await expect(
-    frameDoc(page, 'scalar').locator('.download-container, .download-button'),
+    frameDoc(page).locator('.download-container, .download-button'),
     '框里出现了 Scalar 那一格下载（`documentDownloadType` 不是 none）',
   ).toHaveCount(0);
 
   await expect(
-    frameDoc(page, 'scalar').locator(
-      '[aria-label*="下载"], [aria-label*="Download"]',
-    ),
+    frameDoc(page).locator('[aria-label*="下载"], [aria-label*="Download"]'),
     '框里还剩一颗按无障碍标签认得出的下载按钮',
   ).toHaveCount(0);
 });

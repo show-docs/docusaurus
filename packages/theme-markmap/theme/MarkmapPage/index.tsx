@@ -1,5 +1,5 @@
 import type { ComponentPageProps } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
-import { ViewLayerDocItem } from '@show-docs/docusaurus-theme-iframe/lib/view-layer-shell.tsx';
+import { ViewLayerDocItem } from '@show-docs/docusaurus-theme-component-page/lib/view-layer-shell.tsx';
 import DocItem from '@theme-init/DocItem';
 
 import { lazy } from 'react';

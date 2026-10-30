@@ -1,19 +1,23 @@
 import './redoc-ui.css';
 
-// 渲染要用的那份文档地址，加上「选中了哪条接口」报给框外那一份文档 ——
-// 这一格的形状由 theme-iframe 那份框内工厂给出（`ApiFrameViewProps`），三份渲染接线共用一份。
-// 「把框里那段 `#` 报出去」那一格也在那份共享源码里（`createLocationMirror`），各层只交
-// 自己路由包里的 `useLocation`。
-import {
-  createLocationMirror,
-  type ApiFrameViewProps as Props,
-} from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
+// 「把框里那段 `#` 报出去」那一格在 component-page 的共享源码里（`createLocationMirror`），
+// 各层只交自己路由包里的 `useLocation`。渲染要用的那份文档地址与那句报地址，由本包
+// `theme/RedocView` 给，形状就是下面那份本地 `RedocUIProps`。
+import { createLocationMirror } from '@show-docs/docusaurus-theme-component-page/lib/location-mirror.tsx';
 import { RedocStandalone } from 'redoc';
 import { StyleSheetManager } from 'styled-components';
 
 import { HashRouter, useLocation } from 'react-router';
 
 import { followSiteColorMode } from './redoc-color-mode.ts';
+
+/** 本层渲染接线要的两格：那份文档的地址，加上「框内换了接口，报给外层」那一句。 */
+export type RedocUIProps = {
+  /** 选中了哪条接口，报给框外那一份文档。 */
+  onRouteChange: (hash: string) => void;
+  /** 要渲染的那份 OpenAPI 文档的地址（由 `theme/RedocView` 从这一页的 frontmatter 里挑出来）。 */
+  url: string;
+};
 
 // 包着 Redoc 的那层壳。`redoc-ui.css` 收掉的三处、e2e 那几条判据都认这个类名；
 // 它**不再**参与样式圈定（那件事现在由 iframe 的文档边界负责，见 `redoc-color-mode.ts`）。
@@ -41,15 +45,16 @@ const options = { disableTelemetry: true, hideDownloadButtons: true } as const;
 // 等于换一张表，Redoc 的规则会被重新插一遍。
 const stylisPlugins = [followSiteColorMode];
 
-export function RedocUI(props: Props) {
-  // 服务端那一遍不在这里挡：渲染到这一格的只有 theme-iframe 那份框内工厂，它在浏览器之外就返回
-  // `null`（spec 地址在地址栏里，那份数据服务端根本没有）。
+export function RedocUI(props: RedocUIProps) {
+  // 服务端那一遍不在这里挡：渲染到这一格的只有框内那份文档，而它在那一份数据送达之前显示的是
+  // 自己那句占位（SSR 那一遍根本没有那份数据，握手只在浏览器里跑），渲染器在没有 DOM 的地方
+  // 一跑就炸那种事因此不会发生。
   //
   // 外面这一层 `HashRouter` 是本层的路由口径，理由见包 `docs/internals.md` 的「路由」一节：
   // `RedocStandalone` 自己不带 `router` 选项，只在**没有外层路由**时补一个按路径的
   // `BrowserRouter`。地址改成 `#/…` 之后有两处对上：框内换成另一条接口不重新加载整份文档；
   // 外层那条能分享的地址（`/redoc-demo#/orders/createorder`）里 hash 不参与取文件，托管侧回 200
-  // —— 两边怎么对齐记在 theme-iframe 的 `docs/iframe-protocol.md`。`basePath` 也不用传：
+  // —— 两边怎么对齐记在 component-page 的 `docs/iframe-protocol.md`。`basePath` 也不用传：
   // hash 里只剩 `/orders/…`，默认的 `/` 就对。
   //
   // `react-router` 必须与 `redoc` 内部用的是**同一个模块实例**，否则那句 `useInRouterContext()`

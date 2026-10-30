@@ -10,9 +10,9 @@ markmap: true
 
 ## 层栈
 
-### 顺序 = plugins 声明顺序
+### 顺序 = 站点那份 rules 清单
 
-### 最外一层的清单命中，整页换成 MarkmapPage
+### 命中后整页换成 MarkmapPage
 
 ## @theme-prev
 

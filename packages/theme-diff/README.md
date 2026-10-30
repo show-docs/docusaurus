@@ -6,11 +6,11 @@
 
 ## 安装
 
-「整页换成差异页」这一格由 theme-component-page 判，本层的共享外壳住在 theme-iframe，
-`@theme-prev/*` 的别名由解析器插件提供，四个包一起安装：
+「整页换成差异页」这一格由 theme-component-page 判，本层的共享外壳也住在 theme-component-page 里，
+`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-diff
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-diff
 ```
 
 ## 使用
@@ -22,17 +22,19 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
-    '@show-docs/docusaurus-theme-iframe',
     '@show-docs/docusaurus-theme-diff',
     '@show-docs/docusaurus-theme-component-page'
   ]
 };
 ```
 
-本层在自己的 `loadContent()` 里把 `diff` 那一页交给 theme-component-page（交回的 content 里带
-`componentPages`），由它那份 `DocItem` 判清单后整页换成 `@theme/DiffPage`。所以
-component-page 要注册，而且要写在本层**之后** —— 越晚声明 = 层栈越靠外 = 越先判（见
-[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)）。
+本层在自己的 `loadContent()` 里交回一对条目（交回的 content 里带 `componentPage`：组件
+`@theme/DiffPage` 登记成 `diff`，规则 `{ key: 'diff', match: 'any' }`），由
+theme-component-page 那份 `DocItem` 判表后整页换成它。所以 component-page 要注册，而且要写在
+本层**之后** —— 越晚声明 = 层栈越靠外 = 越先判（见
+[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)）。这条顺序只管
+「这一页归谁判」；同一页写中多把键时谁先命中，看站点 component-page 那一列 `rules` 的顺序。
+本层不依赖 `theme-iframe`。
 
 ### 写 frontmatter
 

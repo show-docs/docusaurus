@@ -1,6 +1,9 @@
-# 命中 frontmatter 的 `iframe: <地址>` 后，这一层把**整个 `DocItem`** 换成那个页面：
-# 文档正文外壳（面包屑、正文、翻页、右侧目录）一并不要，站点的 navbar 照旧。
+# 命中 frontmatter 的 `iframe: <地址>` 后，**整个 `DocItem`** 换成这一层交回的那个组件
+# （`@theme/ExternalFrame`，`render` 缺省即 `page`，所以那一格是正文里的一个普通组件）：
+# 判表与挂载都在 theme-component-page，文档正文外壳（面包屑、正文、翻页、右侧目录）一并不要，
+# 站点的 navbar 照旧。
 # 地址栏再带一个 `?path=<相对路径>`，换的是嵌进去的那个页面。
+# 这一层只认 `iframe:` 这一把键，不认识 `scalar` / `redoc` / `stoplight` 那几把。
 Feature: theme-iframe
 
   Scenario: 命中页整页交给 iframe

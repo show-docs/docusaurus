@@ -1,14 +1,20 @@
 import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { createApiFrameTheme } from '@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts';
-import { isolateRendererCss } from '@show-docs/docusaurus-theme-iframe/lib/isolate-renderer-css.ts';
+import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
+import { isolateRendererCss } from '@show-docs/docusaurus-theme-component-page/lib/isolate-renderer-css.ts';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 const require = createRequire(import.meta.url);
 
-// 本层的包名，同时是注册表与三条 postMessage 的命名空间。
-const STOPLIGHT_NAMESPACE = '@show-docs/docusaurus-theme-stoplight';
+// 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
+const thisDir = dirname(fileURLToPath(import.meta.url));
+
+/** 本层的包名。 */
+const NAMESPACE = '@show-docs/docusaurus-theme-stoplight';
 
 /**
 ## Elements 那份静态样式表怎么不进站点那一份 css
@@ -17,7 +23,8 @@ const STOPLIGHT_NAMESPACE = '@show-docs/docusaurus-theme-stoplight';
 所以 `import '@stoplight/elements/styles.min.css'` 一定落进那一份，每个页面都带上它 —— iframe 隔得住
 DOM、脚本、localStorage 与路由，隔不住这种构建期就写进 html 的静态样式。
 
-做法与另两条 API 层**同一份**：`@show-docs/docusaurus-theme-iframe/lib/isolate-renderer-css.ts`
+做法与另两条 API 层**同一份**：
+`@show-docs/docusaurus-theme-component-page/lib/isolate-renderer-css.ts`
 把它改成一个 `asset/resource` 资源（`import` 拿到的是那份产物地址），由框内那份文档自己挂一条
 `<link>`（见 `components/stoplight-ui.tsx`）。为什么非在构建期动手、两条规则同时命中要怎么躲、
 `?url` 为什么用不了，都记在那份文件头，这里不抄第二遍。
@@ -30,18 +37,56 @@ const ELEMENTS_CSS = {
 };
 
 /**
-Stoplight 这一层的入口：外层套壳（`DocItem` 判 `stoplight:`、那个 `<iframe>`、两条消息循环）
-都在 `@show-docs/docusaurus-theme-iframe`（注册表里那条 `internal` 条目），本包只交出三样 ——
-这条入口、框内那条 `theme/StoplightPage` 页面、`components/` 里 Elements 自己的渲染接线。
+Stoplight 这一层的入口：本包交出**一份组件与一条规则**（`stoplight:` 那一把键、框内渲染
+`@theme/StoplightView`），外层那一格框、那条握手循环与框内那份文档都在
+`@show-docs/docusaurus-theme-component-page` 里 —— 本包因此不依赖 `theme-iframe`，
+卸载它这一层照常可用。
 
-路由名、参数名、类名、消息命名空间都取自 theme-iframe 的注册表（配置期与浏览器期同一份
-源码），不再有「编译边界两侧各写一份常量」这件事。
+命中的页由 component-page 那份 `DocItem` 判表后换成一个同源框，框里按登记名 `stoplight` 取
+`@theme/StoplightView`；`oas3:` / `aas3:` 那两把键怎么挑、亮暗怎么落到 `<html data-theme>` 上，
+都归 `theme/StoplightView` 与 `components/` 里那两份，机制层不认识这些业务键。
+
+本包的 webpack 差异有两格：把 Elements 那份静态样式表摘出全站 css（见上面那一节），以及给它的
+依赖补上浏览器 bundle 里缺的那几样 Node 侧模块。
 */
 export default function theme(context: LoadContext): Plugin {
-  return createApiFrameTheme(context, {
-    namespace: STOPLIGHT_NAMESPACE,
-    // 入口产物（dist/）的位置：工厂按它算层目录，并在当场校验那格存在。
-    selfEntryUrl: import.meta.url,
+  return {
+    name: NAMESPACE,
+    loadContent() {
+      // 交出的那一页要由 component-page 判表才挂得上来；解析器插件缺了则是本包那几份
+      // 未编译的 `.tsx` / `.ts` 没人认领。两样都在这里点名，而不是让 webpack 在某个页面文件
+      // 上抛、或让那一页安静地不出现。
+      assertThemePrerequisites(context, {
+        namespace: NAMESPACE,
+        componentPage: true,
+      });
+
+      return {
+        componentPage: {
+          components: [{ id: 'stoplight', component: '@theme/StoplightView' }],
+          rules: [
+            {
+              key: 'stoplight',
+              match: 'boolean',
+              component: 'stoplight',
+              render: 'iframe',
+            },
+          ],
+        },
+      } satisfies ComponentPageContent;
+    },
+    // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus 项目
+    // 会用自己的 babel 编译它们。这里只编译 `src/` 那一份（入口）。
+    //
+    // 「谁来编」归 `@show-docs/docusaurus-plugin-prev-layer-resolver`（它按 `@show-docs`
+    // 这个 scope 认领 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
+    getThemePath() {
+      return resolve(thisDir, '../theme');
+    },
+    // 层里放的是 `.tsx`，这条给 `docusaurus swizzle` 用
+    getTypeScriptThemePath() {
+      return resolve(thisDir, '../theme');
+    },
     configureWebpack(config, isServer, utils) {
       // 这份样式表的边界客户端与服务端都要改（上面那一节的理由）；补 Node 核心模块那几样
       // 只有浏览器 bundle 需要。
@@ -80,5 +125,5 @@ export default function theme(context: LoadContext): Plugin {
         },
       };
     },
-  });
+  };
 }

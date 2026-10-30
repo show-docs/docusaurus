@@ -3,9 +3,9 @@ import type { FrameLocator, Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
 import {
+  componentFrameDoc,
   frameModeSignal,
   layerDemoUrl,
-  layerFrameDoc,
   siteStyles,
   watchPageErrors,
 } from '../helpers.mts';
@@ -15,8 +15,8 @@ const { Given, When, Then } = createBdd();
 /**
 ## 这一层的判据分两份文档量，口径与 `theme-redoc` 一对一
 
-命中页（`/theme-stoplight/docs/stoplight-demo`）里只有一个 iframe，Elements 整个跑在框内那份文档（本包那条插件路由
-`/stoplight-view`）上。每条判据都得指名站在哪一份文档里量：
+命中页（`/theme-stoplight/docs/stoplight-demo`）里只有一个 iframe，Elements 整个跑在框内那份文档
+（component-page 那条通用框内路由 `/__component-frame`）上。每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有 Elements 的 DOM，也不该有它那份样式表；
 - 框内：`frameDoc(page)` —— 它是那一份文档的**框**（`Locator#contentFrame()` 交回 `FrameLocator`，
@@ -24,14 +24,14 @@ const { Given, When, Then } = createBdd();
   `html` 那一颗，回调里再拿 `el.ownerDocument`。
 
 同源，两边都能直接读 DOM 与 CSSOM，不需要往测试里塞第二层通道。
-「切成暗色」「做个记号」「配色跟着翻」那三步，加上「打开哪一页」「框的 `src` 指向哪儿」那五句，
-三层只差一个层名，共用一份实现，在 `common.steps.mts`。
+「切成暗色」「做个记号」「配色跟着翻」那三步，加上「打开哪一页」「框的 `src` 指向哪儿」那几句，
+三层只差一个层名（框现在三层共用一个），共用一份实现，在 `common.steps.mts`。
 
 Elements 的路由也走 hash，但它认 `operationId` **原样**（`createOrder` 就是 `createOrder`，
 Redoc 那边是小写的），下面的 href 按浏览器里真的那串写。href 不带路径前缀，是因为框内那份文档
 的地址里没有前缀可剥（口径记在 `packages/theme-stoplight/docs/internals.md`）。
 */
-const frameDoc = (page: Page): FrameLocator => layerFrameDoc(page, 'stoplight');
+const frameDoc = (page: Page): FrameLocator => componentFrameDoc(page);
 
 /** 包着 Elements 的那层壳，也是本层那份版式的作用范围。 */
 const root = (page: Page): Locator => frameDoc(page).locator('.stoplight-root');
@@ -314,8 +314,8 @@ Then('站点自己的那几处样式不被 Elements 改写', async ({ page }) =>
 Elements 那套配色（`@stoplight/mosaic`）自带亮暗模式：判据是它自己存在 localStorage 里那份存档
 （`mosaic-theme`，默认 `light`），再往 `<html>` 上写 `data-theme` —— 和站点那条属性**同名**。
 它的暗色表就挂在 `[data-theme=dark]` 上，所以这一层不需要像 `theme-redoc` 那样改写谁的选择器：
-把站点这一头的模式随消息送进框内、写在同一条属性上就够了（本包 `theme/StoplightPage` 交给
-框内工厂 `packages/theme-iframe/lib/api-frame-view.tsx` 的那条 `modeAttribute`，
+把站点这一头的模式随消息送进框内、写在同一条属性上就够了（本包 `theme/StoplightView` 把
+`applyStoplightColorMode` 交给 component-page 那条握手 `useFrameMode`，属性名
 `COLOR_MODE_ATTRIBUTE` 就定义在 `stoplight-color-mode.ts`）。
 
 多出来的一格是**同名**：框内那份文档自己也有一份 `data-theme`（Docusaurus 的内联脚本按
@@ -382,17 +382,25 @@ Then('站点自己的那几处样式在暗色下也不被 Elements 改写', asyn
   ).toEqual(onStoplightPage);
 });
 
-Then('这一页直接渲染 Elements', async ({ page }) => {
-  await expect(page.locator('.stoplight-root')).toBeVisible();
-  await expect(page.locator('.stoplight-root')).toContainText(
-    'Stoplight 演示 API',
-  );
+/**
+键写了、文档地址没给时框里那一句说明（`theme/StoplightView` 里那条 `Admonition`）。
+
+与上一条是一对：说明在、渲染器不在。认的是官方 `Admonition` 的稳定类名 `theme-admonition`，
+标题按原文比。
+*/
+Then('框里说明这一页没给 Stoplight 要渲染的文档', async ({ page }) => {
+  await expect(
+    frameDoc(page).locator('.theme-admonition'),
+    '框里没有那条说明：缺输入时它该摆这一句',
+  ).toContainText('这一页没给 Stoplight 要渲染的文档');
 });
 
 /**
-地址里缺 `src`（或写成解析不成 http(s) 的东西）时这一格什么都不摆。这一页是条公开地址，
-任何人都能直接打开它，所以按「什么都不摆」钉死。
+框里没有 Elements 的壳。
+
+Elements 拿到空地址会摆出它自己那一格报错（`apiDescriptionUrl` 取不到时那条），本层在把地址交给
+它之前就挡下来（`theme/StoplightView`），所以这一格既没有渲染器也没有它的报错页。
 */
 Then('Elements 那一格不出现', async ({ page }) => {
-  await expect(page.locator('.stoplight-root')).toHaveCount(0);
+  await expect(frameDoc(page).locator('.stoplight-root')).toHaveCount(0);
 });

@@ -1,7 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -12,8 +12,9 @@ export default function theme(context: LoadContext): Plugin {
   return {
     name: '@show-docs/docusaurus-theme-copy-button',
     loadContent() {
-      // 本层只在构建期引 theme-iframe 的一条纯函数，不需要它的插件规则；但 `theme/` 是
-      // 未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，缺了它同样是构建期才炸。
+      // 本层只在构建期引 component-page 的一条纯函数（那句安装前提检查），不需要它的插件规则；
+      // 但 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，缺了它同样是
+      // 构建期才炸。
       assertThemePrerequisites(context, {
         namespace: '@show-docs/docusaurus-theme-copy-button',
       });

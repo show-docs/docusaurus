@@ -6,8 +6,8 @@ import { watchPageErrors } from '../helpers.mts';
 
 const { Given, Then } = createBdd();
 
-/** 这一层留下的只有一个 iframe，两句都从它出发。 */
-const frame = (page: Page): Locator => page.locator('iframe');
+/** 这一层留下的只有一把外部框，两句都从它出发。 */
+const frame = (page: Page): Locator => page.locator('iframe.external-frame');
 
 /** 读 DOM 的 `src` **属性**：浏览器给的是绝对形式。HTML 里写的那一格构建期是 frontmatter
 的原值、激活后才是补完的地址，跟着时序飘，所以只能在浏览器里读属性。 */
@@ -32,7 +32,7 @@ Then('页面上有一个 iframe', async ({ page }) => {
 });
 
 // 整页交给外部框以后，`<iframe>` 的 `title` 是这一页在辅助技术里唯一的名字。
-// 页面写了 `frontMatter.title` 时用的就是它（注册表那条「其他文档」只兜底）。
+// 页面写了 `frontMatter.title` 时用的就是它（缺它才落到 `theme/ExternalFrame` 里那句「嵌入的页面」）。
 Then('框的无障碍标题用的是页面自己的标题', async ({ page }) => {
   await expect(
     frame(page).first(),
@@ -67,8 +67,8 @@ Then('被嵌的那一页在框里真的渲染出来', async ({ page }) => {
 });
 
 /**
-theme-iframe 那份共用版式（`components/api-frame.css`）定的口径：
-`.api-frame` 的 `height: calc(100vh - var(--ifm-navbar-height))`，
+theme-iframe 那份版式（`components/external-frame.css`）定的口径：
+`.external-frame` 的 `height: calc(100vh - var(--ifm-navbar-height))`，
 所以那一格的上沿贴着 navbar 的下沿、下沿贴着视口的下沿，各留 1px 容差。
 
 下沿那一句钉的是 `height` 这条公式没退回 iframe 默认的 150px：这一层不给容器定高，
@@ -98,7 +98,7 @@ Then('iframe 占满 navbar 以下那一屏', async ({ page }) => {
   ).toBeLessThanOrEqual(1);
 });
 
-// 整幅让位那一条：`components/api-frame.css` 里的 `.container:has(iframe)`。
+// 整幅让位那一条：`components/external-frame.css` 里的 `.container:has(iframe)`。
 Then('承载它的容器不留内边距', async ({ page }) => {
   const container = page.locator('.container:has(iframe)');
   await expect(container, 'iframe 没落在 `.container` 里').toHaveCount(1);

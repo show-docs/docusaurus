@@ -1,5 +1,6 @@
 /**
-本层那份清单的**形状**：配置期写它（`src/config.mts` 校验成这个样子），浏览器期读它
+本层那份「组件登记表 + 规则表」的**形状**：配置期写它（`src/config.mts` 校验成这个样子，
+`src/contribute.mts` 把各包交来的合成一张表），浏览器期读它
 （`lib/component-page.ts` 按它判命中、组装入参，`theme/DocItem` 只负责挂上去）。
 
 形状为什么单独占一份 `.d.ts`，而不是和判据一起留在 `lib/`：`src/` 要过 `tsc`
@@ -25,22 +26,73 @@
 */
 export type ComponentPageMatch = 'boolean' | 'value' | 'options' | 'any'
 
-/** 清单里的一条：一把键 + 判法 + 给那个组件的静态入参。 */
-export type ComponentPageEntry = {
+/**
+命中判据读哪一处：
+
+- `auto`（缺省）：先看这一页 frontmatter 里同名的键，没有再看 MDX 模块上同名的命名导出；
+  两处都没有算没写。显式写了 `false` 的那一把**不回退**到另一处 —— 那是作者说定的「不要」。
+- `frontMatter`：只读 frontmatter，同名模块导出不算命中。嵌外站地址那一类键用它：
+  正文里恰好有一条同名导出就把整页换成框，不是作者的本意。
+*/
+export type ComponentPageSource = 'auto' | 'frontMatter'
+
+/**
+命中之后在哪儿渲染：
+
+- `page`（缺省）：在当前这份文档里渲染那个组件，能用父页面的上下文，并额外收到 MDX `content`。
+- `iframe`：由本层创建一份**同源**独立文档（那条通用框内路由），在框内渲染那个组件；
+  不传 React `content`，也不传父页上下文 —— 框里的渲染器代码一行都不在父文档执行。
+*/
+export type ComponentPageRender = 'page' | 'iframe'
+
+/** 一个组件登记进本层的那一条：全站唯一的 id，加上它真正的模块说明符。 */
+export type ComponentRegistration = {
   /**
-  那一把键的名字。判据按它读两处：先看这一页 frontmatter 里同名的键，没有再看 MDX 模块上
-  同名的命名导出（读法见下文的 `ComponentPageFacts`）。两处都没有 = 这一条不命中。
+  这个组件在这张表里的名字。规则用 `component` 引用它，框内那条路由也按它找组件。
+  建议写成 `包名/组件名`：两条规则指向同一个组件时才谈得上「同一个 id」，多个实例各用自己的。
+  */
+  id: string
+  /**
+  那个组件的模块说明符，判据是 webpack 的别名表认不认它。推荐写 `@theme/X`：那条别名跟着
+  层栈走，站点在 `src/theme/X` 放一份就覆写掉实现，不必回配置里改。
+  */
+  component: string
+}
+
+/** 一条规则：一把键 + 引用哪个组件 + 怎么判命中 + 渲染在哪儿 + 给那个组件的静态入参。 */
+export type ComponentPageRuleDeclaration = {
+  /**
+  那一把键的名字。按 `source` 那一格的读法去读它（先看 frontmatter，再看 MDX 模块上的
+  同名命名导出）。两处都没有 = 这一条不命中。
   */
   key: string
-  /** 这条键怎么算命中；缺它按 `boolean`（见 `src/config.mts` 的归一化）。 */
-  match: ComponentPageMatch
+  /** 命中之后挂的那个组件：`ComponentRegistration` 里那一个的 `id`，**不是**模块路径。 */
+  component: string
+  /** 这把键怎么算命中；缺它按 `boolean`。 */
+  match?: ComponentPageMatch
+  /** 判据读哪一处；缺它按 `auto`。 */
+  source?: ComponentPageSource
+  /** 命中后在哪儿渲染；缺它按 `page`。 */
+  render?: ComponentPageRender
   /**
-  配置里 `props` 那一格，原样并交进组件的入参。与下面那三份（`frontMatter` / `value` /
-  `content`）同名时**以本页那三份为准** —— 那一格是每一页共用的入参，不该盖掉本页的事实；
-  次序住在 `lib/component-page.ts` 的 `componentPageProps()`。
-  它随生成模块进产物，所以要能写成 JS 字面量：站点配置里就是普通对象与字符串，不放函数。
+  配置里 `props` 那一格，原样并交进组件的入参。与下面那几格（`frontMatter` / `value`，
+  `page` 那种还多一格 `content`）同名时**以本页那几格为准** —— 那一格是每一页共用的入参，
+  不该盖掉本页的事实；次序住在 `lib/component-page.ts` 的 `componentPageProps()`。
+  它要进产物（`iframe` 那种还得跨 postMessage 送），所以只能放纯数据，不放函数。
   */
   props?: Record<string, unknown>
+}
+
+/**
+归一化之后的一条规则：声明里那三格缺省的判法都补成了明写的值。
+
+`id` 是 `component` 引用到的那个登记名；生成模块按它把真的组件挂上（`page` 那一侧）或
+按它查表（`iframe` 那一侧），本层不静默丢引用。
+*/
+export type ComponentPageRule = ComponentPageRuleDeclaration & {
+  match: ComponentPageMatch
+  source: ComponentPageSource
+  render: ComponentPageRender
 }
 
 /** 命中那把键写下的值：`boolean` 恒为 `true`，`value` 是那串非空文本，`options` / `any` 是写下的那一格。 */
@@ -53,8 +105,8 @@ export type ComponentPageValue = true | string | Record<string, unknown>
 - `content`：这一页 MDX 模块的 default 组件。Docusaurus 的 `ComponentCreator` 把每个非 `default`
   的命名导出挂到它身上，所以 `content.dbml_json` 这种编译期由 loader 产出的值也在这里。
 
-**同名时 `frontMatter` 赢**：那是作者手写、看得见的一格，导出是编译产物。两处都没有才算没写。
-写在哪一份不影响判法，四种判法与形状门槛对两份一视同仁（`lib/component-page.ts`）。
+`auto` 那一种读法两处都读，**同名时 `frontMatter` 赢**：那是作者手写、看得见的一格，导出是编译产物。
+两处都没有才算没写。`frontMatter` 那一种只读第一份（见 `ComponentPageSource`）。
 */
 export type ComponentPageFacts = {
   /** 这一页的 frontmatter 整份；非文档页可以缺席。 */
@@ -64,46 +116,43 @@ export type ComponentPageFacts = {
 }
 
 /**
-**配置里**写在一条条目上的形状：`ComponentPageEntry` 再多一格「命中后挂哪个组件」。
+别的主题包从 `loadContent()` 交回的那一格；**键名就是约定**。
 
-站点把它写在插件选项的 `pages` 里（`component` 那一格还认 `false`，见 `src/index.mts`），
-别的主题包把它放进 `loadContent()` 交回的 `ComponentPageContent`（那一格不认 `false`：
-包不能替站点决定自己不生效）。
-*/
-export type ComponentPageDeclaration = Omit<ComponentPageEntry, 'match'> & {
-  /** 那个组件的模块说明符，判据是 webpack 的别名表认不认它。 */
-  component: string
-  /** 这把键怎么算命中；缺它按 `boolean`。 */
-  match?: ComponentPageMatch
-}
+本层在 `allContentLoaded` 里只看这一格：content 是对象、且身上有 `componentPage`，就算那个
+插件贡献了东西；没有这一格 = 不交。写歪了由 `src/config.mts` 那一条校验点名到
+`componentPage（<插件> 交出的）.哪一格`。
 
-/**
-贡献方从 `loadContent()` 交回的那一格；**键名就是约定**。
+两条臂都可以缺席：只交组件不交默认规则（组件留给站点的规则引用），或只交默认规则、组件由别人
+登记。`rules` 里那一格 `component` 引用的是**全站**那张登记表里的名字 —— 站点自己或任何一个包
+登记的都算，查不到那条规则红在配置期（查表的口径见 `src/contribute.mts`）。
 
-本层在 `allContentLoaded` 里只看这一格：content 是对象、且身上有 `componentPages`，就算那个
-插件交出了条目；没有这一格 = 不交。形状走与站点列同一条校验（`src/config.mts`），写歪了由
-那一条点名到 `pages（<插件> 交出的）[下标].哪一格`。
-
-这条约定住在包的类型出口里，贡献方（比如 `theme-iframe`）`import type` 它来标注自己交回的
+这条约定住在包的类型出口里，贡献方（比如 `theme-scalar`）`import type` 它来标注自己交回的
 东西，形状就不会在贡献方与校验方各写一遍；`import type` 不留运行时依赖。
 */
+export type ComponentPageContribution = {
+  components?: readonly ComponentRegistration[]
+  rules?: readonly ComponentPageRuleDeclaration[]
+}
+
+/** content 上那一格的形状：键名 `componentPage`，值是上面那份贡献。 */
 export type ComponentPageContent = {
-  componentPages: readonly ComponentPageDeclaration[]
+  componentPage: ComponentPageContribution
 }
 
 /**
-交进那个组件的入参：本层给的三份 + 配置里 `props` 那格并进来的其余各份。
-三份和后者的次序由 `lib/component-page.ts` 的 `componentPageProps()` 定一次：**同名的键那三份赢**。
+交进那个组件的入参：本层给的几份 + 配置里 `props` 那格并进来的其余各份。
+次序由 `lib/component-page.ts` 的 `componentPageProps()` 定一次：**同名的那几份本页事实赢**。
 
-`content` 这一格是这一层「替换 `DocItem`」的出口而不是入口：整页交出去之后，那个组件想留
-正文就自己渲染它（命中时本层不再往下走，下层那份 `DocItem` 给不了它）。
+`content` 这一格只在 `render: 'page'` 时有：它是这一层「替换 `DocItem`」的出口而不是入口 ——
+整页交出去之后，那个组件想留正文就自己渲染它（命中时本层不再往下走，下层那份 `DocItem`
+给不了它）。`render: 'iframe'` 时框里那份文档没有父页的 React 树，这一格恒为 `undefined`。
 */
 export type ComponentPageProps = {
   /** 这一页的 frontmatter 整份，组件据此读它自己的其余键。 */
   frontMatter: Record<string, unknown>
   /** 命中的那把键写下的值。 */
   value: ComponentPageValue
-  /** 这一页的正文组件（MDX 编译出来的那一份）。 */
+  /** 这一页的正文组件（MDX 编译出来的那一份）；只有 `page` 那一侧送得进去。 */
   content?: unknown
   /** 配置里 `props` 那一格并进来的静态入参。 */
   [prop: string]: unknown

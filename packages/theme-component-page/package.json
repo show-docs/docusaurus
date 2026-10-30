@@ -20,11 +20,18 @@
       "types": "./dist/index.d.mts"
     },
     "./lib/*": "./lib/*",
+    "./prerequisites": {
+      "default": "./dist/prerequisites.mjs",
+      "types": "./dist/prerequisites.d.mts"
+    },
     "./types/*": "./types/*"
   },
   "files": [
+    "components",
     "dist",
     "lib",
+    "src/frame-route.ts",
+    "src/prerequisites.mts",
     "theme",
     "types"
   ],

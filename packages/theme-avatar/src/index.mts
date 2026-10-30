@@ -29,7 +29,7 @@ Docusaurus 项目会用自己的 babel 编译它们；「谁来编」归
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 

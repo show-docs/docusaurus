@@ -148,27 +148,51 @@ console.log(`
 - @theme-original/X 保持官方语义（全局赢家），本机制没有改动它（test/layers.test.mts 钉住）。
 `);
 
-// ---- 3. 「整页交给一个组件」的那几页真的由 `loadContent()` 交进了 component-page 的清单 ----
-// 判定住在各交出方：iframe 那族的三条 API 层（`lib/api-frame-theme.mts` 的工厂代它们交）与本层
-// 各交自己那一页，`component` 全是 `@theme/ApiFramePage`，顺序 = 站点 `plugins` 的声明顺序
-// （命中优先级）；`theme-markmap` 交那一页 `markmap`（`src/component-pages.mts`），组件是
-// `@theme/MarkmapPage`；`theme-diff` 交那一页 `diff`（同样在 `src/component-pages.mts`），
-// 组件是 `@theme/DiffPage`；`theme-erd` 交的是 `dbml_json`（`dbml-loader` 追加的那条命名导出，
-// 名字与清单里那把键一致），组件是 `@theme/ErdPage`。浏览器侧不再读 `siteConfig.plugins`，
-// 所以这里看的是 component-page 那份生成模块，而不是生成的浏览器配置。这一条同时钉住「本站
-// 声明的那几条真的被各包交了出来」——哪一层没声明或没交，清单里就少一条。
-const FRAME_KEYS = ['scalar', 'redoc', 'stoplight', 'iframe'];
-const FRAME_MATCHES = ['boolean', 'boolean', 'boolean', 'value'];
-const registryFile = path.join(
-  root,
-  '.docusaurus/theme-component-page/registry.ts',
-);
-console.log('\ncomponent-page 的生成清单（各交出方的落点）：');
-if (fs.existsSync(registryFile)) {
+// ---- 3. 「整页交给一个组件」的那几页真的进了 component-page 那两张生成表 ----
+// 每个交出方在自己的 `loadContent()` 里交一份组件登记 + 一条规则（三条 API 层交 `scalar` /
+// `redoc` / `stoplight` 那三把键、都写 `render: 'iframe'`；`theme-iframe` 只交 `iframe:` 那一把
+// 外部站点的框，`render` 用缺省的 `page`；`theme-markmap` / `theme-erd` / `theme-diff` 各交自己
+// 那一格视图；本站还有一条指向站点自己 `src/theme/ComponentPageDemo` 的规则，写在插件选项里）。
+// 合成那张表的是机制层：站点那一列排前面（顺序 = 命中优先级），没被提过的默认规则按键名接在后面。
+// 浏览器侧不读 `siteConfig.plugins`，所以这里看的是两份生成模块，而不是生成的浏览器配置。
+// 这一条同时钉住「本站声明的那几条真的被各包交了出来」—— 哪一层没声明或没交，表里就少一条。
+const SITE_FIRST = ['componentPage', 'scalar', 'redoc', 'stoplight', 'iframe'];
+const DEFAULT_TAIL = ['dbml_json', 'diff', 'markmap'];
+const FRAME_ROWS = [
+  { component: 'scalar', key: 'scalar', specifier: '@theme/ScalarView' },
+  { component: 'redoc', key: 'redoc', specifier: '@theme/RedocView' },
+  {
+    component: 'stoplight',
+    key: 'stoplight',
+    specifier: '@theme/StoplightView',
+  },
+];
+/** `render: 'page'` 那几条：登记名与渲染它的那份组件（后者从文件头那张 import 表查）。 */
+const PAGE_ROWS = [
+  {
+    component: 'site/ComponentPageDemo',
+    key: 'componentPage',
+    specifier: '@theme/ComponentPageDemo',
+  },
+  {
+    component: 'external-frame',
+    key: 'iframe',
+    specifier: '@theme/ExternalFrame',
+  },
+  { component: 'markmap', key: 'markmap', specifier: '@theme/MarkmapPage' },
+  { component: 'erd', key: 'dbml_json', specifier: '@theme/ErdPage' },
+  { component: 'diff', key: 'diff', specifier: '@theme/DiffPage' },
+];
+
+const generatedDir = path.join(root, '.docusaurus/theme-component-page');
+const registryFile = path.join(generatedDir, 'registry.ts');
+const frameRegistryFile = path.join(generatedDir, 'frame-registry.ts');
+console.log('\ncomponent-page 生成的两张表（各交出方的落点）：');
+if (fs.existsSync(registryFile) && fs.existsSync(frameRegistryFile)) {
   const source = fs.readFileSync(registryFile, 'utf8');
-  // 生成模块里每条是 `key` / `match` / `props` / `Component` 四行，`Component` 指回文件头的
-  // 那句 `import` —— 认组件说明符要看那张表，不能只看键名。`props` 也可能是 `undefined`
-  // （不带静态入参的条目，比如 markmap 交的那一页）。
+  // 生成模块里每条是 `key` / `match` / `source` / `render` / `component` / `props` 六行，
+  // `render: 'page'` 的那些再多一行 `Component` 指回文件头那句 `import` —— 认组件说明符要看
+  // 那张 import 表，不能只看登记名。`props` 也可能是 `undefined`（不带静态入参的那些条目）。
   const imports = new Map(
     source
       .matchAll(/^import (ComponentPage\d+) from "([^"]+)";$/gm)
@@ -176,83 +200,130 @@ if (fs.existsSync(registryFile)) {
   );
   const entries = source
     .matchAll(
-      /key: "([^"]+)",\n\s+match: "([^"]+)",\n\s+props: (\{[^}]*\}|undefined),\n\s+Component: (ComponentPage\d+),/g,
+      /\{\s*key: "([^"]+)",\s*match: "([^"]+)",\s*source: "([^"]+)",\s*render: "([^"]+)",\s*component: "([^"]+)",\s*props: (\{[^}]*\}|undefined)(?:,\s*Component: (ComponentPage\d+))?/g,
     )
-    .map(([, key, match, props, component]) => ({
-      key: key!,
-      match: match!,
-      namespace: props!.startsWith('{')
-        ? (JSON.parse(props!) as { namespace?: unknown }).namespace
-        : undefined,
-      specifier: imports.get(component!),
+    .map(
+      ([, key, match, frontMatterSource, render, component, props, local]) => ({
+        component: component!,
+        key: key!,
+        match: match!,
+        props: props!,
+        render: render!,
+        specifier: local === undefined ? undefined : imports.get(local),
+        source: frontMatterSource!,
+      }),
+    )
+    .toArray();
+
+  // 框内那张表（登记名 → 组件）：`render: 'iframe'` 的三条不在页面上铺组件，而是指向通用框内
+  // 路由，由那份文档按送进来的登记名查这里 —— 所以两张表都要看，只看第一张会漏掉
+  // 「表里有条、框里没有」那一半。
+  const frameSource = fs.readFileSync(frameRegistryFile, 'utf8');
+  const frameImports = new Map(
+    frameSource
+      .matchAll(/^import (FrameComponent\d+) from "([^"]+)";$/gm)
+      .map(([, local, specifier]) => [local!, specifier!]),
+  );
+  const frameEntries = frameSource
+    .matchAll(/\{ id: "([^"]+)", Component: (FrameComponent\d+) \}/g)
+    .map(([, id, local]) => ({
+      id: id!,
+      specifier: frameImports.get(local!),
     }))
     .toArray();
-  const frames = entries.filter(
-    (entry) => entry.specifier === '@theme/ApiFramePage',
-  );
 
-  const keysOk =
-    frames.length === FRAME_KEYS.length &&
-    frames.every((entry, index) => entry.key === FRAME_KEYS[index]);
+  const order = entries.map((entry) => entry.key);
+  const expected = [...SITE_FIRST, ...DEFAULT_TAIL];
+  const orderOk =
+    order.length === expected.length &&
+    order.every((key, index) => key === expected[index]);
   console.log(
-    `   ${keysOk ? '✅' : '❌'} 框页（顺序 = 命中优先级）：${frames.map((entry) => entry.key).join(' > ') || '(无)'}`,
+    `   ${orderOk ? '✅' : '❌'} 表的顺序（= 命中优先级）：${order.join(' > ') || '(无)'}`,
   );
-  if (!keysOk) {
+  if (!orderOk) {
     console.log(
-      `   → 期望 ${FRAME_KEYS.join(' > ')}：站点 \`plugins\` 的声明顺序，且每一条都指向 \`@theme/ApiFramePage\`。`,
+      `   → 期望 ${expected.join(' > ')}：站点 \`rules\` 那一列排前面（就是插件选项里写的先后），`,
     );
     console.log(
-      '      少了哪一条，先看站点 `plugins` 里那一层还在不在；三条 API 层由工厂代交，`iframe:` 由 theme-iframe 自己交。',
+      '      没被那一列提过的默认规则按键名的固定字符串顺序接在后面。少了哪一条，先看交出它的那一层还在不在 `plugins` 里。',
     );
     isOk = false;
   }
 
-  const shapeOkAt = (entry: (typeof frames)[number], index: number): boolean =>
-    entry.match === FRAME_MATCHES[index] &&
-    entry.namespace === `@show-docs/docusaurus-theme-${entry.key}`;
-  const shapesOk = frames.every((entry, index) => shapeOkAt(entry, index));
-  for (const [index, entry] of frames.entries()) {
-    const ok = shapeOkAt(entry, index);
+  for (const row of PAGE_ROWS) {
+    const entry = entries.find((candidate) => candidate.key === row.key);
+    const ok =
+      entry?.render === 'page' &&
+      entry.component === row.component &&
+      entry.specifier === row.specifier;
     console.log(
-      `   ${ok ? '✅' : '❌'} ${entry.key}  match=${entry.match}  namespace=${String(entry.namespace)}`,
+      `   ${ok ? '✅' : '❌'} ${row.key}  render=${String(entry?.render)}  这一格由 ${String(entry?.specifier)} 铺在正文里`,
     );
     if (!ok) {
       console.log(
-        `      → 期望 match=${FRAME_MATCHES[index]}、namespace=@show-docs/docusaurus-theme-${entry.key}`,
+        `      → 期望 render=page、规则引用登记名 \`${row.component}\`，而那份组件在站点层栈里解析成 \`${row.specifier}\`。`,
       );
     }
+    isOk &&= ok;
   }
-  isOk &&= shapesOk;
 
-  // 三处视图层：`markmap` 按「开关或选项对象」判，`diff` 按「开关还能写参数」判（`true` /
-  // 路径 / `{ old, new }` 都算命中），`dbml_json` 是 erd 的 loader 追加的那条导出（恒是对象）。
-  // 命中的页各由本包的页面组件接。
-  const viewPages = [
-    { key: 'markmap', match: 'options', specifier: '@theme/MarkmapPage' },
-    { key: 'dbml_json', match: 'any', specifier: '@theme/ErdPage' },
-    { key: 'diff', match: 'any', specifier: '@theme/DiffPage' },
-  ];
-  for (const page of viewPages) {
-    const entry = entries.find((candidate) => candidate.key === page.key);
+  for (const row of FRAME_ROWS) {
+    const entry = entries.find((candidate) => candidate.key === row.key);
+    const frame = frameEntries.find(
+      (candidate) => candidate.id === row.component,
+    );
     const ok =
-      entry?.match === page.match && entry.specifier === page.specifier;
+      entry?.render === 'iframe' &&
+      entry.match === 'boolean' &&
+      entry.component === row.component &&
+      frame?.specifier === row.specifier;
     console.log(
-      `   ${ok ? '✅' : '❌'} ${page.key}  match=${String(entry?.match)}  → ${String(entry?.specifier)}`,
+      `   ${ok ? '✅' : '❌'} ${row.key}  render=iframe  → 框内登记名 ${row.component} = ${String(frame?.specifier)}`,
     );
-    if (ok) {
-      continue;
+    if (!ok) {
+      console.log(
+        `      → 期望这条规则 match=boolean、render=iframe 并引用登记名 \`${row.component}\`，那份组件在框内那张表里。`,
+      );
     }
-    console.log(
-      `      → 期望 match=${page.match} 且指向 \`${page.specifier}\`：站点 \`plugins\` 里还该有交出它的那一层，`,
-    );
-    console.log(
-      `        条目由各包 src/component-pages.mts 交回 component-page 的清单。`,
-    );
-    isOk = false;
+    isOk &&= ok;
   }
+
+  // `iframe:` 那一把键只由 `theme-iframe` 交出：卸载它，表里少这一条，上面三条 API 照常。
+  const iframeEntry = entries.find((candidate) => candidate.key === 'iframe');
+  const iframeOk =
+    iframeEntry?.source === 'frontMatter' && iframeEntry.match === 'value';
+  console.log(
+    `   ${iframeOk ? '✅' : '❌'} iframe:  只读 frontmatter（source=${String(
+      iframeEntry?.source,
+    )}，match=${String(iframeEntry?.match)}）`,
+  );
+  if (!iframeOk) {
+    console.log(
+      '   → 期望 source=frontMatter、match=value：正文里恰好有一条同名导出就把整页换成框，不是作者的本意。',
+    );
+  }
+  isOk &&= iframeOk;
+
+  // 那条通用框内路由真的生成了页面：三条 API 都落在这**一条**路由上（渲染哪个组件由送进框里的
+  // 登记名决定），各包不再自带 `/xxx-view`。
+  const framePage = [
+    'build/__component-frame/index.html',
+    'build/__component-frame.html',
+  ].find((file) => fs.existsSync(path.join(root, file)));
+  console.log(
+    `   ${framePage ? '✅' : '❌'} 通用框内那条路由真的产出了页面${
+      framePage ? `：${framePage}` : ''
+    }`,
+  );
+  if (framePage === undefined) {
+    console.log(
+      '   → 没找到 build/__component-frame：机制层在 `allContentLoaded` 里把它 `addRoute` 出去，缺了就是那条注册没跑。',
+    );
+  }
+  isOk &&= framePage !== undefined;
 } else {
   console.log(
-    '   ❌ 没找到 .docusaurus/theme-component-page/registry.ts（pnpm build 应当生成它）',
+    '   ❌ 没找到 .docusaurus/theme-component-page/{registry,frame-registry}.ts（pnpm build 应当生成它们）',
   );
   isOk = false;
 }
@@ -262,7 +333,8 @@ if (fs.existsSync(registryFile)) {
 // 只是 css-minimizer-webpack-plugin 带的备选，默认没走），而 clean-css 不认识 CSS Nesting：
 // `@scalar/api-reference` 那份样式表里
 // `@container client-libraries-list` 下的 `.client-libraries__select{&[data-v-…]{…}}` 被整块吞掉，
-// 边界上还多出一个 `}`（括号总账 -1）。症状只在 `/scalar-view` 与 scalar-demo 上可见，
+// 边界上还多出一个 `}`（括号总账 -1）。症状只在通用框内那条路由（`/__component-frame`）与
+// scalar-demo 上可见，
 // 构建全程零告警 —— 只有对着产物数括号才看得见，所以这条护栏钉的就是产物本身。
 //
 // 判据是「规则还在 + 括号配平」，**不钉文件大小**：换压缩器、加依赖、多一条样式都会让尺寸变。

@@ -1,6 +1,6 @@
-/* Redoc 渲染区的落位。**这一份 CSS 生效在框内那一页**（`/redoc-view`，见包 README 的
-   「渲染方式」一节）：站点的文档页里根本没有 `.redoc-root` 这一格，
-   下面每条规则的落点都是框内那份文档。
+/* Redoc 渲染区的落位。**这一份 CSS 生效在框内那一页**（component-page 那条共用的
+   `/__component-frame` 路由，见包 README 的「渲染方式」一节）：站点的文档页里根本没有
+   `.redoc-root` 这一格，下面每条规则的落点都是框内那份文档。
 
    与 theme-stoplight 不同的一处：Redoc 的样式是 styled-components 在**运行时**注入的
    `\3c style>`，构建期那份静态样式表不存在，`configurePostCss()` 圈不住它。曾经本层在运行期
@@ -19,8 +19,8 @@
    所以那一层定高是对的）。
 
    框内那份文档没有 navbar，Redoc 又没拿到 `scrollYOffset` 那个函数，于是那两条变量都是 0，
-   左栏正好铺满整屏；外层文档页里那一格的尺寸在 theme-iframe 那份共用的
-   `components/api-frame.css`，两边各管各的文档。 */
+   左栏正好铺满整屏；外层文档页里那一格的尺寸在 component-page 那份共用的
+   `components/component-frame.css`，两边各管各的文档。 */
 
 /* Redoc 自己那四处里走 CSS 的三处，全是 `display: none`：元素仍留在 DOM 里，所以 e2e 那几句
    按可见性判、不按数量判。第四处（正文最前面那一格下载）走的是配置，见 `redoc-ui.tsx`。

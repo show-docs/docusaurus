@@ -8,7 +8,7 @@ import { createRoot } from 'react-dom/client';
 import {
   createLocationMirror,
   type RouterLocation,
-} from '../packages/theme-iframe/lib/location-mirror.tsx';
+} from '../packages/theme-component-page/lib/location-mirror.tsx';
 
 /**
 `theme-redoc` / `theme-stoplight` 共用那一格地址镜像的分支单测（`@vitest-environment jsdom`）。

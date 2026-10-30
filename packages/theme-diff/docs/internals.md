@@ -117,7 +117,7 @@ frontmatter 原文，跟 YAML 把它读成什么都不影响是两回事。
   单份那种来源里右边是磁盘上此刻这一份，这一页改一行、或下一笔提交都会变。对照那两条只认两份文件名与
   「有改动行」这一格。
 - 共用外壳：三条视图层（本包、`theme-markmap`、`theme-erd`）的兜底、视图那一格、宽度补丁与页面组件的
-  全部内容都只有一份实现，住在 `packages/theme-iframe/lib/view-layer-shell.tsx`，每个包只留
+  全部内容都只有一份实现，住在 `packages/theme-component-page/lib/view-layer-shell.tsx`，每个包只留
   「交哪把键、交哪个组件、交哪段说法」—— 三条都是清单挂上的页面（`DiffPage` / `MarkmapPage` /
   `ErdPage`，三页结构逐行相同）；
   `test/view-layer-copies.test.mts` 钉「三处引的是同一份」，`test/view-layer-shell.test.mts`

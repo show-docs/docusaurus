@@ -8,7 +8,7 @@ import { createRoot } from 'react-dom/client';
 import {
   ViewLayer,
   ViewLayerDocItem,
-} from '../packages/theme-iframe/lib/view-layer-shell.tsx';
+} from '../packages/theme-component-page/lib/view-layer-shell.tsx';
 
 /**
 三条视图层（`theme-markmap` / `theme-erd` / `theme-diff`）共用那份外壳的分支单测

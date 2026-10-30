@@ -1,4 +1,4 @@
-import type { FrameColorMode } from '@show-docs/docusaurus-theme-iframe/lib/index.ts';
+import type { FrameColorMode } from '@show-docs/docusaurus-theme-component-page/lib/frame-messages.ts';
 
 // Scalar 自带一套亮暗模式：它按 `localStorage` 里的 `colorMode` → 配置里的 `darkMode` →
 // 操作系统偏好那三条依次判一次，把结果落成 `<body>` 上的**两个类名**（`dark-mode` /

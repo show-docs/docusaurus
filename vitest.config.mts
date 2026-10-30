@@ -11,7 +11,7 @@ export default defineConfig({
         new URL('./test/stubs/use-is-browser.ts', import.meta.url),
       ),
       // 同理，`@theme/*` 也是 webpack 构建期的 specifier，磁盘上没有。视图层共享外壳
-      // （`packages/theme-iframe/lib/view-layer-shell.tsx`）要用官方 `Admonition` 报那一条提示，
+      // （`packages/theme-component-page/lib/view-layer-shell.tsx`）要用官方 `Admonition` 报那一条提示，
       // 单测里换成按它形状落地的一份替身 —— 换的理由写在替身头上。
       '@theme/Admonition': fileURLToPath(
         new URL('./test/stubs/admonition.tsx', import.meta.url),
@@ -36,9 +36,10 @@ export default defineConfig({
       reporter: ['lcov', 'json-summary'],
       reportsDirectory: './coverage',
       // 红线盖住**全部构建期代码**：每个包的 `src/`（配置期接线、webpack 规则、
-      // loader 判据、纯逻辑），加上 `theme-iframe` 那条框的 `lib/`（配置期的注册表 /
-      // 分发 / 入口工厂，浏览器侧的消息形状与两条同步 hook，以及三条视图层共用那份外壳）
-      // 和 `theme-component-page` 的 `lib/`（配置期与浏览器期共用的那一条命中判据）。
+      // loader 判据、纯逻辑），加上 `theme-component-page` 的 `lib/`（配置期与浏览器期共用的
+      // 那一条命中判据与那张规则表、框内外的消息形状与两条同步 hook、按需装载渲染器那一层、
+      // 三条视图层共用那份外壳、以及框内那页的地址算法），还有 `theme-iframe` 的 `lib/`
+      // （`iframe:` 那一格嵌外站时地址怎么算）。
       // **不在**红线里的是各包 `theme/` 与 `components/` 下那些 React 视图 ——
       // 它们由 e2e 钉住，理由见 `test/README.md`。
       // `lib/` 里浏览器那几份要 DOM，靠测试文件自己标 `@vitest-environment jsdom` 切环境，

@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-import { watchPageErrors } from '../helpers.mts';
+import { componentFrameUrl, watchPageErrors } from '../helpers.mts';
 
 const { Given, Then } = createBdd();
 
@@ -59,4 +59,33 @@ Then('这一页的文档正文外壳还在', async ({ page }) => {
     page.locator('article'),
     '普通文档页的正文外壳没了：这一层落空时不该动任何东西',
   ).toHaveCount(1);
+});
+
+/**
+`/__component-frame/` 是这一层自己注册的那条**框内路由**：`render: 'iframe'` 的规则都在它里面渲染。
+正常用法里它只被外层那个 `<iframe>` 加载、数据由握手送进来；直接打开它就没有外层，
+于是这一页应该停在「还没拿到数据」那一格。这条钉三件事：那条路由在产物里真的可达
+（`pnpm serve` 回 200，不是 404）、没数据时摆的是说明而不是空白或报错、
+以及它**不是文档页** —— 它连站点的导航栏都不套（口径见
+`packages/theme-component-page/theme/ComponentFramePage/index.tsx` 开头那段）。
+*/
+Given('我直接打开通用框内那条路由', async ({ page }) => {
+  watchPageErrors(page);
+  const response = await page.goto(componentFrameUrl);
+
+  expect(
+    response?.status(),
+    '框内那条路由直接打开不是 200：产物里没有那份 html，或路由没注册上',
+  ).toBe(200);
+});
+
+Then('框里摆的是还没拿到数据那一格', async ({ page }) => {
+  await expect(
+    page.locator('.container'),
+    '没有外层送数据时框内那一页没摆「正在取数据」那一格',
+  ).toContainText('正在从这一页的文档里取数据');
+});
+
+Then('这一页没有站点的导航栏', async ({ page }) => {
+  await expect(page.locator('.navbar')).toHaveCount(0);
 });

@@ -1,4 +1,5 @@
-/* Elements 渲染区的落位。**这一份 CSS 生效在框内那一页**（`/stoplight-view`，见包 README 的
+/* Elements 渲染区的落位。**这一份 CSS 生效在框内那一页**（component-page 那条共用的
+   `/__component-frame` 路由，见包 README 的
    「渲染方式」一节）：站点的文档页里根本没有 `.stoplight-root` 这一格，
    下面每条规则的落点都是框内那份文档。
 
@@ -9,7 +10,7 @@
    框内这份文档里除下面这一层壳之外没有别的元素可被打到（那一份文档没有 navbar、没有 footer、
    没有正文容器）。
 
-   站点侧的尺寸、留白与页脚都在 theme-iframe 那份共用版式（`components/api-frame.css`）里，
+   站点侧的尺寸、留白与页脚都在 component-page 那份共用版式（`components/component-frame.css`）里，
    两边各管各的文档。 */
 
 /* 这一层要定高：Elements 自带内层滚动（左栏与右侧正文各是一条滚动容器），

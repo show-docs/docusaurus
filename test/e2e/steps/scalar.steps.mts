@@ -3,9 +3,9 @@ import type { FrameLocator, Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
 import {
+  componentFrameDoc,
   frameModeSignal,
   layerDemoUrl,
-  layerFrameDoc,
   siteStyles,
   watchPageErrors,
 } from '../helpers.mts';
@@ -15,8 +15,8 @@ const { Given, When, Then } = createBdd();
 /**
 ## 这一层的判据分两份文档量，口径与 `theme-redoc`、`theme-stoplight` 一对一
 
-命中页（`/theme-scalar/docs/scalar-demo`）里只有一个 iframe，Scalar 整个跑在框内那份文档（本包那条插件路由
-`/scalar-view`）上。所以每条判据都得指名站在哪一份文档里量：
+命中页（`/theme-scalar/docs/scalar-demo`）里只有一个 iframe，Scalar 整个跑在框内那份文档
+（component-page 那条通用框内路由 `/__component-frame`）上。所以每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有 Scalar 的 DOM（`.scalar-app` 是框内那一份
   的形状，边界由浏览器给，本层不再做样式圈定，口径见包 `docs/internals.md` 的「样式」一节）；
@@ -35,20 +35,18 @@ Scalar 的路由也走 hash，但它按**标签 + 方法 + 路径**拼那一段�
 与另两层的一处形状差：orders 这一组**默认就是展开的**（实测三条接口链接都在 DOM 里、都可见），
 所以这里没有 redoc / stoplight 那条「先点开分组」，三条链接直接在「三个接口都在左栏」那一句里钉。
 
-「打开哪一页」「框的 `src` 指向哪儿」那五句在三条层之间只差一个层名，实现收在
-`common.steps.mts`（句子按层名捕获、地址由层名算）；这里只留 Scalar 这一头独有的句子。
+「打开哪一页」「框的 `src` 指向哪儿」那几句在三条层之间只差一个层名（框现在三层共用一个，
+连层名都不差），实现收在 `common.steps.mts`；这里只留 Scalar 这一头独有的句子。
 */
-const frameDoc = (page: Page): FrameLocator => layerFrameDoc(page, 'scalar');
+const frameDoc = (page: Page): FrameLocator => componentFrameDoc(page);
 
 /**
 框里那份文档的 Scalar 根格。
 
 认的是厂商自己那两格类名（实测：`aside`、左栏的接口链接、代码块都在它下面）。裸的 `.scalar-app`
-不够 —— 框内那份文档里它有 3 格（直接打开 `/scalar-view` 是 5 格，Scalar 给弹窗与提示各造一格），
-只带 `scalar-api-reference` 的那一颗才是布局根（实测 1 格）。本层包着它的那格 `<div>` 是挂载
-宿主，不带类名。
+不够 —— 框内那份文档里它有 3 格（Scalar 给弹窗与提示各造一格），只带 `scalar-api-reference`
+的那一颗才是布局根（实测 1 格）。本层包着它的那格 `<div>` 是挂载宿主，不带类名。
 */
-/** 那两格类名只写一处：`root` 量框内那一格，「这一页直接渲染 Scalar」量直接打开时的那一格。 */
 const scalarAppSelector = '.scalar-app.scalar-api-reference';
 
 const root = (page: Page): Locator => frameDoc(page).locator(scalarAppSelector);
@@ -234,10 +232,10 @@ Scalar 那颗「Ask AI」的按钮不出现。
 `agent.key` 才开」（`ApiReference.vue.script.js`），本层没有 key，于是这颗按钮**只在本地服务上**
 露出来 —— 与下面那条开发者工具栏一样，是「同一份产物在本地和线上长得不一样」的那一格。
 
-这句按文案认（厂商那颗按钮没有 `data-testid`，也没带稳定的类名）。收之前实测：`/theme-scalar/docs/scalar-demo`
-框里那份文档 1 颗「Ask AI」，直接打开 `/scalar-view` 也 1 颗；按 `agent.disabled` 钉死之后两处
-都 0 颗。从**整份框内文档**往下数，不从布局根往下 —— 那颗按钮在左栏搜索那一行里，判据不押它
-在不在布局根里面。界面换成 `zh-cn` 之后它的文案是「询问 AI」（厂商 locale 表里的 `agent.askAi`），
+这句按文案认（厂商那颗按钮没有 `data-testid`，也没带稳定的类名）。收之前在示例页上实测：框里那份
+文档 1 颗「Ask AI」；按 `agent.disabled` 钉死之后 0 颗。从**整份框内文档**往下数，不从布局根往下
+—— 那颗按钮在左栏搜索那一行里，判据不押它在不在布局根里面。界面换成 `zh-cn` 之后它的文案是
+「询问 AI」（厂商 locale 表里的 `agent.askAi`），
 所以这一句两种都收：只认英文的话，那颗按钮哪天回来了也用中文出现，这一句照样 0 颗、什么也说不了。
 */
 Then('Scalar 那颗「问 AI」的按钮不出现', async ({ page }) => {
@@ -335,7 +333,7 @@ Then('左栏底部那一颗换成了 API client，不是 MCP 安装入口', asyn
 `showDeveloperTools`：`z.enum(['always','localhost','never']).default('localhost')`），判据是
 `isLocalUrl(window.location.href)` —— 站点跑在 `pnpm start` 与 e2e 的本地服务上**正好命中**，
 于是同一份产物在本地和线上长得不一样。实测这一格从默认换成 `never`：框内那份文档里
-`.scalar-app` 从 7 颗掉到 3 颗（直接打开 `/scalar-view` 从 9 颗到 5 颗），那条
+`.scalar-app` 从 7 颗掉到 3 颗，那条
 `header.api-reference-toolbar` 连同它带出来的几格一起没了。
 
 按数量判（与上面那颗开关同一个理由：它本来就不渲染，`display: none` 用不上），且从**整份框内
@@ -446,9 +444,9 @@ Scalar 自带一套亮暗模式：判据是 `<body>` 上互斥的两个类名（
 `#fff` 翻到 `#0f0f0f`（实测）。站点自己另有一个开关（`<html data-theme>`），两处各切各的就会
 打架。本层用配置 `hideDarkModeToggle` 收掉它自己那颗按钮，配色改由站点这一头驱动：那个值写在
 **外层**文档的 `<html>` 上，而类名要落在**框内**那份文档的 `<body>` 上 —— 这一格由共享那条
-postMessage 通道接（`packages/theme-iframe/lib/`：外层 `api-frame.tsx` 送、框内那份工厂
-`api-frame-view.tsx` 收，收下来经 `applyScalarColorMode` 换那两个类名）。框内那份文档不挂站点的
-`ColorModeProvider`，
+postMessage 通道接（component-page 的 `components/component-frame.tsx` 送、框内那份页面经
+`lib/frame-sync.tsx` 收，收下来交给本层 `useFrameMode(applyScalarColorMode)` 换那两个类名）。
+框内那份文档不挂站点的 `ColorModeProvider`，
 站点那条 `data-theme` 在这里只是加载时内联脚本写死的一份、没人维护，本层不读它。
 
 「切成暗色」「做个记号」「配色跟着翻、文档没重新加载」这三步三层共用，句子与实现在
@@ -506,21 +504,28 @@ Then('站点自己的那几处样式在暗色下也不被 Scalar 改写', async 
   ).toEqual(onScalarPage);
 });
 
-Then('这一页直接渲染 Scalar', async ({ page }) => {
-  const app = page.locator(scalarAppSelector);
-  await expect(app).toBeVisible();
-  await expect(app).toContainText('Scalar 演示 API');
+/**
+键写了、文档地址没给时框里那一句说明（`theme/ScalarView` 里那条 `Admonition`）。
+
+与上一条是一对：说明在、渲染器不在。认的是官方 `Admonition` 的稳定类名 `theme-admonition`，
+标题按原文比。
+*/
+Then('框里说明这一页没给 Scalar 要渲染的文档', async ({ page }) => {
+  await expect(
+    frameDoc(page).locator('.theme-admonition'),
+    '框里没有那条说明：缺输入时它该摆这一句',
+  ).toContainText('这一页没给 Scalar 要渲染的文档');
 });
 
 /**
-地址里缺 `src`（或写成解析不成 http(s) 的东西）时这一格什么都不摆。
+框里没有 Scalar 的根格，也没有它那句「取不到」。
 
-钉这一句是因为 Scalar 拿到空地址**不报错**，而是把它自己那句「could not be loaded」摆在正文区
-—— 看着像渲染器坏了。这一页是条公开地址，任何人都能直接打开它，所以这一格要按「什么都不摆」钉死。
+钉这一句是因为 Scalar 拿到空地址**不报错**，而是把自己那句「could not be loaded」摆在正文区 ——
+看着像渲染器坏了。本层在把地址交给 Scalar 之前就挡下来（`theme/ScalarView`）。
 */
 Then('Scalar 那一格不出现，那句「取不到」也不出现', async ({ page }) => {
-  await expect(page.locator('.scalar-app')).toHaveCount(0);
-  await expect(page.locator('body')).not.toContainText(loadErrorText);
+  await expect(frameDoc(page).locator('.scalar-app')).toHaveCount(0);
+  await expect(frameDoc(page).locator('body')).not.toContainText(loadErrorText);
 });
 
 /**

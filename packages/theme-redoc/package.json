@@ -41,7 +41,6 @@
     "@docusaurus/types": "catalog:",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
     "@show-docs/docusaurus-theme-component-page": "workspace:^",
-    "@show-docs/docusaurus-theme-iframe": "workspace:^",
     "react": "catalog:"
   },
   "peerDependenciesMeta": {

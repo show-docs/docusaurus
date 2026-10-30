@@ -128,58 +128,77 @@ export async function siteStyles(page: Page): Promise<SiteStyles> {
 }
 
 /**
-## 框内那一份文档：三层共用的量法
+## 框内那一份文档：三条 API 层共用的量法
 
 `theme-redoc`、`theme-stoplight` 与 `theme-scalar` 各在命中页放一个 iframe，渲染器整个跑在框内
 那份文档里。一条判据都得先指名站在哪一份文档上量：外层用 `page.locator(...)`，框内用
-`themeFrameDoc(page)`。`contentFrame()` 交回的是 `FrameLocator` —— 只给 `locator()`，不给
+`componentFrameDoc(page)`。`contentFrame()` 交回的是 `FrameLocator` —— 只给 `locator()`，不给
 `evaluate()`，所以要跑脚本就从它下面取 `html` 那一颗，回调里再拿 `el.ownerDocument`。同源，
 两边都能直接读 DOM 与 CSSOM。
 
-`theme-iframe` 那一层放的也是 iframe，但那是别人站点的地址，没有本仓这套消息通道，所以这里
-按这三个层各自声明的类名认，不复用裸 `iframe`。
+三条层的框都是 `theme-component-page` 那一格（类名 `component-frame`，框内那份文档是本层注册的
+一条通用路由），所以这里**没有按层名分的类名**可比 —— 旧版那种 `iframe.redoc-frame` 随各包自带的
+框页一起删了。这一页归了哪一层由**框里渲染的是谁**判（下面那份 `layerRoot`），三层的根各是自己
+那层 CSS 的作用范围，本仓自己写的那两格是 `redoc-ui.tsx` / `stoplight-ui.tsx` 里那两个类名常量。
+
+`theme-iframe` 那一层放的也是 iframe，但那是别人站点的地址，没有本仓这套握手，所以这里不把它
+算进 `componentFrame`（它自己的用例按 `.external-frame` 认）。
 
 ## 层名：这一族 e2e 只认这一个词
 
-句子按它捕获（`我打开 redoc 示例页`），类名、示例页与框内那条页面的地址也由它算 —— 层名与
-注册表里那三条 internal 条目一对一（`frameClass` 是 `{层名}-frame`、`route` 是 `{层名}-view`；
-`theme-stoplight` 那一条 frontmatter 键写的是 `stoplight:`，路由与类名用的还是 `stoplight`）。
-新增一条层在这里加一个词，各处地址与类名不用再各抄一份字面量。
+句子按它捕获（`我打开 redoc 示例页`），示例页地址与框里那个渲染根也由它算。新增一条层在这里
+加一个词，各处不用再各抄一份字面量。
 */
 export const themeLayers = ['redoc', 'scalar', 'stoplight'] as const;
 
 export type ThemeLayer = (typeof themeLayers)[number];
 
-/** 三层示例页各自那份文档地址：`static/openapi-{层名}.yaml`，产物里就是这一串。 */
-const layerSpec = (layer: ThemeLayer): string => `/openapi-${layer}.yaml`;
+/**
+命中页上那一个框：三条层共用 component-page 那一格，类名与框内那份文档都由它给。
 
-export const themeFrame = (page: Page): Locator =>
-  page.locator(themeLayers.map((layer) => `iframe.${layer}-frame`).join(', '));
+`src` 里**没有**任何本页的信息（那份数据由握手送进来，见 component-page 的
+`docs/iframe-protocol.md`），所以这一格在所有命中页上都是同一个字符串。
+*/
+export const componentFrame = (page: Page): Locator =>
+  page.locator('iframe.component-frame');
 
-export const themeFrameDoc = (page: Page): FrameLocator =>
-  themeFrame(page).contentFrame();
+export const componentFrameDoc = (page: Page): FrameLocator =>
+  componentFrame(page).contentFrame();
 
-/** 某一层命中页里那一个 `<iframe>`（量的是**外层**这一份文档上的那一格）。 */
-export const layerFrame = (page: Page, layer: ThemeLayer): Locator =>
-  page.locator(`iframe.${layer}-frame`);
+/** 三层在框内那份文档里的渲染根：这一页交给谁，就由框里长出来的是谁认。 */
+const layerRootSelectors: Record<ThemeLayer, string> = {
+  redoc: '.redoc-root',
+  // Scalar 那份文档里裸 `.scalar-app` 有多格（弹窗与提示各占一格），带 `scalar-api-reference`
+  // 的那一颗才是布局根 —— 口径见 `steps/scalar.steps.mts`。
+  scalar: '.scalar-app.scalar-api-reference',
+  stoplight: '.stoplight-root',
+};
 
-/** 某一层框内那一份文档的框。 */
-export const layerFrameDoc = (page: Page, layer: ThemeLayer): FrameLocator =>
-  layerFrame(page, layer).contentFrame();
+/** 某一层那个渲染器在框内那份文档里的根格。 */
+export const layerRoot = (page: Page, layer: ThemeLayer): Locator =>
+  componentFrameDoc(page).locator(layerRootSelectors[layer]);
 
-/** 某一层的示例页（现在是本包 `docs/` 下的子页）：整页交给框那一条文档页。 */
+/** 某一层的示例页（本包 `docs/` 下的那一页）：整页交给框的那一条文档页。 */
 export const layerDemoUrl = (layer: ThemeLayer): string =>
   `/theme-${layer}/docs/${layer}-demo`;
 
-/** 某一层框内那条独立页面（本包那条插件路由）：`/{层名}-view`，不带参数就是「缺 spec」那一格。 */
-export const layerViewUrl = (layer: ThemeLayer): string => `/${layer}-view`;
+/**
+某一层「键写了、文档地址没给」那一格的夹具页（同一目录里的另一页）。
+
+旧版这一格是「把框内那条地址上的 `?src=` 去掉」—— 现在那一份数据由握手送，地址里本来就没有
+它，所以缺输入只能由**文档页这一头**造成：`redoc: true` 而不写 `oas3:` / `aas3:`。
+*/
+export const layerNoSpecDemoUrl = (layer: ThemeLayer): string =>
+  `/theme-${layer}/docs/${layer}-no-spec`;
 
 /**
-命中页那个框的 `src`，也是「带着 spec 独立打开」那一条用的地址：上面那条路由（目录形式，
-带尾斜杠，见 `frameViewSrc`）+ 那份 spec。
+component-page 那条通用框内路由在站点里的地址（`trailingSlash` 没配 → 产物是
+`__component-frame/index.html`，地址带尾斜杠，见 `packages/theme-component-page/lib/frame-url.ts`）。
+
+直接打开它只能看到**还没拿到数据**那一格：那一份数据靠外层与框内握手送，独立打开时没有外层，
+所以这一条钉的就是那个占位状态，不是某个渲染器。
 */
-export const layerFrameSrc = (layer: ThemeLayer): string =>
-  `${layerViewUrl(layer)}/?src=${encodeURIComponent(layerSpec(layer))}`;
+export const componentFrameUrl = '/__component-frame/';
 
 /**
 ## 四条视图层：句子里的词与示例页地址
@@ -223,10 +242,10 @@ export const viewLayers = [
 stoplight 那一层两处都跟着翻。都不抄具体色值 —— 判据只问「换了没有、跟另一个页面比是不是一样」。
 */
 export const frameModeSignal = async (page: Page): Promise<string> => {
-  const scalarMode = await themeFrameDoc(page)
+  const scalarMode = await componentFrameDoc(page)
     .locator('body.dark-mode, body.light-mode')
     .count();
-  return themeFrameDoc(page)
+  return componentFrameDoc(page)
     .locator(scalarMode > 0 ? 'body' : 'html')
     .evaluate((el) => {
       const computed = getComputedStyle(el);
@@ -236,7 +255,7 @@ export const frameModeSignal = async (page: Page): Promise<string> => {
 
 /** 框内那份文档的起始时刻：每加载一份新文档就是一个新的数。 */
 export const frameTimeOrigin = (page: Page): Promise<number> =>
-  themeFrameDoc(page)
+  componentFrameDoc(page)
     .locator('body')
     .evaluate(() => performance.timeOrigin);
 

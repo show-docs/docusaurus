@@ -68,7 +68,7 @@ const config = {
     '@show-docs/theme-b',
     '@show-docs/theme-c',
     // 思维导图主题层：md 里 `markmap: true`（或一个选项对象）即在原文上方加导图。
-    // 它不再提供 `DocItem`：在自己的 `loadContent()` 里把 `markmap` 那一页交给下面的
+    // 它不再提供 `DocItem`：在自己的 `loadContent()` 里交出一份组件与一条规则给下面的
     // component-page，命中后挂上它自己的 `theme/MarkmapPage`。
     '@show-docs/docusaurus-theme-markmap',
     // 关系图主题层：`.dbml` 文件在上方画关系图，正文附上各格式导出。
@@ -93,42 +93,52 @@ const config = {
     // 它不提供 `DocItem`：`diff` 那一页在自己的 `loadContent()` 里交给 component-page，
     // 命中后挂本包的 `theme/DiffPage`（与 markmap 同一形态）。
     '@show-docs/docusaurus-theme-diff',
-    // 下面三条 API 层各在自己的 `loadContent()` 里交出自己那把键（由 theme-iframe 的工厂
-    // `lib/api-frame-theme.mts` 代交）：`scalar` / `redoc` / `stoplight`，都写 `true`；渲染哪份
-    // 文档读 spec 键（OpenAPI 写 `oas3:`、AsyncAPI 3 写 `aas3:`），口径分别在各包自己的 README。
-    // **声明顺序就是命中优先级**：component-page 把各包交来的条目按这里的顺序接起来，一页同时
-    // 写中多把键时排在前面的先判。本站因此把 scalar 放最前，e2e 的 frame-precedence 用例钉着
-    // 这个落点。
+    // 下面三条 API 层各在自己的 `loadContent()` 里交出一份组件与一条规则（`scalar` / `redoc` /
+    // `stoplight`，都写 `true`），渲染哪份文档读各自那两把 spec 键（OpenAPI 写 `oas3:`、
+    // AsyncAPI 3 写 `aas3:`），口径分别在各包自己的 README。同源那份框、握手与框内页面都在
+    // 下面的 component-page 里，**卸载 `@show-docs/docusaurus-theme-iframe` 它们照常可用**。
     '@show-docs/docusaurus-theme-scalar',
     '@show-docs/docusaurus-theme-redoc',
     '@show-docs/docusaurus-theme-stoplight',
-    // iframe 主题层：「整页交给一个框」这一族的外层组件与共用约定（`theme/ApiFramePage`、
-    // 消息循环、地址算法）。它只交自己那把 `iframe:`（地址值），排在三条 API 层之后 ——
-    // 同一页也写了 API 键时，那三把先判。注册表 `packages/theme-iframe/src/api-frame-registry.ts`
-    // 是这一族的数据来源（键名、框内路由、类名、title），不再决定判定先后。口径全在
-    // `packages/theme-iframe/docs/iframe-protocol.md`。
+    // iframe 主题层：只剩「整页交给一个**外部站点**的框」那一把键（`iframe: <地址>`，
+    // `render` 用缺省的 `page`，所以那一格是站点正文里的一个普通组件）。跨源的地址算法
+    // （`/` 打头补 origin、`?path=` 再解一层、https 页面上把 `http:` 升上来）归本包，
+    // 口径全在 `packages/theme-component-page/docs/iframe-protocol.md`。
     '@show-docs/docusaurus-theme-iframe',
-    // 「整页交给一个组件」的通用套壳：清单挂在本层的插件选项上，一条 = 一把键（写在
-    // frontmatter 里的，或 loader 往模块里追加的命名导出）+ 一个组件说明符，命中就把整个
-    // `DocItem` 换成那个组件（本站那一条指向站点自己的
-    // `src/theme/ComponentPageDemo`，示例页 `/theme-component-page/docs/component-page-demo`）。
+    // 「整页交给一个组件」的通用套壳：本层的插件选项里两格 —— `components` 是站点自己登记的
+    // 组件（一个登记名 + 一个说明符，本站那一条指向站点自己的 `src/theme/ComponentPageDemo`，
+    // 示例页 `/theme-component-page/docs/component-page-demo`），`rules` 是**这一页归谁**的那一列。
+    //
+    // 一列里的顺序就是命中优先级，所以本站把四条「整页交给一个框」的键按 e2e 钉的那个先后
+    // 列出来（scalar → redoc → stoplight → iframe）：同一页写中多把键时，排在前面的先判。
+    // 没在这一列里提过的默认规则（markmap / erd / diff）按**键名的固定字符串顺序**接在后面，
+    // 与上面 `plugins` 的声明顺序无关。
     //
     // 仓库里只有本层提供 `DocItem`，所以落空时交回官方那一份（`@theme-init/DocItem`），
-    // 没有要串的链。
-    // 上面 iframe 那四条框页与 markmap / erd / diff 那三页也走这一份清单（各自在
-    // `loadContent()` 里交进来，排在本站这一条后面），命中后分别由 `@theme/ApiFramePage` /
-    // `@theme/MarkmapPage` / `@theme/ErdPage` / `@theme/DiffPage` 渲染 —— 这一层因此是
-    // 「整页交给谁」的唯一套壳。
+    // 没有要串的链。上面各包交来的那几页也走这一张表，命中后分别由
+    // `@theme/ScalarView` / `@theme/RedocView` / `@theme/StoplightView`（同源框，框内那份页面
+    // 是 `@theme/ComponentFramePage`）/ `@theme/ExternalFrame` / `@theme/MarkmapPage` /
+    // `@theme/ErdPage` / `@theme/DiffPage` 渲染 —— 这一层因此是「整页交给谁」的唯一套壳。
     // 本站的键是 `componentPage`（认真布尔 `true`），与那几把交来的键都不撞。
     [
       '@show-docs/docusaurus-theme-component-page',
       {
-        pages: [
+        components: [
+          {
+            id: 'site/ComponentPageDemo',
+            component: '@theme/ComponentPageDemo',
+          },
+        ],
+        rules: [
           {
             key: 'componentPage',
-            component: '@theme/ComponentPageDemo',
+            component: 'site/ComponentPageDemo',
             props: { label: '组件接管了这一页' },
           },
+          'scalar',
+          'redoc',
+          'stoplight',
+          'iframe',
         ],
       },
     ],

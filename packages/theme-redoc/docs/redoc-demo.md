@@ -3,24 +3,28 @@ id: redoc-demo
 sidebar_position: 5
 title: Redoc 示例
 description: 'frontmatter 写 redoc: true（spec 地址由 oas3: 给），整页换成一个 iframe，框里用 Redoc 渲染 API 文档。'
-# 命中 theme-redoc 那一层：整页换成一个 iframe，Redoc 跑在本包自己那条 /redoc-view 页面上。
-# /openapi-redoc.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
+# 命中 theme-redoc 那一层：整页换成一个 iframe，Redoc 跑在 theme-component-page 那条通用框内
+# 路由 /__component-frame 上。/openapi-redoc.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
 redoc: true
 oas3: /openapi-redoc.yaml
 ---
 
 # Redoc 示例
 
-下面这些正文在渲染后的页面上**看不到**：theme-redoc 在自己的 `loadContent()` 里把 `redoc` 那一页交给 theme-component-page，
-命中时这一页的整个 `DocItem` 换成 theme-iframe 的 `theme/ApiFramePage`，
-整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
+下面这些正文在渲染后的页面上**看不到**：theme-redoc 在自己的 `loadContent()` 里把组件
+（`@theme/RedocView`）与那一条规则（键 `redoc`、`render: 'iframe'`）交给 theme-component-page，
+命中时这一页的整个 `DocItem` 换成它那个通用框，所以也没有文档外壳、不会再有导图。
+这一段是给读仓库源文件的人看的。
 
 - 取的是 `static/openapi-redoc.yaml`（构建产物里的 `/openapi-redoc.yaml`）：frontmatter 的
   `oas3:` 给的就是这个地址，只给这一页用，
   Stoplight 与 Scalar 的示例页各取自己那份，三页不再共用同一份输入。
 - **Redoc 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
-  `<iframe class="api-frame redoc-frame" src="/redoc-view/?src=%2Fopenapi-redoc.yaml">`，`/redoc-view` 是本包
-  自己注册的一条插件路由，构建产物里真的有一份 `build/redoc-view/index.html`。换过去的原因：
+  `<iframe class="component-frame" src="/__component-frame/">`。那条地址是 theme-component-page
+  自己注册的一条插件路由，**三条 API 层共用同一条**，构建产物里只有一份
+  `build/__component-frame/index.html`；框里渲染哪个组件由外层握手时送进来的登记名（`redoc`）决定。
+  地址里没有本页的任何信息：那份数据（命中的键值与整份 frontmatter）走 postMessage，所以这一格
+  在服务端与客户端算出完全一样的字符串。换一份文档的原因：
   Redoc 的样式由 styled-components 在运行时插进 `<head>`，构建期那份静态样式表不存在、前缀改写
   圈不住它，而它还会往 `<html>` 上写两千多条 CSS 变量、自己用 localStorage 和自己的路由 —— 这些
   都是「打到宿主页面」的东西。iframe 的边界由浏览器给，框里那一层站点的文档页一行都碰不到。
@@ -35,16 +39,23 @@ oas3: /openapi-redoc.yaml
   走 `history.pushState`，`hashchange` 收不到），整页加载一条深链时反过来由框里向外层要一次再写进
   自己的地址；写外层地址用的是替换，所以框里换一条接口不会在浏览器历史里多出一格。
   hash 段不参与取文件，浏览器请求的还是这一页那份 html，`pnpm serve` 回 **HTTP 200**。
-  要说清两点：每条接口在产物里**没有自己的 html**；`/redoc-view/?src=…` 虽然也能直接打开，
-  但那是「框里那一页本身」，不是拿来分享的地址。做法与取舍记在 `packages/theme-redoc/README.md`。
+  要说清两点：每条接口在产物里**没有自己的 html**；`/__component-frame/` 虽然也能直接打开，但那里
+  只有「还没拿到数据」那一格 —— 那一份数据只有外层文档页能送，它不是拿来分享的地址。
+  做法与取舍记在 `packages/theme-component-page/docs/iframe-protocol.md`。
 - **亮暗模式跟站点那个开关走，不跟操作系统走**：Redoc 自带一套按操作系统偏好判定的暗色，本层把
   它的暗色表改挂在 `<html data-redoc-mode="dark">` 上；那个开关写在**外层**文档上、配色在**框内**
   那份文档里，所以外层读站点的当前模式，随那条已经在用的 postMessage 通道送进框内，框内写到
   自己 `<html>` 上。框内那份文档因此不套站点的任何外壳与 provider，也不读那份 localStorage。
+- **没给文档地址时框里摆一句说明**：这一页写了 `redoc: true` 却没写 `oas3:` / `aas3:` 时，命中的还是
+  这一层、框照挂，只是框里是本层那句「这一页没给 Redoc 要渲染的文档」，Redoc 自己不挂 ——
+  它拿到空地址不报错，而是摆出自己那份「No page at this address」。这一格有个夹具页：
+  [Redoc 没给文档地址](/theme-redoc/docs/redoc-no-spec)。
 - **滚动条长在框里**：外层那一页不滚（框占满 navbar 以下那一屏），框内那一份文档自己滚，
   所以这一页没有「正文跟着页面滚」那种观感；键盘要先落到框里才能用方向键。
 - 组件只在浏览器端渲染（SSR 阶段返回 `null`），所以 `build/theme-redoc/docs/redoc-demo/index.html` 里除了那个 iframe
   标签之外是空的，框内那份 html 也一样；要看结果得 `pnpm build && pnpm serve`。
 - 命中的是文档页，站点的侧栏仍然在那一列里（框只占正文那一格）。要连侧栏一起让位，用 `iframe:` 那一层。
 
-同一页同时写 `redoc:` 与 `stoplight:` 时，本层在最外，stoplight 那层不出现。
+同一页同时写几把键时，赢的是**站点那份 `rules` 清单里排前面的那一条**（本站的顺序见
+`docusaurus.config.mjs`：`scalar` → `redoc` → `stoplight` → `iframe`），与各包在 `plugins` 里的声明
+先后无关。先后这一件事的用例见 `test/e2e/features/frame-precedence.feature`。

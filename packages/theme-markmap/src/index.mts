@@ -3,11 +3,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
-
-import { MARKMAP_COMPONENT_PAGES } from './component-pages.mts';
 
 const require = createRequire(import.meta.url);
 
@@ -19,25 +17,34 @@ const NAMESPACE = '@show-docs/docusaurus-theme-markmap';
 
 /**
 本层的入口：`getThemePath()` 挂本包那一层（里面只有 `MarkmapPage` 与它依赖的导图组件），
-`loadContent()` 把 `markmap` 那一把键交给 `@show-docs/docusaurus-theme-component-page` ——
-命中的页由它那份 `DocItem` 判清单后整页换成 `@theme/MarkmapPage`。于是本层的前提有两个：
-共享外壳所在的 `theme-iframe`，与判清单的 `component-page`；缺了它们，页面看着正常但导图不出现。
+`loadContent()` 交出**一份组件与一条规则**（`markmap` 那一把键、`@theme/MarkmapPage`），
+判表与挂载都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：
+那一层（连同它背后的解析器插件）；缺了它们，页面看着正常但导图不出现。
+
+`markmap` 那把键的判法是 `options`：写 `true` 或一个选项对象都算命中 —— 后者既是开关，
+也是交给导图组件的那份选项；写 `false` / 空值不算。命中后整页交给 `@theme/MarkmapPage`
+（`render` 缺省即 `page`：视图摆在正文上方，不另起一份文档）。
+
+组件写的是 `@theme/MarkmapPage` 而不是硬路径：站点在 `src/theme/MarkmapPage` 放一份就覆写掉它，
+与站点自己那一列同一条口径。
 */
 export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
     loadContent() {
-      // 共享外壳的 `ViewLayerDocItem` 住在 theme-iframe 未编译的 `lib/` 里：那个包没装，
-      // 站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。component-page 缺了则是
-      // 另一头的症状：那一页永远不会被交给 `@theme/MarkmapPage`。
+      // 交出的那一页要由 component-page 判表才挂得上来；解析器插件缺了则是本包那几份
+      // 未编译的 `.tsx` / `.ts` 没人认领。都在这里点名，而不是让 webpack 在某个页面文件上抛、
+      // 或让那一页安静地不出现。
       assertThemePrerequisites(context, {
         namespace: NAMESPACE,
-        iframe: true,
         componentPage: true,
       });
 
       return {
-        componentPages: MARKMAP_COMPONENT_PAGES,
+        componentPage: {
+          components: [{ id: 'markmap', component: '@theme/MarkmapPage' }],
+          rules: [{ key: 'markmap', match: 'options', component: 'markmap' }],
+        },
       } satisfies ComponentPageContent;
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
@@ -76,6 +83,5 @@ export default function theme(context: LoadContext): Plugin {
         },
       };
     },
-    // `markmap` 那一把键的条目写在 `./component-pages.mts`，由上面的 `loadContent()` 交回。
   };
 }

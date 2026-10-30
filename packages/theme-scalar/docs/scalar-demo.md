@@ -3,32 +3,35 @@ id: scalar-demo
 sidebar_position: 6
 title: Scalar 示例
 description: 'frontmatter 写 scalar: true（spec 地址由 oas3: 给），整页换成一个 iframe，框里用 Scalar 渲染 API 文档。'
-# 命中 theme-scalar 那一层：整页换成一个 iframe，Scalar 跑在本包自己那条 /scalar-view 页面上。
-# /openapi-scalar.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
+# 命中 theme-scalar 那一层：整页换成一个 iframe，Scalar 跑在 theme-component-page 那条通用框内
+# 路由 /__component-frame 上。/openapi-scalar.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
 scalar: true
 oas3: /openapi-scalar.yaml
 ---
 
 # Scalar 示例
 
-下面这些正文在渲染后的页面上**看不到**：theme-scalar 在自己的 `loadContent()` 里把 `scalar` 那一页交给 theme-component-page，
-命中时这一页的整个 `DocItem` 换成 theme-iframe 的 `theme/ApiFramePage`，
-整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
+下面这些正文在渲染后的页面上**看不到**：theme-scalar 在自己的 `loadContent()` 里把组件
+（`@theme/ScalarView`）与那一条规则（键 `scalar`、`render: 'iframe'`）交给 theme-component-page，
+命中时这一页的整个 `DocItem` 换成它那个通用框，
+所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
 - 取的是 `static/openapi-scalar.yaml`（构建产物里的 `/openapi-scalar.yaml`）：frontmatter 的
   `oas3:` 给的就是这个地址，只给这一页用，
   Stoplight 与 Redoc 的示例页各取自己那份，三页不再共用同一份输入。
-- **形状与 `theme-redoc` 一对一**：这一页放的是一个 `<iframe class="api-frame scalar-frame"
-src="/scalar-view/?src=%2Fopenapi-scalar.yaml">`，`/scalar-view` 是本包自己注册的一条插件路由，构建产物里
-  真的有一份 `build/scalar-view/index.html`；跨 iframe 那两格（地址栏里 `#` 那一段、站点的亮暗模式）
-  走 `packages/theme-iframe/lib/` 那份共享约定，与上面两条层同一份实现。
+- **形状与 `theme-redoc` 一对一**：这一页放的是一个 `<iframe class="component-frame"
+src="/__component-frame/">`。那条地址是 theme-component-page 自己注册的一条插件路由，**三条 API 层
+  共用同一条**，构建产物里只有一份 `build/__component-frame/index.html`；框里渲染哪个组件由握手时
+  送进来的登记名（`scalar`）决定，那份数据（命中的键值与整份 frontmatter）也在握手那一份里送 ——
+  地址里不带本页的任何信息。跨 iframe 那两格（地址栏里 `#` 那一段、站点的亮暗模式）
+  走 `packages/theme-component-page/lib/` 那份共享约定，与上面两条层同一份实现。
 - **差在框内那一页里**：`@scalar/api-reference` 是 Vue 3 的组件，本层用它的非 Vue 宿主入口
   `createApiReference(元素, 配置)` 把它挂进一格 `<div>`，因此不必直接引 `vue`，也不必装 React 包装层。
 - **样式表是静态的，所以要在构建期摘出来**：Scalar 的样式是发布好的静态
   `@scalar/api-reference/style.css`，webpack 默认把它并进全站那一份 css，每一页都下载 —— 这一格与
   theme-redoc 相反（那张表是运行期注入的，只存在于框内那份文档），与 theme-stoplight 同处境。所以
-  本层在 `configureWebpack` 里把它摘成独立产物（与 stoplight 同一份实现
-  `@show-docs/docusaurus-theme-iframe/lib/isolate-renderer-css.ts`），只由框内那份文档挂一条
+  本层在 `configureWebpack` 里把它摘成独立产物（三条 API 层共用的一份构建期工具
+  `@show-docs/docusaurus-theme-component-page/lib/isolate-renderer-css.ts`），只由框内那份文档挂一条
   `<link>`。厂商那份规则出厂就带 `.scalar-app` 前缀，实测对上站点没有改写 —— 前缀管的是
   「打不到站点」，管不了「每页都下载」，摘出来才是后者那一格。实测口径（站点那一份 112,608 字节、
   独立那一份 277,962 字节）记在 `packages/theme-scalar/docs/internals.md` 的「样式」一节。
@@ -41,6 +44,9 @@ src="/scalar-view/?src=%2Fopenapi-scalar.yaml">`，`/scalar-view` 是本包自�
   （`dark-mode` / `light-mode`），不是属性，所以本层交给共享层的是 `onMode` 回调而不是属性名；
   外层读站点的当前模式送进框内。它自己那颗亮暗开关用配置 `hideDarkModeToggle` 收掉，不必像
   redoc 那样写 CSS。
+- **没给文档地址时框里摆一句说明**：这一页写了 `scalar: true` 却没写 `oas3:` / `aas3:` 时，命中的还是
+  这一层、框照挂，只是框里是本层那句「这一页没给 Scalar 要渲染的文档」，Scalar 自己不挂。这一格
+  有个夹具页：[Scalar 没给文档地址](/theme-scalar/docs/scalar-no-spec)。
 - **站点的文档侧栏在这一页照常摆着**（与 redoc、stoplight 那两层一样，本层不动站点那侧的版式）。
   要留意的是 Scalar 那套 API 左栏有一个**框宽**门槛：实测 1024 CSS px，够就展开、不够就收成一颗
   「打开菜单」抽屉。侧栏占 300px，所以窗口要 ≥1324 宽这一屏才是两种导航都在的样子；1280 宽时
@@ -48,4 +54,7 @@ src="/scalar-view/?src=%2Fopenapi-scalar.yaml">`，`/scalar-view` 是本包自�
   要连 navbar 与侧栏一起不要，用 `iframe:` 那一层。
 - 组件只在浏览器端渲染（SSR 阶段返回 `null`），要看结果得 `pnpm build && pnpm serve`。
 
-同一页同时写 `scalar:` 与 `redoc:` 时，本层在最外，redoc 那层不出现。
+同一页同时写几把键时，赢的是**站点那份 `rules` 清单里排前面的那一条**（本站的顺序见
+`docusaurus.config.mjs`：`scalar` → `redoc` → `stoplight` → `iframe`），与各包在 `plugins` 里的声明
+先后无关。本站 scalar 排在最前，所以 `scalar:` 与 `redoc:` 同写时这一层赢。先后这一件事的用例见
+`test/e2e/features/frame-precedence.feature`。

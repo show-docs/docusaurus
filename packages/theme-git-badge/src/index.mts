@@ -1,7 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 

@@ -19,14 +19,15 @@ const read = (...segments: string[]): string =>
 
 这套外壳以前是**每个包各抄一遍**：同一份代码三处，改一处忘另两处就是漂移；合成一份之后
 各包还各留着两个只管转出的文件（`components/error-boundary.tsx`、`components/hack-style.tsx`），
-仍然要三处一起改。现在整族只剩一份实现（`theme-iframe/lib/view-layer-shell.tsx` 与
-`view-layer.ts`，随包发出去），各包只留「交哪把键、交哪个组件、交哪段说法」。
+仍然要三处一起改。现在整族只剩一份实现（`theme-component-page/lib/view-layer-shell.tsx` 与
+`view-layer.ts`，随那一格基础设施包发出去），各包只留「交哪把键、交哪个组件、交哪段说法」。
 所以这里钉的从「三份逐字相同」换成了「三处引的是同一份、只差本层自己的名字与说法」。
 
 三处入口现在齐了：三层的页面都由 `@show-docs/docusaurus-theme-component-page` 判中后挂上
-（条目见各包的 `src/component-pages.mts`），入口因此叫 `theme/MarkmapPage` / `theme/ErdPage` /
-`theme/DiffPage`。erd 的键是 loader 写进模块的那条导出（`dbml_json`），markmap / diff 的还是
-frontmatter —— 两边判法的差别在清单里，页面本身只把视图摆在正文上方。外壳本身三处一样。
+（条目由各包在自己的 `loadContent()` 里交回，见各包的 `src/index.mts`），入口因此叫
+`theme/MarkmapPage` / `theme/ErdPage` / `theme/DiffPage`。erd 的键是 loader 写进模块的那条导出
+（`dbml_json`），markmap / diff 的还是 frontmatter —— 两边判法的差别在各条规则里，页面本身只把
+视图摆在正文上方。外壳本身三处一样。
 */
 const viewPackages = ['theme-markmap', 'theme-erd', 'theme-diff'] as const;
 
@@ -132,10 +133,10 @@ function expectSameSkeleton(
 }
 
 describe('三条视图层共用的那一份外壳', () => {
-  /** 共享实现的落点：随 `theme-iframe` 的 `lib/` 发出去（见其 `package.json` 的 `files` / exports）。 */
-  const shared = path.join('theme-iframe', 'lib');
+  /** 共享实现的落点：随 `theme-component-page` 的 `lib/` 发出去（见其 `package.json` 的 `files` / exports）。 */
+  const shared = path.join('theme-component-page', 'lib');
 
-  it('共享实现那三份真的在（在 `theme-iframe/lib/` 里）', () => {
+  it('共享实现那三份真的在（在 `theme-component-page/lib/` 里）', () => {
     for (const file of [
       'view-layer-shell.tsx',
       'view-layer-labels.ts',
@@ -167,7 +168,7 @@ describe('三条视图层共用的那一份外壳', () => {
   });
 
   const shellImport =
-    "import { ViewLayerDocItem } from '@show-docs/docusaurus-theme-iframe/lib/view-layer-shell.tsx';";
+    "import { ViewLayerDocItem } from '@show-docs/docusaurus-theme-component-page/lib/view-layer-shell.tsx';";
 
   /** 外壳那几层结构只该来自 `lib/`：本层再拼一遍就是第二份实现。 */
   const shellEchoes = [
@@ -319,19 +320,23 @@ describe('TS 源码的编译规则只有一处', () => {
     }
   });
 
-  it('theme-iframe 的 lib/ 里那份旧的判据文件没了', () => {
-    expect(
-      fs.existsSync(
-        path.join(
-          siteDir,
-          'packages',
-          'theme-iframe',
-          'lib',
-          'api-frame-source-js-rule.ts',
-        ),
-      ),
-      'packages/theme-iframe/lib/api-frame-source-js-rule.ts 又出现了：判据只有一份，在解析器插件里',
-    ).toBe(false);
+  it('没有任何主题包在 `lib/` 里再放一份那条判据', () => {
+    // 那份判据以前住在 `theme-iframe/lib/` 里（文件名带 `source-js-rule`）。判据只有一份，
+    // 在解析器插件里；文件名再出现在别的包的 `lib/` 就说明第二处又长回来了。
+    const offenders = sourcePackages
+      .flatMap((pkg) => {
+        const libDir = path.join(siteDir, 'packages', pkg, 'lib');
+
+        return fs.existsSync(libDir)
+          ? fs
+              .readdirSync(libDir)
+              .filter((name) => name.includes('source-js-rule'))
+              .map((name) => `${pkg}/lib/${name}`)
+          : [];
+      })
+      .join('、');
+
+    expect(offenders, `又出现了一份 TS 源码判据：${offenders}`).toBe('');
   });
 });
 

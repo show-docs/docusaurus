@@ -8,11 +8,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
-import { ERD_COMPONENT_PAGES } from './component-pages.mts';
 import { normalizeExports, planExports } from './options.mts';
 import type { ErdThemeOptions } from './types.mts';
 
@@ -72,9 +71,18 @@ export function validateOptions({
 
 /**
 本层的入口：`configureWebpack()` 让 `.dbml` 走「dbml-loader → 官方 mdx-loader」那条链，
-`loadContent()` 把 `dbml_json` 那一把键交给 `@show-docs/docusaurus-theme-component-page` ——
-命中的页由它那份 `DocItem` 判清单后整页换成 `@theme/ErdPage`。于是本层的前提有两个：共享外壳
-所在的 `theme-iframe`，与判清单的 `component-page`；缺了它们，`.dbml` 页照常编译，关系图却不出现。
+`loadContent()` 交出**一份组件与一条规则**（`dbml_json` 那一把键、`@theme/ErdPage`），判表与挂载
+都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：那一层（连同它背后的
+解析器插件）；缺了它，`.dbml` 页照常编译，关系图却不出现。
+
+`dbml_json` 是 dbml-loader 写进编译结果的那条命名导出（`.dbml` 解析出来的模型），也是本层唯一
+能用来判断「这一页是不是关系图页」的信号：它不是作者写的 frontmatter，所以用的还是 component-page
+那条读法（`source` 缺省即 `auto`：先看 frontmatter 的同名键，没有再看 MDX 模块上的同名导出）。
+判法是 `any`：那个导出恒是一个对象，`any` 本来就认对象（`boolean` / `value` 都判不了对象）。
+命中后整页交给 `@theme/ErdPage`（`render` 缺省即 `page`：视图摆在正文上方）。
+
+组件写的是 `@theme/ErdPage` 而不是硬路径：站点在 `src/theme/ErdPage` 放一份就覆写掉它，
+与站点自己那一列同一条口径。
 */
 export default function theme(
   context: LoadContext,
@@ -87,17 +95,19 @@ export default function theme(
   return {
     name: '@show-docs/docusaurus-theme-erd',
     loadContent() {
-      // 本层的 `ViewLayerDocItem` 住在 theme-iframe 未编译的 `lib/` 里：那个包没装，
-      // 站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。component-page 缺了则是
-      // 另一头的症状：`dbml_json` 那一页永远不会被交给 `@theme/ErdPage`。
+      // 交出的那一页要由 component-page 判表才挂得上来（共享外壳 `ViewLayerDocItem` 也在那里）；
+      // 解析器插件缺了则是本包那几份未编译的 `.tsx` / `.ts` 没人认领。都在这里点名，而不是让
+      // webpack 在某个页面文件上抛、或让那一页安静地不出现。
       assertThemePrerequisites(context, {
         namespace: '@show-docs/docusaurus-theme-erd',
-        iframe: true,
         componentPage: true,
       });
 
       return {
-        componentPages: ERD_COMPONENT_PAGES,
+        componentPage: {
+          components: [{ id: 'erd', component: '@theme/ErdPage' }],
+          rules: [{ key: 'dbml_json', match: 'any', component: 'erd' }],
+        },
       } satisfies ComponentPageContent;
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus

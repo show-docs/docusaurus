@@ -1,0 +1,33 @@
+/* 「这一页整页交给一个同源框」那条规则的版式（`components/component-frame.tsx` 挂的类名）。
+
+   定高取 `100vh - var(--ifm-navbar-height)`：滚动条长在**框内那份文档**上，那份文档没有
+   navbar，整屏都是它的，外层这一格给多高它就占多高，两层滚动容器各滚各的文档，互不打扰。
+   `display: block` 与 `border: 0` 收的是浏览器对 `<iframe>` 的两个默认（inline、带边框）。
+
+   正文容器那一格由下面那条裸 `iframe` 规则负责（去内边距、放开最大宽度）。`max-width: 100%`
+   与 `unset` 在这里等价：那一格是 `.container` 自己，父链上没有别的宽度约束，两个值都落到
+   「铺满」，所以只留一条。
+
+   这条按「这一格里有 iframe」匹配 —— 正文里手写的 iframe 也会让承载它的容器去掉内边距，
+   这是它本来就声明的全站边界，不是疏漏。
+
+   页脚那一格同理：框已经占满 navbar 以下那一屏，页脚留在下面只会被推出可视区，于是这一页多出
+   一条只能滚到页脚的空白（配了 `themeConfig.footer` 才看得见，实测 238px）。Docusaurus 的
+   classic 布局里 `.footer` 是 `.main-wrapper` 的**紧邻后兄弟**，选择器就照这个形状写；
+   认 `.component-frame` 而不认裸 `iframe`，正文里手写的 iframe 不该顺带把整站页脚收掉。 */
+
+.component-frame {
+  display: block;
+  border: 0;
+  width: 100%;
+  height: calc(100vh - var(--ifm-navbar-height));
+}
+
+.container:has(iframe) {
+  padding: 0 !important;
+  max-width: 100% !important;
+}
+
+.main-wrapper:has(.component-frame) + .footer {
+  display: none;
+}

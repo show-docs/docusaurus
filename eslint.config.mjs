@@ -104,17 +104,17 @@ export default [
     rules: { 'no-shadow': 0, 'unicorn/max-nested-calls': 0 },
   },
   {
+    // 这两份用例量的正是「`http:` 地址在 https 页面上怎么升」和「非 URL 的那条指令收不收」：
+    // 串里的 `http://` 与 `javascript:` 就是被测输入本身，改成 https 或删掉它们等于把这条
+    // 判据从用例里删掉 —— 升协议那一条要验的恰恰是「只升不降」，全用 https 就什么都没验。
+    files: ['test/frame-url.test.mts', 'test/external-url.test.mts'],
+    rules: { 'no-script-url': 0, 'unicorn/prefer-https': 0 },
+  },
+  {
     // 主题组件的目录名**就是**组件名（`@theme/Logo` 靠它拼出来），官方口径是 PascalCase；
     // 改成 kebab-case 等于改掉别名语义。
     files: ['src/theme/**', 'tools/*/theme/**', 'packages/*/theme/**'],
     rules: { 'unicorn/filename-case': 0 },
-  },
-  {
-    // 配置期的共享帮手（`lib/api-frame-theme.mts`）跑在 Node 里，
-    // 引 `node:path` 是它们的职责；浏览器那一份（`lib/index.ts`）不在这一条里。
-    // （`src/prerequisites.mts` 不再住这里 —— 它进 `tsc`，由 `.mts` 那份 Node 口径覆盖。）
-    files: ['packages/*/lib/api-frame-*.{mts,ts}'],
-    rules: { 'import-x/no-nodejs-modules': 0 },
   },
   {
     // webpack loader 的上下文（`this.async()` / `this.resourcePath` / `this.cacheable()`）

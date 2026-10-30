@@ -37,7 +37,7 @@
   "peerDependencies": {
     "@docusaurus/types": "catalog:",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
-    "@show-docs/docusaurus-theme-iframe": "workspace:^",
+    "@show-docs/docusaurus-theme-component-page": "workspace:^",
     "react": "catalog:",
     "webpack": "catalog:"
   },

@@ -3,9 +3,10 @@ import type { FrameLocator, Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
 import {
+  componentFrameDoc,
   frameModeSignal,
   layerDemoUrl,
-  layerFrameDoc,
+  layerRoot,
   siteStyles,
   watchPageErrors,
 } from '../helpers.mts';
@@ -15,8 +16,8 @@ const { Given, When, Then } = createBdd();
 /**
 ## 这一层的判据分两份文档量
 
-命中页（`/theme-redoc/docs/redoc-demo`）里只有一个 iframe，Redoc 整个跑在框内那份文档（本包那条插件路由
-`/redoc-view`）上。所以每条判据都得指名站在哪一份文档里量：
+命中页（`/theme-redoc/docs/redoc-demo`）里只有一个 iframe，Redoc 整个跑在框内那份文档（component-page
+那条通用框内路由 `/__component-frame`）上。所以每条判据都得指名站在哪一份文档里量：
 
 - 外层：`page.locator(...)` —— 这一份里**不该**有任何 Redoc 的东西（边界由浏览器给，
   本层不再做样式圈定，口径见包 `docs/internals.md` 的「样式」一节）；
@@ -26,8 +27,8 @@ const { Given, When, Then } = createBdd();
 
 同源，所以两边都能直接读 DOM 与 CSSOM，不需要往测试里塞第二层通道。
 
-「打开哪一页」「框的 `src` 指向哪儿」那五句在三条层之间只差一个层名，实现收在
-`common.steps.mts`（句子按层名捕获、地址由层名算）；这里只留 Redoc 这一头独有的句子。
+「打开哪一页」「框的 `src` 指向哪儿」那几句在三条层之间只差一个层名（甚至只差一个类名 ——
+框现在三条层共用一个），实现收在 `common.steps.mts`；这里只留 Redoc 这一头独有的句子。
 
 Redoc 的路由走 hash：左栏那些链接由它自己拼成 `#/orders/…`；`operationId` 被小写进地址
 （`createOrder` → `createorder`），下面的 href 按浏览器里真的那串写。href 不带路径前缀，
@@ -36,12 +37,12 @@ Redoc 的路由走 hash：左栏那些链接由它自己拼成 `#/orders/…`；
 每条都限定在 `.menu-content` 里：正文面板上也有指向同一个接口的锚（标签标题旁那个
 「link to orders」），不限定就会命中两处，Playwright 的严格模式直接报错。
 */
-const frameDoc = (page: Page): FrameLocator => layerFrameDoc(page, 'redoc');
+const frameDoc = (page: Page): FrameLocator => componentFrameDoc(page);
 
 const menu = (page: Page): Locator =>
   frameDoc(page).locator('.redoc-root .menu-content');
 
-const root = (page: Page): Locator => frameDoc(page).locator('.redoc-root');
+const root = (page: Page): Locator => layerRoot(page, 'redoc');
 
 const menuHref = (name: string): string => `#/orders/${name}`;
 
@@ -321,9 +322,9 @@ Redoc 自带一套亮暗模式，判据是**操作系统**的偏好（`matchMedi
 
 本层在运行期把 `:root.dark` 改挂到 `:root[data-redoc-mode="dark"]`（`redoc-color-mode.ts`），
 于是站点那个开关成为唯一的驱动。改造之后多出一格：那个开关写在**外层**文档的 `<html>` 上，
-而配色在**框内**那份文档里 —— 这一格由共享那条 postMessage 通道接（`packages/theme-iframe/lib/`：
-外层（theme-iframe 的 `api-frame.tsx`）送、框内那份工厂（`api-frame-view.tsx`，本包 `theme/RedocPage`
-就是它造出的一页）收，收下来往自己 `<html>` 上写那条属性）。
+而配色在**框内**那份文档里 —— 这一格由共享那条 postMessage 通道接（component-page 的
+`components/component-frame.tsx` 送、框内那份页面经 `lib/frame-sync.tsx` 收，收下来交给本层
+`useFrameMode(applyRedocColorMode)` 往自己 `<html>` 上写那条属性）。
 框内那份文档不挂站点的 `ColorModeProvider`，站点那条 `data-theme` 在这里只是加载时内联脚本
 写死的一份、没人维护，本层不读它。
 
@@ -390,19 +391,26 @@ Then('站点自己的那几处样式在暗色下也不被 Redoc 改写', async (
   ).toEqual(onRedocPage);
 });
 
-Then('这一页直接渲染 Redoc', async ({ page }) => {
-  await expect(page.locator('.redoc-root')).toBeVisible();
-  await expect(page.locator('.redoc-root')).toContainText('Redoc 演示 API');
+/**
+键写了、文档地址没给时框里那一句说明（`theme/RedocView` 里那条 `Admonition`）。
+
+这一格和上一条是一对：说明在，渲染器不在。认的是官方 `Admonition` 的稳定类名
+`theme-admonition`，标题按原文比 —— 那句改了字，这一句会红，去看是不是两处该一起改。
+*/
+Then('框里说明这一页没给 Redoc 要渲染的文档', async ({ page }) => {
+  await expect(
+    frameDoc(page).locator('.theme-admonition'),
+    '框里没有那条说明：缺输入时它该摆这一句',
+  ).toContainText('这一页没给 Redoc 要渲染的文档');
 });
 
 /**
-地址里缺 `src`（或写成解析不成 http(s) 的东西）时这一格什么都不摆。
+框里没有 Redoc 的痕迹，也没有它那份 404。
 
-钉这一句是因为 Redoc 拿到空地址**不报错**，而是把它自己那份「No page at this address」摆在
-正文区 —— 看着像渲染器坏了。这一页是条公开地址，任何人都能直接打开它，所以这一格要按
-「什么都不摆」钉死。
+钉这一句是因为 Redoc 拿到空地址**不报错**，而是把「No page at this address」摆在正文区 ——
+看着像渲染器坏了。本层在把地址交给 Redoc 之前就挡下来（`theme/RedocView`）。
 */
 Then('Redoc 那一格不出现，它那份 404 也不出现', async ({ page }) => {
-  await expect(page.locator('.redoc-root')).toHaveCount(0);
-  await expect(page.locator('.not-found-page')).toHaveCount(0);
+  await expect(frameDoc(page).locator('.redoc-root')).toHaveCount(0);
+  await expect(frameDoc(page).locator('.not-found-page')).toHaveCount(0);
 });

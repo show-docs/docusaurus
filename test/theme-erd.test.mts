@@ -7,7 +7,6 @@ import { promisify } from 'node:util';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ERD_COMPONENT_PAGES } from '../packages/theme-erd/src/component-pages.mts';
 import theme, { validateOptions } from '../packages/theme-erd/src/index.mts';
 import loader from '../packages/theme-erd/src/loader/dbml-loader.mts';
 import {
@@ -186,18 +185,54 @@ function exportedJson(output: string): DbmlModel {
 }
 
 /**
+本层在 `loadContent()` 里交回的那一列（`{ componentPage }`）：判表与挂载都在 component-page，
+本层只交「一个组件 + 一条规则」。这里把那份 content 读出来，用的就是站点装本层时同一条路径
+（两份前提都在这句里满足）。
+*/
+function contributedColumns() {
+  const plugin = theme(
+    {
+      siteDir: '/site',
+      siteConfig: {
+        plugins: [
+          '@show-docs/docusaurus-plugin-prev-layer-resolver',
+          '@show-docs/docusaurus-theme-component-page',
+        ],
+        themes: [],
+      },
+    } as unknown as Parameters<typeof theme>[0],
+    {},
+  ) as {
+    loadContent?: () => {
+      componentPage: {
+        components: { id: string; component: string }[];
+        rules: { key: string; match: string; component: string }[];
+      };
+    };
+  };
+
+  return plugin.loadContent!().componentPage;
+}
+
+/**
 清单里那把键与 loader 写出来的导出名是**两处字面量**：component-page 按清单里的名字去模块上
 读同名导出，两边一旦不一致，症状是「页面安静地不出现关系图」—— 构建与用例都不报。这一条把
 它们钉在一起：改了哪一边，另一边没跟上就红。
 */
 describe('清单里那把键就是 loader 写出来的导出名', () => {
-  it('`dbml_json` 既是清单的唯一一把键，也是产物里那条 `export const`', async () => {
-    expect(ERD_COMPONENT_PAGES.map((page) => page.key)).toEqual(['dbml_json']);
+  it('`dbml_json` 既是交出的那一条的唯一一把键，也是产物里那条 `export const`', async () => {
+    const { components, rules } = contributedColumns();
+
+    expect(rules.map((rule) => rule.key)).toEqual(['dbml_json']);
+    // 规则引用的是**登记名**，那一格必须能在同一列里查到；查不到时构建期就红，所以这里钉的是
+    // 本层自己写得自洽：`erd` 那一条指向 `@theme/ErdPage`（站点放一份就覆写掉它）。
+    expect(components).toEqual([{ id: 'erd', component: '@theme/ErdPage' }]);
+    expect(rules.map((rule) => rule.component)).toEqual(['erd']);
 
     const output = await runOutput(demoDbml);
 
-    for (const page of ERD_COMPONENT_PAGES) {
-      expect(output).toContain(`export const ${page.key} = `);
+    for (const rule of rules) {
+      expect(output).toContain(`export const ${rule.key} = `);
     }
   });
 });

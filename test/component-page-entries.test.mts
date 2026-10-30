@@ -5,33 +5,54 @@ import {
   componentPageWarnings,
   matchComponentPage,
   warnComponentPages,
-  type ComponentPageEntry,
   type ComponentPageFacts,
+  type ComponentPageMatch,
+  type ComponentPageRule,
+  type ComponentPageSource,
 } from '../packages/theme-component-page/lib/component-page.ts';
 
 /**
-## 那一层怎么判键、什么时候给话
+## 那张表怎么判键、什么时候给话
 
 判据住在 `lib/component-page.ts`，配置期与浏览器期引同一份：`theme/DocItem` 里不抄第二套规则，
 所以这里钉的就是页面真命不命中那一件事。`theme/` 那层本身由 e2e 钉（分工见 `test/README.md`）。
 
 两处来源一视同仁：frontmatter 里那格与 MDX 模块上的同名导出。两处同名时 frontmatter 赢
-（手写的那格压过编译产物），而且**命中与否只看赢的那一份**，不往另一份回退。
+（手写的那格压过编译产物），而且**命中与否只看赢的那一份**，不往另一份回退；`source` 那一格
+只决定读不读第二处。
 
-清单顺序 = 优先级：一页同时命中两条时只用排在最前那条，而「写了键却没命中」绝不能静默 ——
+表的顺序 = 优先级：一页同时命中两条时只用排在最前那条，而「写了键却没命中」绝不能静默 ——
 静默的症状是页面看着正常、配置没生效。
 */
 
-const booleanEntry: ComponentPageEntry = {
-  key: 'report',
-  match: 'boolean',
-};
+/**
+一条补明缺省的规则：判据只看 `key` / `match` / `source` 这三格，`component` 与 `render`
+由配置期那张表用（见 `component-page-contrib.test.mts`），这里给个占位值。
+*/
+const ruleOf = (
+  key: string,
+  match: ComponentPageMatch,
+  source: ComponentPageSource = 'auto',
+  props?: Record<string, unknown>,
+): ComponentPageRule => ({
+  key,
+  component: key,
+  match,
+  source,
+  render: 'page',
+  ...(props && { props }),
+});
 
-const valueEntry: ComponentPageEntry = { key: 'embed', match: 'value' };
+const booleanRule = ruleOf('report', 'boolean');
 
-const optionsEntry: ComponentPageEntry = { key: 'diagram', match: 'options' };
+const valueRule = ruleOf('embed', 'value');
 
-const anyEntry: ComponentPageEntry = { key: 'diff', match: 'any' };
+const optionsRule = ruleOf('diagram', 'options');
+
+const anyRule = ruleOf('diff', 'any');
+
+/** 只读 frontmatter 的那一条：嵌外站地址那一类键用的读法。 */
+const frontMatterOnlyRule = ruleOf('embed', 'value', 'frontMatter');
 
 /** 这一页的 frontmatter 那一份（模块导出那一份在下面「两处来源」里单独写）。 */
 const fm = (frontMatter: Record<string, unknown>): ComponentPageFacts => ({
@@ -40,23 +61,23 @@ const fm = (frontMatter: Record<string, unknown>): ComponentPageFacts => ({
 
 describe('matchComponentPage：boolean 那臂只认真布尔 true', () => {
   it('true 命中，其余形状都落空', () => {
-    expect(matchComponentPage(booleanEntry, fm({ report: true }))).toBe(true);
+    expect(matchComponentPage(booleanRule, fm({ report: true }))).toBe(true);
 
     for (const written of ['true', 1, {}, undefined, null, false]) {
-      expect(
-        matchComponentPage(booleanEntry, fm({ report: written })),
-      ).toBeUndefined();
+      expect(matchComponentPage(booleanRule, fm({ report: written }))).toBe(
+        undefined,
+      );
     }
   });
 
   it('这一页没有 frontmatter 时落空（不是抛）', () => {
-    expect(matchComponentPage(booleanEntry, {})).toBeUndefined();
+    expect(matchComponentPage(booleanRule, {})).toBeUndefined();
   });
 });
 
 describe('matchComponentPage：value 那臂要一串非空文本', () => {
   it('命中的那串文本交回来', () => {
-    expect(matchComponentPage(valueEntry, fm({ embed: '/board/1' }))).toBe(
+    expect(matchComponentPage(valueRule, fm({ embed: '/board/1' }))).toBe(
       '/board/1',
     );
   });
@@ -64,7 +85,7 @@ describe('matchComponentPage：value 那臂要一串非空文本', () => {
   it('空串与非字符串都落空', () => {
     for (const written of ['', true, 42, {}]) {
       expect(
-        matchComponentPage(valueEntry, fm({ embed: written })),
+        matchComponentPage(valueRule, fm({ embed: written })),
       ).toBeUndefined();
     }
   });
@@ -72,10 +93,11 @@ describe('matchComponentPage：value 那臂要一串非空文本', () => {
 
 describe('matchComponentPage：options 那臂要 true 或一个选项对象', () => {
   it('true 原样交回；选项对象原样交回（开关与选项是同一条判法）', () => {
-    expect(matchComponentPage(optionsEntry, fm({ diagram: true }))).toBe(true);
+    expect(matchComponentPage(optionsRule, fm({ diagram: true }))).toBe(true);
 
     const options = { color: 'red', initialExpandLevel: 2 };
-    expect(matchComponentPage(optionsEntry, fm({ diagram: options }))).toBe(
+
+    expect(matchComponentPage(optionsRule, fm({ diagram: options }))).toBe(
       options,
     );
   });
@@ -83,7 +105,7 @@ describe('matchComponentPage：options 那臂要 true 或一个选项对象', ()
   it('其余形状都落空（含数组：选项只认一个对象）', () => {
     for (const written of [false, null, undefined, '', 'yes', 1, ['color']]) {
       expect(
-        matchComponentPage(optionsEntry, fm({ diagram: written })),
+        matchComponentPage(optionsRule, fm({ diagram: written })),
       ).toBeUndefined();
     }
   });
@@ -91,19 +113,20 @@ describe('matchComponentPage：options 那臂要 true 或一个选项对象', ()
 
 describe('matchComponentPage：any 那臂三种写法都认，写下的那一格原样交回', () => {
   it('true、一串非空文本与选项对象各自命中', () => {
-    expect(matchComponentPage(anyEntry, fm({ diff: true }))).toBe(true);
-    expect(matchComponentPage(anyEntry, fm({ diff: '../../README.md' }))).toBe(
+    expect(matchComponentPage(anyRule, fm({ diff: true }))).toBe(true);
+    expect(matchComponentPage(anyRule, fm({ diff: '../../README.md' }))).toBe(
       '../../README.md',
     );
 
     const pair = { old: 'a.md', new: 'b.md' };
-    expect(matchComponentPage(anyEntry, fm({ diff: pair }))).toBe(pair);
+
+    expect(matchComponentPage(anyRule, fm({ diff: pair }))).toBe(pair);
   });
 
   it('没开的那几种与数字、数组都落空', () => {
     for (const written of [false, null, undefined, '', 1, ['a.md']]) {
       expect(
-        matchComponentPage(anyEntry, fm({ diff: written })),
+        matchComponentPage(anyRule, fm({ diff: written })),
       ).toBeUndefined();
     }
   });
@@ -113,14 +136,14 @@ describe('matchComponentPage：值也可以来自 MDX 模块上的同名导出',
   const model = { tables: [{ name: 'users' }] };
 
   it('模块上有这个自有导出就命中（erd 的 dbml_json 走的正是这条）', () => {
-    expect(matchComponentPage(anyEntry, { content: { diff: model } })).toBe(
+    expect(matchComponentPage(anyRule, { content: { diff: model } })).toBe(
       model,
     );
   });
 
   it('两份同名时 frontmatter 赢，而且不回退：它写歪了就是落空', () => {
     expect(
-      matchComponentPage(booleanEntry, {
+      matchComponentPage(booleanRule, {
         frontMatter: { report: true },
         content: { report: false },
       }),
@@ -129,7 +152,7 @@ describe('matchComponentPage：值也可以来自 MDX 模块上的同名导出',
     // frontmatter 写了 `report: 'yes'`（形状不合 boolean），模块上那份是真布尔 true ——
     // 仍然落空：赢的那一份就是这一页的说法，不拿另一份兜底。
     expect(
-      matchComponentPage(booleanEntry, {
+      matchComponentPage(booleanRule, {
         frontMatter: { report: 'yes' },
         content: { report: true },
       }),
@@ -137,35 +160,53 @@ describe('matchComponentPage：值也可以来自 MDX 模块上的同名导出',
   });
 
   it('原型上摸得到的名字不算「写了这一格」', () => {
-    expect(matchComponentPage(anyEntry, { content: {} })).toBeUndefined();
-    expect(matchComponentPage(anyEntry, {})).toBeUndefined();
+    expect(matchComponentPage(anyRule, { content: {} })).toBeUndefined();
+    expect(matchComponentPage(anyRule, {})).toBeUndefined();
     expect(
-      matchComponentPage(anyEntry, { content: Object.create({ diff: model }) }),
+      matchComponentPage(anyRule, { content: Object.create({ diff: model }) }),
     ).toBeUndefined();
   });
 
   it('模块那一侧不是对象 / 函数时（非文档页）算没写，不抛', () => {
     for (const content of ['MDX', 42, true, null]) {
-      expect(matchComponentPage(anyEntry, { content })).toBeUndefined();
+      expect(matchComponentPage(anyRule, { content })).toBeUndefined();
     }
+  });
+});
+
+describe('matchComponentPage：source 那一格只决定读不读第二处', () => {
+  it('`frontMatter` 那条：同名模块导出不算命中（正文里恰好有个同名导出时不劫持整页）', () => {
+    expect(
+      matchComponentPage(frontMatterOnlyRule, {
+        content: { embed: '/board/1' },
+      }),
+    ).toBeUndefined();
+    expect(
+      matchComponentPage(frontMatterOnlyRule, fm({ embed: '/board/1' })),
+    ).toBe('/board/1');
+  });
+
+  it('`frontMatter` 那条同样不回退：frontmatter 写了不合形状的东西就是落空', () => {
+    expect(
+      matchComponentPage(frontMatterOnlyRule, {
+        frontMatter: { embed: true },
+        content: { embed: '/board/1' },
+      }),
+    ).toBeUndefined();
   });
 });
 
 describe('componentPageProps：配置那格垫底，本页那三份盖在上面', () => {
   it('同名的键以本页那三份为准（配置盖不掉本页事实）', () => {
-    const entry: ComponentPageEntry = {
-      key: 'embed',
-      match: 'value',
-      props: {
-        frontMatter: '假的',
-        value: '假的',
-        content: '假的',
-        height: '480',
-      },
-    };
+    const rule = ruleOf('embed', 'value', 'auto', {
+      frontMatter: '假的',
+      value: '假的',
+      content: '假的',
+      height: '480',
+    });
 
     expect(
-      componentPageProps(entry, '/board/1', { embed: '/board/1' }, undefined),
+      componentPageProps(rule, '/board/1', { embed: '/board/1' }, undefined),
     ).toEqual({
       frontMatter: { embed: '/board/1' },
       value: '/board/1',
@@ -176,7 +217,7 @@ describe('componentPageProps：配置那格垫底，本页那三份盖在上面'
   it('不冲突的那些键原样并进来；props 缺席时只有那三份', () => {
     expect(
       componentPageProps(
-        { key: 'report', match: 'boolean', props: { title: '报表' } },
+        ruleOf('report', 'boolean', 'auto', { title: '报表' }),
         true,
         { report: true },
         'MDX',
@@ -189,102 +230,111 @@ describe('componentPageProps：配置那格垫底，本页那三份盖在上面'
     });
 
     expect(
-      componentPageProps(
-        { key: 'report', match: 'boolean' },
-        true,
-        { report: true },
-        'MDX',
-      ),
+      componentPageProps(booleanRule, true, { report: true }, 'MDX'),
     ).toEqual({ frontMatter: { report: true }, value: true, content: 'MDX' });
   });
 
   it('这一页没写 frontmatter 时交一个空对象，而不是 undefined', () => {
+    expect(componentPageProps(booleanRule, true, undefined, undefined)).toEqual(
+      {
+        frontMatter: {},
+        value: true,
+      },
+    );
+  });
+
+  it('框里那一份没有父页的 React 树：`content` 那一格交的是 undefined', () => {
     expect(
-      componentPageProps(
-        { key: 'report', match: 'boolean' },
-        true,
-        undefined,
-        undefined,
-      ),
-    ).toEqual({ frontMatter: {}, value: true });
+      componentPageProps(booleanRule, true, {}, undefined).content,
+    ).toBeUndefined();
   });
 
   it('配置那格不是复制出来的：改入参不影响条目', () => {
     const props = { height: '480' };
-    const entry: ComponentPageEntry = { key: 'embed', match: 'value', props };
+    const rule = ruleOf('embed', 'value', 'auto', props);
 
-    const result = componentPageProps(entry, '/b', { embed: '/b' }, undefined);
+    const result = componentPageProps(rule, '/b', { embed: '/b' }, undefined);
+
     result.height = '600';
-
     expect(props).toEqual({ height: '480' });
   });
 });
 
 describe('componentPageWarnings：写了键却没命中要给一条', () => {
   it('这把键没写：一句都不说（这一层等于透明）', () => {
-    expect(componentPageWarnings([booleanEntry], fm({ title: 'x' }))).toEqual(
+    expect(componentPageWarnings([booleanRule], fm({ title: 'x' }))).toEqual(
       [],
     );
-    expect(componentPageWarnings([booleanEntry], {})).toEqual([]);
+    expect(componentPageWarnings([booleanRule], {})).toEqual([]);
   });
 
   it('boolean 那条写了串文本：点名键名、这条判法与它要的的形状', () => {
     expect(
-      componentPageWarnings([booleanEntry], fm({ report: '/x' }), '/docs/a'),
+      componentPageWarnings([booleanRule], fm({ report: '/x' }), '/docs/a'),
     ).toEqual([
-      '/docs/a 写了 `report:`，但清单里这一条按 `boolean` 判，要的是真布尔 `true`，这一条不参与，交回普通文档页。',
+      '/docs/a 写了 `report:`，但表里这一条按 `boolean` 判，要的是真布尔 `true`，这一条不参与，交回普通文档页。',
     ]);
   });
 
   it('value 那条写了 true：说的是另一种形状，页面地址缺时用一个通用说法', () => {
-    expect(componentPageWarnings([valueEntry], fm({ embed: true }))).toEqual([
-      '这一页 写了 `embed:`，但清单里这一条按 `value` 判，要的是一串非空文本，这一条不参与，交回普通文档页。',
+    expect(componentPageWarnings([valueRule], fm({ embed: true }))).toEqual([
+      '这一页 写了 `embed:`，但表里这一条按 `value` 判，要的是一串非空文本，这一条不参与，交回普通文档页。',
     ]);
   });
 
   it('options 那条写了别的真值：说的是「true 或一个选项对象」', () => {
     expect(
-      componentPageWarnings([optionsEntry], fm({ diagram: 'yes' }), '/docs/c'),
+      componentPageWarnings([optionsRule], fm({ diagram: 'yes' }), '/docs/c'),
     ).toEqual([
-      '/docs/c 写了 `diagram:`，但清单里这一条按 `options` 判，要的是真布尔 `true` 或一个选项对象，这一条不参与，交回普通文档页。',
+      '/docs/c 写了 `diagram:`，但表里这一条按 `options` 判，要的是真布尔 `true` 或一个选项对象，这一条不参与，交回普通文档页。',
     ]);
   });
 
   it('any 那条写了 false（「没开」的写法）：说的是那三种形状', () => {
     expect(
-      componentPageWarnings([anyEntry], fm({ diff: false }), '/docs/d'),
+      componentPageWarnings([anyRule], fm({ diff: false }), '/docs/d'),
     ).toEqual([
-      '/docs/d 写了 `diff:`，但清单里这一条按 `any` 判，要的是真布尔 `true`、一串非空文本或一个选项对象，这一条不参与，交回普通文档页。',
+      '/docs/d 写了 `diff:`，但表里这一条按 `any` 判，要的是真布尔 `true`、一串非空文本或一个选项对象，这一条不参与，交回普通文档页。',
     ]);
   });
 
   it('值来自模块导出那一份时同样点名（两处来源一视同仁）', () => {
     expect(
-      componentPageWarnings([anyEntry], { content: { diff: 42 } }, '/docs/e'),
+      componentPageWarnings([anyRule], { content: { diff: 42 } }, '/docs/e'),
     ).toEqual([
-      '/docs/e 写了 `diff:`，但清单里这一条按 `any` 判，要的是真布尔 `true`、一串非空文本或一个选项对象，这一条不参与，交回普通文档页。',
+      '/docs/e 写了 `diff:`，但表里这一条按 `any` 判，要的是真布尔 `true`、一串非空文本或一个选项对象，这一条不参与，交回普通文档页。',
     ]);
 
     expect(
-      componentPageWarnings([anyEntry], { content: { diff: { old: 'a' } } }),
+      componentPageWarnings([anyRule], { content: { diff: { old: 'a' } } }),
+    ).toEqual([]);
+  });
+
+  it('只读 frontmatter 那条不读模块：模块上有同名导出也不点名', () => {
+    expect(
+      componentPageWarnings(
+        [frontMatterOnlyRule],
+        { content: { embed: 42 } },
+        '/docs/f',
+      ),
     ).toEqual([]);
   });
 
   it('一页同时命中两条：只用排在最前那条，其余点名', () => {
     expect(
       componentPageWarnings(
-        [booleanEntry, valueEntry],
+        [booleanRule, valueRule],
         fm({ report: true, embed: '/board/1' }),
         '/docs/b',
       ),
     ).toEqual([
-      '/docs/b 同时命中清单里 2 条（`report:` / `embed:`），按清单顺序只用排在最前那一条，其余被忽略 —— 一页写两把键通常是手误。',
+      '/docs/b 同时命中表里 2 条（`report:` / `embed:`），按表的顺序只用排在最前那一条，其余被忽略 —— 一页写两把键通常是手误。',
     ]);
   });
 
   it('只命中一条时不给那条话', () => {
     expect(
-      componentPageWarnings([booleanEntry, valueEntry], fm({ report: true })),
+      componentPageWarnings([booleanRule, valueRule], fm({ report: true })),
     ).toEqual([]);
   });
 });
@@ -299,7 +349,7 @@ describe('warnComponentPages：每种文本只打一次', () => {
   it('第一遍打，第二遍同一条不再打（同一页反复渲染会重算出同一条）', () => {
     const unique = `/docs/only-${Date.now()}`;
     const warnings = componentPageWarnings(
-      [booleanEntry],
+      [booleanRule],
       fm({ report: 1 }),
       unique,
     );

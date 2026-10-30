@@ -3,14 +3,13 @@ import type { Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
 import {
+  componentFrame,
+  componentFrameUrl,
   frameMarks,
   frameModeSignal,
   frameTimeOrigin,
   layerDemoUrl,
-  layerFrame,
-  layerFrameSrc,
-  layerViewUrl,
-  themeFrame,
+  layerNoSpecDemoUrl,
   themeLayers,
   viewLayers,
   watchPageErrors,
@@ -30,12 +29,11 @@ Then('浏览器里没有运行期错误', async ({ page }) => {
 });
 
 /**
-## 三条层「打开哪一页」与「那个框指向哪儿」，五句共用一份实现
+## 三条层「打开哪一页」那两句共用一份实现
 
-三层（`theme-redoc`、`theme-stoplight`、`theme-scalar`）各有同形状的两条页面：示例页
-`/{层名}-demo`（整页交给框那一条文档页）与本包那条插件路由 `/{层名}-view`（框内那一份文档）。
-这五句两两之间只差层名，所以句子按层名捕获、地址由层名算（`../helpers.mts` 的 `themeLayers`），
-实现只有一份。
+三层（`theme-redoc`、`theme-stoplight`、`theme-scalar`）各有同形状的两条文档页：示例页
+`/{层名}-demo`（键与文档地址都写了）与夹具页 `/{层名}-no-spec`（写了键、没给文档地址）。
+句子按层名捕获、地址由层名算（`../helpers.mts` 的 `themeLayers`），实现只有一份。
 
 正则步骤：playwright-bdd 的 Cucumber 表达式里中文句子带参数不好解析，捕获组最稳
 （同下面「框的无障碍标题」那一条）。
@@ -88,47 +86,39 @@ Given(
 );
 
 /**
-框内那条地址本身也是站点的一条页面：带着 `src` 就能独立打开（调试用，也证明这一层没有把渲染
-绑死在 iframe 上）。这一条钉它在静态产物里真是 **HTTP 200**。
+写了键却没给文档地址那一格：命中还是命中，框照样挂上，只是框里那句说明代替渲染器。
+
+旧版是「把框内那条地址上的 `?src=` 去掉」；现在那一份数据由握手送，单独打开那条地址只会停在
+「还没拿到数据」那一格（归 component-page 自己的用例，见 `component-page.feature`）。
 */
 Given(
-  new RegExp(`^我直接打开 (${layerWord}) 框内那条地址$`),
+  new RegExp(`^我打开 (${layerWord}) 没给文档地址的演示页$`),
   async ({ page }, word) => {
     watchPageErrors(page);
-    const response = await page.goto(layerFrameSrc(layerOf(word)));
-    expect(response?.status(), '框内那条地址在产物里不存在').toBe(200);
-  },
-);
-
-/** 把上面那条地址里的 `src` 去掉：这一格要钉的是「缺了 spec 就什么都不摆」。 */
-When(
-  new RegExp(`^我把 (${layerWord}) 框内那条地址里的 spec 去掉$`),
-  async ({ page }, word) => {
-    await page.goto(layerViewUrl(layerOf(word)));
+    await page.goto(layerNoSpecDemoUrl(layerOf(word)));
   },
 );
 
 /**
-命中页放的就那一个 iframe，`src` 指向本包那条插件路由。
+命中页放的就那一个 iframe，`src` 指向 component-page 那条通用框内路由。
 
-地址里带的是 frontmatter 那个 spec 地址（编码成 `src` 参数），**不带** hash：iframe 的 `src`
-只由配置决定，服务端与客户端算出的完全一样，深链那一段靠框里那句 ready 换进框内
-（见 `packages/theme-iframe/docs/iframe-protocol.md`）。这里比的是属性原文，不是解析后的绝对地址。
+地址里**不带**本页的信息（那份数据由 `lib/frame-sync.tsx` 的握手送进来），所以三层与另外几条
+`render: 'iframe'` 的规则在这一格上是同一个字符串 —— 这一页交给的是哪个渲染器，由框里长出来的
+根格判（`../helpers.mts` 的 `layerRoot`）。这里比的是属性原文，不是解析后的绝对地址。
 */
 Then(
-  new RegExp(`^这一页放的是一个 iframe，指向 (${layerWord}) 那条独立页面$`),
-  async ({ page }, word) => {
-    const frame = layerFrame(page, layerOf(word));
+  '这一页放的是一个 iframe，框里是本仓那条通用框内页面',
+  async ({ page }) => {
+    const frame = componentFrame(page);
     await expect(frame, '命中页没有那一个 iframe').toHaveCount(1);
-    await expect(frame).toHaveAttribute('src', layerFrameSrc(layerOf(word)));
+    await expect(frame).toHaveAttribute('src', componentFrameUrl);
   },
 );
 
 /**
-整页替换那一族：每一层在自己的 `loadContent()` 里交自己那把键（三条 API 层经工厂代交，本层交
-`iframe:`）给 `theme-component-page`，命中的那一页整个 `DocItem` 换成 `@theme/ApiFramePage`
-（顺序 = 那份清单的顺序 = 站点 `plugins` 的声明顺序），所以那一页连文档正文外壳
-都没有。四把键判的是同一件事，句子就一份。
+整页替换那一族：每一层在自己的 `loadContent()` 里把组件与规则交给 `theme-component-page`，
+命中的那一页整个 `DocItem` 换成规则里那个组件（`render: 'iframe'` 就是换成 component-page 的
+`@theme/ComponentFrame`），所以那一页连文档正文外壳都没有。各把键判的是同一件事，句子就一份。
 */
 Then('这一页没有文档正文外壳', async ({ page }) => {
   await expect(page.locator('article'), '整页没交给外部渲染器').toHaveCount(0);
@@ -136,8 +126,8 @@ Then('这一页没有文档正文外壳', async ({ page }) => {
 
 /**
 「框的无障碍标题用的是页面自己的标题」：整页交给框以后，`<iframe>` 的 `title` 是这一页在
-辅助技术里唯一的名字 —— 页面写了 `frontMatter.title` 时用它，注册表那条兜底值（`API 文档`）
-只在缺它时出现。三层形状一样，句子写一份，标题当参数传（各页不同）。
+辅助技术里唯一的名字 —— 页面写了 `frontMatter.title` 时用它，缺它才落到
+`components/component-frame.tsx` 里那句「文档」。三层形状一样，句子写一份，标题当参数传（各页不同）。
 
 正则步骤：playwright-bdd 的 Cucumber 表达式里中文引号串不好当参数解析，捕获组最稳。
 */
@@ -145,8 +135,8 @@ Then(
   /^框的无障碍标题用的是页面自己的标题 "([^"]+)"$/,
   async ({ page }, title) => {
     await expect(
-      themeFrame(page).first(),
-      `title 应取页面自己的「${title}」，而不是注册表兜底`,
+      componentFrame(page).first(),
+      `title 应取页面自己的「${title}」，而不是那句兜底`,
     ).toHaveAttribute('title', title);
   },
 );
@@ -156,7 +146,7 @@ Then(
 
 `theme-redoc`、`theme-stoplight` 与 `theme-scalar` 各钉一条同形状的场景：站点自己的开关是
 唯一的驱动，操作系统的偏好不算数，而且换配色不该把框内那份文档重新加载。这三步量的都是
-**跨 iframe 边界**那一条消息通道（实现见 `packages/theme-iframe/lib/`），两边读同一处信号 —— 它在框内
+**跨 iframe 边界**那一条消息通道（实现见 `packages/theme-component-page/lib/`），两边读同一处信号 —— 它在框内
 那份文档的 `<html>`（redoc、stoplight）或 `<body>`（scalar）上，三处读数各自的含义见
 `../helpers.mts` 里 `frameModeSignal` 那一段。
 
@@ -218,23 +208,23 @@ Then('这一页没有站点的 navbar', async ({ page }) => {
 });
 
 /**
-整页交给这个框时容器不留白：那条 `.container:has(iframe)` 在 theme-iframe 那份共用的
-`components/api-frame.css` 里，四条层都吃它。这里是**主题那三个框**（`themeFrame`）所在的
-`.container` —— 判据故意不认裸 `iframe`：夹具正文里手写的 `<iframe>` 也会命中全局那一条，
-那一句会假绿。
+整页交给这个框时容器不留白：那条 `.container:has(iframe)` 在 component-page 那份
+`components/component-frame.css` 里，同源框那几条规则都吃它。这里是**主题那三个框**
+（`componentFrame`）所在的 `.container` —— 判据故意不认裸 `iframe`：夹具正文里手写的 `<iframe>`
+也会命中全局那一条，那一句会假绿。
 */
 Then('正文容器在这一页让位', async ({ page }) => {
   const container = page
     .locator('.container')
-    .filter({ has: themeFrame(page) });
+    .filter({ has: componentFrame(page) });
   await expect(container, 'iframe 没落在 `.container` 里').toHaveCount(1);
   await expect(container).toHaveCSS('padding', '0px');
 });
 
 /**
-命中页把站点页脚收掉：那条 `.main-wrapper:has(.api-frame) + .footer` 在 theme-iframe 那份共用
-版式里，四条层都吃它（以前只写在 stoplight 自己那份、认 `stoplight-frame`，另外三条漏掉）。
-判的是**计算后的 display**而不是元素在不在 DOM 里 —— 页脚由 SSR 一并渲染，DOM 里一直在场，
+命中页把站点页脚收掉：那条 `.main-wrapper:has(.component-frame) + .footer` 在 component-page
+那份共用版式里，同源框那几条规则都吃它。判的是**计算后的 display**而不是元素在不在 DOM 里 ——
+页脚由 SSR 一并渲染，DOM 里一直在场，
 只有 CSS 把它收掉；`toHaveCSS` 会等样式表落地，不靠固定等待。
 */
 Then('这一页没有站点的页脚', async ({ page }) => {
@@ -254,11 +244,11 @@ Then('这一页有站点的页脚', async ({ page }) => {
 
 /**
 外层这一格：iframe 的上沿贴着 navbar 的下沿、下沿贴着视口的下沿，两边各留 1px 容差。
-theme-iframe 那份共用版式（`components/api-frame.css` 的 `.api-frame`）里那条
+component-page 那份共用版式（`components/component-frame.css` 的 `.component-frame`）里那条
 `height: calc(100vh - var(--ifm-navbar-height))` 就是这个数。
 */
 Then('框占满 navbar 以下那一屏', async ({ page }) => {
-  const box = await themeFrame(page).evaluate((el) => {
+  const box = await componentFrame(page).evaluate((el) => {
     const { innerHeight } = el.ownerDocument.defaultView ?? { innerHeight: 0 };
     const rect = el.getBoundingClientRect();
     return {

@@ -372,9 +372,9 @@ importers:
       '@show-docs/docusaurus-plugin-prev-layer-resolver':
         specifier: workspace:^
         version: link:../plugin-prev-layer-resolver
-      '@show-docs/docusaurus-theme-iframe':
+      '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
-        version: link:../theme-iframe
+        version: link:../theme-component-page
       ahooks:
         specifier: ^3.10.0
         version: 3.10.0(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)
@@ -402,9 +402,9 @@ importers:
       '@show-docs/docusaurus-plugin-prev-layer-resolver':
         specifier: workspace:^
         version: link:../plugin-prev-layer-resolver
-      '@show-docs/docusaurus-theme-iframe':
+      '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
-        version: link:../theme-iframe
+        version: link:../theme-component-page
       react:
         specifier: 'catalog:'
         version: 18.3.1
@@ -429,9 +429,6 @@ importers:
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
-      '@show-docs/docusaurus-theme-iframe':
-        specifier: workspace:^
-        version: link:../theme-iframe
       react:
         specifier: 'catalog:'
         version: 18.3.1
@@ -453,9 +450,6 @@ importers:
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
-      '@show-docs/docusaurus-theme-iframe':
-        specifier: workspace:^
-        version: link:../theme-iframe
       erdiagram:
         specifier: ^0.1.5
         version: 0.1.5(dagre@0.8.5)
@@ -483,9 +477,9 @@ importers:
       '@show-docs/docusaurus-plugin-prev-layer-resolver':
         specifier: workspace:^
         version: link:../plugin-prev-layer-resolver
-      '@show-docs/docusaurus-theme-iframe':
+      '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
-        version: link:../theme-iframe
+        version: link:../theme-component-page
       react:
         specifier: 'catalog:'
         version: 18.3.1
@@ -519,9 +513,6 @@ importers:
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
-      '@show-docs/docusaurus-theme-iframe':
-        specifier: workspace:^
-        version: link:../theme-iframe
       markmap-common:
         specifier: ^0.18.9
         version: 0.18.9
@@ -558,9 +549,6 @@ importers:
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
-      '@show-docs/docusaurus-theme-iframe':
-        specifier: workspace:^
-        version: link:../theme-iframe
       react:
         specifier: 'catalog:'
         version: 18.3.1
@@ -591,9 +579,6 @@ importers:
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
-      '@show-docs/docusaurus-theme-iframe':
-        specifier: workspace:^
-        version: link:../theme-iframe
       react:
         specifier: 'catalog:'
         version: 18.3.1
@@ -612,9 +597,6 @@ importers:
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
-      '@show-docs/docusaurus-theme-iframe':
-        specifier: workspace:^
-        version: link:../theme-iframe
       '@stoplight/elements':
         specifier: ^9.0.29
         version: 9.0.29(@babel/core@7.29.7(supports-color@10.2.2))(@babel/template@8.0.0)(@react-spectrum/provider@3.11.1(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)
@@ -642,9 +624,9 @@ importers:
       '@show-docs/docusaurus-plugin-prev-layer-resolver':
         specifier: workspace:^
         version: link:../plugin-prev-layer-resolver
-      '@show-docs/docusaurus-theme-iframe':
+      '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
-        version: link:../theme-iframe
+        version: link:../theme-component-page
       react:
         specifier: 'catalog:'
         version: 18.3.1

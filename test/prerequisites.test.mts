@@ -6,8 +6,7 @@ import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-re
 import {
   assertThemePrerequisites,
   COMPONENT_PAGE_PLUGIN,
-  IFRAME_PLUGIN,
-} from '../packages/theme-iframe/src/prerequisites.mts';
+} from '../packages/theme-component-page/src/prerequisites.mts';
 import viewerTheme from '../packages/theme-viewer/src/index.mts';
 
 /** 只造两份原始插件清单与 `future.faster`：检查器不读别的（`LoadContext` 本身没有 `plugins` 字段）。 */
@@ -38,46 +37,29 @@ const requiresLightningCss = (context: LoadContext) => () =>
   });
 
 describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
-  it('解析器与 theme-iframe 都在时放行', () => {
+  it('解析器与 component-page 都在时放行', () => {
     expect(() =>
-      assertThemePrerequisites(contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN]), {
-        namespace: NAMESPACE,
-        iframe: true,
-      }),
+      assertThemePrerequisites(
+        contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE_PLUGIN]),
+        {
+          namespace: NAMESPACE,
+          componentPage: true,
+        },
+      ),
     ).not.toThrow();
   });
 
   it('缺解析器：报出包名与安装方式', () => {
     expect(() =>
-      assertThemePrerequisites(contextWith([IFRAME_PLUGIN]), {
+      assertThemePrerequisites(contextWith([COMPONENT_PAGE_PLUGIN]), {
         namespace: NAMESPACE,
       }),
     ).toThrow(new RegExp(String.raw`${NAMESPACE}[\s\S]*${RESOLVER_PLUGIN}`));
   });
 
-  it('要求注册 theme-iframe 而它不在：报出缺的是哪一条', () => {
-    expect(() =>
-      assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
-        namespace: NAMESPACE,
-        iframe: true,
-      }),
-    ).toThrow(new RegExp(String.raw`${NAMESPACE}[\s\S]*${IFRAME_PLUGIN}`));
-  });
-
-  it('不要求注册 theme-iframe 的层：它不在也放行（默认值与显式 false 两条）', () => {
-    for (const iframe of [undefined, false]) {
-      expect(() =>
-        assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
-          namespace: NAMESPACE,
-          iframe,
-        }),
-      ).not.toThrow();
-    }
-  });
-
   it('要求注册 component-page 而它不在：报出缺的是哪一条', () => {
     expect(() =>
-      assertThemePrerequisites(contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN]), {
+      assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
         namespace: NAMESPACE,
         componentPage: true,
       }),
@@ -89,7 +71,7 @@ describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
   it('component-page 在时放行；不要求它的层缺它也放行（默认值与显式 false 两条）', () => {
     expect(() =>
       assertThemePrerequisites(
-        contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE_PLUGIN]),
+        contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE_PLUGIN]),
         { namespace: NAMESPACE, componentPage: true },
       ),
     ).not.toThrow();
@@ -173,21 +155,21 @@ describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
       assertThemePrerequisites(
         contextWith(
           [
-            [IFRAME_PLUGIN, { some: 'option' }],
+            [COMPONENT_PAGE_PLUGIN, { some: 'option' }],
             '/repo/node_modules/@show-docs/docusaurus-plugin-prev-layer-resolver/dist/index.mjs',
           ],
           [],
         ),
-        { namespace: NAMESPACE, iframe: true },
+        { namespace: NAMESPACE, componentPage: true },
       ),
     ).not.toThrow();
 
     expect(() =>
       assertThemePrerequisites(
-        contextWith([], [RESOLVER_PLUGIN, IFRAME_PLUGIN]),
+        contextWith([], [RESOLVER_PLUGIN, COMPONENT_PAGE_PLUGIN]),
         {
           namespace: NAMESPACE,
-          iframe: true,
+          componentPage: true,
         },
       ),
     ).not.toThrow();

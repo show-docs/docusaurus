@@ -3,7 +3,7 @@ id: scalar-asyncapi-demo
 sidebar_position: 7
 title: Scalar AsyncAPI 示例
 description: 'frontmatter 写 scalar: true（AsyncAPI 地址由 aas3: 给），整页换成一个 iframe，框里用 Scalar 渲染那份 AsyncAPI 3 文档。'
-# 命中 theme-scalar 那一层：整页换成一个 iframe，Scalar 跑在本包自己那条 /scalar-view 页面上。
+# 命中 theme-scalar 那一层：整页换成一个 iframe，Scalar 跑在 theme-component-page 那条通用框内路由 /__component-frame 上。
 # /asyncapi-scalar.yaml 由仓库根的 static/ 在构建时复制到站点根，不依赖外网。
 scalar: true
 aas3: /asyncapi-scalar.yaml
@@ -11,9 +11,8 @@ aas3: /asyncapi-scalar.yaml
 
 # Scalar AsyncAPI 示例
 
-下面这些正文在渲染后的页面上**看不到**：theme-scalar 在自己的 `loadContent()` 里把 `scalar` 那一页交给 theme-component-page，
-命中时这一页的整个 `DocItem` 换成 theme-iframe 的 `theme/ApiFramePage`，整页换成一个
-iframe，所以也没有文档外壳、不会再有导图。
+下面这些正文在渲染后的页面上**看不到**：theme-scalar 在自己的 `loadContent()` 里把组件（`@theme/ScalarView`）与那一条规则（键 `scalar`、`render: 'iframe'`）交给 theme-component-page，
+命中时这一页的整个 `DocItem` 换成它那个通用框，所以也没有文档外壳、不会再有导图。
 这一段是给读仓库源文件的人看的。
 
 - 取的是 `static/asyncapi-scalar.yaml`（构建产物里的 `/asyncapi-scalar.yaml`）：frontmatter 的

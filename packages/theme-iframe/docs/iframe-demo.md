@@ -10,8 +10,11 @@ iframe: /404
 
 # iframe 示例
 
-本文件的 frontmatter 写了 `iframe: /404`，`packages/theme-iframe` 那一层命中后把**整个 `DocItem`**
-换成 iframe —— 与 `theme-stoplight`、`theme-redoc`、`theme-scalar` 那三层同一个落点、同一类取舍。
+本文件的 frontmatter 写了 `iframe: /404`，`packages/theme-iframe` 在自己的 `loadContent()` 里把
+`iframe:` 这条规则交给 `packages/theme-component-page`；站点那一列 `rules` 里它排在
+`scalar` / `redoc` / `stoplight` 之后，这一页又没有别的键，于是就轮到它 —— 整个 `DocItem` 被换成
+那个包里的 `@theme/ExternalFrame`（`render` 缺省即 `page`，铺在正文里，不走那条
+`/__component-frame` 同源框路由）。
 
 下面这些正文在渲染后的页面上**看不到**：这一页整页交给 iframe，这一段是给读仓库源文件的人看的。
 
@@ -19,9 +22,9 @@ iframe: /404
   浏览器标签页的标题也因此退回站点名（官方 `DocItem/Metadata` 一并不要）。
 - 嵌的是 `/404`，也就是站点自己那页未找到页 —— 它跟这一层无关，只用来证明「目标页在框里真的
   渲染出来」，而且不依赖外网。想换别的页面：地址栏带 `?path=<相对路径>`，会在 `iframe:` 那个
-  地址之下再解一层，最后整体 `decodeURIComponent` 一次。
-- 同一页同时写 `iframe:` 与 `stoplight: true` 时，整页交给更外的 Stoplight 那一层，本层不出现 ——
-  层的顺序决定谁赢，细节记在 `packages/theme-iframe/README.md`（站点文档源只收 `docs/`，链接出去
-  只会是死链）。
+  地址之下再解一层（只对 `path` 那一个参数解码，收尾不再解整串）。
+- 同一页同时写 `iframe:` 与 `stoplight: true` 时，整页交给站点 `rules` 清单里排在前面那一把
+  （本站是 `stoplight`），本层不出现 —— 先后由那份清单定，细节记在
+  `packages/theme-iframe/README.md`（站点文档源只收 `docs/`，链接出去只会是死链）。
 - `oas3:` / `aas3:`（三条 API 层读它们当渲染源）与这一把键**没有关系**：它们给的是 spec 地址，
   本层嵌的是外部页面，地址自带。

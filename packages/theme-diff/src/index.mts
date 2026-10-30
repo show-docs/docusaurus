@@ -3,11 +3,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
+import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
-
-import { DIFF_COMPONENT_PAGES } from './component-pages.mts';
 
 const require = createRequire(import.meta.url);
 
@@ -19,25 +17,34 @@ const NAMESPACE = '@show-docs/docusaurus-theme-diff';
 
 /**
 本层的入口：`getThemePath()` 挂本包那一层（里面只有 `DiffPage` 与它依赖的差异视图），
-`loadContent()` 把 `diff` 那一把键交给 `@show-docs/docusaurus-theme-component-page` ——
-命中的页由它那份 `DocItem` 判清单后整页换成 `@theme/DiffPage`。于是本层的前提有两个：
-共享外壳所在的 `theme-iframe`，与判清单的 `component-page`；缺了它们，页面看着正常但差异视图不出现。
+`loadContent()` 交出**一份组件与一条规则**（`diff` 那一把键、`@theme/DiffPage`），判表与挂载
+都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：那一层（连同它背后的
+解析器插件）；缺了它，页面看着正常但差异视图不出现。
+
+`diff` 那把键的判法是 `any`：本层自己的读法（`src/loader/diff-decision.mts`）把 `true`、
+一串路径与 `{old, new}` 都认成「开了」，`false` / `null` / 空值都算没开 —— `any` 是同一口径的
+那一种判法。命中后整页交给 `@theme/DiffPage`（`render` 缺省即 `page`：视图摆在正文上方）。
+
+组件写的是 `@theme/DiffPage` 而不是硬路径：站点在 `src/theme/DiffPage` 放一份就覆写掉它，
+与站点自己那一列同一条口径。
 */
 export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
     loadContent() {
-      // 本层的 `DiffPage` 与共享外壳的 `ViewLayerDocItem` 都住在 theme-iframe 未编译的 `lib/` 里：
-      // 那个包没装，站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。component-page 缺了
-      // 则是另一头的症状：那一页永远不会被交给 `@theme/DiffPage`。
+      // 交出的那一页要由 component-page 判表才挂得上来（共享外壳 `ViewLayerDocItem` 也在那里）；
+      // 解析器插件缺了则是本包那几份未编译的 `.tsx` / `.ts` 没人认领。都在这里点名，而不是让
+      // webpack 在某个页面文件上抛、或让那一页安静地不出现。
       assertThemePrerequisites(context, {
         namespace: NAMESPACE,
-        iframe: true,
         componentPage: true,
       });
 
       return {
-        componentPages: DIFF_COMPONENT_PAGES,
+        componentPage: {
+          components: [{ id: 'diff', component: '@theme/DiffPage' }],
+          rules: [{ key: 'diff', match: 'any', component: 'diff' }],
+        },
       } satisfies ComponentPageContent;
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
@@ -75,6 +82,5 @@ export default function theme(context: LoadContext): Plugin {
         },
       };
     },
-    // `diff` 那一把键的条目写在 `./component-pages.mts`，由上面的 `loadContent()` 交回。
   };
 }

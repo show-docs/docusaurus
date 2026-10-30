@@ -2,22 +2,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { act, createElement } from 'react';
+import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import {
-  createFrameMessages,
+  FRAME_MODE_TYPE,
+  frameMessages,
   type FrameColorMode,
-} from '../packages/theme-iframe/lib/frame-messages.ts';
+} from '../packages/theme-component-page/lib/frame-messages.ts';
 import {
-  createRouteReporter,
+  FrameBridgeProvider,
   isTrustedMessage,
-  useInnerFrameSync,
-  useOuterFrameSync,
+  reportHashToParent,
+  useFrameBridge,
+  useFrameColorMode,
+  useFrameHandshake,
+  useFrameHashReporter,
+  useFrameMode,
+  type FrameBridgeState,
+  type FramePayload,
   type FrameRef,
-} from '../packages/theme-iframe/lib/frame-sync.ts';
+} from '../packages/theme-component-page/lib/frame-sync.tsx';
 
 /**
-两条消息循环的分支单测（`@vitest-environment jsdom`：这一族是 React hook + `window`，
+那几条消息循环的分支单测（`@vitest-environment jsdom`：这一族是 React hook + `window`，
 node 环境跑不起来）。
 
 模拟的边界只有一处 —— **递交**交给浏览器那一步换成「直接派发监听器要收的那条事件」与
@@ -29,8 +37,6 @@ node 环境跑不起来）。
 的 getter 直接抛来还原（jsdom 里读同源对象的 `location` 不会抛）。
 */
 
-const NAMESPACE = '@show-docs/docusaurus-theme-probe';
-const messages = createFrameMessages(NAMESPACE);
 const ORIGIN = window.location.origin;
 
 type Posted = Array<{ data: unknown; target: string }>;
@@ -44,6 +50,7 @@ type FakeInner = {
 
 function sameOriginWindow(): FakeInner {
   const posted: Posted = [];
+
   return {
     posted,
     postMessage: (data: unknown, target: string) => {
@@ -65,6 +72,14 @@ function frameOf(contentWindow: unknown): FrameRef {
   return refOf({ contentWindow });
 }
 
+/** 外层要送进框里的整份：那个登记名 + 那一格数据。默认那两份够渲染，又不至于每条用例都抄一遍。 */
+const DEFAULT_PAYLOAD_DATA = { value: 1 };
+
+const payloadOf = (
+  componentId = 'probe',
+  data: Record<string, unknown> = DEFAULT_PAYLOAD_DATA,
+): FramePayload => ({ componentId, data });
+
 /**
 把 hook 挂进一份真文档里跑起来。
 
@@ -82,6 +97,7 @@ function mountHook<T>(initial: T, use: (value: T) => void) {
   const box = { value: initial };
   function Harness(): null {
     use(box.value);
+
     return null;
   }
   const container = document.createElement('div');
@@ -92,7 +108,9 @@ function mountHook<T>(initial: T, use: (value: T) => void) {
       root.render(createElement(Harness));
     });
   };
+
   render();
+
   return {
     push(value: T): void {
       box.value = value;
@@ -132,31 +150,33 @@ function dispatchPopState(): void {
 /** 框内那份文档没有外层可退：jsdom 里 `window.parent === window`，收信方与发信方同一个对象。 */
 function captureParentPosts(): Posted {
   const posted: Posted = [];
+
   vi.stubGlobal('postMessage', (data: unknown, target: string) => {
     posted.push({ data, target });
   });
+
   return posted;
 }
 
-const outer = (frameRef: FrameRef, colorMode: FrameColorMode = 'light') => ({
-  frameRef,
-  messages,
-  colorMode,
-});
+const outer = (
+  frameRef: FrameRef,
+  payload: FramePayload = payloadOf(),
+  colorMode: FrameColorMode = 'light',
+) => ({ frameRef, payload, colorMode });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   window.location.hash = '';
-  delete document.documentElement.dataset.probeMode;
 });
 
-describe('useOuterFrameSync：外层往框里推、接框里报回来的那一段', () => {
+describe('useFrameHandshake：外层往框里推、接框里报回来的那一段', () => {
   it('ref 还指不到框的时候什么都不做（不装监听器也不报错）', () => {
     // 交出去的是 **ref**（`{current: null}`），不是「框在但 contentWindow 是 null」
-    const harness = mountHook(outer(refOf(null)), useOuterFrameSync);
+    const harness = mountHook(outer(refOf(null)), useFrameHandshake);
+
     // 没有 frame 就没有可信来源：这两条照发，接不接得住都不该有副作用
-    dispatchMessage(null, messages.ready());
+    dispatchMessage(null, frameMessages.ready());
     dispatchPopState();
     harness.unmount();
   });
@@ -176,14 +196,16 @@ describe('useOuterFrameSync：外层往框里推、接框里报回来的那一�
             } as unknown as Window);
       },
     };
-    const harness = mountHook(outer(refOf(frame)), useOuterFrameSync);
+    const harness = mountHook(outer(refOf(frame)), useFrameHandshake);
+
     expect(inner.posted).toEqual([]);
 
     ready = true;
-    dispatchMessage(inner, messages.ready());
+    dispatchMessage(inner, frameMessages.ready());
     expect(inner.posted.map((entry) => entry.data)).toEqual([
-      messages.route(''),
-      messages.mode('light'),
+      frameMessages.init('probe', { value: 1 }),
+      frameMessages.mode('light'),
+      frameMessages.hash(window.location.hash),
     ]);
     expect(inner.posted[0]!.target).toBe(ORIGIN);
     harness.unmount();
@@ -194,17 +216,23 @@ describe('useOuterFrameSync：外层往框里推、接框里报回来的那一�
       postMessage: vi.fn(),
       location: { origin: 'https://other.example.com' },
     };
-    const harness = mountHook(outer(frameOf(other)), useOuterFrameSync);
+    const harness = mountHook(outer(frameOf(other)), useFrameHandshake);
+
     expect(other.postMessage.mock.calls).toEqual([]);
     harness.unmount();
   });
 
-  it('装好监听器就先推一次：地址那一段与当前亮暗各一条，目标源写自己那份', () => {
+  it('装好监听器就先推一轮：那一份数据、当前亮暗、地址里那一段各一条，目标源写自己那份', () => {
     const inner = sameOriginWindow();
-    const harness = mountHook(outer(frameOf(inner), 'dark'), useOuterFrameSync);
+    const harness = mountHook(
+      outer(frameOf(inner), payloadOf('widget', { value: 'x' }), 'dark'),
+      useFrameHandshake,
+    );
+
     expect(inner.posted.map((entry) => entry.data)).toEqual([
-      messages.route(window.location.hash),
-      messages.mode('dark'),
+      frameMessages.init('widget', { value: 'x' }),
+      frameMessages.mode('dark'),
+      frameMessages.hash(''),
     ]);
     for (const { target } of inner.posted) {
       expect(target).toBe(ORIGIN);
@@ -212,24 +240,33 @@ describe('useOuterFrameSync：外层往框里推、接框里报回来的那一�
     harness.unmount();
   });
 
-  it('站点切亮暗：外层再推一次，框里不会来问第二次', () => {
+  it('站点切亮暗、或那条数据换了：外层再推一轮，框里不会来问第二次', () => {
     const inner = sameOriginWindow();
     const frameRef = frameOf(inner);
-    const harness = mountHook(outer(frameRef), useOuterFrameSync);
+    const harness = mountHook(outer(frameRef), useFrameHandshake);
+
     inner.posted.length = 0;
-    harness.push(outer(frameRef, 'dark'));
+    harness.push(outer(frameRef, payloadOf(), 'dark'));
     expect(inner.posted.map((entry) => entry.data)).toEqual([
-      messages.route(''),
-      messages.mode('dark'),
+      frameMessages.init('probe', { value: 1 }),
+      frameMessages.mode('dark'),
+      frameMessages.hash(''),
     ]);
+
+    inner.posted.length = 0;
+    harness.push(outer(frameRef, payloadOf('other'), 'dark'));
+    expect(inner.posted[0]!.data).toEqual(
+      frameMessages.init('other', { value: 1 }),
+    );
     harness.unmount();
   });
 
   it('框里报回来一条别的接口：只换外层地址里 # 那一段，而且不新增历史', () => {
     const inner = sameOriginWindow();
     const replaceState = vi.spyOn(window.history, 'replaceState');
-    const harness = mountHook(outer(frameOf(inner)), useOuterFrameSync);
-    dispatchMessage(inner, messages.route('#/paths/users'));
+    const harness = mountHook(outer(frameOf(inner)), useFrameHandshake);
+
+    dispatchMessage(inner, frameMessages.hash('#/paths/users'));
     expect(replaceState).toHaveBeenCalledWith(
       null,
       '',
@@ -239,11 +276,11 @@ describe('useOuterFrameSync：外层往框里推、接框里报回来的那一�
     replaceState.mockClear();
 
     // 框里报的就是当前这一段：不该再动历史
-    dispatchMessage(inner, messages.route('#/paths/users'));
+    dispatchMessage(inner, frameMessages.hash('#/paths/users'));
     expect(replaceState).not.toHaveBeenCalled();
 
-    // 不是自家的消息（命名空间对不上）：一律不看
-    dispatchMessage(inner, { type: `${NAMESPACE}/other`, hash: '#/x' });
+    // 不是自家的消息（type 对不上）：一律不看
+    dispatchMessage(inner, { type: 'other/hash', hash: '#/x' });
     expect(replaceState).not.toHaveBeenCalled();
     harness.unmount();
   });
@@ -251,25 +288,27 @@ describe('useOuterFrameSync：外层往框里推、接框里报回来的那一�
   it('别人发来的消息接不进来：来源窗口对不上、origin 对不上都不算', () => {
     const inner = sameOriginWindow();
     const replaceState = vi.spyOn(window.history, 'replaceState');
-    const harness = mountHook(outer(frameOf(inner)), useOuterFrameSync);
-    dispatchMessage(sameOriginWindow(), messages.route('#/from/stranger'));
+    const harness = mountHook(outer(frameOf(inner)), useFrameHandshake);
+
+    dispatchMessage(sameOriginWindow(), frameMessages.hash('#/from/stranger'));
     dispatchMessage(
       inner,
-      messages.route('#/from/elsewhere'),
+      frameMessages.hash('#/from/elsewhere'),
       'https://other.example.com',
     );
     expect(replaceState).not.toHaveBeenCalled();
     harness.unmount();
   });
 
-  it('前进/后退把外层地址里的新那一段送进框里（只送 route，模式没变）', () => {
+  it('前进/后退把外层地址里的新那一段送进框里（只送那一条，数据与模式没变）', () => {
     const inner = sameOriginWindow();
-    const harness = mountHook(outer(frameOf(inner)), useOuterFrameSync);
+    const harness = mountHook(outer(frameOf(inner)), useFrameHandshake);
+
     window.location.hash = '#/paths/orders';
     inner.posted.length = 0;
     dispatchPopState();
     expect(inner.posted.map((entry) => entry.data)).toEqual([
-      messages.route('#/paths/orders'),
+      frameMessages.hash('#/paths/orders'),
     ]);
     harness.unmount();
   });
@@ -278,107 +317,245 @@ describe('useOuterFrameSync：外层往框里推、接框里报回来的那一�
     // 挂载时同源在场，之后 contentWindow 变成 null（真浏览器里 iframe 被移走就是这样）
     const inner = sameOriginWindow();
     const frame: { contentWindow: unknown } = { contentWindow: inner };
-    const harness = mountHook(outer(refOf(frame)), useOuterFrameSync);
-    // 挂载那两条是真推出去了（上面各用例已量过），这里只看翻面之后不再推
+    const harness = mountHook(outer(refOf(frame)), useFrameHandshake);
+
+    // 挂载那一轮是真推出去了（上面各用例已量过），这里只看翻面之后不再推
     inner.posted.length = 0;
     frame.contentWindow = null;
     dispatchPopState();
-    dispatchMessage(null, messages.ready());
+    dispatchMessage(null, frameMessages.ready());
     expect(inner.posted).toEqual([]);
     harness.unmount();
   });
 
   it('卸载摘掉监听器：之后的消息与前进/后退都不再送进框里', () => {
     const inner = sameOriginWindow();
-    const harness = mountHook(outer(frameOf(inner)), useOuterFrameSync);
+    const harness = mountHook(outer(frameOf(inner)), useFrameHandshake);
+
     harness.unmount();
     inner.posted.length = 0;
-    dispatchMessage(inner, messages.ready());
+    dispatchMessage(inner, frameMessages.ready());
     dispatchPopState();
     expect(inner.posted).toEqual([]);
   });
 });
 
-describe('useInnerFrameSync：框内先要那两格，再接住外层送来的两条', () => {
-  it('起来第一件事向外层报 ready', () => {
+describe('useFrameBridge：框内先要那一份数据，再接住外层送来的三条', () => {
+  /** 跑起 `useFrameBridge`，把每一轮读到的那两格交回给用例。 */
+  const mount = (): {
+    state: () => FrameBridgeState;
+    harness: ReturnType<typeof mountHook<undefined>>;
+  } => {
+    let state: FrameBridgeState = { payload: undefined, colorMode: undefined };
+
+    const harness = mountHook(undefined, () => {
+      state = useFrameBridge();
+    });
+
+    return { state: () => state, harness };
+  };
+
+  it('起来第一件事向外层报 ready（不等数据：外层可能已经推过一轮）', () => {
     const posted = captureParentPosts();
-    const harness = mountHook(
-      { messages, modeAttribute: 'data-probe-mode' },
-      useInnerFrameSync,
-    );
-    expect(posted.map((entry) => entry.data)).toEqual([messages.ready()]);
+    const { harness } = mount();
+
+    expect(posted.map((entry) => entry.data)).toEqual([frameMessages.ready()]);
     expect(posted[0]!.target).toBe(ORIGIN);
     harness.unmount();
   });
 
-  it('亮暗落成 <html> 上那条属性（Redoc / Elements 那一类按属性判的层）', () => {
+  it('接住 init 那一份：登记名与数据整份存进状态，第二次送达整份替换', () => {
     captureParentPosts();
-    const harness = mountHook(
-      { messages, modeAttribute: 'data-probe-mode' },
-      useInnerFrameSync,
-    );
-    dispatchMessage(window.parent, messages.mode('dark'));
-    expect(document.documentElement.dataset.probeMode).toBe('dark');
-    dispatchMessage(window.parent, messages.mode('light'));
-    expect(document.documentElement.dataset.probeMode).toBe('light');
+    const { state, harness } = mount();
+
+    dispatchMessage(window.parent, frameMessages.init('a', { value: 1 }));
+    expect(state().payload).toEqual(frameMessages.init('a', { value: 1 }));
+
+    // 外层送的是完整快照，不做增量合并
+    dispatchMessage(window.parent, frameMessages.init('b', { value: 2 }));
+    expect(state().payload).toEqual(frameMessages.init('b', { value: 2 }));
     harness.unmount();
   });
 
-  it('亮暗的落法交给调用方时就不碰属性（Scalar 换的是 <body> 上两个类名）', () => {
+  it('亮暗只存进状态：怎么落到这一份文档上归组件自己', () => {
     captureParentPosts();
-    const onMode = vi.fn();
-    const harness = mountHook({ messages, onMode }, useInnerFrameSync);
-    dispatchMessage(window.parent, messages.mode('dark'));
-    expect(onMode).toHaveBeenCalledWith('dark');
-    expect(Object.hasOwn(document.documentElement.dataset, 'probeMode')).toBe(
-      false,
-    );
+    const { state, harness } = mount();
+
+    dispatchMessage(window.parent, frameMessages.mode('dark'));
+    expect(state().colorMode).toBe('dark');
+    // 同一条再送一次：不换状态、不重渲染（值没变）
+    dispatchMessage(window.parent, frameMessages.mode('dark'));
+    expect(state().colorMode).toBe('dark');
+    // 线上真的能出现协议外的值（框里那份文档是公开地址），所以直接摆一条裸消息
+    dispatchMessage(window.parent, { type: FRAME_MODE_TYPE, mode: 'sepia' });
+    expect(state().colorMode).toBe('dark');
     harness.unmount();
   });
 
   it('外层送来新的那一段就改地址，同一段、外人消息与不是自家的都不改', () => {
     captureParentPosts();
-    const harness = mountHook(
-      { messages, modeAttribute: 'data-probe-mode' },
-      useInnerFrameSync,
-    );
-    dispatchMessage(window.parent, messages.route('#/paths/users'));
+    const { harness } = mount();
+
+    dispatchMessage(window.parent, frameMessages.hash('#/paths/users'));
     expect(window.location.hash).toBe('#/paths/users');
     // 同一段再来一次：不重复赋值（赋值本身会触发一次多余的 hashchange）
-    dispatchMessage(window.parent, messages.route('#/paths/users'));
+    dispatchMessage(window.parent, frameMessages.hash('#/paths/users'));
     expect(window.location.hash).toBe('#/paths/users');
-    dispatchMessage(window.parent, { type: `${NAMESPACE}/other`, hash: '#/x' });
+    dispatchMessage(window.parent, { type: 'other/hash', hash: '#/x' });
     expect(window.location.hash).toBe('#/paths/users');
-    dispatchMessage({}, messages.route('#/from/stranger'));
+    dispatchMessage({}, frameMessages.hash('#/from/stranger'));
     expect(window.location.hash).toBe('#/paths/users');
+    harness.unmount();
+  });
+
+  it('空串那一格交回浏览器处理（它是「把 # 整段去掉」，不是一个空 id）', () => {
+    captureParentPosts();
+    const { harness } = mount();
+
+    window.location.hash = '#/paths/users';
+    dispatchMessage(window.parent, frameMessages.hash(''));
+    expect(window.location.hash).toBe('');
     harness.unmount();
   });
 
   it('卸载摘掉监听器：之后外层送什么都不再接', () => {
     captureParentPosts();
-    const onMode = vi.fn();
-    const harness = mountHook({ messages, onMode }, useInnerFrameSync);
+    const { state, harness } = mount();
+
     harness.unmount();
-    dispatchMessage(window.parent, messages.mode('dark'));
-    expect(onMode).not.toHaveBeenCalled();
+    dispatchMessage(window.parent, frameMessages.init('a', {}));
+    expect(state().payload).toBeUndefined();
   });
 });
 
-describe('createRouteReporter：框内把渲染器换的那一段报给外层', () => {
-  it('造出来的函数只读 window，可以在模块级造一份反复用', () => {
+/**
+在框内那份上下文里跑一句 hook：外层套上 `FrameBridgeProvider`，用例读它拿到的那一格。
+`useFrameColorMode` / `useFrameMode` / `useFrameHashReporter` 三句都只在 Provider 里面才成立。
+*/
+function mountInBridge(
+  colorMode: FrameColorMode | undefined,
+  use: () => unknown,
+): {
+  seen: () => unknown;
+  push: (colorMode: FrameColorMode | undefined) => void;
+  unmount: () => void;
+} {
+  const box = { colorMode, seen: undefined as unknown };
+
+  function Probe(): null {
+    box.seen = use();
+
+    return null;
+  }
+
+  function Harness(): ReactNode {
+    return createElement(
+      FrameBridgeProvider,
+      { colorMode: box.colorMode },
+      createElement(Probe),
+    );
+  }
+
+  // eslint-disable-next-line unicorn/no-global-object-property-assignment -- React act 的环境标记只认 globalThis
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const render = (): void => {
+    act(() => {
+      root.render(createElement(Harness));
+    });
+  };
+
+  render();
+
+  return {
+    seen: () => box.seen,
+    push(next: FrameColorMode | undefined): void {
+      box.colorMode = next;
+      render();
+    },
+    unmount(): void {
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    },
+  };
+}
+
+describe('FrameBridgeProvider 交出的那两格', () => {
+  it('useFrameColorMode 读外层送来的那一格；没送过时是 undefined（这一份文档按自己的默认）', () => {
+    const bridge = mountInBridge(undefined, () => useFrameColorMode());
+
+    expect(bridge.seen()).toBeUndefined();
+    bridge.push('dark');
+    expect(bridge.seen()).toBe('dark');
+    bridge.unmount();
+  });
+
+  it('useFrameMode：一到值就落一次，之前什么都不做（落法由调用方交进来）', () => {
+    const apply = vi.fn();
+    const bridge = mountInBridge(undefined, () => useFrameMode(apply));
+
+    expect(apply).not.toHaveBeenCalled();
+    bridge.push('dark');
+    expect(apply).toHaveBeenCalledWith('dark');
+    bridge.unmount();
+  });
+
+  it('useFrameHashReporter 交回的那一句把这一段报给外层，而且引用稳定', () => {
     const posted = captureParentPosts();
-    const report = createRouteReporter(messages);
+    const bridge = mountInBridge('light', () => useFrameHashReporter());
+    const report = bridge.seen() as (hash: string) => void;
+
+    bridge.push('dark');
+    // 换一次上下文不该造出新函数：它要排进调用方的 effect 依赖
+    expect(bridge.seen()).toBe(report);
+    expect(report).toBe(reportHashToParent);
     report('#/paths/users');
     report('');
     expect(posted.map((entry) => entry.data)).toEqual([
-      messages.route('#/paths/users'),
-      messages.route(''),
+      frameMessages.hash('#/paths/users'),
+      frameMessages.hash(''),
+    ]);
+    bridge.unmount();
+  });
+
+  it('这三句 hook 在父文档里用（Provider 不在）：点名到「这条只在框内那份文档里可用」', () => {
+    // `render: 'page'` 的组件在正文里渲染，那里没有框内那一份上下文。抛就抛在渲染那一步。
+    // React 会跟着把同一条错打到 console.error，这条用例要的就是那句，所以按掉它。
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    for (const use of [useFrameColorMode, useFrameHashReporter]) {
+      expect(() =>
+        mountHook(undefined, () => {
+          use();
+        }),
+      ).toThrow(/这条 hook 只在框内那份文档里可用/);
+    }
+    expect(logged).toHaveBeenCalled();
+  });
+});
+
+describe('reportHashToParent：框内把渲染器换的那一段报给外层', () => {
+  it('只读 window，所以模块级那一份就能反复用', () => {
+    const posted = captureParentPosts();
+
+    reportHashToParent('#/paths/users');
+    reportHashToParent('');
+    expect(posted.map((entry) => entry.data)).toEqual([
+      frameMessages.hash('#/paths/users'),
+      frameMessages.hash(''),
     ]);
   });
 });
 
 describe('isTrustedMessage：两个方向都过的来源校验', () => {
   const source = {} as Window;
+
   // 两个字段都显式给：`?? ` 会把「来源确实是 null」读成「没写这一格」，正好漏掉要测的那一种
   const event = (eventSource: unknown, eventOrigin: string) =>
     ({ source: eventSource, origin: eventOrigin }) as unknown as MessageEvent;

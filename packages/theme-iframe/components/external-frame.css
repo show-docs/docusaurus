@@ -1,0 +1,30 @@
+/* 「这一页整页交给一个外部框」那条规则的版式（`theme/ExternalFrame` 挂的类名）。
+
+   定高取 `100vh - var(--ifm-navbar-height)`：滚动条长在**框内那份文档**上，那份文档没有
+   navbar，整屏都是它的，外层这一格给多高它就占多高，两层滚动容器各滚各的文档，互不打扰。
+   `display: block` 与 `border: 0` 收的是浏览器对 `<iframe>` 的两个默认（inline、带边框）。
+
+   下面两条与 component-page 的 `components/component-frame.css` 同文：一条是正文容器让位
+   （去内边距、放开最大宽度，按「这一格里有 iframe」匹配），一条收掉页脚（框已经占满 navbar
+   以下那一屏，页脚留在下面只会被推出可视区，这一页因此多出一条只能滚到页脚的空白；
+   `.footer` 是 `.main-wrapper` 的紧邻后兄弟，实测 238px）。**为什么各写一份**：那两条只有
+   在用 component-page 那条同源框页时才随它下载，本层这一格是 `render: 'page'` 的普通组件，
+   不能假设那份 CSS 已经在页上；两份声明字字相同，同时命中也只生效一次。
+
+   页脚那条认 `.external-frame` 而不认裸 `iframe`：正文里手写的 iframe 不该顺带把整站页脚收掉。 */
+
+.external-frame {
+  display: block;
+  border: 0;
+  width: 100%;
+  height: calc(100vh - var(--ifm-navbar-height));
+}
+
+.container:has(iframe) {
+  padding: 0 !important;
+  max-width: 100% !important;
+}
+
+.main-wrapper:has(.external-frame) + .footer {
+  display: none;
+}
