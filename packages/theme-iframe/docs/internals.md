@@ -52,9 +52,9 @@
 
 v3 之前，这一族（`scalar` / `redoc` / `stoplight` / `iframe` 四把键）的外层套壳、注册表、跨
 iframe 的消息协议、框内页面工厂都住在 `theme-iframe` 里，三条 API 层经它的配置期工厂
-`lib/api-frame-theme.mts` 交页。提案与验收记在
-[`proposal-api-self-register.md`](./proposal-api-self-register.md)（上一族的自注册，已落地）与
-[`proposal-v3.md`](../../theme-component-page/docs/proposal-v3.md)（组件自注册、机制层统一分派）。
+`lib/api-frame-theme.mts` 交页。上一族的自注册提案与验收记在
+[`proposal-api-self-register.md`](./proposal-api-self-register.md)（已落地）；机制层统一分派
+那一步的设计与现状都在 [`theme-component-page` 的维护者文档](../../theme-component-page/docs/internals.md)里。
 
 搬走之后各归其主：
 

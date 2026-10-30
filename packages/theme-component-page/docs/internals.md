@@ -7,8 +7,18 @@
 这一包是「这一页整页交给一个组件」这一族的**唯一分派器**：判键、合成规则表、`DocItem` 那个套壳、
 `render: 'iframe'` 那个同源框与握手、框内那条路由、三条视图层共用的外壳都在这一份里。它不
 import 任何主题包，也不认得 `oas3` / `aas3` / `markmap` 这些业务键名 —— 那些由各包自己在
-`loadContent()` 里交回来。这一族的切法与理由记在 [`proposal-v3.md`](./proposal-v3.md)，
-上一版的记录在 `proposal-v2.md`。
+`loadContent()` 里交回来。这一族的形状：
+
+```mermaid
+flowchart TD
+  A[Scalar / Redoc / Stoplight 等组件包] -->|组件与默认规则| C[theme-component-page]
+  B[theme-iframe] -->|仅 ExternalFrame 与 frontmatter.iframe 规则| C
+  S[站点 rules] --> C
+  C --> D[唯一 DocItem 分派入口]
+  D -->|page| E[直接渲染选中组件]
+  D -->|iframe| F[component-page 通用框内入口渲染组件]
+  D -->|未命中| G[默认 DocItem]
+```
 
 ## 组成
 
@@ -200,6 +210,8 @@ https 页面上把 `http:` 升上来）。它不再提供 `DocItem`、不提供�
 `lib/` 里只剩 `external-url.ts` 那一份判据。
 
 于是这一族的验收是：**卸载 `theme-iframe` 只影响 URL 嵌入，三条 API 层与它们的同源框照常可用**。
+这一条已实测过：临时把 theme-iframe 挪出站点配置重建，三条 API 页照常出框、
+`/__component-frame` 照常产出，相关五份 e2e 全过。
 本层不 import 它，那条路由与本层那张表都不经过它（e2e 里 `frame-precedence.feature` 与
 `iframe.feature` 各钉一头）。
 

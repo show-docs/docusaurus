@@ -331,6 +331,4 @@ export default {
 - [示例页](./docs/component-page-demo.md)：这一层命中时长什么样。
 - [跨 iframe 协议](./docs/iframe-protocol.md)：那条通道的四条消息、握手顺序、可见状态与边界。
 - [维护者文档](./docs/internals.md)：两张表怎么变成浏览器读得到的组件、为什么非要生成两份文件、
-  各处判据的实测根据。
-- 这一族为什么这样切（而不是各层各自长一个 `DocItem`），记在
-  [`docs/proposal-v3.md`](./docs/proposal-v3.md)；上一版的记录在同目录 `proposal-v2.md`。
+  各处判据的实测根据，以及这一族为什么收成唯一分派器。

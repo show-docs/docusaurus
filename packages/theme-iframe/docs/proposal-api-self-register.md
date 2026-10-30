@@ -1,10 +1,11 @@
 # 方案：API 层自交框页，theme-iframe 只交 `iframe:`
 
-> **后续优化**：见 [基于自注册发现的组件替换](../../theme-component-page/docs/proposal-v3.md)。
 > 本文保留已实施迁移的背景。“声明顺序 = 判定先后”只描述本站当前简单装法，不能作为
-> 通用契约：`allContent` 按插件名/id 分组，会改变交错实例的顺序。新版中 API 包直接向
-> component-page 注册；公共库、两种渲染与通用框内入口均归 component-page，theme-iframe
-> 仅支持 frontmatter.iframe 的 URL 嵌入，不再承担注册中心或公共基础设施职责；尚未实施。
+> 通用契约：`allContent` 按插件名/id 分组，会改变交错实例的顺序。本文实施之后又有一步
+> 收缩：API 包直接向 component-page 注册组件与规则，公共库、两种渲染与通用框内入口均归
+> component-page，theme-iframe 仅支持 frontmatter.iframe 的 URL 嵌入 —— 现状见本包
+> `README.md`、`docs/internals.md` 与
+> [`theme-component-page` 的维护者文档](../../theme-component-page/docs/internals.md)。
 
 > 方案书，不是现状说明。现状（四把框键、清单、判定）见本包 `README.md`、
 > `docs/internals.md` 与 `docs/iframe-protocol.md`。日期：2026-10-30。已按「落地顺序」
