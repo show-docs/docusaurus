@@ -454,6 +454,40 @@ describe('构建脚本与 CI 护栏', () => {
       '两棵根共用的那份扫描逻辑里应当真的在扫目录',
     ).toContain('.readdirSync(');
 
+    // navbar 那两格只**点名两份侧栏**，一个 href 都不抄：`docSidebar` 那条地址由官方从侧栏第一项
+    // 算出来，新增一个包不必回来改 navbar。在这里手写 `/themes/` 那种字面量，就又长出第二处要
+    // 跟着清单走的地方（和上面那条「侧栏不抄包清单」是同一个道理）。
+    const navbarStart = config.indexOf('navbar: {');
+    expect(navbarStart, 'themeConfig 里没有 navbar 那一段').toBeGreaterThan(-1);
+    const navbarBlock = config.slice(navbarStart, config.indexOf('footer: {'));
+    expect(
+      (navbarBlock.match(/type: 'docSidebar'/g) ?? []).length,
+      'navbar 该是两棵内容根各一格，多一格少一格都是这里漂了',
+    ).toBe(2);
+    for (const file of ['sidebars.mts', 'sidebars-themes.mts']) {
+      // 顶层键就是那份实例的侧栏名，navbar 点名的必须是它：两边对上，谁改名这里就红。
+      const sidebarId = /export default \{\s*(\w+):/.exec(
+        fs.readFileSync(path.join(siteDir, file), 'utf8'),
+      )?.[1];
+      expect(
+        sidebarId,
+        `${file} 的顶层侧栏名读不出来：那份形状变了，navbar 的点法要跟着改`,
+      ).toBeTruthy();
+      expect(
+        navbarBlock,
+        `navbar 没点名 ${file} 里那一份侧栏 ${sidebarId}`,
+      ).toContain(`sidebarId: '${sidebarId}'`);
+    }
+    // 第二棵根住在另一份 docs 实例（插件 `id: 'themes'`）里：侧栏名与 docId 各自一套命名空间，
+    // 不写 `docsPluginId` 会去 `default` 那一份里找一个叫 `themes` 的侧栏。
+    expect(navbarBlock, 'themes 那一格要写明它属于哪一份 docs 实例').toContain(
+      "docsPluginId: 'themes'",
+    );
+    expect(
+      navbarBlock,
+      'navbar 那一段里出现了手写的路由或包名：清单该由侧栏给，navbar 只点名侧栏',
+    ).not.toMatch(/\bto:\s*['"`]|theme-[a-z-]+/);
+
     // 主页是 `packages/README.md`：配置把 docs 的路由前缀挪到根，那份 frontmatter 用 `slug: /` 落到 `/`。
     // 站点侧因此不再有页面层目录 —— 再放一个 `src/pages/index.jsx` 就是和它争同一格，
     // 而「页面不是主题层」这条最容易踩的界线也就不用再解释了（见插件 README 的使用约束①）。

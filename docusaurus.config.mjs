@@ -258,11 +258,28 @@ const config = {
   },
 
   themeConfig: {
-    navbar: { title: 'Theme Override Test', items: [] },
+    // navbar 给两棵内容根各一格。`docSidebar` 链的是**那份侧栏自己的索引页**：官方从侧栏第一项
+    // 算出那条地址（`docs` 那格落 `/`，`themes` 那格落 `/themes/`），所以这里只点名侧栏，
+    // 不抄任何 href —— 新增一个包不必回来改这一格。
+    navbar: {
+      title: 'Theme Override Test',
+      items: [
+        { type: 'docSidebar', sidebarId: 'docs', label: '包' },
+        {
+          type: 'docSidebar',
+          sidebarId: 'themes',
+          // 第二棵根是另一份 docs 实例（插件 `id: 'themes'`）：侧栏名与 docId 都住在它自己的
+          // 命名空间里，不写这一格会去 `default` 那份实例里找一个叫 `themes` 的侧栏。
+          docsPluginId: 'themes',
+          label: '主题包',
+        },
+      ],
+    },
     footer: {
       style: 'dark',
-      // 页脚不摆链接：示例页的入口只有主页那张卡片列表一处（清单由侧边栏自动给，
-      // 见 packages/README.md），页脚再抄一份就是第二处要跟着新增页面改的地方。
+      // 页脚不摆链接：清单只由侧栏自动给（见 packages/README.md 与 themes/README.md），页脚再抄
+      // 一份就是第二处要跟着新增页面改的地方。navbar 那两格不算抄 —— 它们点名的是两份侧栏，
+      // 地址由官方算出来，新增包不进 navbar。
       // 这一格留着 `copyright` 两件事才成立：页脚整块还在（`test/e2e` 那两条
       // 「这一页有/没有站点的页脚」判的是它收没收起），以及页脚复制按钮那层有地方挂。
       copyright:

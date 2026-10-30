@@ -22,3 +22,17 @@ Feature: 主页
     And 卡片列表被套进四层主题的链里
     And themes 那一族每个包都有一张卡，指向各包自己的顶层页
     And 浏览器里没有运行期错误
+
+  # navbar 那两格是 `type: 'docSidebar'`：配置里只点名两份侧栏（`docs` / `themes`），地址由官方从
+  # 那份侧栏的第一项算出来 —— 所以这一格不会跟着新增包变，`test/plugin.test.mts` 钉的是「不抄地址」，
+  # 这里钉的是「抄来的地址真通向各自那棵根的索引页」，以及「哪一格亮着」跟着所在那棵根翻。
+  Scenario: navbar 两格通向两棵内容根，当前那一格跟着所在那棵根翻
+    Given 我打开主页
+    Then navbar 的两格分别通向两棵内容根的索引页
+    And navbar 里只有 "包" 那一格是当前
+    When 我点 navbar 里 "主题包" 那一格
+    Then 我落在 themes 那一棵内容根的落地页
+    And navbar 里只有 "主题包" 那一格是当前
+    When 我打开 markmap 示例页
+    Then navbar 里只有 "包" 那一格是当前
+    And 浏览器里没有运行期错误

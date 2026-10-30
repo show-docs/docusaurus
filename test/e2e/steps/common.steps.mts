@@ -154,8 +154,13 @@ Then(
 `data-theme`、scalar 换 `<body>` 上那两个类名）另有各层自己的句子，这里不掺和。
 */
 When('我把站点切成暗色', async ({ page }) => {
-  // navbar 上只有这一颗 `.clean-btn`（移动端那颗在这个视口宽度下不渲染）。
-  await page.locator('.navbar button.clean-btn').first().click();
+  // navbar 里有格之后，官方会多渲染一颗移动端汉堡（`.navbar__toggle.clean-btn`）：这个视口宽度下
+  // 它被 CSS 藏起来但**在 DOM 里**，所以按「navbar 上唯一那颗 `.clean-btn`」取会取到它。
+  // 亮暗那颗由 `ColorModeToggle` 渲染，不是 `.navbar__toggle`，按这个排除它。
+  await page
+    .locator('.navbar button.clean-btn:not(.navbar__toggle)')
+    .first()
+    .click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 

@@ -84,10 +84,20 @@ export async function siteStyles(page: Page): Promise<SiteStyles> {
         });
       const equal = (a: SiteStyles, b: SiteStyles): boolean =>
         JSON.stringify(a) === JSON.stringify(b);
-      const toggle = el.querySelector(':scope .navbar button.clean-btn');
-      const pick = (target: Element | null, names: readonly string[]) => {
+      // 移动端汉堡也叫 `.clean-btn`，这个视口宽度下藏在 CSS 里但**在 DOM 里**（navbar 有格之后官方
+      // 才渲染它），所以这里要点名排除，否则量到的是那颗看不见的按钮。
+      const toggle = el.querySelector(
+        ':scope .navbar button.clean-btn:not(.navbar__toggle)',
+      );
+      // 取不到就直接红：两处都取空的话 `toggle` 都是 `{}`，「这一页与主页一样」会显然成立，
+      // 判据就 quietly 只剩 `<html>` 那一半。
+      if (!toggle) {
+        throw new Error(
+          '.navbar 里没有那颗亮暗切换按钮：这颗按钮是判据的一半，不能空着比',
+        );
+      }
+      const pick = (target: Element, names: readonly string[]) => {
         const out: Record<string, string> = {};
-        if (!target) return out;
         const computed = getComputedStyle(target);
         for (const name of names) out[name] = computed.getPropertyValue(name);
         return out;
@@ -98,10 +108,7 @@ export async function siteStyles(page: Page): Promise<SiteStyles> {
       });
       /** 这两个元素上还在跑的过渡（悬停淡出、换主题的变色都算）跑完为止。 */
       const waitTransitions = async (): Promise<void> => {
-        const running = [
-          ...el.getAnimations(),
-          ...(toggle?.getAnimations() ?? []),
-        ];
+        const running = [...el.getAnimations(), ...toggle.getAnimations()];
         await Promise.all(
           running.map((animation) => animation.finished.catch(() => undefined)),
         );
@@ -110,7 +117,7 @@ export async function siteStyles(page: Page): Promise<SiteStyles> {
       let previous = snapshot();
       for (let i = 0; i < 120; i += 1) {
         // 指针还没挪开就先只等这一格，别把悬停态读成落定值
-        if (toggle?.matches(':hover')) {
+        if (toggle.matches(':hover')) {
           await frame();
           continue;
         }

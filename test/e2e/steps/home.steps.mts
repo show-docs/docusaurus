@@ -146,3 +146,47 @@ Then(
     ).toHaveCount(themesHrefs.length + 1);
   },
 );
+
+/**
+navbar 那两格（`type: 'docSidebar'`）通向的正是两棵内容根各自的索引页：`/` 是
+`packages/README.md`（`slug: /` 落在 `routeBasePath: '/'` 上），`/themes/` 是 `themes/README.md`
+（内容根的 README 天然拿 slug `/`，落在它那一份实例的 `routeBasePath: '/themes'` 上）。
+这两条地址是配置里那两份 docs 实例的事实，不是抄来的包清单 —— 新增一个包不会多出 navbar 的一格。
+*/
+Then('navbar 的两格分别通向两棵内容根的索引页', async ({ page }) => {
+  const hrefs = await page
+    .locator('nav.navbar a.navbar__link')
+    .evaluateAll((links) =>
+      links.map((link) => new URL((link as HTMLAnchorElement).href).pathname),
+    );
+  expect(
+    hrefs,
+    `navbar 的格应是「/ 与 /themes/」，实读到 ${JSON.stringify(hrefs)}`,
+  ).toEqual(['/', '/themes/']);
+});
+
+When(/^我点 navbar 里 "([^"]+)" 那一格$/, async ({ page }, label: string) => {
+  // `exact` 不是多余的：`getByRole` 的 `name` 默认按**子串**匹配，「包」会同时命中「主题包」，
+  // 严格模式就报错。
+  await page
+    .locator('nav.navbar')
+    .getByRole('link', { name: label, exact: true })
+    .click();
+});
+
+/**
+「当前那一格」判的是官方那条 `navbar__link--active`（`DocSidebarNavbarItem` 按
+`activeDoc.sidebar === sidebarId` 点亮）：所以这一句同时钉住「这一页归哪一份 docs 实例」——
+两棵根的 docId 各自一套命名空间，都叫 `README`，归属判错就会亮到另一格上。
+*/
+Then(
+  /^navbar 里只有 "([^"]+)" 那一格是当前$/,
+  async ({ page }, label: string) => {
+    const active = page.locator('nav.navbar a.navbar__link--active');
+    await expect(
+      active,
+      `navbar 该只有一格是当前（${label}），实读到 ${await active.count()} 格`,
+    ).toHaveCount(1);
+    await expect(active).toHaveText(label);
+  },
+);
