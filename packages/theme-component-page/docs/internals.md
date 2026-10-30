@@ -29,7 +29,7 @@ flowchart TD
 | `src/contribute.mts`                         | `tsc` → `dist/`        | 别的插件交回那一条约定的读取，以及全站那一张最终表的合成（登记名去重、抢键红、站点那一列排前面、剩下的按键名固定字符串顺序追加）                                      |
 | `src/registry-module.mts`                    | `tsc` → `dist/`        | 两份生成模块的**文本**（配置期，纯函数）：文档页那一份与框内那一份，按 `render` 分两侧                                                                                |
 | `src/frame-route.ts`                         | `tsc` → `dist/`        | 那条通用框内路由的名字与地址算法（注册侧与请求侧共用同一份，所以常量必须住在 `src/`，见 `lib/frame-route.ts` 头上那句）                                               |
-| `src/prerequisites.mts`                      | `tsc` → `dist/`        | 发给别的层的两条安装前提：要交规则得装上本层、要用样式表隔离得开 `future.faster.lightningCssMinimizer`（出口 `./prerequisites`）                                      |
+| `src/prerequisites.mts`                      | `tsc` → `dist/`        | 发给**交规则的层**那一条安装前提：要交规则得装上本层（出口 `./prerequisites`；样式表隔离那一条现在住在用它的那一层，见 `themes/theme-viewer/src/prerequisites.mts`）  |
 | `lib/component-page.ts`                      | 用它的站点编（不编译） | 条目形状 + 命中判据 + 入参组装 + 落空与多命中告警；不引 React、不引 DOM                                                                                               |
 | `lib/frame-messages.ts`                      | 用它的站点编（不编译） | 那四条跨文档消息的形状、`isFrame*` 那道门槛、送出去那份数据的 JSON 判据                                                                                               |
 | `lib/frame-sync.tsx`                         | 用它的站点编（不编译） | 两侧的消息循环：外层 `useFrameHandshake`（握手 + 配色 + 接住框里报的那一段）、框内 `FrameBridgeProvider` / 那几条读状态的 hook                                        |
@@ -232,8 +232,10 @@ spec 键（`oas3:` / `aas3:`），键名由它们自己传给 `lib/frontmatter-v
 
 本包在 `src/index.mts` 里只跑**一条**前置检查：解析器插件在不在那两份清单里，走的是那个包自己
 发出来的 `assertPrevLayerResolverInstalled()`（`@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots`）。
-它**不**引 `theme-iframe`：本层是通用机制，站点不装它也用得上。别的层需要的两条（要交规则得装
-本层、要隔离样式表得开那个压缩器）在本包的 `./prerequisites` 出口里，由各包自己的入口调用。
+它**不**引 `theme-iframe`：本层是通用机制，站点不装它也用得上。别的层需要的另一条（要交规则得装
+本层）在本包的 `./prerequisites` 出口里，由**真把规则交出来**的那几层的入口调用；不交规则的层
+（`themes/` 那一族）直接引解析器那一句就够，不为本包的一条纯函数多背一条依赖 —— 同一条理由当年
+把这句检查从 `theme-iframe` 搬进了解析器包（见那里 `src/plugin-slots.mts` 的头上）。
 
 本站把本层声明在其余各层**之后**，所以它在层栈最外、最先判（越晚声明 = 层栈越靠外 = 越先判，
 那条口径记在[解析器插件的 README](../../plugin-prev-layer-resolver/README.md)里）；换个位置放就

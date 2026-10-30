@@ -1,7 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
+import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -85,8 +85,12 @@ export default function gitBadgeTheme(
     name: PLUGIN_NAME,
     loadContent() {
       // 本层的 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，
-      // 缺了它症状是构建期才炸的 `Module parse failed` —— 当场点名更省事
-      assertThemePrerequisites(context, { namespace: PLUGIN_NAME });
+      // 缺了它症状是构建期才炸的 `Module parse failed` —— 当场点名更省事。这一层只改
+      // frontmatter 与侧边栏那两格，不交规则给机制层，所以安装前提只有解析器这一个
+      assertPrevLayerResolverInstalled(PLUGIN_NAME, {
+        plugins: context.siteConfig.plugins,
+        themes: context.siteConfig.themes,
+      });
       install();
     },
     // 插件被单独 reload（`reloadSite()`）时会重跑这一阶段

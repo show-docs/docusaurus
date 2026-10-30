@@ -169,8 +169,10 @@ export default {
 **为什么是本包的事**：后一条问的正是「提供 `@theme-prev/*` 别名的那个插件在不在」。这句话只有
 本包自己说得住。以前它住在 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，于是任何想用它的
 层都得先引那一族层，连带把「装了 `theme-iframe`」变成自己的安装前提 —— 而真正的前提只有本包
-这一个。搬过来之后，`theme-iframe` 那条继续由它的 `src/prerequisites.mts` 转调（它另外两条检查确实
-属于那一族层），不依赖那一族的层（如 `theme-component-page`）直接引这一份。
+这一个。搬过来之后，交规则给机制层的那几层仍由机制层那份 `prerequisites` 转调（它另外那一条
+「要交规则得装上本层」确实属于那一族层）；不交规则的层直接引这一份 —— `theme-component-page`
+是这样，`themes/` 那一族（头像、复制按钮、侧边栏徽标、图片查看器）也是这样，护栏在
+`test/infrastructure-rules.test.mts`。
 
 **为什么是纯函数、为什么单开一条 `./plugin-slots` 出口**：读者都在配置期（Node，jiti 直接吃
 `dist/`）—— 各层 `loadContent()` 里那句「前置插件在不在」。包根本机会引 `node:*` 与 webpack，

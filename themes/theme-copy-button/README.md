@@ -6,10 +6,11 @@
 ## 安装
 
 `theme/` 与 `components/` 是随包发布的未编译 TS 源码，编译它们的 babel 规则由解析器插件一处
-认领；theme-iframe 只在构建期提供一条共享函数，装上即可，不必注册成插件。三个包一起安装：
+认领，所以还得装它并**注册成插件** —— 那是本层唯一一条安装前提：这一层不向
+`theme-component-page` 交规则，缺了那一格它照常工作。两个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-copy-button
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-copy-button
 ```
 
 ## 使用

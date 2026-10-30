@@ -7,11 +7,11 @@ import { describe, expect, it } from 'vitest';
 import { pkgPath } from './helpers.mts';
 
 /**
-## 基础设施包那几条规则里，能在磁盘上查的三条
+## 基础设施包那几条规则里，能在磁盘上查的四条
 
 `plugin-prev-layer-resolver`、`theme-component-page`、`theme-iframe` 是这一仓的三格基础设施：
 按「一般 → 具体」排，各自能单独装上用，也被别的层当成机制复用。规则书在仓库根 README 的
-「基础设施包」一节；这一份钉住其中三条读文本就能查的：
+「基础设施包」一节；这一份钉住其中四条读文本就能查的：
 
 1. 每一格的 `@show-docs` 声明依赖只落在它**下面**那几格 —— 最下面的解析器包因此一个都没有，
    每一格拿掉上面任意几格都还能装；
@@ -19,11 +19,17 @@ import { pkgPath } from './helpers.mts';
    上面那格。用**字符串**登记组件（规则里 `component` 那一格写的是登记名，不是模块说明符）
    是数据，不是依赖；
 3. 一个包 `import` 的 `@show-docs` 包，都得在自己那份 `package.json` 里声明过 —— 依赖由用它的
-   那一侧声明。
+   那一侧声明；
+4. 反过来也一样：**没用到的那一格不许声明**。`themes/` 那一族不向 `theme-component-page`
+   交规则（头像、复制按钮、侧边栏徽标、图片查看器各管自己那一格），所以它既不声明也不引它 ——
+   否则「装了这一层还得先装机制层」会变成写在清单里的一句假话，而那句假话要靠一次装包才暴露。
+   同一条口径的旧例见解析器包 `src/plugin-slots.mts` 的文件头：那条前置检查原先住在
+   `theme-iframe` 里，于是想用它的层都得先引那一族层。
 
 读的是磁盘上的 `package.json` 与源码文本，不是某份手抄清单：新增一个包不必回来改这里。
-包住在两棵包根下（`packages/` 与 `themes/`），第三条按目录名扫**两边**——那四个带渲染器的包
-各自依赖两个基础设施包，正是这条规则的对象，漏一棵就是静默失覆盖。
+包住在两棵包根下（`packages/` 与 `themes/`），第三条按目录名扫**两边**，漏一棵就是静默失覆盖；
+第四条反过来，扫的正是 `themes/` 那一棵 —— 那一族四个包当初从 `packages/` 搬出来，带来的
+一条依赖边（机制层那份 `./prerequisites`）就跟着搬过来了，谁也没回来问它还用不用得上。
 */
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
@@ -175,5 +181,37 @@ describe('依赖由用它的那一侧声明', () => {
     });
 
     expect(violations).toEqual([]);
+  });
+});
+
+/** 机制层那一个包名从磁盘读：这条判据不抄字面量，那一格改名了它跟着红。 */
+const COMPONENT_PAGE = manifestOf('theme-component-page').name;
+
+describe('依赖还要往下收：用不到的那一格不许声明', () => {
+  it('themes/ 那一族既不声明也不 import `theme-component-page`（交规则的层才需要它）', () => {
+    const dirs = readdirSync(path.join(repoRoot, 'themes'), {
+      withFileTypes: true,
+    })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+
+    expect(dirs.length, 'themes/ 下应有若干包').toBeGreaterThan(0);
+
+    const violations = dirs.flatMap((dir) => [
+      ...declaredIn(manifestOf(dir))
+        .filter((name) => name === COMPONENT_PAGE)
+        .map((name) => `${relOf(dir)}/package.json 声明了 ${name}`),
+      ...showDocsImports(dir)
+        .filter(({ specifier }) => packageOf(specifier) === COMPONENT_PAGE)
+        .map(
+          ({ file, specifier }) =>
+            `${path.relative(repoRoot, file)} → ${specifier}`,
+        ),
+    ]);
+
+    expect(
+      violations,
+      '这一族不向机制层交规则：它的安装前提只有解析器包那一个',
+    ).toEqual([]);
   });
 });

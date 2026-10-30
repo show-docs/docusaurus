@@ -8,6 +8,7 @@ import {
   COMPONENT_PAGE_PLUGIN,
 } from '../packages/theme-component-page/src/prerequisites.mts';
 import viewerTheme from '../themes/theme-viewer/src/index.mts';
+import { assertViewerPrerequisites } from '../themes/theme-viewer/src/prerequisites.mts';
 
 /** 只造两份原始插件清单与 `future.faster`：检查器不读别的（`LoadContext` 本身没有 `plugins` 字段）。 */
 const contextWith = (
@@ -31,12 +32,9 @@ const contextWithFuture = (future: unknown): LoadContext =>
   }) as unknown as LoadContext;
 
 const requiresLightningCss = (context: LoadContext) => () =>
-  assertThemePrerequisites(context, {
-    namespace: NAMESPACE,
-    lightningCssMinimizer: true,
-  });
+  assertViewerPrerequisites(context);
 
-describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
+describe('assertThemePrerequisites（交规则给机制层的那几层）：缺前置插件时当场点名', () => {
   it('解析器与 component-page 都在时放行', () => {
     expect(() =>
       assertThemePrerequisites(
@@ -86,27 +84,69 @@ describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
     }
   });
 
-  it('要求 lightningcss 而站点没开：报出包名与那一格配置', () => {
-    expect(() =>
-      assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
-        namespace: NAMESPACE,
-        lightningCssMinimizer: true,
-      }),
-    ).toThrow(new RegExp(String.raw`${NAMESPACE}[\s\S]*lightningCssMinimizer`));
-  });
-
-  it('lightningcss 已开、或这一项没被要求时放行', () => {
+  it('`themes` 里声明、`[包名, 选项]` 元组、`require.resolve()` 路径都算装上了', () => {
+    // 三种真实形状：`themes` 那份清单、带选项的元组、站点里 `require.resolve()` 出来的路径
     expect(() =>
       assertThemePrerequisites(
-        contextWith([RESOLVER_PLUGIN], [], { lightningCssMinimizer: true }),
-        { namespace: NAMESPACE, lightningCssMinimizer: true },
+        contextWith(
+          [
+            [COMPONENT_PAGE_PLUGIN, { some: 'option' }],
+            '/repo/node_modules/@show-docs/docusaurus-plugin-prev-layer-resolver/dist/index.mjs',
+          ],
+          [],
+        ),
+        { namespace: NAMESPACE, componentPage: true },
       ),
     ).not.toThrow();
 
     expect(() =>
-      assertThemePrerequisites(contextWith([RESOLVER_PLUGIN]), {
-        namespace: NAMESPACE,
-      }),
+      assertThemePrerequisites(
+        contextWith([], [RESOLVER_PLUGIN, COMPONENT_PAGE_PLUGIN]),
+        {
+          namespace: NAMESPACE,
+          componentPage: true,
+        },
+      ),
+    ).not.toThrow();
+  });
+
+  it('认不出的槽位（函数、空对象、非字符串元组头）直接略过，不算装上', () => {
+    expect(() =>
+      assertThemePrerequisites(
+        contextWith([() => undefined, {}, { name: undefined }, [42, {}]]),
+        { namespace: NAMESPACE },
+      ),
+    ).toThrow(new RegExp(RESOLVER_PLUGIN));
+  });
+});
+
+/**
+「宿主必须用 lightningcss」那一条现在住在 `theme-viewer` 自己的 `src/prerequisites.mts` 里：
+它说的是 `viewerjs` 那一份样式表的形状，只有这一家用得到（机制层那条 `./prerequisites`
+不再替各层摊平这件事，也就不再被这一族包依赖）。
+*/
+describe('theme-viewer 的安装前提：没开那个压缩器就当场点名', () => {
+  const VIEWER = '@show-docs/docusaurus-theme-viewer';
+
+  it('缺解析器时报本包的名字，装了才往下问压缩器', () => {
+    expect(() =>
+      assertViewerPrerequisites(
+        contextWith([], [], { lightningCssMinimizer: true }),
+      ),
+    ).toThrow(new RegExp(String.raw`${VIEWER}[\s\S]*${RESOLVER_PLUGIN}`));
+  });
+
+  it('解析器在、lightningcss 没开：报出那一格配置', () => {
+    expect(() =>
+      assertViewerPrerequisites(contextWith([RESOLVER_PLUGIN])),
+    ).toThrow(new RegExp(String.raw`${VIEWER}[\s\S]*lightningCssMinimizer`));
+  });
+
+  it('两条都齐时放行', () => {
+    expect(() =>
+      assertViewerPrerequisites(
+        contextWith([RESOLVER_PLUGIN], [], { lightningCssMinimizer: true }),
+      ),
     ).not.toThrow();
   });
 
@@ -147,41 +187,6 @@ describe('assertThemePrerequisites：缺前置插件时当场点名', () => {
         }),
       ),
     ).not.toThrow();
-  });
-
-  it('`themes` 里声明、`[包名, 选项]` 元组、`require.resolve()` 路径都算装上了', () => {
-    // 三种真实形状：`themes` 那份清单、带选项的元组、站点里 `require.resolve()` 出来的路径
-    expect(() =>
-      assertThemePrerequisites(
-        contextWith(
-          [
-            [COMPONENT_PAGE_PLUGIN, { some: 'option' }],
-            '/repo/node_modules/@show-docs/docusaurus-plugin-prev-layer-resolver/dist/index.mjs',
-          ],
-          [],
-        ),
-        { namespace: NAMESPACE, componentPage: true },
-      ),
-    ).not.toThrow();
-
-    expect(() =>
-      assertThemePrerequisites(
-        contextWith([], [RESOLVER_PLUGIN, COMPONENT_PAGE_PLUGIN]),
-        {
-          namespace: NAMESPACE,
-          componentPage: true,
-        },
-      ),
-    ).not.toThrow();
-  });
-
-  it('认不出的槽位（函数、空对象、非字符串元组头）直接略过，不算装上', () => {
-    expect(() =>
-      assertThemePrerequisites(
-        contextWith([() => undefined, {}, { name: undefined }, [42, {}]]),
-        { namespace: NAMESPACE },
-      ),
-    ).toThrow(new RegExp(RESOLVER_PLUGIN));
   });
 });
 

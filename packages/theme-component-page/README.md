@@ -42,8 +42,10 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 见它 README 的「各主题层那条「本插件注册了没有」的检查」），缺了它红在配置加载那一句，
 而不是等打包时报 `Module parse failed`。需要 Docusaurus `^3.9.2` 与 Node `^24`。
 
-别的层要检查的前提（「要交规则得装上本层」「要用 lightningcss 那条隔离得开
-`future.faster.lightningCssMinimizer`」）在本包的 `./prerequisites` 出口里，本层自己不引它。
+别的层要检查的前提（「要交规则得装上本层」）在本包的 `./prerequisites` 出口里，本层自己不引它。
+**只有真把规则交给本层的层该引它**：不交规则的层（`themes/` 那一族：头像、复制按钮、侧边栏徽标、
+图片查看器）直接引解析器包那一句 `assertPrevLayerResolverInstalled()` 就够，不必为了这一份检查
+多背一条对本层的依赖。
 
 ## 使用
 

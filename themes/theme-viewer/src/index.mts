@@ -2,9 +2,9 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
-
 import type { LoadContext, Plugin } from '@docusaurus/types';
+
+import { assertViewerPrerequisites, NAMESPACE } from './prerequisites.mts';
 
 const require = createRequire(import.meta.url);
 
@@ -13,18 +13,15 @@ const thisDir = dirname(fileURLToPath(import.meta.url));
 
 export default function theme(context: LoadContext): Plugin {
   return {
-    name: '@show-docs/docusaurus-theme-viewer',
+    name: NAMESPACE,
     loadContent() {
-      // 本层只在构建期引 component-page 的一条纯函数（那句安装前提检查），不需要它的插件规则；
-      // 但 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，缺了它同样是
+      // 本层的 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，缺了它同样是
       // 构建期才炸。
       //
       // CSS 压缩器也只在这一步点名：`viewerjs` 那份样式表写的是原生嵌套，默认的
       // cssnano + clean-css 会把它压坏，而本包不再替宿主全站摊平 —— 那件事交给 lightningcss。
-      assertThemePrerequisites(context, {
-        namespace: '@show-docs/docusaurus-theme-viewer',
-        lightningCssMinimizer: true,
-      });
+      // 这一条判据住在本包的 `./prerequisites.mts`（只有这一家用它），本层不引机制层。
+      assertViewerPrerequisites(context);
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 那一份入口。

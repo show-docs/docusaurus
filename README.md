@@ -190,7 +190,9 @@ plugin-prev-layer-resolver   分层与 @theme-prev/*、未编译源码的编译�
    反向依赖就是把「一般」焊死在某一支上。
 2. **功能层只能依赖基础设施，功能层之间互不依赖。** 基础设施也不 `import` 任何功能层。
    注册表里用**字符串**登记别的层（`'@show-docs/docusaurus-theme-scalar'` 那种）是数据，
-   不是依赖 —— 只有 `import` 才算。
+   不是依赖 —— 只有 `import` 才算。反过来也一样：**用不到的那一格不许声明** —— 只有真把规则
+   交给 `theme-component-page` 的层才引它那份 `./prerequisites`；`themes/` 那一族（头像、
+   复制按钮、侧边栏徽标、图片查看器）各管自己那一格，安装前提只有解析器包那一个。
 3. **单独可用是硬要求。** 每格只依赖它下面那几格，所以拿掉上面任意几格都还能装：
    解析器包对 `@show-docs` 的依赖为零，`theme-component-page` 只声明解析器包；
    `theme-iframe` 声明解析器包与 `theme-component-page`（框页今天就是经后者挂上去的 ——

@@ -1,7 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
+import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -12,12 +12,15 @@ export default function theme(context: LoadContext): Plugin {
   return {
     name: '@show-docs/docusaurus-theme-copy-button',
     loadContent() {
-      // 本层只在构建期引 component-page 的一条纯函数（那句安装前提检查），不需要它的插件规则；
-      // 但 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，缺了它同样是
-      // 构建期才炸。
-      assertThemePrerequisites(context, {
-        namespace: '@show-docs/docusaurus-theme-copy-button',
-      });
+      // 本层不交规则给机制层，安装前提只有解析器那一个；但 `theme/` 是未编译 TS 源码，
+      // 编译它的 babel 规则由解析器插件一处认领，缺了它同样是构建期才炸。
+      assertPrevLayerResolverInstalled(
+        '@show-docs/docusaurus-theme-copy-button',
+        {
+          plugins: context.siteConfig.plugins,
+          themes: context.siteConfig.themes,
+        },
+      );
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 那一份入口。
