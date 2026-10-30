@@ -2,7 +2,7 @@
    站点的样式表管线（这一版 Docusaurus 没有「见到 `src/css/custom.css` 就自动加载」的约定）。
    眼下这一格里只有一样东西：主页那条链最外层的一道边界（里面三层各自带着自己的样式表，
    见 `tools/README.md`）。侧边栏那枚「新建 / 更新」徽标的样式归
-   `packages/theme-git-badge/styles/git-badge.css`（由那一层自己交出来）。 */
+   `themes/theme-git-badge/styles/git-badge.css`（由那一层自己交出来）。 */
 
 /* 链的最外层（`src/theme`）：蓝 C、绿 B、红 A 之外的那一道橙色虚线 */
 .layer-site {

@@ -7,6 +7,9 @@ import { createAbsoluteFilePathMatcher, posixPath } from '@docusaurus/utils';
 
  站点可以把 `docs` 选项写在自己的一个预设里（本仓就是 classic 预设里那一份），插件在手
  上拿不到 —— 所以这三格由站点转述给本包（站点配置里点名的那一处）。
+
+ 一份 `DocsScope` 说的是**一棵内容根**：三格都相对那一棵根解释。站点里有几份文档插件实例、
+ 就有几份转述（`DocsScopes` 那一格写成数组）。
 */
 export interface DocsScope {
   /** 内容根：相对站点根（仓库根那个 `docs` 就是一格点），默认 `docs` */
@@ -17,14 +20,25 @@ export interface DocsScope {
   exclude?: string[];
 }
 
+/** 站点的转述：一份文档插件实例给一份，多份就写成数组 */
+export type DocsScopes = DocsScope | DocsScope[];
+
 /** 文档插件的缺省 include，与 `plugin-content-docs` 的 `DEFAULT_OPTIONS.include` 同值 */
 export const DEFAULT_INCLUDE = ['**/*.{md,mdx}'];
 
-/** 文档插件的地盘：这一份文件在站点里是不是一页 */
+/**
+文档插件的地盘：这一份文件在站点里是不是一页。
+
+`covers` 判的是「**任一**内容根里的一页」，`contentPaths` 因此是一串而不是一个 ——
+只有一棵根时它就是一元数组。
+*/
 export interface Scope {
-  /** 内容根的绝对路径，正斜杠 */
-  contentPath: string;
-  /** 收不收这份文件：绝对路径，或相对内容根的路径；分隔符两种都认 */
+  /** 各内容根的绝对路径，正斜杠 */
+  contentPaths: string[];
+  /**
+  收不收这份文件：绝对路径，或相对内容根的路径 —— 相对写法会被**每**棵根各拼一次，
+  拼出来落在哪棵根里就按哪棵根的 include/exclude 判。分隔符两种都认。
+  */
   covers(filePath: string): boolean;
 }
 
@@ -42,11 +56,24 @@ export function docsContentPath(from: string, { path = 'docs' }: DocsScope) {
 }
 
 /**
-地盘：`covers` 用的根是内容根的绝对路径。`from` 传站点根（或仓库根，两者只差一层软链），
-与 docs 插件自己算 `contentPath` 的口径一致 —— 都是「站点根 + `docs.path`」。
+ 地盘：`covers` 用的根是内容根的绝对路径。`from` 传站点根（或仓库根，两者只差一层软链），
+ 与 docs 插件自己算 `contentPath` 的口径一致 —— 都是「站点根 + `docs.path`」。
+
+ 转述写成数组时这里就是**多棵根**：逐棵各建一份地盘，`covers` 取「任一命中」。每棵根的
+ include/exclude 只在自己那棵根里解释 —— 把 A 根的路径递给 B 根的匹配器，官方那一句
+ （`createAbsoluteFilePathMatcher` 只认自己那棵根）会直接抛，所以下面每一问都先过自己那棵根
+ 的 inside 护栏。
 */
-export function scopeOf(from: string, docs: DocsScope = {}): Scope {
-  return createScope(docsContentPath(from, docs), docs);
+export function scopeOf(from: string, docs: DocsScopes = {}): Scope {
+  const scopes = (Array.isArray(docs) ? docs : [docs]).map((doc) =>
+    createScope(docsContentPath(from, doc), doc),
+  );
+
+  return {
+    contentPaths: scopes.flatMap((scope) => scope.contentPaths),
+    covers: (filePath: string) =>
+      scopes.some((scope) => scope.covers(filePath)),
+  };
 }
 
 /**
@@ -76,7 +103,7 @@ export function createScope(
   const excluded = createAbsoluteFilePathMatcher(options.exclude ?? [], [root]);
 
   return {
-    contentPath: root,
+    contentPaths: [root],
     covers(filePath: string) {
       // 两种写法都先 `resolve()` 再归一：Windows 上 `'/site/docs/a.md'` 这种「没有盘符的绝对路径」
       // 会被 `path.win32.resolve()` 补成当前盘（`D:/site/...`），而 `relative()` 也照样补 ——

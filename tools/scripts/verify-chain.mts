@@ -52,12 +52,15 @@ console.log('\n自动推导的主题层栈（内 → 外，无配置清单、无
 for (const l of layers) console.log(' '.repeat(3) + rel(l.owner));
 
 // ---- 2. 从真实 build 产物回读包裹链 ----
-// 主页就是 `packages/README.md`（`routeBasePath: '/'` + `slug: /`），所以第一格是 `build/index.html`。
-// 判据两头钉住一条链：主页正文（`<article>`）里那四层必须**连续**出现；站点只有主页写了
-// `<DocCardList />`，所以另一格整页都不该有包裹标记 —— 两条一起才钉住「只在 intro 页渲染」。
+// 主页就是 `packages/README.md`（`routeBasePath: '/'` + `slug: /`），所以第一格是 `build/index.html`；
+// `/themes/` 那一格是另一棵内容根的落地页（`themes/README.md` 默认 slug `/`，落在实例自己的
+// `routeBasePath` 上），它渲染的是同一个 `DocCardList`，所以那条链应当**与内容根无关**。
+// 判据三头钉住这条链：两格正文里那四层必须**连续**出现；再取一个普通文档页，那一页整页都不该有
+// 包裹标记 —— 三条一起才钉住「只在渲染卡片列表的那两格发生，且哪一棵内容根都一样」。
 const CHAIN = ['src/theme', 'theme-c', 'theme-b', 'theme-a'];
 const pages = [
   { chain: true, file: 'build/index.html' },
+  { chain: true, file: 'build/themes/index.html' },
   {
     chain: false,
     file: 'build/theme-markmap/docs/markmap-demo/index.html',

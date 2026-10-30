@@ -1,14 +1,16 @@
-// 文档插件扫哪些文件。放在外面是因为有两处要**同一份**：`docs` 选项（真正生效的那一份）与
-// 徽标那一层的 `docs`（转述给它的地盘判据）。抄两遍迟早会漂，漂了就是「徽标挂在一批站点里
-// 不存在的页面上」或者「站点里的页面一个徽标都没有」。
+// 文档插件扫哪些文件。放在外面是因为有几处要**同一份**：每份 docs 实例的 `docs` 选项（真正
+// 生效的那一份）与徽标那一层的 `docs`（转述给它的地盘判据）。抄两遍迟早会漂，漂了就是
+// 「徽标挂在一批站点里不存在的页面上」或者「站点里的页面一个徽标都没有」。
 //
-// 内容根是 `packages/`（见预设里的 `docs.path`）：每个包的 `README.md` 就是它在站点里的顶层页，
-// 包内 `docs/` 是它的子页。所以这几条 glob 相对 `packages/` 写，不再带那一段前缀。
+// 站点有**两棵内容根**：`packages/`（classic 预设那一份）与 `themes/`（下面单独挂的
+// `@docusaurus/plugin-content-docs`）。两棵根的目录形状一致 —— 每个包的 `README.md` 就是它在
+// 站点里的顶层页，包内 `docs/` 是它的子页 —— 所以这几条 glob 相对**各自的内容根**写，一份清单
+// 两处用。
 //
 // `build/**` 前面那个 `**/` 不是多余的：micromatch 按「相对内容根」比，写成 `build/**` 只管得到
 // 顶层那一层，`<包>/build/**` 这种产物目录仍然收得进来。
 const DOCS_INCLUDE = [
-  // 主页：内容根自己那份 README，`slug: /` 把它落在根
+  // 内容根自己那份 README：`packages/` 里它带 `slug: /` 落在主页，`themes/` 里它就是 `/themes/`
   'README.md',
   // 每个包的顶层页
   '*/README.md',
@@ -17,6 +19,18 @@ const DOCS_INCLUDE = [
 ];
 
 const DOCS_EXCLUDE = ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'];
+
+/**
+ 一份内容根的三格。站点里有几份 docs 实例就调用几次：`include` / `exclude` 都是**相对 `path`
+ 那棵根**解释的，所以每份实例拿到的是自己那一棵根的判据，不是一串混在一起的 glob。
+
+ 徽标那一层要的就是这一份（它拿不到预设与插件的选项，只能由站点转述）。
+*/
+const docsScope = (path) => ({
+  path,
+  include: DOCS_INCLUDE,
+  exclude: DOCS_EXCLUDE,
+});
 
 const config = {
   title: 'Docusaurus Themes',
@@ -44,17 +58,34 @@ const config = {
     //
     // 判据、徽标种类、页面自己钉的那把键（`git_badge`）全在包里，站点写不出来也不必写。
     //
-    // `docs` 那一格是**转述**：真正生效的选项在下面 classic 预设里，插件手上拿不到，所以把
-    // `path` / `include` / `exclude` 在这里再写一遍 —— 徽标的地盘跟着文档插件扫出来的那批
-    // 文件走。
+    // `docs` 那一格是**转述**：真正生效的选项在下面 classic 预设里与紧随本条那份独立实例里，
+    // 插件手上拿不到，所以把每份实例的 `path` / `include` / `exclude` 在这里再写一遍 ——
+    // 徽标的地盘跟着文档插件扫出来的那批文件走。站点有两份 docs 实例，就转述两份。
+    //
+    // 只能有本层**一份**实例：注入走的是站点全局那一个 `markdown.parseFrontMatter`，
+    // 第二份实例会被「只包一次」的护栏静默吞掉，所以多棵内容根必须在这一份里用数组表达。
     [
       '@show-docs/docusaurus-theme-git-badge',
+      { docs: [docsScope('packages'), docsScope('themes')] },
+    ],
+    // `themes/` 那四个带渲染器的主题包的文档：一份独立的 docs 实例，接法与预设里那一份同形
+    // （清单还是 `DOCS_INCLUDE` / `DOCS_EXCLUDE` 那一份，只是相对 `themes/` 解释）。
+    //
+    // `id` 是必需的：同一个插件挂两次而不给 id，官方直接抛「Plugin IDs must be unique」。
+    // `routeBasePath` 不能再用 `'/'` —— 每份 docs 实例都在**自己的** routeBasePath 上放一个
+    // 版本首页，两份额都用 `'/'` 就会和主页（`packages/README.md` 的 `slug: /`）争同一格；
+    // 于是这一族的地址带 `/themes` 那一段：`/themes/theme-viewer/docs/viewer-demo`。
+    // 这一族的侧边栏另有自己的清单文件（docId 相对 `themes/`，形状与 `sidebars.mts` 共用同一份
+    // 扫描逻辑）。
+    [
+      '@docusaurus/plugin-content-docs',
       {
-        docs: {
-          path: 'packages',
-          include: DOCS_INCLUDE,
-          exclude: DOCS_EXCLUDE,
-        },
+        id: 'themes',
+        routeBasePath: '/themes',
+        path: 'themes',
+        sidebarPath: './sidebars-themes.mts',
+        include: DOCS_INCLUDE,
+        exclude: DOCS_EXCLUDE,
       },
     ],
     // 链式覆盖：新增 `@theme-prev/X` 系列 specifier，不改 `@theme-original` 官方语义。
@@ -151,7 +182,7 @@ const config = {
     //
     // 本站**故意不给 `userApi`**：这一层的开关就是那一格，不给时头像不出现、亮暗切换照旧，
     // 于是这一层在这里只被编译、被渲染一次「什么都没有」。真接上用户接口要写的那几格与
-    // 「为什么本站看不到头像」，记在 `packages/theme-avatar/docs/avatar-demo.md`。
+    // 「为什么本站看不到头像」，记在 `themes/theme-avatar/docs/avatar-demo.md`。
     '@show-docs/docusaurus-theme-avatar',
     // 页脚复制按钮：它覆盖的是 `Footer/Copyright`（上面几层覆盖的是 `DocItem` /
     // `DocItem/Content`），谁都不争同一格，放在层栈最外面。判据不是 frontmatter，
@@ -175,23 +206,20 @@ const config = {
         // 站点没有单独的首页组件：`packages/README.md` 就是主页（`slug: /` 落在这里）。
         // `routeBasePath: '/'` 把 docs 的前缀挪到根，于是没有「页面层」去和主题层争同一格。
         //
-        // 内容根是 `packages/`：每个包的 `README.md` 就是它在站点里的顶层页（Docusaurus 认
+        // 这一份的内容根是 `packages/`：每个包的 `README.md` 就是它在站点里的顶层页（Docusaurus 认
         // `README.md` 是所在目录的索引页，所以地址是 `/theme-scalar/`），这个包 `docs/` 目录里的
         // 那几页 —— 示例页与维护者文档 —— 是它的子页（`/theme-scalar/docs/…`）。
         // 主页占的也是这一条规则的格子：内容根自己那份 `README.md` 是索引页，被 `slug: /` 挪到了根，
         // 所以内容根那一格本身没有单独的地址。
-        // include 因此按包点名，而不是 `**/*.md`：`packages/` 下那些只给仓库读者看的说明
-        //（包根上的其他 md、`packages/*/build/` 里的产物）不进站点；仓库根那些说明
+        // `themes/` 那一族走的是上面单独挂的那份实例，形状与这里同构，地址多 `/themes` 一段。
+        // include 因此按包点名，而不是 `**/*.md`：包根下那些只给仓库读者看的说明
+        //（包根上的其他 md、`*/build/` 里的产物）不进站点；仓库根那些说明
         //（根 README、`tools/README.md`、`src/theme/README.md`、`test/README.md`）在内容根之外。
         // 每一格对应哪个包、顺序怎么来，见 `sidebars.mts`（扫目录得到，没有手抄的清单）。
         docs: {
           routeBasePath: '/',
-          path: 'packages',
           sidebarPath: './sidebars.mts',
-          include: DOCS_INCLUDE,
-          // 内容根挪到 `packages/` 之后要挡掉的两类东西：装出来的依赖与产物里那些 `README.md`
-          // 副本（它们不是文档源，收进来只会变成一堆重名页）。
-          exclude: DOCS_EXCLUDE,
+          ...docsScope('packages'),
         },
         blog: false,
         // 站点自己那份样式表：眼下只有主页那条四层链最外层 `[SITE]` 那道彩色虚线

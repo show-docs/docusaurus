@@ -200,9 +200,17 @@ git log --follow --format=%ct -- <path>   # 这份文件被提交过几次，每
 页面这个概念由 `@docusaurus/plugin-content-docs` 定义（`docs.path` / `docs.include` /
 `docs.exclude`），而这三格通常写在站点自己的预设里 —— 本包在插件选项里拿不到别人实例化后的
 选项（`initializedPlugins` 只有实例，`options` 不外露，且 `loadContent()` 是 `Promise.all()`
-一起跑的）。所以口径是：**站点把这三格再写一遍给本包**。本仓的做法是把清单提成
-`docusaurus.config.mjs` 顶部的 `DOCS_INCLUDE` / `DOCS_EXCLUDE` 两个常量，两处引同一份，
-不让它漂。
+一起跑的）。所以口径是：**站点把每份文档插件实例那三格再写一遍给本包**。本仓的做法是把清单提成
+`docusaurus.config.mjs` 顶部的 `DOCS_INCLUDE` / `DOCS_EXCLUDE` 两个常量与一份 `docsScope(根)`
+工厂，两份实例与徽标那一条各引同一份，不让它漂。
+
+**本站有两棵内容根**（`packages/` 挂在 classic 预设那一份、`themes/` 挂在紧随本包那一条的独立
+实例，`id: 'themes'`），所以转述写成**数组**：`docs: [docsScope('packages'), docsScope('themes')]`。
+一份 `DocsScope` 说的是一棵根，`include` / `exclude` 各自相对自己那棵根解释，`covers()` 取
+「任一棵里的一页」。为什么不改成「每棵根挂一份本包实例」：注入走的是站点全局那一个
+`markdown.parseFrontMatter`，第二份实例会被 `WRAPPED` 那记「已经是我」的护栏当成同一层而
+静默退让 —— 多棵根只能住在一份实例里。这一格形状由 `test/theme-git-badge.test.mts` 里
+「地盘可以多棵根」那一组钉住，跨根的真接线另有 `转述两份实例时两棵根的页都有徽标` 一条。
 
 匹配交给 `@docusaurus/utils` 的 `createAbsoluteFilePathMatcher`（`Globby` 底下的 micromatch），
 不是自己写一遍。两个踩过的点：
@@ -212,12 +220,12 @@ git log --follow --format=%ct -- <path>   # 这份文件被提交过几次，每
    `@docusaurus/plugin-content-docs/lib/docs.js`），而 Globby 底下就是 micromatch —— 两边本来就是
    同一个匹配引擎，同一套语义（实测 micromatch 4.0.8 + globby 11.1.0：`**/*.md` 两边都收
    `packages/README.md`，`.hidden/x.md` 两边都在 `dot` 缺省下不收）。真正要照抄的是它旁边的两格：
-   绝对路径先折成「相对内容根」（官方匹配器只认自己那棵根，喂进去别处的路径直接抛），以及
-   `ignore` 压过 include。自己写一遍就是这两格容易漂。
+   绝对路径先折成「相对内容根」（官方匹配器只认自己那棵根，喂进去别处的路径直接抛 —— 多棵根时
+   每一问都先过**自己那棵**根的 inside 护栏），以及 `ignore` 压过 include。自己写一遍就是这两格容易漂。
 2. **`include` / `exclude` 是「相对内容根」的 glob**，所以 `build/**` 只管得到内容根下第一层，
    包目录里的 `<pkg>/build/**` 照样收得进来 —— 得写成 `**/build/**`。本仓的 exclude 原来就是
    `build/**`，这一版一并改了（文档插件那边同样受益：那些产物里的 `README.md` 副本本来会被当成
-   页面）。
+   页面）。同一道理，同一条 glob 在两棵根里可以判出不同结果，这是逐根解释，不是一串 glob 合起来判。
 
 `exclude` 不兜官方缺省（`**/_*` / `**/__tests__`）：那几条是「扫描时顺手跳过」，不是「这些文件
 不归文档插件管」，本包没有「反正它也不扫」的前提可用。`include` 兜官方的缺省值
@@ -252,7 +260,9 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本包
 4. `pnpm test`（`test/theme-git-badge.test.mts` 里有一条用例真的调
    `@docusaurus/utils` 的 `DEFAULT_PARSE_FRONT_MATTER`，第 1、2 条漂了它会红）；
 5. `pnpm build` 之后读一眼产物：本包写的那一格落在
-   `.docusaurus/docusaurus-plugin-content-docs/default/*.json` 的 `frontMatter` 里，
+   `.docusaurus/docusaurus-plugin-content-docs/<实例 id>/*.json` 的 `frontMatter` 里 —— 落点第一层是
+   插件名、第二层是**实例 id**，本站有两份实例，所以要各看一份：`default/`（`packages/` 那棵根）与
+   `themes/`（`themes/` 那棵根）。只回读 `default/` 就等于没看第二棵根。
    `build/assets/js/*.js` 里也能找到那一格 —— 两侧同源才算真的注进去了；
 6. 地盘那条判据从产物回读最省事：产物里出现过的每一份 md/mdx 都出自站点扫出来的那批文件，
    而**站点里不存在的**文件（`tools/README.md`、`test/README.md`、`node_modules` 下那些

@@ -409,28 +409,50 @@ describe('构建脚本与 CI 护栏', () => {
     ).toBeUndefined();
 
     // 去掉根的 `type` 后，ESM 只能靠扩展名声明：配置是 `.mjs`、侧栏是 `.mts`。
-    // 站点的内容根是 `packages/` —— 每个包的 `README.md` 就是它在站点里的顶层页，包 `docs/` 里那几页
-    // 是它的子页。哪一格对应哪个包因此写在 `sidebars.mts` 里，那份文件只扫目录、不抄包清单：
-    // 抄一份清单，新增一个包就要回来改第二处（这条口径和主页那张卡片列表是同一个道理）。
+    // 站点有**两棵内容根**：`packages/`（插件与基础设施）与 `themes/`（带渲染器的主题包，
+    // 挂在 `/themes` 前缀下）。每一棵都是「每个包占侧边栏一顶层格」，那一格的顶层页就是包自己的
+    // `README.md`、子页是包 `docs/` 里那几页。哪一格对应哪个包因此写在侧栏文件里，而两份侧栏
+    // 只扫目录、不抄包清单（抄一份清单，新增一个包就要回来改第二处 —— 和主页卡片同一个道理）：
+    // 扫描逻辑住在仓库根的 `sidebars-lib.mts`，两棵根各叫一次。
     const config = fs.readFileSync(
       path.join(siteDir, 'docusaurus.config.mjs'),
       'utf8',
     );
-    expect(config, 'docs 的内容根应是 packages').toContain("path: 'packages'");
-    expect(config, '侧栏按包给，配置要点名那份侧栏文件').toContain(
+    for (const root of ['packages', 'themes']) {
+      expect(
+        config,
+        `docsScope('${root}') 应在配置里：内容根由那一格工厂转述，别处不该再出现裸的 path 字面量`,
+      ).toContain(`docsScope('${root}')`);
+    }
+    expect(config, '徽标那一份实例要把两棵根都转述给它').toContain(
+      "[docsScope('packages'), docsScope('themes')]",
+    );
+    expect(config, '每棵根各点自己那份侧栏文件').toContain(
       "sidebarPath: './sidebars.mts'",
     );
-    const sidebars = fs.readFileSync(
-      path.join(siteDir, 'sidebars.mts'),
-      'utf8',
+    expect(config, 'themes 那棵根要有自己的侧栏文件').toContain(
+      "sidebarPath: './sidebars-themes.mts'",
     );
-    expect(sidebars, 'sidebars.mts 应靠扫目录得到包清单').toContain(
-      '.readdirSync(',
-    );
+    // 两份侧栏都只叫共享 helper；扫描（`readdirSync`）只在 helper 里出现一次。
+    // 第二棵根一旦抄了一份带 `readdirSync` 的清单，两棵根的口径就会各自漂移。
+    for (const file of ['sidebars.mts', 'sidebars-themes.mts']) {
+      const sidebars = fs.readFileSync(path.join(siteDir, file), 'utf8');
+      expect(sidebars, `${file} 应经共享 helper 得到包清单`).toContain(
+        'packageCategories(',
+      );
+      expect(
+        sidebars,
+        `${file} 不该自己扫目录：扫描逻辑两棵根只留一份`,
+      ).not.toContain('.readdirSync(');
+      expect(
+        sidebars,
+        `${file} 不该出现手写的包路径：清单一旦写死，新增包就会漏进站点`,
+      ).not.toMatch(/['"`]theme\/theme-/);
+    }
     expect(
-      sidebars,
-      'sidebars.mts 不该出现手写的包路径：清单一旦写死，新增包就会漏进站点',
-    ).not.toMatch(/['"`]theme\/theme-/);
+      fs.readFileSync(path.join(siteDir, 'sidebars-lib.mts'), 'utf8'),
+      '两棵根共用的那份扫描逻辑里应当真的在扫目录',
+    ).toContain('.readdirSync(');
 
     // 主页是 `packages/README.md`：配置把 docs 的路由前缀挪到根，那份 frontmatter 用 `slug: /` 落到 `/`。
     // 站点侧因此不再有页面层目录 —— 再放一个 `src/pages/index.jsx` 就是和它争同一格，
@@ -446,34 +468,51 @@ describe('构建脚本与 CI 护栏', () => {
         .slice(0, 200),
       'packages/README.md 要有 slug: /，否则主页那一格是空的',
     ).toContain('slug: /');
+    // `themes/` 那一格相反：它的内容根 README **不写** `slug:`。`README.md` 天然拿 slug `/`，
+    // 而每一份 docs 实例把 slug `/` 的那一页落在**自己的** `routeBasePath` 上，于是它自动是 `/themes/`；
+    // 在这里手写一条 slug 只会把这一格从 `/themes/` 挪走，或与前缀争同一格。
+    expect(
+      fs
+        .readFileSync(path.join(siteDir, 'themes/README.md'), 'utf8')
+        .slice(0, 200),
+      'themes/README.md 不该写 slug:：那一格由 routeBasePath 决定',
+    ).not.toContain('slug:');
+    expect(config, 'themes 那棵根挂在 /themes 前缀').toContain(
+      "routeBasePath: '/themes'",
+    );
   });
 
   it('每个主题包在自己包里有一份 docs/*-demo.{md,dbml}，仓库根不再有自己的文档目录', () => {
-    // 口径：`packages/<name>` 那一层的触发键要有一个页面演示它，命名固定为
-    // `packages/<name>/docs/<name 去掉 theme- 前缀>-demo.{md,dbml}` —— 示例页跟着包走，
-    // 于是它在站点里的地址就是这个文件相对内容根（`packages/`）的路径
-    //（`/theme-erd/docs/erd-demo`）。
+    // 口径：`<内容根>/<name>` 那一层的触发键要有一个页面演示它，命名固定为
+    // `<内容根>/<name>/docs/<name 去掉 theme- 前缀>-demo.{md,dbml}` —— 示例页跟着包走，
+    // 于是它在站点里的地址就是这个文件相对**它所属那棵内容根**的路径：`packages/` 里的
+    // `/theme-erd/docs/erd-demo`，`themes/` 里的 `/themes/theme-viewer/docs/viewer-demo`。
     // 新增主题包却没写示例页时这条用例变红 —— 光看 plugins 数组不知道那一层命中时长什么样。
-    const themeNames = fs
-      .readdirSync(path.join(siteDir, 'packages'))
-      .filter((name) => name.startsWith('theme-'));
-    expect(themeNames.length, 'packages/ 下应有主题包').toBeGreaterThan(0);
+    const themes = ['packages', 'themes'].flatMap((root) =>
+      fs
+        .readdirSync(path.join(siteDir, root))
+        .filter((name) => name.startsWith('theme-'))
+        .map((name) => `${root}/${name}`),
+    );
+    expect(
+      themes.length,
+      '两棵包根下应有主题包（少了就是根目录名写错，整族静默失覆盖）',
+    ).toBeGreaterThan(0);
 
     // 触发条件可以是 frontmatter 的键（示例页是 `.md`），也可以是文件扩展名
     // （`theme-erd` 的示例页就是 `.dbml`）；两种都算这一层的示例页。
     const demoOf = (name: string) => `${name.slice('theme-'.length)}-demo`;
-    const home = fs.readFileSync(
-      path.join(siteDir, 'packages/README.md'),
-      'utf8',
-    );
 
-    // 主页只写 `<DocCardList />`（不接 items）：卡片就是这一页在侧边栏里的兄弟项，
-    // 而那份根级清单由 `sidebars.mts` 扫目录得到，所以清单不该在文档里抄第二份。
-    expect(home).toContain('<DocCardList />');
-    expect(
-      home,
-      '主页的卡片列表交给侧边栏自动生成，手写 items 等于把清单抄第二份',
-    ).not.toContain('items=');
+    // 两棵内容根的落地页都只写 `<DocCardList />`（不接 items）：卡片就是各自那一页在**本实例**
+    // 侧边栏里的兄弟项，而那份根级清单由侧栏文件扫目录得到，所以清单不该在文档里抄第二份。
+    for (const file of ['packages/README.md', 'themes/README.md']) {
+      const home = fs.readFileSync(path.join(siteDir, file), 'utf8');
+      expect(home, `${file} 要渲染卡片列表`).toContain('<DocCardList />');
+      expect(
+        home,
+        `${file} 的卡片列表交给侧边栏自动生成，手写 items 等于把清单抄第二份`,
+      ).not.toContain('items=');
+    }
 
     // 仓库根不再有 `docs/`：示例页与维护者文档都跟着包走，主页也在 `packages/` 那一格里。
     // 这里断言「不存在」而不是数包里的文件 —— 后者整条用例已经在做，重复一遍只是第二处要改的地方。
@@ -482,24 +521,25 @@ describe('构建脚本与 CI 护栏', () => {
       '站点根下的 docs/ 应已删空：往这里放一份，就是把它从包里搬回站点、顶层页与子页那棵树跟着散架',
     ).toBe(false);
 
-    for (const name of themeNames) {
-      const base = path.join(siteDir, 'packages', name, 'docs', demoOf(name));
+    for (const pkg of themes) {
+      const name = pkg.slice(pkg.indexOf('/') + 1);
+      const base = path.join(siteDir, pkg, 'docs', demoOf(name));
       const file = [`${base}.md`, `${base}.dbml`].find((candidate) =>
         fs.existsSync(candidate),
       );
       expect(
         file,
-        `${name} 缺示例页 packages/${name}/docs/${demoOf(name)}.md 或 ${demoOf(name)}.dbml`,
+        `${pkg} 缺示例页 ${pkg}/docs/${demoOf(name)}.md 或 ${demoOf(name)}.dbml`,
       ).toBeDefined();
       // 这一页 frontmatter 的 `description:` 是它在包那一格里（侧边栏子项）的说明来源。
       expect(
         fs.readFileSync(file!, 'utf8').slice(0, 400),
-        `packages/${name}/docs/${path.basename(file!)} 的 frontmatter 要有 description:`,
+        `${pkg}/docs/${path.basename(file!)} 的 frontmatter 要有 description:`,
       ).toContain('description:');
       // 顶层页是这个包的 README：没有它，这一格在站点里就没有落点。
       expect(
-        fs.existsSync(path.join(siteDir, 'packages', name, 'README.md')),
-        `${name} 缺 README.md：它在站点里的顶层页就是这份文档`,
+        fs.existsSync(path.join(siteDir, pkg, 'README.md')),
+        `${pkg} 缺 README.md：它在站点里的顶层页就是这份文档`,
       ).toBe(true);
     }
   });
@@ -527,10 +567,11 @@ describe('构建脚本与 CI 护栏', () => {
   // 分包只有一个事实：目录里有 package.json、清单收下它、包名解析得到。三者缺一个，
   // 「按包名加载」就退化成构建时才报的 `Cannot find module`。
   it('分包三件套齐全：package.json 存在、packages 清单收下、包名真的能解析', () => {
-    // 目录清单是**扫出来的**，不是手抄的（与 `sidebars.mts` 同一口径）：手抄那版漏过
-    // `packages/theme-git-badge` —— 站点正是按包名加载它的，漏了这条用例就正好丢
+    // 目录清单是**扫出来的**，不是手抄的（与侧栏文件同一口径）：手抄那版漏过
+    // `themes/theme-git-badge` —— 站点正是按包名加载它的，漏了这条用例就正好丢
     // 掉它要防的那一格（装包时红，而不是拖到 `docusaurus build` 才炸 `Cannot find module`）。
-    const subpackages = ['packages', 'tools']
+    // 三组都要在：`themes/` 那棵包根漏进来，那四个包就没人管版本一致性、也没人验解析。
+    const subpackages = ['packages', 'themes', 'tools']
       .flatMap((group) =>
         fs
           .readdirSync(path.join(siteDir, group), { withFileTypes: true })
@@ -542,13 +583,13 @@ describe('构建脚本与 CI 护栏', () => {
     // 「有没有 `package.json`」这一判据真的在挡东西：`tools/scripts/` 是目录，但不是包。
     expect(fs.existsSync(path.join(siteDir, 'tools', 'scripts'))).toBe(true);
     expect(subpackages).not.toContain(path.join('tools', 'scripts'));
-    // 扫空了这条用例就是空跑，所以先钉一句「两边都扫到了包」。
-    expect(
-      subpackages.filter((d) => d.startsWith('packages')),
-    ).not.toHaveLength(0);
-    expect(subpackages.filter((d) => d.startsWith('tools'))).not.toHaveLength(
-      0,
-    );
+    // 扫空了这条用例就是空跑，所以先钉一句「三边都扫到了包」。
+    for (const group of ['packages', 'themes', 'tools']) {
+      expect(
+        subpackages.filter((d) => d.startsWith(group)),
+        `${group}/ 下应扫到包：扫不到就是这棵根没接进来看`,
+      ).not.toHaveLength(0);
+    }
     const names: string[] = [];
     for (const dir of subpackages) {
       const file = path.join(siteDir, dir, 'package.json');
@@ -563,8 +604,12 @@ describe('构建脚本与 CI 护栏', () => {
       'utf8',
     );
     expect(yml).toMatch(/^packages:/m);
-    expect(yml).toContain('packages/*');
-    expect(yml).toContain('tools/*');
+    for (const group of ['packages', 'themes', 'tools']) {
+      expect(
+        yml,
+        `workspace 清单应收下 ${group}/*：漏一棵，那棵包根的四个包不受 syncpack 管`,
+      ).toContain(`${group}/*`);
+    }
 
     // 解析**按 Node 的 ESM 规则**走：写了 `exports` 就只认它（`packages/` 下那些包的出口是
     // `dist/index.mjs`），没写的才退回 `main`（`tools/` 那三个假主题都是 `index.mts`）。
@@ -583,13 +628,15 @@ describe('构建脚本与 CI 护栏', () => {
     // 判据落在**真的会被发出去的那份清单**上：`files` 只写了目录名，里面的东西全都会跟着走 ——
     // 构建期缓存（`.tsbuildinfo`）就是这么混进 tarball 的（一次 92 KB 的陈旧文件）。
     // 走真的打包器问它「发出去的有哪些」，不自己复刻一遍 glob 语义。
-    const dirs = fs
-      .readdirSync(path.join(siteDir, 'packages'), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => path.join(siteDir, 'packages', entry.name))
-      .filter((dir) => fs.existsSync(path.join(dir, 'package.json')));
+    const dirs = ['packages', 'themes'].flatMap((group) =>
+      fs
+        .readdirSync(path.join(siteDir, group), { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => path.join(siteDir, group, entry.name))
+        .filter((dir) => fs.existsSync(path.join(dir, 'package.json'))),
+    );
 
-    expect(dirs.length, 'packages 下应有若干包').toBeGreaterThan(0);
+    expect(dirs.length, '两棵包根下应有若干包').toBeGreaterThan(0);
 
     const packed = await Promise.all(
       dirs.map(async (dir) => {

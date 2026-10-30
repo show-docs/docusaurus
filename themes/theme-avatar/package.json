@@ -1,13 +1,14 @@
 {
-  "name": "@show-docs/docusaurus-theme-viewer",
-  "version": "0.2.1",
-  "description": "文档正文里的图片点开后交给查看器：放大、原尺寸、重置与前后切换",
+  "private": true,
+  "name": "@show-docs/docusaurus-theme-avatar",
+  "version": "0.0.0",
+  "description": "导航栏亮暗切换旁边挂一颗当前用户头像：站点给一个用户信息接口，取到用户才出现，下拉里两条菜单地址各自可配",
   "keywords": [],
-  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-viewer",
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/themes/theme-avatar",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/show-docs/docusaurus.git",
-    "directory": "packages/theme-viewer"
+    "directory": "themes/theme-avatar"
   },
   "bugs": {
     "url": "https://github.com/show-docs/docusaurus/issues"
@@ -23,8 +24,8 @@
   "files": [
     "components",
     "dist",
-    "styles",
-    "theme"
+    "theme",
+    "types"
   ],
   "type": "module",
   "scripts": {
@@ -32,20 +33,16 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "viewerjs": "^1.15.2"
+    "ahooks": "^3.10.0"
   },
   "peerDependencies": {
     "@docusaurus/types": "catalog:",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
     "@show-docs/docusaurus-theme-component-page": "workspace:^",
-    "react": "catalog:",
-    "webpack": "catalog:"
+    "react": "catalog:"
   },
   "peerDependenciesMeta": {
     "@docusaurus/types": {
-      "optional": true
-    },
-    "webpack": {
       "optional": true
     }
   },

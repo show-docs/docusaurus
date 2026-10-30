@@ -59,7 +59,7 @@ export default {
 等于透明。
 
 层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
-[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)；
+[`plugin-prev-layer-resolver` 的 README](/plugin-prev-layer-resolver/)；
 这一层自己只负责「挂在哪一格」。
 
 ## 配置

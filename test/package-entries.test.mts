@@ -8,20 +8,22 @@ import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import lazyCompilationPlugin from '../packages/plugin-lazy-compilation/src/index.mts';
 import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
-import { PLUGIN_NAME as AVATAR_PLUGIN_NAME } from '../packages/theme-avatar/src/config.mts';
-import avatarTheme from '../packages/theme-avatar/src/index.mts';
 import componentPageTheme from '../packages/theme-component-page/src/index.mts';
 import { COMPONENT_PAGE_PLUGIN } from '../packages/theme-component-page/src/prerequisites.mts';
-import copyButtonTheme from '../packages/theme-copy-button/src/index.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
 import erdTheme from '../packages/theme-erd/src/index.mts';
-import gitBadgeTheme from '../packages/theme-git-badge/src/index.mts';
 import iframeTheme from '../packages/theme-iframe/src/index.mts';
 import markmapTheme from '../packages/theme-markmap/src/index.mts';
 import redocTheme from '../packages/theme-redoc/src/index.mts';
 import scalarTheme from '../packages/theme-scalar/src/index.mts';
 import stoplightTheme from '../packages/theme-stoplight/src/index.mts';
-import viewerTheme from '../packages/theme-viewer/src/index.mts';
+import { PLUGIN_NAME as AVATAR_PLUGIN_NAME } from '../themes/theme-avatar/src/config.mts';
+import avatarTheme from '../themes/theme-avatar/src/index.mts';
+import copyButtonTheme from '../themes/theme-copy-button/src/index.mts';
+import gitBadgeTheme from '../themes/theme-git-badge/src/index.mts';
+import viewerTheme from '../themes/theme-viewer/src/index.mts';
+
+import { pkgPath } from './helpers.mts';
 
 /**
 ## 每个包入口交出的那几格
@@ -42,9 +44,11 @@ webpack 那几格、以及「缺前置插件时当场点名」。这一面全是
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
 
-/** 包在仓库里的那份目录。 */
-const pkgDir = (name: string): string =>
-  path.resolve(repoRoot, 'packages', name);
+/**
+包在仓库里的那份目录：`packages/` 与 `themes/` 两棵包根都找，按存在性定根 ——
+搬动一个包不必回来改这张表（判据来自磁盘，不是手抄的归属清单）。
+*/
+const pkgDir = (name: string): string => pkgPath(repoRoot, name);
 
 /**
 一份够用的站点上下文：前置检查只读 `siteConfig.plugins` / `themes` / `future`，

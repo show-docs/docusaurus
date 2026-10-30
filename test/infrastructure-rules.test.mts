@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { pkgPath } from './helpers.mts';
+
 /**
 ## 基础设施包那几条规则里，能在磁盘上查的三条
 
@@ -20,10 +22,14 @@ import { describe, expect, it } from 'vitest';
    那一侧声明。
 
 读的是磁盘上的 `package.json` 与源码文本，不是某份手抄清单：新增一个包不必回来改这里。
+包住在两棵包根下（`packages/` 与 `themes/`），第三条按目录名扫**两边**——那四个带渲染器的包
+各自依赖两个基础设施包，正是这条规则的对象，漏一棵就是静默失覆盖。
 */
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
-const packagesRoot = path.join(repoRoot, 'packages');
+
+/** 两棵包根；包按**目录名**引用，落在哪一棵由磁盘定（`pkgPath`）。 */
+const PKG_ROOTS = ['packages', 'themes'];
 
 /** 三格基础设施，按「一般 → 具体」排：每一格只许依赖它下面那几格。 */
 const INFRA_CHAIN = [
@@ -44,14 +50,20 @@ type Manifest = {
 const sourceExt = /\.(?:ts|tsx|mts|js|mjs|jsx)$/;
 
 const packageDirs = (): string[] =>
-  readdirSync(packagesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name);
+  PKG_ROOTS.flatMap((root) =>
+    readdirSync(path.join(repoRoot, root), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name),
+  );
 
 const manifestOf = (dir: string): Manifest =>
   JSON.parse(
-    readFileSync(path.join(packagesRoot, dir, 'package.json'), 'utf8'),
+    readFileSync(pkgPath(repoRoot, dir, 'package.json'), 'utf8'),
   ) as Manifest;
+
+/** 红的时候要说得出**哪一棵包根**里的那个包：按目录名引用，路径由磁盘补出来。 */
+const relOf = (dir: string): string =>
+  path.relative(repoRoot, pkgPath(repoRoot, dir)).replaceAll('\\', '/');
 
 const declaredIn = (manifest: Manifest): string[] => [
   ...Object.keys(manifest.dependencies ?? {}),
@@ -100,7 +112,7 @@ type ImportSite = { file: string; specifier: string };
 
 /** 一个包里所有 `@show-docs/*` 的 import（文件路径留着，红的时候知道是哪一行）。 */
 function showDocsImports(dir: string): ImportSite[] {
-  return sourceFiles(path.join(packagesRoot, dir)).flatMap((file) => {
+  return sourceFiles(pkgPath(repoRoot, dir)).flatMap((file) => {
     const text = readFileSync(file, 'utf8');
 
     return SPECIFIERS.flatMap((pattern) =>
@@ -121,7 +133,7 @@ describe('基础设施包：按一般度分层，只往下依赖', () => {
 
       return declaredIn(manifestOf(dir))
         .filter((name) => name.startsWith('@show-docs/') && !allowed.has(name))
-        .map((name) => `${dir}/package.json 声明了 ${name}`);
+        .map((name) => `${relOf(dir)}/package.json 声明了 ${name}`);
     });
 
     expect(violations).toEqual([]);
@@ -158,7 +170,7 @@ describe('依赖由用它的那一侧声明', () => {
         })
         .map(
           ({ file, specifier }) =>
-            `${path.relative(repoRoot, file)} → ${packageOf(specifier)}（没在 ${dir}/package.json 声明）`,
+            `${path.relative(repoRoot, file)} → ${packageOf(specifier)}（没在 ${relOf(dir)}/package.json 声明）`,
         );
     });
 

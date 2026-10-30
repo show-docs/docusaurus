@@ -100,25 +100,30 @@ Then('查看器收起', async ({ page }) => {
 /**
 换页走的是真点击，不是 `page.goto`：这一层自己销毁查看器、再在新页重接，只有客户端路由才走到那段。
 
+换的那一页必须取**同一棵内容根**里的另一格：侧栏按实例给，示例页在 `themes/` 那一族，
+`packages/` 里的 `theme-markmap` 在这一页的侧栏中不存在。
+
 侧栏里**别的包那一格只露出顶层页那一条链接**（收着的 category 不渲染子项，实测），所以到示例页要两跳：
 先点开那一格，它的子项才会出现在侧栏里。
 */
-When('我从侧栏点开 theme-markmap 那一格', async ({ page }) => {
+When('我从侧栏点开 theme-copy-button 那一格', async ({ page }) => {
   await page
-    .locator('.theme-doc-sidebar-menu a[href="/theme-markmap/"]')
+    .locator('.theme-doc-sidebar-menu a[href="/themes/theme-copy-button/"]')
     .first()
     .click();
-  await expect(page).toHaveURL(/\/theme-markmap\/$/);
+  await expect(page).toHaveURL(/\/themes\/theme-copy-button\/$/);
 });
 
-When('再点开它的思维导图示例页', async ({ page }) => {
+When('再点开它的复制按钮示例页', async ({ page }) => {
   await page
     .locator(
-      '.theme-doc-sidebar-menu a[href="/theme-markmap/docs/markmap-demo"]',
+      '.theme-doc-sidebar-menu a[href="/themes/theme-copy-button/docs/copy-button-demo"]',
     )
     .first()
     .click();
-  await expect(page).toHaveURL(/\/theme-markmap\/docs\/markmap-demo$/);
+  await expect(page).toHaveURL(
+    /\/themes\/theme-copy-button\/docs\/copy-button-demo$/,
+  );
 });
 
 Then('这一页没有图片查看器', async ({ page }) => {

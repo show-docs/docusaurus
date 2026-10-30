@@ -1,5 +1,5 @@
 /* 侧边栏徽标：颜色即语义（绿=新建、橙=更新）。载体是侧边栏条目 `<a>` 上的 `data-git-badge`
-   属性，形状由这里画；认种类在 `packages/theme-git-badge/components/git-badge.tsx`。
+   属性，形状由这里画；认种类在 `themes/theme-git-badge/components/git-badge.tsx`。
 
    叶子行画一个纯色点；分类行不画点 —— 那一行本来就有折叠箭头，颜色染在箭头上，
    一行只留一处标记。 */

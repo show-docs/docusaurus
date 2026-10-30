@@ -7,7 +7,7 @@ import {
   assertThemePrerequisites,
   COMPONENT_PAGE_PLUGIN,
 } from '../packages/theme-component-page/src/prerequisites.mts';
-import viewerTheme from '../packages/theme-viewer/src/index.mts';
+import viewerTheme from '../themes/theme-viewer/src/index.mts';
 
 /** 只造两份原始插件清单与 `future.faster`：检查器不读别的（`LoadContext` 本身没有 `plugins` 字段）。 */
 const contextWith = (

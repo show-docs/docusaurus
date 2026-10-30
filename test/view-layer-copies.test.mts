@@ -3,11 +3,16 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { pkgPath } from './helpers.mts';
+
 const siteDir = path.resolve(import.meta.dirname, '..');
 
-/** 读某个主题包里的文件：`segments` 相对 `packages/<包名>/`。 */
-const read = (...segments: string[]): string =>
-  fs.readFileSync(path.join(siteDir, 'packages', ...segments), 'utf8');
+/**
+读某个主题包里的文件：`segments` 相对那个包的目录，包在 `packages/` 还是 `themes/`
+由存在性定根（见 `test/helpers.mts` 的 `pkgPath`）。
+*/
+const read = (pkg: string, ...segments: string[]): string =>
+  fs.readFileSync(pkgPath(siteDir, pkg, ...segments), 'utf8');
 
 /**
 ## 三条视图层共用的那一份外壳
@@ -94,15 +99,19 @@ function expectSameSkeleton(
 ): void {
   const refFile = path.join(referencePkg, refRelativeFile);
   const pkgFile = path.join(pkg, pkgRelativeFile);
-  for (const file of [refFile, pkgFile]) {
+  const pairs: [string, string][] = [
+    [referencePkg, refRelativeFile],
+    [pkg, pkgRelativeFile],
+  ];
+  for (const [root, relative] of pairs) {
     expect(
-      fs.existsSync(path.join(siteDir, 'packages', file)),
-      `packages/${file} 不在了：这两份副本是各包自带的一份，要合并就得同时改本用例与两个包的文档`,
+      fs.existsSync(pkgPath(siteDir, root, relative)),
+      `${path.join(root, relative)} 不在了：这两份副本是各包自带的一份，要合并就得同时改本用例与两个包的文档`,
     ).toBe(true);
   }
 
-  const ref = codeLines(read(refFile));
-  const other = codeLines(read(pkgFile));
+  const ref = codeLines(read(referencePkg, refRelativeFile));
+  const other = codeLines(read(pkg, pkgRelativeFile));
 
   expect(
     other.length,
@@ -252,10 +261,8 @@ describe('三条视图层共用的那一份外壳', () => {
   it('三层都不再自带 theme/DocItem', () => {
     for (const pkg of pageComponentPackages) {
       expect(
-        fs.existsSync(
-          path.join(siteDir, 'packages', pkg, 'theme', 'DocItem', 'index.tsx'),
-        ),
-        `packages/${pkg}/theme/DocItem/index.tsx 又出现了：那一页现在由 component-page 的清单挂`,
+        fs.existsSync(pkgPath(siteDir, pkg, 'theme', 'DocItem', 'index.tsx')),
+        `${pkg}/theme/DocItem/index.tsx 又出现了：那一页现在由 component-page 的清单挂`,
       ).toBe(false);
     }
   });
@@ -325,7 +332,7 @@ describe('TS 源码的编译规则只有一处', () => {
     // 在解析器插件里；文件名再出现在别的包的 `lib/` 就说明第二处又长回来了。
     const offenders = sourcePackages
       .flatMap((pkg) => {
-        const libDir = path.join(siteDir, 'packages', pkg, 'lib');
+        const libDir = pkgPath(siteDir, pkg, 'lib');
 
         return fs.existsSync(libDir)
           ? fs

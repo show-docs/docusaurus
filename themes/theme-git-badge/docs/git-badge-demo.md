@@ -34,5 +34,5 @@ git_badge: new
 由包里那份样式表画。分类那一行**不画点** —— 颜色染在它本来就有的折叠箭头上；它看的是整棵
 子树：子页新建或更新过时，父分类的箭头也跟着变色。
 
-事实与代价记在 `packages/theme-git-badge/README.md`（站点文档源只收 `docs/`，链接出去只会是
-死链），取舍与实测证据记在 `packages/theme-git-badge/docs/internals.md`。
+事实与代价记在 `themes/theme-git-badge/README.md`（站点文档源只收 `docs/`，链接出去只会是
+死链），取舍与实测证据记在 `themes/theme-git-badge/docs/internals.md`。

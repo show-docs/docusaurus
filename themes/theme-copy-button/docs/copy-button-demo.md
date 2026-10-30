@@ -16,7 +16,7 @@ description: '页脚那一格右边有一颗按钮，点一下把当前页地址
 - 成功：「已复制当前页地址」
 - 失败：「复制失败」（在控制台留一条错误）
 
-这一页复制到的地址是 `https://example.com/theme-copy-button/docs/copy-button-demo`（站点的 `url` 是示例地址，
+这一页复制到的地址是 `https://example.com/themes/theme-copy-button/docs/copy-button-demo`（站点的 `url` 是示例地址，
 实际以地址栏为准）。地址里带编码参数时，复制出去的是解码后的那一份。
 
 ## 看不见这颗按钮的两种情况

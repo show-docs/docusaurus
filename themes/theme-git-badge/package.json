@@ -1,13 +1,13 @@
 {
-  "name": "@show-docs/docusaurus-theme-copy-button",
-  "version": "0.2.1",
-  "description": "页脚版权那一格右边加一颗按钮，点一下把当前页地址写进剪贴板",
+  "name": "@show-docs/docusaurus-theme-git-badge",
+  "version": "0.0.0",
+  "description": "侧边栏里给「新建」与「更新过」的页面挂一枚颜色标记（叶子行一个点，分类行给折叠箭头染色）",
   "keywords": [],
-  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-copy-button",
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/themes/theme-git-badge",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/show-docs/docusaurus.git",
-    "directory": "packages/theme-copy-button"
+    "directory": "themes/theme-git-badge"
   },
   "bugs": {
     "url": "https://github.com/show-docs/docusaurus/issues"
@@ -32,9 +32,10 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "sonner": "^2.0.8"
+    "@docusaurus/utils": "^3.9.2"
   },
   "peerDependencies": {
+    "@docusaurus/core": "catalog:",
     "@docusaurus/types": "catalog:",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
     "@show-docs/docusaurus-theme-component-page": "workspace:^",

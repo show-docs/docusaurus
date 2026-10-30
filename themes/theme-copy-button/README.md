@@ -38,7 +38,7 @@ export default {
 只在它前面多摆一颗按钮。这一层不读 frontmatter，也没有插件选项。
 
 层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
-[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)；
+[`plugin-prev-layer-resolver` 的 README](/plugin-prev-layer-resolver/)；
 这一层自己只负责「挂在哪一格」。
 
 ## 工作方式
@@ -64,5 +64,5 @@ export default {
 
 ## 相关文档
 
-- [`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)：`@theme-prev/*` 的语义与层栈。
+- [`plugin-prev-layer-resolver` 的 README](/plugin-prev-layer-resolver/)：`@theme-prev/*` 的语义与层栈。
 - [`sonner` 文档](https://sonner.emilkowal.ski/)：提示条的选项与样式。

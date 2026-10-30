@@ -5,13 +5,13 @@ import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
-import type { DocsScope } from './docs-scope.mts';
+import type { DocsScopes } from './docs-scope.mts';
 import { scopeOf } from './docs-scope.mts';
 import { wrapParseFrontMatter } from './frontmatter.mts';
 import type { Repo } from './git-info.mts';
 import { openRepoFrom } from './git-info.mts';
 
-export type { DocsScope } from './docs-scope.mts';
+export type { DocsScope, DocsScopes } from './docs-scope.mts';
 
 const PLUGIN_NAME = '@show-docs/docusaurus-theme-git-badge';
 
@@ -20,14 +20,16 @@ const thisDir = dirname(fileURLToPath(import.meta.url));
 
 export interface GitBadgeOptions {
   /**
-  文档插件扫哪些文件（`docs.path` / `docs.include` / `docs.exclude`）。
+  文档插件扫哪些文件（每份实例的 `docs.path` / `docs.include` / `docs.exclude`）。
 
-  站点把那份选项写在预设里时插件拿不到，只能由站点转述过来；不传 = 只管
-  `<siteDir>/docs` 整棵。
+  站点把那份选项写在预设或独立实例里时插件拿不到，只能由站点转述过来；一份实例转述一份，
+  站点里有几份文档插件实例就写几份（数组）。不传 = 只管 `<siteDir>/docs` 整棵。
 
   地盘之外的文件一个标记都不给 —— 「页面」这个概念由文档插件定义，徽标跟着它走。
+  注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份本插件实例会被「只包一次」
+  的护栏吞掉，所以**多棵内容根只能在这一份实例里用数组表达**。
   */
-  docs?: DocsScope;
+  docs?: DocsScopes;
 }
 
 /**

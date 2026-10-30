@@ -55,9 +55,12 @@ function componentsOf(root: string): string[] {
     );
 }
 
-/** 有 `theme/` 目录的包（`packages/*`、`tools/*`）与站点自己那一格。 */
+/** 包所在的几棵根：`packages/`（插件与基础设施）、`themes/`（带渲染器的主题包）、`tools/`（假主题）。 */
+const PACKAGE_GROUPS = ['packages', 'themes', 'tools'];
+
+/** 有 `theme/` 目录的包与站点自己那一格。 */
 function themeRoots(): string[] {
-  const packageRoots = ['packages', 'tools'].flatMap((group) =>
+  const packageRoots = PACKAGE_GROUPS.flatMap((group) =>
     readdirSync(path.join(repoRoot, group), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => path.join(repoRoot, group, entry.name, 'theme')),
@@ -68,10 +71,10 @@ function themeRoots(): string[] {
   );
 }
 
-/** 参与扫描的源码：`packages/*`、`tools/*` 与站点 `src/`。 */
+/** 参与扫描的源码：三棵包根与站点 `src/`。 */
 function layerSources(): string[] {
   return [
-    ...['packages', 'tools'].flatMap((group) =>
+    ...PACKAGE_GROUPS.flatMap((group) =>
       readdirSync(path.join(repoRoot, group), { withFileTypes: true })
         .filter((entry) => entry.isDirectory())
         .map((entry) => path.join(repoRoot, group, entry.name)),

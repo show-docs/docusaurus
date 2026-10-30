@@ -14,12 +14,14 @@ Feature: theme-viewer
     And 浏览器里没有运行期错误
 
   # 换页走的是客户端路由：正文那一格不会重新挂载整份文档，查看器要靠这一层自己销毁再重接。
+  # 换的那一页取**同一棵内容根**里的另一格（`themes/`）：侧栏是按实例给的，`theme-markmap`
+  # 住在 `packages/` 那一族，在这一页的侧栏里根本不存在。
   Scenario: 翻到别的一页之后，查看器不留在这页上
     Given 我打开图片查看器示例页
     When 我点开第一张图片
     Then 查看器打开，标题用的是这张图的说明
     When 我按 Esc 关掉查看器
-    And 我从侧栏点开 theme-markmap 那一格
-    And 再点开它的思维导图示例页
+    And 我从侧栏点开 theme-copy-button 那一格
+    And 再点开它的复制按钮示例页
     Then 这一页没有图片查看器
     And 浏览器里没有运行期错误

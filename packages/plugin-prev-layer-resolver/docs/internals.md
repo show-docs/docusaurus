@@ -274,19 +274,22 @@ theme-fallback 的位置以**官方同一基准**推导（core 的 `lib/webpack/
 - 层栈与官方 `loadThemeAliases` 入参同序、层路径已归一
   → `test/discover.test.mts` 与 `test/layers.test.mts`。
 
-需要真实产物的（那条渲染链在两页上的样子）由 `pnpm build && pnpm verify:chain`
+需要真实产物的（那条渲染链在各页上的样子）由 `pnpm build && pnpm verify:chain`
 （读真实 build 产物）断言，判据清单以脚本输出为准（本文件不抄第二份）：
 
 ```
 build/index.html               正文里：src/theme > theme-c > theme-b > theme-a
+build/themes/index.html        同一串四层链
 build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 ```
 
 `build/index.html` 就是主页：站点没有单独的首页组件，`packages/README.md` 以 `slug: /` 落在根。
+`build/themes/index.html` 是另一棵内容根（`themes/`）的落地页，同一形状 —— 它不写 `slug:`，
+`README.md` 默认就落在自己那一份实例的 `routeBasePath`（`/themes/`）上。
 
 这条链走的是 `DocCardList`：站点层 `src/theme` 加 `tools/` 那三层主题各包一层，最里面才是 theme-classic
-真实的卡片列表。它**只出现在主页** —— 站点里只有 `packages/README.md` 写了 `<DocCardList />`，别的页面
-根本不渲染这个组件，于是文档页那一格判据反过来，断言整页一个包裹标记都没有。
+真实的卡片列表。它只出现在**渲染卡片列表的那两格**（两棵内容根的落地页），而组件别名是全局解析的，
+所以链跟内容根无关；别的页面根本不渲染这个组件，于是文档页那一格判据反过来，断言整页一个包裹标记都没有。
 
 四层每层都被保留（站点层 → `theme-c` → `theme-b` → `theme-a` → theme-classic 的真实卡片列表）。
 链尾的 theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。

@@ -55,7 +55,8 @@ export function wrapParseFrontMatter(
       const { frontMatter } = parsed;
       const filePath = normalizePath(params.filePath);
 
-      // 地盘之外的文件在站点里不是页面（mdx-loader 也会路过它们），一个标记都不给；
+      // 地盘之外的文件在站点里不是页面（mdx-loader 也会路过它们），一个标记都不给 ——
+      // 「地盘」是站点转述的那几棵内容根合起来，任一棵里的一页都算；
       // 不是普通对象时连判据都不看 —— 那种 frontmatter 本来就没处写
       if (!isPlainObject(frontMatter) || !scope.covers(filePath)) {
         return parsed;

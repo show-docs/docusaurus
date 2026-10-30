@@ -15,9 +15,10 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 /**
 ## 站点按包组织：顶层页 = 本包 README，子页 = 本包 `docs/`
 
-这一族用例钉的是「页面地址 == 文件相对内容根（`packages/`）的路径」这层对应关系（做法见根
-`README.md` 与 `sidebars.mts`）。上面那些层用例句子里的「示例页」是 `viewLayers` 那张表注册的，
-这里两句问的是包自己的那一格，跟示例页不是一码事，所以单独写。
+这一族用例钉的是「页面地址 == 文件相对**它所属那棵内容根**的路径」这层对应关系（两棵根与各自的
+`routeBasePath` 见根 `README.md`、`docusaurus.config.mjs` 与那两份侧栏文件）。上面那些层用例句子里
+的「示例页」是 `viewLayers` 那张表注册的，这里两句问的是包自己的那一格，跟示例页不是一码事，
+所以单独写。
 */
 
 /** `theme-scalar` 那一格：地址就是 `/theme-scalar/`，尾巴上没有 `README`。 */
@@ -84,22 +85,36 @@ Then('这一格里没有 tools 那三层假主题', async ({ page }) => {
 });
 
 /**
-子页地址那一串 == 那份文件相对内容根的路径：`/theme-markmap/docs/markmap-demo` 就该是
-`packages/theme-markmap/docs/markmap-demo.md`。内容根挪到 `packages/` 之后这件事才成立，
-所以它值得钉住 —— 文件名后缀按站点收的那几种（`md` / `mdx` / `dbml`）试，一个都不在就是
-地址与文件脱了。
+子页地址那一串 == 那份文件相对**它所属那棵内容根**的路径：`/theme-markmap/docs/markmap-demo`
+就该是 `packages/theme-markmap/docs/markmap-demo.md`，`/themes/theme-viewer/docs/viewer-demo`
+就该是 `themes/theme-viewer/docs/viewer-demo.md`。
+
+两棵根的地址形状是**不对称**的，所以这里按「前缀 → 内容根」查一张小表，而不是把目录名拼回去：
+`packages/` 那一份实例的 `routeBasePath` 是 `'/'`（地址里没有 `packages` 这一段），
+`themes/` 那一份的是 `'/themes'`（地址里那一段和目录同名，纯属两棵根恰好同名，不是规律）。
+文件名后缀按站点收的那几种（`md` / `mdx` / `dbml`）试，一个都不在就是地址与文件脱了。
 */
-Then('地址栏那一串就是这份文件相对 packages 的路径', async ({ page }) => {
+const DOCS_INSTANCES = [
+  // 空前缀那条排在最后：`startsWith('')` 对任何地址都成立，先匹配就永远匹配错
+  { prefix: 'themes/', contentRoot: 'themes' },
+  { prefix: '', contentRoot: 'packages' },
+] as const;
+
+Then('地址栏那一串就是这份文件相对它所属内容根的路径', async ({ page }) => {
   const withoutLeadingSlash = new URL(page.url()).pathname
     .replace(/^\//, '')
     .replace(/\/$/, '');
+  const instance = DOCS_INSTANCES.find(({ prefix }) =>
+    withoutLeadingSlash.startsWith(prefix),
+  )!;
+  const relative = withoutLeadingSlash.slice(instance.prefix.length);
   const found = ['md', 'mdx', 'dbml'].map((ext) =>
-    path.join(repoRoot, 'packages', `${withoutLeadingSlash}.${ext}`),
+    path.join(repoRoot, instance.contentRoot, `${relative}.${ext}`),
   );
   const exists = found.map((file) => fs.existsSync(file));
   expect(
     exists.some(Boolean),
-    `地址 /${withoutLeadingSlash} 在 packages/ 下对不上任何一份文档源（试过 ${found.join('、')}）`,
+    `地址 /${withoutLeadingSlash} 在 ${instance.contentRoot}/ 下对不上任何一份文档源（试过 ${found.join('、')}）`,
   ).toBe(true);
 });
 

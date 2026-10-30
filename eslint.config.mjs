@@ -11,6 +11,7 @@ const ignores = [
   'coverage/**',
   'dist/**',
   'packages/*/dist/**',
+  'themes/*/dist/**',
   '.docusaurus/**',
   '.features-gen/**',
   '.temp/**',
@@ -113,7 +114,12 @@ export default [
   {
     // 主题组件的目录名**就是**组件名（`@theme/Logo` 靠它拼出来），官方口径是 PascalCase；
     // 改成 kebab-case 等于改掉别名语义。
-    files: ['src/theme/**', 'tools/*/theme/**', 'packages/*/theme/**'],
+    files: [
+      'src/theme/**',
+      'tools/*/theme/**',
+      'packages/*/theme/**',
+      'themes/*/theme/**',
+    ],
     rules: { 'unicorn/filename-case': 0 },
   },
   {
@@ -135,10 +141,14 @@ export default [
       '*.config.mjs',
       'playwright.config.mts',
       'sidebars.mts',
+      'sidebars-themes.mts',
       'packages/*/index.mts',
       'packages/*/src/index.mts',
       'packages/*/src/loader/**',
       'packages/*/theme/**',
+      'themes/*/index.mts',
+      'themes/*/src/index.mts',
+      'themes/*/theme/**',
       'tools/*/index.mts',
       'tools/*/theme/**',
       'erd/*.mjs',

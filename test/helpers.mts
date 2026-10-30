@@ -357,6 +357,37 @@ export const tick = (): Promise<void> =>
   });
 
 /**
+仓库里的两棵**包根**：`packages/` 是插件与其余主题层，`themes/` 是随带渲染器的那几个主题包。
+*/
+const PKG_ROOTS = ['packages', 'themes'];
+
+/**
+仓库里某个 workspace 包的那个目录（或它里面的一个文件）。
+
+包在哪一棵根下由**存在性**定：新增或搬动一个包，取路径的这一侧不必跟着改一张手抄的归属表。
+两棵根里都没有那个目录时当场抛 —— 静默拼出一条不存在的路径，症状会是「读不到源码」这类
+看不出根因的错。
+
+@param repoOrSiteDir 仓库根（侧边栏与包目录都相对它）
+*/
+export function pkgPath(
+  repoOrSiteDir: string,
+  pkg: string,
+  ...segments: string[]
+): string {
+  const root = PKG_ROOTS.find((dir) =>
+    fs.existsSync(path.join(repoOrSiteDir, dir, pkg)),
+  );
+  if (!root) {
+    throw new Error(
+      `找不到包 ${pkg}：两棵包根（${PKG_ROOTS.join('、')}）里都没有那个目录`,
+    );
+  }
+
+  return path.join(repoOrSiteDir, root, pkg, ...segments);
+}
+
+/**
 收集告警的 logger：用例断言 `warns`，把 `logger` 交给被测对象。
 
 首参统一 `String()`：被测代码有的直接传串、有的把 Error / 对象拼进消息，断言只看文本。

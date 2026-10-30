@@ -220,13 +220,13 @@ importers:
         version: link:packages/plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-avatar':
         specifier: workspace:^
-        version: link:packages/theme-avatar
+        version: link:themes/theme-avatar
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:packages/theme-component-page
       '@show-docs/docusaurus-theme-copy-button':
         specifier: workspace:^
-        version: link:packages/theme-copy-button
+        version: link:themes/theme-copy-button
       '@show-docs/docusaurus-theme-diff':
         specifier: workspace:^
         version: link:packages/theme-diff
@@ -235,7 +235,7 @@ importers:
         version: link:packages/theme-erd
       '@show-docs/docusaurus-theme-git-badge':
         specifier: workspace:^
-        version: link:packages/theme-git-badge
+        version: link:themes/theme-git-badge
       '@show-docs/docusaurus-theme-iframe':
         specifier: workspace:^
         version: link:packages/theme-iframe
@@ -253,7 +253,7 @@ importers:
         version: link:packages/theme-stoplight
       '@show-docs/docusaurus-theme-viewer':
         specifier: workspace:^
-        version: link:packages/theme-viewer
+        version: link:themes/theme-viewer
       '@show-docs/theme-a':
         specifier: workspace:^
         version: link:tools/theme-a
@@ -364,24 +364,6 @@ importers:
         specifier: 'catalog:'
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
-  packages/theme-avatar:
-    dependencies:
-      '@docusaurus/types':
-        specifier: 'catalog:'
-        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
-      '@show-docs/docusaurus-theme-component-page':
-        specifier: workspace:^
-        version: link:../theme-component-page
-      ahooks:
-        specifier: ^3.10.0
-        version: 3.10.0(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)
-      react:
-        specifier: 'catalog:'
-        version: 18.3.1
-
   packages/theme-component-page:
     dependencies:
       '@docusaurus/types':
@@ -393,24 +375,6 @@ importers:
       react:
         specifier: 'catalog:'
         version: 18.3.1
-
-  packages/theme-copy-button:
-    dependencies:
-      '@docusaurus/types':
-        specifier: 'catalog:'
-        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
-      '@show-docs/docusaurus-theme-component-page':
-        specifier: workspace:^
-        version: link:../theme-component-page
-      react:
-        specifier: 'catalog:'
-        version: 18.3.1
-      sonner:
-        specifier: ^2.0.8
-        version: 2.0.8(@types/react@18.3.31)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)
 
   packages/theme-diff:
     dependencies:
@@ -462,27 +426,6 @@ importers:
       webpack:
         specifier: 'catalog:'
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
-
-  packages/theme-git-badge:
-    dependencies:
-      '@docusaurus/core':
-        specifier: 'catalog:'
-        version: 3.10.2(d293d914ee6820461757ceae56c79ab5)
-      '@docusaurus/types':
-        specifier: 'catalog:'
-        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
-      '@docusaurus/utils':
-        specifier: ^3.9.2
-        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
-      '@show-docs/docusaurus-theme-component-page':
-        specifier: workspace:^
-        version: link:../theme-component-page
-      react:
-        specifier: 'catalog:'
-        version: 18.3.1
 
   packages/theme-iframe:
     dependencies:
@@ -616,17 +559,74 @@ importers:
         specifier: ^0.11.4
         version: 0.11.4
 
-  packages/theme-viewer:
+  themes/theme-avatar:
     dependencies:
       '@docusaurus/types':
         specifier: 'catalog:'
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@show-docs/docusaurus-plugin-prev-layer-resolver':
         specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
+        version: link:../../packages/plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
-        version: link:../theme-component-page
+        version: link:../../packages/theme-component-page
+      ahooks:
+        specifier: ^3.10.0
+        version: 3.10.0(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: 'catalog:'
+        version: 18.3.1
+
+  themes/theme-copy-button:
+    dependencies:
+      '@docusaurus/types':
+        specifier: 'catalog:'
+        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../../packages/plugin-prev-layer-resolver
+      '@show-docs/docusaurus-theme-component-page':
+        specifier: workspace:^
+        version: link:../../packages/theme-component-page
+      react:
+        specifier: 'catalog:'
+        version: 18.3.1
+      sonner:
+        specifier: ^2.0.8
+        version: 2.0.8(@types/react@18.3.31)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)
+
+  themes/theme-git-badge:
+    dependencies:
+      '@docusaurus/core':
+        specifier: 'catalog:'
+        version: 3.10.2(d293d914ee6820461757ceae56c79ab5)
+      '@docusaurus/types':
+        specifier: 'catalog:'
+        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@docusaurus/utils':
+        specifier: ^3.9.2
+        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../../packages/plugin-prev-layer-resolver
+      '@show-docs/docusaurus-theme-component-page':
+        specifier: workspace:^
+        version: link:../../packages/theme-component-page
+      react:
+        specifier: 'catalog:'
+        version: 18.3.1
+
+  themes/theme-viewer:
+    dependencies:
+      '@docusaurus/types':
+        specifier: 'catalog:'
+        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      '@show-docs/docusaurus-plugin-prev-layer-resolver':
+        specifier: workspace:^
+        version: link:../../packages/plugin-prev-layer-resolver
+      '@show-docs/docusaurus-theme-component-page':
+        specifier: workspace:^
+        version: link:../../packages/theme-component-page
       react:
         specifier: 'catalog:'
         version: 18.3.1

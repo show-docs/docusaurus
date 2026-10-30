@@ -1,3 +1,4 @@
+import { expect } from '@playwright/test';
 import type { FrameLocator, Locator, Page } from '@playwright/test';
 
 /** 每个 page 一只记录：BDD 把「打开页面」和「没有运行期错误」拆成两个步骤，两头要拿到同一份。 */
@@ -207,6 +208,10 @@ export const componentFrameUrl = '/__component-frame/';
 用例的第一步都是「打开这一层的示例页」，实现只差一个地址。这一张表把句子与地址对上：
 新增一层只在这里加一行，不用再写一条 `Given`。
 
+地址分属**两棵内容根**：前三层的包在 `packages/`，挂在 `routeBasePath: '/'` 那一份 docs 实例上；
+`theme-viewer` 搬到了 `themes/`，那一族的地址多一段 `/themes`。表里写的就是最终地址，所以加一行时
+顺手按包所在的根写。
+
 句子按 feature 里的**原文**整句写死，不在这里拼 —— 层名是拉丁字母时前后有空格
 （「我打开 markmap 示例页」），是中文时不带（「我打开差异视图示例页」），拼出来的正则会把
 后两句匹配成别的句子。
@@ -220,7 +225,7 @@ export const viewLayers = [
   { step: '我打开差异视图示例页', demo: '/theme-diff/docs/diff-demo' },
   {
     step: '我打开图片查看器示例页',
-    demo: '/theme-viewer/docs/viewer-demo',
+    demo: '/themes/theme-viewer/docs/viewer-demo',
   },
 ] as const;
 
@@ -240,8 +245,52 @@ export const viewLayers = [
 
 三个名字各读各的：redoc 那一层拿到的 `--canvas-l` 与 `--scalar-background-1` 都是空串，
 stoplight 那一层两处都跟着翻。都不抄具体色值 —— 判据只问「换了没有、跟另一个页面比是不是一样」。
+
+**读数之前先等这一帧挂齐**（`waitFrameSettled`）：那几个变量都随渲染器自己那份样式表落地，落在
+「还没挂上」那一刻的读数就是空串，两次读数一比，差出来的是加载快慢，不是操作系统的偏好。
 */
+
+/**
+框里那份文档「挂齐」没有：三层里任意一颗渲染根落了地，且每条 `<link>` 的样式表都加载完了。
+
+样式表按 `link.sheet` 在不在认 —— `<link>` 一挂上就有 `sheet` 对象，那份表**还没下载完**时它同样
+在，所以这一格量的是「表已经能参与层叠」，不是「有个同名链接」。
+*/
+const frameIsSettled = (page: Page): Promise<boolean> =>
+  componentFrameDoc(page)
+    .locator('html')
+    .evaluate((_el, roots: string) => {
+      const links = [
+        ...document.querySelectorAll('link[rel=stylesheet]'),
+      ] as HTMLLinkElement[];
+      return (
+        document.readyState === 'complete' &&
+        document.querySelector(roots) !== null &&
+        links.every((link) => link.sheet !== null) &&
+        // 已加载的那几份表都真的解析出了规则：空表也算 sheet 在，层叠里等于没挂。
+        // 本帧与站点同源，读不到 cssRules 的那一类在这里不会出现，真出现就当没挂。
+        [...document.styleSheets].every((sheet) => {
+          try {
+            return sheet.cssRules.length > 0;
+          } catch {
+            return false;
+          }
+        })
+      );
+    }, Object.values(layerRootSelectors).join(', '));
+
+/** 等它挂齐；到超时还没挂齐就报「框里那份文档没挂齐」，而不是让配色读数各读到一个时刻。 */
+const waitFrameSettled = async (page: Page): Promise<void> => {
+  await expect
+    .poll(() => frameIsSettled(page), {
+      timeout: 20_000,
+      message: '框里那份文档到超时都没挂齐：渲染根没落地，或样式表没加载完',
+    })
+    .toBe(true);
+};
+
 export const frameModeSignal = async (page: Page): Promise<string> => {
+  await waitFrameSettled(page);
   const scalarMode = await componentFrameDoc(page)
     .locator('body.dark-mode, body.light-mode')
     .count();

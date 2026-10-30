@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { CopyButton } from '../packages/theme-copy-button/components/copy-button.tsx';
+import { CopyButton } from '../themes/theme-copy-button/components/copy-button.tsx';
 
 /**
 `theme-copy-button` 那颗按钮的行为（`@vitest-environment jsdom`）：剪贴板在不在、写进去的是

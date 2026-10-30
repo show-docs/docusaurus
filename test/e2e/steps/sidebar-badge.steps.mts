@@ -2,13 +2,15 @@ import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 
-const { Then } = createBdd();
+import { watchPageErrors } from '../helpers.mts';
+
+const { Given, Then } = createBdd();
 
 /**
 ## 侧边栏徽标
 
 「新建 / 更新」那两枚徽标画在侧边栏上：载体是官方那条 `sidebar_custom_props` 通道
-（`packages/theme-git-badge` 算出种类 → 官方把它抄到侧边栏项的 `customProps` 上 →
+（`themes/theme-git-badge` 算出种类 → 官方把它抄到侧边栏项的 `customProps` 上 →
 那一层把种类写成 `data-git-badge` 属性）。画法有两种：叶子行是一个纯色点，
 分类行不画点 —— 颜色染在那一行本来就有的折叠箭头上（`styles/git-badge.css`）。
 
@@ -208,3 +210,19 @@ Then(
     await expectCaretBadge(entry, word, kind);
   },
 );
+
+/**
+## 另一棵内容根上也有徽标
+
+`theme-git-badge` 的地盘由站点转述**几份就是几棵根**（`docusaurus.config.mjs` 里那个数组），
+徽标注入走的是站点全局那一次 `parseFrontMatter` 包装 —— 所以「`themes/` 里的页也带徽标」这件事
+只能由真站点证：这一族的一条示例页在自己那一页里钉了 `git_badge: new`，地址落在
+`/themes/theme-git-badge/docs/git-badge-demo`（多一段前缀，因为那一棵根的 `routeBasePath` 是 `/themes`）。
+
+「这一页在侧边栏里那一格」那一句判据是按**当前 pathname** 找格子的，与它挂在哪一份 docs 实例无关，
+所以那一句话这里直接复用 —— 这一条新增只新增「打开另一棵根的那一页」，判据不抄第二份。
+*/
+Given('我打开徽标示例页', async ({ page }) => {
+  watchPageErrors(page);
+  await page.goto('/themes/theme-git-badge/docs/git-badge-demo');
+});

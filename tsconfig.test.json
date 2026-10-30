@@ -1,9 +1,9 @@
 {
   "//": "全项目类型测试：测试 .mts + 核心包 + 站点 swizzle（src/theme 的 tsx），只做类型检查",
   "//allowJs": "测试会 import `scripts/*.mjs`（体积脚本），它们是纯 JS。开 allowJs 让 TS 从 JS 推断类型；checkJs 关掉 —— 那些脚本自己不做类型检查，别把范围扩大到这里。",
-  "//exclude": "产物在包内 `dist/`，`index.d.mts` 会以 `*.mts` 的形状被上面的 glob 收进来。",
+  "//exclude": "产物在包内 `dist/`，`index.d.mts` 会以 `*.mts` 的形状被上面的 glob 收进来。两棵包根（`packages/`、`themes/`）都要挡。",
   "//theme-lib": "`test/external-url.test.mts` 引 theme-iframe 免编译的 `lib/` 源码（站点编译的那份，没有自己的产物项目）—— composite 项目要把被引的文件列进 include。",
-  "//theme-src": "各包 `src/` 那几份（入口接线与 loader 判据）被 `test/package-entries.test.mts`、`test/theme-diff.test.mts`、`test/theme-erd.test.mts`、`test/theme-markmap.test.mts` 与 `test/prerequisites.test.mts` 引到 —— composite 项目要把被引的文件列进 include，所以这里收整个 `packages/theme-*/src/`。",
+  "//theme-src": "各包 `src/` 那几份（入口接线与 loader 判据）被 `test/package-entries.test.mts`、`test/theme-diff.test.mts`、`test/theme-erd.test.mts`、`test/theme-markmap.test.mts` 与 `test/prerequisites.test.mts` 引到 —— composite 项目要把被引的文件列进 include，所以两棵包根（`packages/` 与 `themes/`）的 `theme-*/src/` 都收进来。",
   "//theme-copy-button": "`test/copy-button.test.mts` 引那颗按钮的 `.tsx` 源码（它不进 `tsc`，由站点编译）；同样是 composite 项目要把被引文件列进 include。",
   "//theme-git-badge": "那一层的 `components/` 与 `theme/` 两份 `.tsx` 是浏览器侧源码（不进 `tsc`，由站点编译）；`test/theme-git-badge.test.mts` 引了 `components/` 那一份，所以要把被引文件列进 include。",
   "//component-page": "`test/component-page-*.test.mts`、`test/frame-*.test.mts`、`test/frontmatter-values.test.mts` 与 `test/{location-mirror,view-layer-shell}.test.mts` 引 `theme-component-page` 免编译的 `lib/` 源码（和 theme-iframe 同一个约束，`.tsx` 那几份也在里面），`lib/` 又引 `src/frame-route.ts` 与 `types/` 里那份形状声明 —— composite 项目要把被引的文件列进 include，三侧一起列。",
@@ -27,13 +27,15 @@
     "packages/theme-component-page/lib/**/*.tsx",
     "packages/theme-component-page/src/**/*.ts",
     "packages/theme-component-page/types/**/*.d.ts",
-    "packages/theme-copy-button/components/**/*.tsx",
-    "packages/theme-git-badge/components/**/*.tsx",
-    "packages/theme-git-badge/theme/**/*.tsx",
+    "themes/theme-*/src/**/*.mts",
+    "themes/theme-copy-button/components/**/*.tsx",
+    "themes/theme-git-badge/components/**/*.tsx",
+    "themes/theme-git-badge/theme/**/*.tsx",
     "scripts/**/*.mjs"
   ],
   "exclude": [
-    "packages/*/dist"
+    "packages/*/dist",
+    "themes/*/dist"
   ],
   "//files": "`@theme*` 的类型声明归解析器包（`types/` 是源码，不是 dist，类型检查不依赖构建产物存在）；`@docusaurus/useIsBrowser` 这类只在构建期存在的 import 由仓库根那份 `module-aliases.d.ts` 说明（根 `tsconfig.json` 的 include 收得到它，本项目的 include 只列源码，所以按 files 点名）。",
   "files": [

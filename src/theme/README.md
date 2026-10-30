@@ -19,7 +19,7 @@
 ## 这一层为什么不再管侧边栏徽标
 
 侧边栏那枚「新建 / 更新」徽标（**git** 判：只提交过一次且最近动过 = 新建，最近动过 = 更新过）
-归 `packages/theme-git-badge` 那一层管了 —— 判据、载体、画法、样式全在包里。
+归 `themes/theme-git-badge` 那一层管了 —— 判据、载体、画法、样式全在包里。
 
 **为什么不能留在站点层**：官方别名 `@theme/DocSidebarItem/Link` 是**全局赢家**，主题路径按
 「fallback → preset 主题 → 用户插件 → 站点 `src/theme`」枚举，**后者覆盖前者**。站点层若提供
@@ -27,7 +27,7 @@
 那一层接管」，站点层不再 swizzle `DocSidebarItem/*`。
 
 理由与证据（载体是哪条通道、为什么换 `label` 而不是另插一个元素、层栈顺序怎么定的）在
-[`packages/theme-git-badge/docs/internals.md`](../../packages/theme-git-badge/docs/internals.md)。
+[`themes/theme-git-badge/docs/internals.md`](../../themes/theme-git-badge/docs/internals.md)。
 
 **判据用 git**；页面自己钉徽标用的是 `git_badge: new` / `git_badge: update`，写它只改侧边栏
 那一格，正文里不会多出任何东西。

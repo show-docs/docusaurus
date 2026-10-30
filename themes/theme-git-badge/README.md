@@ -28,12 +28,19 @@ export default {
     [
       '@show-docs/docusaurus-theme-git-badge',
       {
-        // 文档插件扫哪些文件：这三格是**转述**，见下面「地盘」
-        docs: {
-          path: '.',
-          include: ['docs/**/*.md'],
-          exclude: ['**/node_modules/**']
-        }
+        // 文档插件扫哪些文件：每份 docs 实例一份转述，见下面「地盘」。
+        // 站点只有一份文档插件实例时写成单个对象也行。
+        docs: [
+          {
+            path: '.',
+            include: ['docs/**/*.md'],
+            exclude: ['**/node_modules/**']
+          },
+          {
+            path: 'packages',
+            include: ['*/README.md', '*/docs/**/*.md']
+          }
+        ]
       }
     ]
   ]
@@ -77,7 +84,8 @@ export default {
 
 ## 地盘：跟着文档插件走
 
-`docs` 那三格对应 `@docusaurus/plugin-content-docs` 的 `path` / `include` / `exclude`：
+`docs` 那一格是 `DocsScope | DocsScope[]`：**站点有几份文档插件实例，就转述几份**。一份
+`DocsScope` 对应一实例的 `path` / `include` / `exclude` 那三格，三格都按**它自己那棵内容根**解释：
 
 | 字段      | 缺省                | 说明                                           |
 | --------- | ------------------- | ---------------------------------------------- |
@@ -85,9 +93,18 @@ export default {
 | `include` | `['**/*.{md,mdx}']` | 收哪些文件，相对内容根（与 docs 插件缺省同值） |
 | `exclude` | `[]`                | 挡掉哪些，相对内容根                           |
 
-**为什么是「转述」。** 站点常把 `docs` 选项写在自己的一个预设里（本仓就是 classic 预设里那一份），
-本包在手上拿不到 —— 所以由站点把这三格再写一遍。抄两遍会漂，本仓的做法是把清单提成
-`docusaurus.config.mjs` 顶部的常量，两处引同一份。
+地盘因此是「**任一**棵根里的一页」，逐棵各判一次：把 A 根的路径递给 B 根的匹配器，官方那句
+`createAbsoluteFilePathMatcher`（只认自己那棵根）会直接抛，所以每一问都先过自己那棵根的
+inside 护栏。写成数组以外的单个对象 = 只有一棵根，与不传 `path` 时的官方缺省同形。
+
+**为什么是「转述」。** 站点常把 `docs` 选项写在自己的预设里（本仓就是 classic 预设那一份，加上
+`themes/` 那一棵根的独立实例，共两份），本包在手上拿不到 —— 所以由站点把每份实例那三格再写一遍。
+抄两遍会漂，本仓的做法是把清单提成 `docusaurus.config.mjs` 顶部的一份常量与一个
+`docsScope(根)` 工厂：每份实例调用一次，徽标拿到的数组与真正生效的那几份同源。
+
+**为什么只能有一份本包实例。** 注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份实例
+会被「只包一次」的护栏当成「已经是我」而静默退让 —— 所以多棵内容根必须在**这一份**里用数组表达，
+而不是每棵根挂一份插件。
 
 地盘之外的文件**一个标记都不给**：页面这个概念由文档插件定义，徽标跟着它走。匹配器用的是
 同一个 `@docusaurus/utils` 的 `createAbsoluteFilePathMatcher`，与 `Globby` 扫文件时同一套
@@ -96,7 +113,7 @@ micromatch 口径 —— 自己写一遍容易漂的是「相对内容根」那�
 
 ## 导出
 
-一个默认导出（这一层本身）外加 `DocsScope` 那个类型。判据与认种类的那些函数是**内部的**：
+一个默认导出（这一层本身）外加 `DocsScope` / `DocsScopes` 那两个类型。判据与认种类的那些函数是**内部的**：
 它们是这一层的实现，不是给站点用的 API。
 
 ## 使用约束

@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeConfig,
   PLUGIN_NAME,
-} from '../packages/theme-avatar/src/config.mts';
+} from '../themes/theme-avatar/src/config.mts';
 
 /**
-`packages/theme-avatar/src/config.mts`：站点那格插件选项判成浏览器要用的那一份。
+`themes/theme-avatar/src/config.mts`：站点那格插件选项判成浏览器要用的那一份。
 
 这一份落在覆盖率红线上（各包 `src` 目录下那批 `.mts`），所以每一条报错、每一个缺省都得有用例走到。
 它只管三件事：认得的格才读（写歪的格红在配置加载那一句）、形状判到底（串/布尔/数各有名字，

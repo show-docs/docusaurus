@@ -16,13 +16,19 @@ import DocCardList from '@theme/DocCardList';
 
 ## 每个包一顶层格
 
-这一页自己就是 `packages/README.md` —— 站点的内容根是 `packages/`，Docusaurus 认内容根里的
+这一页自己就是 `packages/README.md` —— 站点的内容根之一是 `packages/`，Docusaurus 认内容根里的
 `README.md` 是索引页，而 `slug: /` 把它落在根，所以它同时是主页，内容根那一格没有单独的地址。
 站点按包组织：`packages/` 下每个包占侧边栏的一顶层格，那一格的顶层页就是这个包
 自己的 `README.md`（同理，所以地址是 `/theme-scalar/`），它的子页是这个包
 `docs/` 目录里的那几页 —— 示例页与维护者文档。
-因此**页面上的地址等于文件相对 `packages/` 的路径**：`/theme-erd/docs/erd-demo`
+因此**页面上的地址等于文件相对它所属内容根的路径**：`/theme-erd/docs/erd-demo`
 就是 `packages/theme-erd/docs/erd-demo.dbml`。
+
+站点有**两棵内容根**：`packages/` 是插件与基础设施，另外四个带渲染器的主题包住在
+`themes/`，由独立的一份文档插件实例挂在 `/themes` 前缀下 —— 落地页在
+[主题包说明](/themes/)，那一族的地址因此多一段，例如
+`/themes/theme-viewer/docs/viewer-demo`。两棵根各自一份侧边栏，共用同一份扫描逻辑
+（仓库根的 `sidebars-lib.mts`）。
 
 <DocCardList />
 
@@ -35,7 +41,8 @@ import DocCardList from '@theme/DocCardList';
 那一层判的是正文里有没有图片；不命中的页面那一层等于透明。
 
 这一整张卡片列表外面套着四层主题的标记（`[SITE]` 包 `[C]`、`[C]` 包 `[B]`、`[B]` 包 `[A]`，
-最里面才是卡片）：本页是站点唯一渲染 `<DocCardList />` 的地方，所以「多个主题链式覆盖同一个组件」
+最里面才是卡片）：这条链覆盖的是 `DocCardList` 这**一个组件**，站点里渲染它的两页 —— 本页与
+`themes/` 那份落地页 —— 都是同一套四层，所以「多个主题链式覆盖同一个组件」
 就发生在你正看着的这一格里。四层各用一道彩色虚线圈出自己那一格，从外到内是橙 `[SITE]`、
 蓝 `[C]`、绿 `[B]`、红 `[A]`，每层的角标与本层边框同色。
 
@@ -47,7 +54,8 @@ import DocCardList from '@theme/DocCardList';
 
 侧边栏里每一条文档末尾那枚纯色点说的是「这一页是新建还是更新过的」：判据是 git，写进官方
 那条 `sidebar_custom_props` 通道，判与画都在
-[`theme-git-badge`](./theme-git-badge/README.md) 那一包里。
+[`theme-git-badge`](/themes/theme-git-badge/) 那一包里。它跟着内容根走：站点有两份文档实例，
+两棵根里的页都各有徽标。
 
 ## 文档
 

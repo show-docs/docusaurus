@@ -70,7 +70,7 @@ export default {
 swizzle 了同一格，站点那一份压过本层（官方别名「全局赢家」那条规则）。
 
 层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
-[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)。
+[`plugin-prev-layer-resolver` 的 README](/plugin-prev-layer-resolver/)。
 
 ## 工作方式
 
@@ -96,6 +96,6 @@ swizzle 了同一格，站点那一份压过本层（官方别名「全局赢家
 
 ## 相关文档
 
-- [`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)：`@theme-prev/*` 的语义与层栈。
+- [`plugin-prev-layer-resolver` 的 README](/plugin-prev-layer-resolver/)：`@theme-prev/*` 的语义与层栈。
 - [示例页](./docs/avatar-demo.md)：本站这一层的实际状态，以及看不到头像的三种情况。
 - [`ahooks` 的 `useRequest`](https://ahooks.js.org/zh-CN/hooks/use-request/index)：`request` 那一格能写的参数。

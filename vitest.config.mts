@@ -35,8 +35,9 @@ export default defineConfig({
       provider: 'istanbul',
       reporter: ['lcov', 'json-summary'],
       reportsDirectory: './coverage',
-      // 红线盖住**全部构建期代码**：每个包的 `src/`（配置期接线、webpack 规则、
-      // loader 判据、纯逻辑），加上 `theme-component-page` 的 `lib/`（配置期与浏览器期共用的
+      // 红线盖住**全部构建期代码**：两棵包根（`packages/` 与 `themes/`）下每个包的 `src/`
+      //（配置期接线、webpack 规则、loader 判据、纯逻辑），加上
+      // `theme-component-page` 的 `lib/`（配置期与浏览器期共用的
       // 那一条命中判据与那张规则表、框内外的消息形状与两条同步 hook、按需装载渲染器那一层、
       // 三条视图层共用那份外壳、以及框内那页的地址算法），还有 `theme-iframe` 的 `lib/`
       // （`iframe:` 那一格嵌外站时地址怎么算）。
@@ -46,6 +47,7 @@ export default defineConfig({
       // 全局口径仍是 node。
       include: [
         'packages/*/src/**/*.mts',
+        'themes/*/src/**/*.mts',
         'packages/theme-iframe/lib/**',
         'packages/theme-component-page/lib/**',
       ],

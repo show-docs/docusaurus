@@ -16,10 +16,10 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 // 卡片由 `@theme/DocCardList` 按侧边栏自动给，所以这里钉的是「每张卡真能点进对应那一格」，
 // 不钉清单本身（清单口径的产地在 `sidebars.mts`）。
 /**
-「一格一个包」那一份清单是**扫出来的**，判据与 `sidebars.mts` 同一句：`packages/` 下有
-`README.md` 的那个目录占一顶层格，地址就是 `/<目录名>/`（内容根是 `packages/`，地址不带这一段）。
-手抄那版漏了 `theme-git-badge`，少一张卡照样绿 —— 这一格本来就是为「别忘了某个包」
-而存在的。
+「一格一个包」那一份清单是**扫出来的**，判据与侧栏文件同一句：包根下有 `README.md` 的那个目录占
+一顶层格。`packages/` 那一份实例的 `routeBasePath` 是 `'/'`，所以地址就是 `/<目录名>/`；
+`themes/` 那一份的是 `'/themes'`，地址多一段。手抄那版漏了 `theme-git-badge`，少一张卡照样绿 ——
+这一格本来就是为「别忘了某个包」而存在的。
 */
 const packageHrefs = fs
   .readdirSync(path.join(repoRoot, 'packages'), { withFileTypes: true })
@@ -29,6 +29,16 @@ const packageHrefs = fs
       fs.existsSync(path.join(repoRoot, 'packages', entry.name, 'README.md')),
   )
   .map((entry) => `/${entry.name}/`);
+
+/** 另一棵内容根（`themes/`）那一份清单：同一句判据，地址带 `/themes` 那一段。 */
+const themesHrefs = fs
+  .readdirSync(path.join(repoRoot, 'themes'), { withFileTypes: true })
+  .filter(
+    (entry) =>
+      entry.isDirectory() &&
+      fs.existsSync(path.join(repoRoot, 'themes', entry.name, 'README.md')),
+  )
+  .map((entry) => `/themes/${entry.name}/`);
 
 /**
 主页正文里那条链：站点层加 `tools/` 那三层主题，从外到内 `src/theme > theme-c > theme-b > theme-a`，
@@ -98,5 +108,41 @@ Then(
       page.locator('article h1').first(),
       '顶层页的正文应是本包 README 的第一个标题',
     ).toHaveText('@show-docs/docusaurus-theme-markmap');
+  },
+);
+
+/**
+主页正文里指向 `/themes/` 的那一条入口：按 `article` 里的链接点，避免与别处的同名 href 撞。
+这一条不是一张卡片 —— `themes/` 不在 `packages/` 那份侧栏清单里，它是正文里手写的一条链接。
+*/
+When('我点开指向 themes 那一族的入口', async ({ page }) => {
+  const entry = page.locator('article a[href="/themes/"]');
+  await expect(
+    entry,
+    '主页正文该有一条指向 /themes/ 的入口：另一棵内容根没有入口，就等于站点里少一族',
+  ).toHaveCount(1);
+  await entry.click();
+});
+
+Then('我落在 themes 那一棵内容根的落地页', async ({ page }) => {
+  // `themes/README.md` 不写 `slug:`：内容根的 README 天然拿 slug `/`，落在本实例的
+  // routeBasePath 上，所以这一格就是 `/themes/`。
+  await expect(page).toHaveURL(/\/themes\/$/);
+});
+
+Then(
+  'themes 那一族每个包都有一张卡，指向各包自己的顶层页',
+  async ({ page }) => {
+    for (const href of themesHrefs) {
+      await expect(
+        page.locator(`a.theme-doc-card-container[href="${href}"]`),
+        `/themes/ 该有一张指向 ${href} 的卡片`,
+      ).toBeVisible();
+    }
+    // 总数同样钉住：头那一张是这一页自己（内容根的 README 排在这份根级清单的头一格）。
+    await expect(
+      page.locator('a.theme-doc-card-container'),
+      `卡片应是「${themesHrefs.length} 个包 + 落地页那一张」`,
+    ).toHaveCount(themesHrefs.length + 1);
   },
 );
