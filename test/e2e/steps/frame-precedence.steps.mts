@@ -7,8 +7,9 @@ import { watchPageErrors } from '../helpers.mts';
 const { Given, Then } = createBdd();
 
 /**
-四把键同写一页时，赢的那一把由 `loadContent()` 交给 `theme-component-page` 的那份清单的顺序定
-（默认照 `packages/theme-iframe/src/api-frame-registry.ts`：scalar → redoc → stoplight → iframe）。
+四把键同写一页时，赢的那一把由 component-page 那份清单的顺序定 —— 各层在自己的
+`loadContent()` 里交页，清单顺序 = 站点 `plugins` 的声明顺序
+（`docusaurus.config.mjs`：scalar → redoc → stoplight → iframe）。
 两份夹具页各钉一头：全写上验「第一个命中就换框」，
 拿掉 scalar 验「判定真的在逐条走」。判据都按**页面上只有一个框**来量 —— 落败的键要是
 还渲染出自己的框，数量这一句就红。
@@ -32,7 +33,7 @@ Then('这一页只摆一个框，而且是 scalar 那一个', async ({ page }) =
   ).toHaveCount(1);
   await expect(
     page.locator('iframe.scalar-frame'),
-    '赢的框不是 scalar 那一个（注册表顺序失守？）',
+    '赢的框不是 scalar 那一个（plugins 声明顺序失守？）',
   ).toHaveCount(1);
   await expect(page.locator('iframe.scalar-frame')).toHaveAttribute(
     'src',
@@ -47,7 +48,7 @@ Then('这一页只摆一个框，而且是 redoc 那一个', async ({ page }) =>
   ).toHaveCount(1);
   await expect(
     page.locator('iframe.redoc-frame'),
-    '赢的框不是 redoc 那一个（判定没有逐条走注册表？）',
+    '赢的框不是 redoc 那一个（判定没有逐条走清单？）',
   ).toHaveCount(1);
   await expect(page.locator('iframe.redoc-frame')).toHaveAttribute(
     'src',

@@ -30,6 +30,7 @@
     "dist",
     "lib",
     "src/api-frame-registry.ts",
+    "src/component-pages.mts",
     "src/prerequisites.mts",
     "theme"
   ],

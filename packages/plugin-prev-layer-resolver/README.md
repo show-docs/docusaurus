@@ -136,7 +136,7 @@ export default function myTheme(context, options) {
 ```
 
 它只查本插件，不查别家：报错文案里点名的是**调用方**的包名，站点据此知道该回去看哪一层的文档。
-这一份是纯函数，浏览器侧也能引（`theme-iframe` 那条装机判定读的就是同一判据），
+这一份是纯函数，各层配置期那句「前置插件在不在」读的就是同一判据，
 理由与内部契约见 [`docs/internals.md`](./docs/internals.md) 的「认层」一节。
 
 ## 类型声明

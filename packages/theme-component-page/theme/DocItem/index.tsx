@@ -1,4 +1,4 @@
-import DocItem from '@theme-prev/DocItem';
+import DocItem from '@theme-init/DocItem';
 
 import type { ComponentType, ReactNode } from 'react';
 
@@ -10,9 +10,10 @@ import {
   componentPageWarnings,
   matchComponentPage,
   warnComponentPages,
+  type ComponentPageFacts,
 } from '../../lib/component-page.ts';
 
-// 这一页的正文组件：MDX 编译出来的那一份，frontmatter 挂在它身上。
+// 这一页的正文组件：MDX 编译出来的那一份。frontmatter 与 loader 追加的命名导出都挂在它身上。
 type MDXContent = ComponentType<Record<string, unknown>> & {
   frontMatter?: Record<string, unknown>;
 };
@@ -21,8 +22,11 @@ type Props = { content?: MDXContent };
 
 /**
 本层是「这一页整页交给一个组件」这一族里**唯一判这份清单**的那一格：清单从配置期生成的那份注册表里读
-（判法、顺序与告警那三条规则都住在 `lib/component-page.ts`，这里不抄第二份），命中就把
+（两处来源、判法、顺序与告警那几条规则都住在 `lib/component-page.ts`，这里不抄第二份），命中就把
 **整个 `DocItem`** 换成清单里那个组件；落空那份告警只在开发模式交给 `warnComponentPages()` 打。
+
+判据看这一页的两份事实：frontmatter，以及 loader 往 MDX 模块里追加的命名导出（都在 `content`
+身上）。两处都没有同名的键就是没命中，本层等于透明。
 
 代价与那族 iframe 框同一格：官方 `DocItem` 里的东西一并不要 —— `DocProvider`、
 `DocItem/Metadata`（页面标题与描述因此退回站点名）、`DocItem/Layout`（面包屑、正文外壳、
@@ -33,15 +37,18 @@ type Props = { content?: MDXContent };
 自己留正文时用得上 —— 命中时本层不再往下走，下层那份 `DocItem` 给不了它。
 */
 export default function DocItemComponentPage(props: Props): ReactNode {
-  const frontMatter = props.content?.frontMatter;
+  const facts: ComponentPageFacts = {
+    frontMatter: props.content?.frontMatter,
+    content: props.content,
+  };
   const { pathname } = useLocation();
 
   if (process.env.NODE_ENV === 'development') {
-    warnComponentPages(componentPageWarnings(pages, frontMatter, pathname));
+    warnComponentPages(componentPageWarnings(pages, facts, pathname));
   }
 
   for (const page of pages) {
-    const value = matchComponentPage(page, frontMatter);
+    const value = matchComponentPage(page, facts);
 
     if (value === undefined) {
       continue;
@@ -50,7 +57,7 @@ export default function DocItemComponentPage(props: Props): ReactNode {
     // 入参的组装次序（配置那格垫底、本页三份盖在上面）住在 lib 里，这一格只负责挂上去。
     return (
       <page.Component
-        {...componentPageProps(page, value, frontMatter, props.content)}
+        {...componentPageProps(page, value, facts.frontMatter, facts.content)}
       />
     );
   }

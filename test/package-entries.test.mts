@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -14,6 +14,7 @@ import componentPageTheme from '../packages/theme-component-page/src/index.mts';
 import copyButtonTheme from '../packages/theme-copy-button/src/index.mts';
 import { DIFF_COMPONENT_PAGES } from '../packages/theme-diff/src/component-pages.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
+import { ERD_COMPONENT_PAGES } from '../packages/theme-erd/src/component-pages.mts';
 import erdTheme from '../packages/theme-erd/src/index.mts';
 import gitBadgeTheme from '../packages/theme-git-badge/src/index.mts';
 import iframeTheme from '../packages/theme-iframe/src/index.mts';
@@ -234,55 +235,9 @@ describe('theme-iframe 入口：层目录、接管清单、两条安装前提', 
     ).not.toThrow();
   });
 
-  it('loadContent：装了的层各交一页，顺序按注册表而不是声明顺序', () => {
-    // 声明顺序是「内 → 外」，注册表顺序是「外 → 内」：判定优先级跟着注册表走。
-    const plugin = iframeTheme(
-      contextWith([
-        RESOLVER_PLUGIN,
-        COMPONENT_PAGE,
-        IFRAME_PLUGIN,
-        STOPLIGHT,
-        REDOC,
-        SCALAR,
-      ]),
-    );
+  it('loadContent：只交自己那把 `iframe:` —— 三条 API 层由各包自己的 loadContent 交', () => {
+    const plugin = iframeTheme(contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE]));
 
-    expect(componentPagesOf(plugin)).toEqual([
-      {
-        key: 'scalar',
-        match: 'boolean',
-        component: '@theme/ApiFramePage',
-        props: { namespace: SCALAR },
-      },
-      {
-        key: 'redoc',
-        match: 'boolean',
-        component: '@theme/ApiFramePage',
-        props: { namespace: REDOC },
-      },
-      {
-        key: 'stoplight',
-        match: 'boolean',
-        component: '@theme/ApiFramePage',
-        props: { namespace: STOPLIGHT },
-      },
-      {
-        key: 'iframe',
-        match: 'value',
-        component: '@theme/ApiFramePage',
-        props: { namespace: IFRAME_PLUGIN },
-      },
-    ]);
-  });
-
-  it('插件选项里的覆盖清单换顺序、只启用列出的层，装机过滤照样生效', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const plugin = iframeTheme(
-      contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE, IFRAME_PLUGIN, SCALAR]),
-      { themeConfig: { apiFrame: { order: [IFRAME_PLUGIN, REDOC] } } },
-    );
-
-    // redoc 列了却没装：不交，并在 loadContent 里说一次（配置期说一次就够）。
     expect(componentPagesOf(plugin)).toEqual([
       {
         key: 'iframe',
@@ -291,13 +246,6 @@ describe('theme-iframe 入口：层目录、接管清单、两条安装前提', 
         props: { namespace: IFRAME_PLUGIN },
       },
     ]);
-
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining(
-        '覆盖清单里的 `@show-docs/docusaurus-theme-redoc` 没装',
-      ),
-    );
-    warn.mockRestore();
   });
 });
 
@@ -517,9 +465,26 @@ describe('theme-erd 入口', () => {
     expectThemePath(plugin, 'theme-erd');
   });
 
-  it('缺 theme-iframe：当场点名', () => {
+  it('loadContent：交出 dbml_json 那一页，组件写的是 @theme/ErdPage', () => {
+    const plugin = erdTheme(
+      contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+    );
+
+    expect(componentPagesOf(plugin)).toBe(ERD_COMPONENT_PAGES);
+    // `any` 判法：`dbml_json` 是 loader 追加的那条导出，恒是一个对象（见 component-page 的判据）。
+    expect(ERD_COMPONENT_PAGES).toEqual([
+      { key: 'dbml_json', match: 'any', component: '@theme/ErdPage' },
+    ]);
+  });
+
+  it('缺 theme-iframe、缺 component-page 都当场点名', () => {
     const missing = erdTheme(contextWith([RESOLVER_PLUGIN]));
     expect(() => loadContentOf(missing)()).toThrow(new RegExp(IFRAME_PLUGIN));
+
+    const noComponentPage = erdTheme(
+      contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN]),
+    );
+    expect(() => loadContentOf(noComponentPage)()).toThrow(COMPONENT_PAGE);
   });
 });
 
@@ -657,6 +622,39 @@ describe('theme-redoc 入口：worker_threads 给一个空模块', () => {
     expect(themePathOf(plugin)).toBe(path.join(pkgDir('theme-redoc'), 'theme'));
   });
 
+  it('loadContent：缺 theme-iframe、缺 component-page 都当场点名；装齐了才放行', () => {
+    // 两条前提都在工厂里：外层框与消息循环住在 theme-iframe，交出的那一页由 component-page
+    // 挂上来。缺前者，框内页面没人提供；缺后者，这一页永远不会被交出去。
+    expect(
+      loadContentOf(redocTheme(contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE]))),
+    ).toThrow(new RegExp(IFRAME_PLUGIN));
+    expect(
+      loadContentOf(redocTheme(contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN]))),
+    ).toThrow(COMPONENT_PAGE);
+    expect(() =>
+      loadContentOf(
+        redocTheme(
+          contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+        ),
+      )(),
+    ).not.toThrow();
+  });
+
+  it('loadContent：交回自己那把 `redoc` 键那一页（工厂按注册表代交）', () => {
+    const plugin = redocTheme(
+      contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+    );
+
+    expect(componentPagesOf(plugin)).toEqual([
+      {
+        key: 'redoc',
+        match: 'boolean',
+        component: '@theme/ApiFramePage',
+        props: { namespace: REDOC },
+      },
+    ]);
+  });
+
   it('客户端：worker_threads 置 false（空模块），服务端那一格不动', () => {
     // `redoc` 那份 ESM 里有一支 Node 分支写着 `require('worker_threads')`：浏览器里跑不到，
     // 但 webpack 的**解析**这一步照样红。置 false 是给它一个空模块，比补 polyfill 诚实。
@@ -687,6 +685,39 @@ describe('theme-scalar 入口：把 Scalar 那份静态样式表摘出全站 css
     expect(themePathOf(plugin)).toBe(
       path.join(pkgDir('theme-scalar'), 'theme'),
     );
+  });
+
+  it('loadContent：缺 theme-iframe、缺 component-page 都当场点名；装齐了才放行', () => {
+    expect(
+      loadContentOf(
+        scalarTheme(contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE])),
+      ),
+    ).toThrow(new RegExp(IFRAME_PLUGIN));
+    expect(
+      loadContentOf(scalarTheme(contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN]))),
+    ).toThrow(COMPONENT_PAGE);
+    expect(() =>
+      loadContentOf(
+        scalarTheme(
+          contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+        ),
+      )(),
+    ).not.toThrow();
+  });
+
+  it('loadContent：交回自己那把 `scalar` 键那一页（工厂按注册表代交）', () => {
+    const plugin = scalarTheme(
+      contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+    );
+
+    expect(componentPagesOf(plugin)).toEqual([
+      {
+        key: 'scalar',
+        match: 'boolean',
+        component: '@theme/ApiFramePage',
+        props: { namespace: SCALAR },
+      },
+    ]);
   });
 
   it('那条动态 import 的告警被按住：模块判据只认 `@scalar/api-reference` 里那一份', () => {
@@ -749,6 +780,41 @@ describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node �
     expect(themePathOf(plugin)).toBe(
       path.join(pkgDir('theme-stoplight'), 'theme'),
     );
+  });
+
+  it('loadContent：缺 theme-iframe、缺 component-page 都当场点名；装齐了才放行', () => {
+    expect(
+      loadContentOf(
+        stoplightTheme(contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE])),
+      ),
+    ).toThrow(new RegExp(IFRAME_PLUGIN));
+    expect(
+      loadContentOf(
+        stoplightTheme(contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN])),
+      ),
+    ).toThrow(COMPONENT_PAGE);
+    expect(() =>
+      loadContentOf(
+        stoplightTheme(
+          contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+        ),
+      )(),
+    ).not.toThrow();
+  });
+
+  it('loadContent：交回自己那把 `stoplight` 键那一页（工厂按注册表代交）', () => {
+    const plugin = stoplightTheme(
+      contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]),
+    );
+
+    expect(componentPagesOf(plugin)).toEqual([
+      {
+        key: 'stoplight',
+        match: 'boolean',
+        component: '@theme/ApiFramePage',
+        props: { namespace: STOPLIGHT },
+      },
+    ]);
   });
 
   it('客户端：ProvidePlugin 补 `process`，fallback 补 buffer 与 url', () => {

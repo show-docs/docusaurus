@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ERD_COMPONENT_PAGES } from '../packages/theme-erd/src/component-pages.mts';
 import theme, { validateOptions } from '../packages/theme-erd/src/index.mts';
 import loader from '../packages/theme-erd/src/loader/dbml-loader.mts';
 import {
@@ -183,6 +184,23 @@ function exportedJson(output: string): DbmlModel {
   expect(end, '产物里该有一条 `export const dbml_json`').toBeGreaterThan(start);
   return JSON.parse(output.slice(start, end + 1)) as DbmlModel;
 }
+
+/**
+清单里那把键与 loader 写出来的导出名是**两处字面量**：component-page 按清单里的名字去模块上
+读同名导出，两边一旦不一致，症状是「页面安静地不出现关系图」—— 构建与用例都不报。这一条把
+它们钉在一起：改了哪一边，另一边没跟上就红。
+*/
+describe('清单里那把键就是 loader 写出来的导出名', () => {
+  it('`dbml_json` 既是清单的唯一一把键，也是产物里那条 `export const`', async () => {
+    expect(ERD_COMPONENT_PAGES.map((page) => page.key)).toEqual(['dbml_json']);
+
+    const output = await runOutput(demoDbml);
+
+    for (const page of ERD_COMPONENT_PAGES) {
+      expect(output).toContain(`export const ${page.key} = `);
+    }
+  });
+});
 
 describe('一份 .dbml 编译成 MDX', () => {
   it('示例页那份配上站点那一条清单：四个固定格式加模板页那一格，头部 frontmatter 不进产物', async () => {

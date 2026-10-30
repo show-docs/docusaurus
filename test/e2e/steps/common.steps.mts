@@ -125,9 +125,9 @@ Then(
 );
 
 /**
-整页替换那一族：`theme-iframe` 在自己的 `loadContent()` 里把装了的各层四把键（`scalar:`、`redoc:`、`stoplight:`、
-`iframe:`）交给 `theme-component-page`，命中的那一页整个 `DocItem` 换成 `@theme/ApiFramePage`
-（顺序 = 那份清单的顺序，默认照 `src/api-frame-registry.ts` 的条目排），所以那一页连文档正文外壳
+整页替换那一族：每一层在自己的 `loadContent()` 里交自己那把键（三条 API 层经工厂代交，本层交
+`iframe:`）给 `theme-component-page`，命中的那一页整个 `DocItem` 换成 `@theme/ApiFramePage`
+（顺序 = 那份清单的顺序 = 站点 `plugins` 的声明顺序），所以那一页连文档正文外壳
 都没有。四把键判的是同一件事，句子就一份。
 */
 Then('这一页没有文档正文外壳', async ({ page }) => {

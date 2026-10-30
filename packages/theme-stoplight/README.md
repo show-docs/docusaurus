@@ -6,10 +6,11 @@
 
 ## 安装
 
-外层套壳由 theme-iframe 提供，`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
+外层套壳由 theme-iframe 提供，交出去的框页由 theme-component-page 挂上，`@theme-prev/*` 的别名
+由解析器插件提供，四个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-stoplight
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-stoplight
 ```
 
 ## 使用
@@ -21,8 +22,10 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
+    // 本层排在同页其它框层前面 = 它先判
+    '@show-docs/docusaurus-theme-stoplight',
     '@show-docs/docusaurus-theme-iframe',
-    '@show-docs/docusaurus-theme-stoplight'
+    '@show-docs/docusaurus-theme-component-page'
   ]
 };
 ```

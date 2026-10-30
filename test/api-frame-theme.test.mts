@@ -7,7 +7,10 @@ import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import { createApiFrameTheme } from '../packages/theme-iframe/lib/api-frame-theme.mts';
-import { IFRAME_PLUGIN } from '../packages/theme-iframe/src/prerequisites.mts';
+import {
+  COMPONENT_PAGE_PLUGIN as COMPONENT_PAGE,
+  IFRAME_PLUGIN,
+} from '../packages/theme-iframe/src/prerequisites.mts';
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
 
@@ -178,27 +181,56 @@ describe('createApiFrameTheme：三条 API 层共用的配置期工厂', () => {
     expect(webpackResultOf(plugin).module?.rules ?? []).toEqual([]);
   });
 
-  it('loadContent 检查前置插件：缺解析器当场点名，装齐则放行', () => {
+  it('loadContent 检查三条前置插件：缺哪条都当场点名，装齐则放行', () => {
     const contextWith = (plugins: unknown[]): LoadContext =>
       ({
         siteConfig: { baseUrl: '/', plugins, themes: [] },
       }) as unknown as LoadContext;
 
-    const missing = createApiFrameTheme(contextWith([IFRAME_PLUGIN]), {
-      namespace: '@show-docs/docusaurus-theme-redoc',
-      selfEntryUrl: entryUrlOf('redoc'),
-    });
-    expect(() => (missing.loadContent as () => void)()).toThrow(
-      new RegExp(RESOLVER_PLUGIN),
-    );
+    const makeFrom = (plugins: unknown[]): Plugin =>
+      createApiFrameTheme(contextWith(plugins), {
+        namespace: '@show-docs/docusaurus-theme-redoc',
+        selfEntryUrl: entryUrlOf('redoc'),
+      });
 
-    const complete = createApiFrameTheme(
-      contextWith([RESOLVER_PLUGIN, IFRAME_PLUGIN]),
+    expect(() =>
+      (makeFrom([IFRAME_PLUGIN]).loadContent as () => void)(),
+    ).toThrow(new RegExp(RESOLVER_PLUGIN));
+    expect(() =>
+      (makeFrom([RESOLVER_PLUGIN, COMPONENT_PAGE]).loadContent as () => void)(),
+    ).toThrow(new RegExp(IFRAME_PLUGIN));
+    expect(() =>
+      (makeFrom([RESOLVER_PLUGIN, IFRAME_PLUGIN]).loadContent as () => void)(),
+    ).toThrow(COMPONENT_PAGE);
+
+    const complete = makeFrom([RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE]);
+    expect(() => (complete.loadContent as () => void)()).not.toThrow();
+  });
+
+  it('loadContent 交回本包自己那一页：由各包自注册，不再由 theme-iframe 替它算', () => {
+    const plugin = createApiFrameTheme(
+      {
+        siteConfig: {
+          baseUrl: '/',
+          plugins: [RESOLVER_PLUGIN, IFRAME_PLUGIN, COMPONENT_PAGE],
+          themes: [],
+        },
+      } as unknown as LoadContext,
       {
         namespace: '@show-docs/docusaurus-theme-redoc',
         selfEntryUrl: entryUrlOf('redoc'),
       },
     );
-    expect(() => (complete.loadContent as () => void)()).not.toThrow();
+
+    expect((plugin.loadContent as () => unknown)()).toEqual({
+      componentPages: [
+        {
+          key: 'redoc',
+          match: 'boolean',
+          component: '@theme/ApiFramePage',
+          props: { namespace: '@show-docs/docusaurus-theme-redoc' },
+        },
+      ],
+    });
   });
 });

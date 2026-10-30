@@ -8,14 +8,14 @@
 
 ## 组成
 
-| 文件                                 | 编译吗              | 职责                                                                                                                                                                                                                                                                    |
-| ------------------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                      | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/stoplight-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它，干两件事（把 Elements 那份 css 拆成独立产物 + 补浏览器 bundle 缺的 Node 侧依赖） |
-| `theme/StoplightPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`StoplightUI`（`loadView` 按需取，见「首屏不下载渲染器」）、亮暗的属性名；本包的 CSS 跟着 `stoplight-ui.tsx` 走（产物上仍与入口同一个 chunk，见「首屏不下载渲染器」）           |
-| `components/stoplight-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `API`（只收地址那一种入参），外面套 `HashRouter`；`LocationMirror` 把路由变化报给外层；那条 `<link>` 挂 Elements 的样式表                                                                                                                                  |
-| `components/stoplight-color-mode.ts` | ❌ 站点编译         | 只有一行：框内那份文档 `<html>` 上代表亮暗的那条属性名。单独一份是为了让框内页面拿得到它却碰不到 Elements（见「首屏不下载渲染器」）                                                                                                                                     |
-| `components/stoplight-ui.css`        | ❌ 站点编译         | 生效在框内那一页：给 `.stoplight-root` 定高、把站点主题加在 Elements 子树上的几处默认样式还原、收掉署名与那颗发送按钮、滚动条配色沿用站点                                                                                                                               |
-| `tsconfig.build.json`                | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                  |
+| 文件                                 | 编译吗              | 职责                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                      | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`loadContent()` 交回本包那一页、`/stoplight-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它，干两件事（把 Elements 那份 css 拆成独立产物 + 补浏览器 bundle 缺的 Node 侧依赖） |
+| `theme/StoplightPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`StoplightUI`（`loadView` 按需取，见「首屏不下载渲染器」）、亮暗的属性名；本包的 CSS 跟着 `stoplight-ui.tsx` 走（产物上仍与入口同一个 chunk，见「首屏不下载渲染器」）                                           |
+| `components/stoplight-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `API`（只收地址那一种入参），外面套 `HashRouter`；`LocationMirror` 把路由变化报给外层；那条 `<link>` 挂 Elements 的样式表                                                                                                                                                                  |
+| `components/stoplight-color-mode.ts` | ❌ 站点编译         | 只有一行：框内那份文档 `<html>` 上代表亮暗的那条属性名。单独一份是为了让框内页面拿得到它却碰不到 Elements（见「首屏不下载渲染器」）                                                                                                                                                                     |
+| `components/stoplight-ui.css`        | ❌ 站点编译         | 生效在框内那一页：给 `.stoplight-root` 定高、把站点主题加在 Elements 子树上的几处默认样式还原、收掉署名与那颗发送按钮、滚动条配色沿用站点                                                                                                                                                               |
+| `tsconfig.build.json`                | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                                                  |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -276,10 +276,9 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 
-`docusaurus.config.mjs` 的 `plugins` 里排在 iframe 之后、redoc 之前（这一条先后现在只影响
-`@theme/` 层栈的覆写关系；四把键的判定顺序在 theme-iframe 的注册表默认与站点覆盖里定，与它无关），
-站点根的 `package.json` 声明了 `"@show-docs/docusaurus-theme-stoplight": "workspace:^"`，
-本包把它声明在 `peerDependencies`（`"@show-docs/docusaurus-theme-iframe": "workspace:^"`，
+`docusaurus.config.mjs` 的 `plugins` 里排在 redoc 之后、iframe 之前（四把框键的判定先后 = 声明
+顺序），站点根的 `package.json` 声明了 `"@show-docs/docusaurus-theme-stoplight": "workspace:^"`，
+本包把 theme-iframe 与 theme-component-page 声明在 `peerDependencies`（各写 `workspace:^`，
 那份版本契约）。`pnpm build`、`pnpm verify:chain` 与
 `pnpm test:e2e` 都绿，层栈里能看到 `packages/theme-stoplight/theme`（只剩 `StoplightPage` 那一格）。
 

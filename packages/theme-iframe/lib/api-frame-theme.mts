@@ -3,9 +3,11 @@
 包名、产物目录与 webpack 差异来调它。
 
 它做三件事：`getThemePath()` 挂各包自己的层目录（里面只剩框内那条页面）、
-`contentLoaded` 按注册表把 `<route>` 页面注册上、其余一概不揽 —— webpack 的差异
-（Redoc 的 `worker_threads` 空模块、Elements 的样式表隔离与 polyfill）由调用方经
-`configureWebpack` 自己传，本工厂只负责把它接进 Plugin 形状。
+`loadContent()` 把本包那一页交给 component-page（三条 API 层因此在各包自己的
+`loadContent()` 里自注册，不必由 theme-iframe 扫站点清单替它们算）、`contentLoaded` 按注册表
+把 `<route>` 页面注册上，其余一概不揽 —— webpack 的差异（Redoc 的 `worker_threads` 空模块、
+Elements 的样式表隔离与 polyfill）由调用方经 `configureWebpack` 自己传，本工厂只负责把它接进
+Plugin 形状。
 
 **配置期代码**：跑在 Node 里（jiti 直接吃这份 `.mts` 源码，扩展名按上游 lint preset 的口径
 标 Node 环境），不引 React、不引 DOM，
@@ -16,11 +18,14 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
+
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 // 安装前提那一份住在 `src/`（入口与它同处 `tsc` 的 `rootDir`），这里走相对路径取源码：
 // `lib/` 不归本包编译，指向哪一份 `.ts` 都行；别的主题层则按包出口 `./prerequisites` 引
 // 编好的那一份。包发布时 `src/prerequisites.mts` 随 `files` 一起发（与注册表同一口径）。
+import { framePageOf } from '../src/component-pages.mts';
 import { assertThemePrerequisites } from '../src/prerequisites.mts';
 
 import {
@@ -70,9 +75,19 @@ export function createApiFrameTheme(
   return {
     name: namespace,
     loadContent() {
-      // 本层注册的框内页面与 `@theme-prev/*` 都依赖解析器；外层框则由 theme-iframe 提供。
-      // 缺任何一个都在这里点名，而不是让 webpack 在某个页面文件上抛。
-      assertThemePrerequisites(context, { namespace, iframe: true });
+      // 本层注册的框内页面与 `@theme-prev/*` 都依赖解析器；外层框则由 theme-iframe 提供，
+      // 交出的那一页要由 component-page 挂上来。缺任何一个都在这里点名，而不是让 webpack
+      // 在某个页面文件上抛、或让那一页安静地不出现。
+      assertThemePrerequisites(context, {
+        namespace,
+        iframe: true,
+        componentPage: true,
+      });
+
+      // 本包自己那一页：键、判法与命名空间都跟着注册表那条 `internal` 条目走。
+      return {
+        componentPages: [framePageOf(view)],
+      } satisfies ComponentPageContent;
     },
     // 主题层与 `components/` 是源码，站在包根上，不经 tsc：由用它们的站点编译。
     getThemePath() {

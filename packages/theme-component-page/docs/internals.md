@@ -64,7 +64,10 @@
 ## 判据住在哪一份
 
 - 条目形状与命中判据、落空告警：`lib/component-page.ts`。配置期与浏览器期引同一份，
-  于是 `match` 那四种判法只写一次。
+  于是 `match` 那四种判法只写一次。判据读的是 `ComponentPageFacts` 那两份事实
+  （`frontMatter` 与 MDX 模块 `content`）：同名键先看 frontmatter，那里没有才看模块上的
+  命名导出，**没有回落**；`theme/DocItem` 只负责把这两份传给 `matchComponentPage()`，
+  自己不看键。loader 追加的 `export const`（`theme-erd` 的 `dbml_json`）就是从第二条进判据的。
 - 交进组件的入参怎么组装：同一份 `lib/` 里的 `componentPageProps()`。配置里 `props` 那格垫底，
   本页那三份（`frontMatter` / `value` / `content`）盖在上面 —— **同名的键以那三份为准**，
   因为那一格是每一页共用的入参，不该盖掉本页的事实。次序写在这里而不是 `theme/DocItem` 的
@@ -75,6 +78,9 @@
   那份名单是**从装的这个 Docusaurus 里抄来的**，所以由一条测试对回原处
   （`test/component-page-config.test.mts` 读 `@docusaurus/plugin-content-docs/lib/frontMatter.js`
   的 `DocFrontMatterSchema.describe().keys`）：升级后官方多一把键名，那条先红。
+  同一格还挡 Docusaurus 给每份 MDX 模块注入的那五个导出名（`RESERVED_EXPORT_KEYS`：
+  `frontMatter` / `contentTitle` / `toc` / `metadata` / `assets`）—— 判据现在也读模块上的同名
+  导出，这五个几乎每一页都有，按 `match: 'any'` 判就是每一页都命中。
   `props` 那一格判到底（`assertPureData()`）：
   串 / 数 / 布尔 / `null` / 普通对象 / 数组以外的一切都红在配置加载那一句，消息点名到
   `pages[0].props.filters[1].on` 那种完整路径。判到底的理由是这一格的产物走 JSON 写法，
@@ -125,24 +131,28 @@
 
 ## 与 `theme-iframe` 那一族的边界
 
-`theme-iframe` 自己那份清单**硬编码在它包里**（`src/api-frame-registry.ts`），但它不再自己判：
-它在 `loadContent()` 里通过本包的约定交回装了的那几层各一页，组件是它自己的
-`@theme/ApiFramePage`，`props.namespace` 说明赢的是哪一条。于是：
+`theme-iframe` 自己那份清单**硬编码在它包里**（`src/api-frame-registry.ts`），但它不再自己判，
+也不替三条 API 层交页：每条层在自己的 `loadContent()` 里交回自己那一页（三条 API 层经
+`lib/api-frame-theme.mts` 的工厂代交），组件是它自己的 `@theme/ApiFramePage`，
+`props.namespace` 说明赢的是哪一条。于是：
 
 - 本包仍然不认得那四把键：交给它的就是普通的 `ComponentPageDeclaration`；
-- 「哪一层装了」「默认顺序」「站点覆盖」都在交出方算（`src/api-frame-contribute.mts`），
-  本包只管自己那四条合成规则（站点排前面 / 同键站点赢并留提示 / `component: false` 关掉 /
-  两包抢同一把键直接红）；
+- 「哪一层装了」「谁先判」都不用本包算：没装的包不会跑 `loadContent()`、自然不交页；清单顺序 =
+  站点 `plugins` 的声明顺序；站点覆写仍走本包自己的四条合成规则（站点排前面 / 同键站点赢并留
+  提示 / `component: false` 关掉 / 两包抢同一把键直接红）；
 - 框内那条路由、`oas3:` / `aas3:` 那些 spec 键、`<iframe>` 的尺寸与消息循环仍然住在它自己
   包里，机制层一概不认。
 
-`theme-markmap` 与 `theme-diff` 是这张清单上另外两个交出方，走的还是同一条约定：入口的
-`loadContent()` 各交回一条 —— `{ key: 'markmap', match: 'options', component: '@theme/MarkmapPage' }`
-与 `{ key: 'diff', match: 'any', component: '@theme/DiffPage' }`。前者「开着、选项写在键里」，
-由 `options` 判法原样交给它自己的页面组件；后者那把键三种写法各有含义（`true` 比本文自己、
+`theme-markmap`、`theme-erd` 与 `theme-diff` 是这张清单上另外三个交出方，走的还是同一条约定：
+入口的 `loadContent()` 各交回一条 —— `{ key: 'markmap', match: 'options', component: '@theme/MarkmapPage' }`、
+`{ key: 'dbml_json', match: 'any', component: '@theme/ErdPage' }` 与
+`{ key: 'diff', match: 'any', component: '@theme/DiffPage' }`。`markmap` 是「开着、选项写在键里」，
+由 `options` 判法原样交给它自己的页面组件；`dbml_json` 那把键**不写在 frontmatter 里** ——
+它是 `theme-erd` 的 loader 给 `.dbml` 页追加的 `export const`，判据读模块导出那一处才命中，
+值是一份模型对象，`any` 原样交过去；`diff` 那把键三种写法各有含义（`true` 比本文自己、
 路径比那一份、`{ old, new }` 比磁盘上那两份），所以用 `any` 把写下的那一格原样交过去
-（口径在各自的 `src/component-pages.mts`）。三个交出方都只交条目、不碰本层的合成规则；
-本层也仍然不认得 `markmap` / `diff` 那几把键。
+（口径在各自的 `src/component-pages.mts`）。四个交出方都只交条目、不碰本层的合成规则；
+本层也仍然不认得 `markmap` / `dbml_json` / `diff` 那几把键。
 
 本包在 `src/index.mts` 里只跑**一条**前置检查：解析器插件在不在那两份清单里，走的是那个包自己
 发出来的 `assertPrevLayerResolverInstalled()`（`@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots`）。
@@ -160,13 +170,13 @@
 那条口径记在 [`theme-iframe` 的协议文档](../../theme-iframe/docs/iframe-protocol.md)里）；
 换个位置放就换个先后，机制本身不管这件事。
 
-**在最外的那一格因此遮住下面各层的 `DocItem`**：一页同时写中本层的键和下面某条视图层的键时，
-本层的组件赢，那条视图层的 `DocItem` 根本不会被走到、它的告警也不会打（`theme-erd` 仍属于
-这一类）。两层互不认识，谁也报不了这条冲突，所以顺序是站点作者的判据。
-`theme-iframe` 那四条框键与 `theme-markmap` / `theme-diff` 交的 `markmap` / `diff` 不再有这个问题 ——
-它们本来就在本层的清单里，命中后分别由 `ApiFramePage` / `MarkmapPage` / `DiffPage` 渲染
-（一页只交出一个组件这一点没变：本层清单里排前面的那条赢，所以一页同时写了 `markmap:` 与
-某把框键时也只挂其中一个）。
+**在最外的那一格因此遮住下面各层的 `DocItem`**：一页同时写中本层的键和下面某一层的键时，
+本层的组件赢，那一层的 `DocItem` 根本不会被走到、它的告警也不会打（站点自己覆盖
+`src/theme/DocItem` 时就是这一类）。两层互不认识，谁也报不了这条冲突，所以顺序是站点作者的判据。
+`theme-iframe` 那一族的四条框键（四条层各交一条）与 `theme-markmap` / `theme-erd` / `theme-diff` 交的
+`markmap` / `dbml_json` / `diff` 不再有这个问题 —— 它们本来就在本层的清单里，命中后分别由
+`ApiFramePage` / `MarkmapPage` / `ErdPage` / `DiffPage` 渲染（一页只交出一个组件这一点没变：
+本层清单里排前面的那条赢，所以一页同时写了 `markmap:` 与某把框键时也只挂其中一个）。
 
 ## 失败模式与落点
 
@@ -174,6 +184,7 @@
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | 清单形状写歪                                                         | 配置加载那一步红，消息带 `pages[下标].哪一格`                              |
 | `key` 用了官方文档页 frontmatter 的那一把键名                        | 配置加载那一步红，点名那一格与该键名                                       |
+| `key` 用了 Docusaurus 注入的那五个模块导出名                         | 同上（`RESERVED_EXPORT_KEYS` 那一条）                                      |
 | 两条用了同一把键                                                     | 同上（`seen` 那一条）                                                      |
 | `component` 指到别名表认不出的地方                                   | 打包那一步 `Module not found`；生成文件里那条 `import` 上面有出处          |
 | `props` 深处不是纯数据（函数、`undefined`、`NaN`、`Date`、循环引用） | 配置加载那一步红，消息带完整路径 `pages[0].props.a.b`                      |

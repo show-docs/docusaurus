@@ -130,7 +130,7 @@ export const FOO_COMPONENT_PAGES = [...fooPageRules, ...fooErrorPageRules];
   那件事搬到这里。
 - **本包 `contentLoaded`**：删掉，没有第二件事。
 - **浏览器**：`theme/DocItem` 静态 import 注册表，命中即
-  `<page.Component {...componentPageProps(...)} />`，否则 `@theme-prev/DocItem`。
+  `<page.Component {...componentPageProps(...)} />`，否则 `@theme-init/DocItem`。
 
 为什么不能放工厂：工厂会被解析器的 `PluginDiscovery` 再跑一次
 （`plugin-prev-layer-resolver/src/plugins.mts`），写盘会删掉自己的产物。
@@ -146,7 +146,7 @@ dev：改贡献方的规则文件触发整站重载，或（若它把它声明�
 
 判定注册表、整页替换只发生在本包这一层；`theme-diff` 的 `DiffPage` 与 `theme-erd` 那份
 `DocItem` 是**包裹**（在正文上方加一个兄弟视图），不判命中，不在「谁替换」之列 —— 前者已经
-是清单上的一页，后者仍靠层栈覆盖。
+是清单上的一页，后者仍靠层栈覆盖（后来也迁到了清单上，见 `proposal-export-match.md`）。
 
 组件收到 `{ ...配置 props, frontMatter, value, content }`，与它是不是 DocItem 无关（目标 2）。
 命中时本层不再往下走，会丢掉 `DocItem` 内部那层壳 —— 这条两版都有，记在「代价」最后一节。
@@ -202,6 +202,12 @@ preset 能做的只有**打包**：把解析器与某一整套层栈装成一个
 既然解析器无论如何都得装，`@theme-prev/DocItem` 就不增加任何额外依赖，只是让落空那一跳
 接到**真正的下一层**。结论：保持 `@theme-prev`；要做的是「组件不许是 `DocItem`」那条校验，
 不是换 specifier。
+
+> **后来（2026-10-30）**：`theme-erd` 也迁到了这份清单上（见
+> [`proposal-export-match.md`](./proposal-export-match.md)），component-page 成了仓库里唯一
+> 提供 `DocItem` 的一层。按仓库规则 10，落空那一跳与三页里的 `DocItem` 都改成了
+> `@theme-init/DocItem`。上面那三个前提里，「解析器照旧要装」「迁移本身不减少依赖」仍然成立，
+> 变的是「本层下面还有别的提供者」这一条 —— 所以当时那句「保持 `@theme-prev`」到此作废。
 
 ### 注入点提到 DocItem 的父组件
 
@@ -270,7 +276,7 @@ DocVersionRoot
   「开关本身还能写参数」的形状，`boolean` / `value` / `options` 各自都盖不全。
 - `theme/DocItem/index.tsx` 换成 `theme/DiffPage/index.tsx`：外壳、`lazy`、本层说法原样，
   只把「正文从哪来」换成 component-page 交进来的 `content`，正文由这一页自己转给
-  `@theme-prev/DocItem`（与 markmap 同一形态）。
+  `@theme-init/DocItem`（与 markmap 同一形态）。
 - `src/index.mts`：`loadContent()` 里补前提断言（theme-iframe 的共享外壳 + 本包的清单），
   交回上面那份；`theme/DocItem` 那一份删掉。
 - `package.json`：peer 依赖加本包。
@@ -360,19 +366,19 @@ DocVersionRoot
 
 逐条过了一遍边界与代价，编号与前面各节的称呼对得上。
 
-| #   | 取舍                                                                    | 结论 | 依据 / 备注                                                                 |
-| --- | ----------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------- |
-| D1  | 发现通道 = `loadContent` → `allContent` → `allContentLoaded`            | 采用 | 唯一跨插件屏障；覆盖 preset / 相对路径 / 内联；不用二次实例化、不用跨包解析 |
-| D2  | 把本包做成 preset                                                       | 否   | preset 排在最前 = 主题层最内层，`DocItem` 会被盖掉；也拿不到插件实例        |
-| D3  | 运行时自注册（`getClientModules` / 注入脚本）                           | 否   | 校验挪出配置期；注册表成模块级全局状态                                      |
-| D4  | 落空那一跳改用 `@theme-init/DocItem`                                    | 否   | 迁移不会减少依赖；解析器仍要装；对发布出去的包不可证明                      |
-| D5  | 注入点提到 `DocRoot`                                                    | 否   | 信息最少、职责最多；丢壳不会因此消失                                        |
-| B3  | 规则在配置期求值，`options` 是原始值                                    | 接受 | 包自己按需防御；iframe 的 `order` 就是这样取的                              |
-| B4  | 组件名拼错在构建期才报                                                  | 接受 | 与官方 `docItemComponent` 同一条边界                                        |
-| C1  | 命中即整页替换，`DocProvider` / 标题 / 面包屑 / 翻页 / 右侧目录一并丢掉 | 接受 | 语义使然，与注入点无关，两版一致                                            |
-| C2  | 站点必须把本包放在主题层最外层，否则静默落空                            | 接受 | 写进 README 作为结构前提；放错时没有任何报错可给                            |
-| C3  | `component` 不许写成 `@theme/DocItem`（自引用会递归）                   | 接受 | 配置期直接红，报条目下标与键                                                |
-| C4  | 解析器包仍是安装前提                                                    | 接受 | 别名 + 未编译 TS 的 babel 规则，两件事都靠它                                |
+| #   | 取舍                                                                    | 结论     | 依据 / 备注                                                                                            |
+| --- | ----------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| D1  | 发现通道 = `loadContent` → `allContent` → `allContentLoaded`            | 采用     | 唯一跨插件屏障；覆盖 preset / 相对路径 / 内联；不用二次实例化、不用跨包解析                            |
+| D2  | 把本包做成 preset                                                       | 否       | preset 排在最前 = 主题层最内层，`DocItem` 会被盖掉；也拿不到插件实例                                   |
+| D3  | 运行时自注册（`getClientModules` / 注入脚本）                           | 否       | 校验挪出配置期；注册表成模块级全局状态                                                                 |
+| D4  | 落空那一跳改用 `@theme-init/DocItem`                                    | 后来采用 | erd 迁走后本层是唯一的 `DocItem` 提供者，规则 10 要求改用（2026-10-30，见 `proposal-export-match.md`） |
+| D5  | 注入点提到 `DocRoot`                                                    | 否       | 信息最少、职责最多；丢壳不会因此消失                                                                   |
+| B3  | 规则在配置期求值，`options` 是原始值                                    | 接受     | 包自己按需防御；iframe 的 `order` 就是这样取的                                                         |
+| B4  | 组件名拼错在构建期才报                                                  | 接受     | 与官方 `docItemComponent` 同一条边界                                                                   |
+| C1  | 命中即整页替换，`DocProvider` / 标题 / 面包屑 / 翻页 / 右侧目录一并丢掉 | 接受     | 语义使然，与注入点无关，两版一致                                                                       |
+| C2  | 站点必须把本包放在主题层最外层，否则静默落空                            | 接受     | 写进 README 作为结构前提；放错时没有任何报错可给                                                       |
+| C3  | `component` 不许写成 `@theme/DocItem`（自引用会递归）                   | 接受     | 配置期直接红，报条目下标与键                                                                           |
+| C4  | 解析器包仍是安装前提                                                    | 接受     | 别名 + 未编译 TS 的 babel 规则，两件事都靠它                                                           |
 
 早先待定的 B1（发现范围只覆盖裸包名）与 B2（一个包能有几个发现点）由 D1 一并消解：
 前者是 `allContent` 的覆盖面，后者在「交回的是一列」之下没有这个维度。

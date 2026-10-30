@@ -3,16 +3,16 @@
 
 ## 这一份现在只剩「一页」的事
 
-「哪几层参与判定、按什么顺序」已经搬到配置期：本包把装了的层按注册表顺序交给
-`@show-docs/docusaurus-theme-component-page`（见 `api-frame-contribute.mts`），由那份生成的清单
-决定哪一层接管这一页；本层只提供 `theme/ApiFramePage` 那个组件，命中后它从入参里拿到赢的
-那一层的命名空间。所以这里不再读 `siteConfig.plugins`，也不再有一套自己的「装机过滤 + 覆盖
-清单」—— 那两件事现在由 component-page 的清单与站点的 `pages` 说了算。
+「哪几层参与判定、按什么顺序」现在由各包自己的 `loadContent()` 交页决定：本包交 `iframe:`
+那一页，三条 API 层由工厂代交；component-page 按站点 `plugins` 的声明顺序接清单，排在前面那条
+接管。本层只提供 `theme/ApiFramePage` 那个组件，命中后它从入参里拿到赢的那一层的命名空间。
+所以这里不再读 `siteConfig.plugins`，也没有自己的「装机过滤 + 覆盖清单」—— 那两件事现在由
+component-page 的清单与站点的 `pages` 说了算。
 
 剩下两件都在这一页之内：
 
 - 内层（三条 API 层）交出的键只说明「用这一层渲染」，要渲染的文档地址另由 spec 键
-  （`oas3:` / `aas3:`）给，这里按注册表顺序取第一把非空值；
+  （`oas3:` / `aas3:`）给，这里按条目里 spec 键的先后取第一把非空值；
 - 写了布尔键却没给地址、或两把 spec 键同时写 —— 框出不来、或只用了其中一把，开发模式要说。
   「布尔键写成了别的形状」不再由这里报：component-page 那把通用告警对同一把键、同一个判法
   已经说过一次（`lib/component-page.ts` 的 `componentPageWarnings()`）。
@@ -82,7 +82,7 @@ function specKeyLabels(entry: ApiFrameEntryInternal): string {
 命中是 component-page 判的（**这一页归了本层**），所以这里不再问「装了没有」；只剩两件：
 
 - 内层写了布尔键却没给 spec 地址 —— 框里没有可渲染的文档，组件会交回普通文档页，不能静默；
-- 两把 spec 键同时写 —— 只用注册表顺序里的前一把，通常是手误。
+- 两把 spec 键同时写 —— 只用条目里排在前面的那一把，通常是手误。
 
 页面地址带在每条里：同一毛病的两页各打一条，不带地址就会把后面那页吞掉。
 */
@@ -106,7 +106,7 @@ export function framePageWarnings(
 
   return otherSpecs.length > 0
     ? [
-        `${page} 的 spec 键写了不止一把（${specKeyLabels(entry)}），按注册表顺序只用 \`${spec.key}:\` 给的地址，其余被忽略 —— 两把都写通常是手误。`,
+        `${page} 的 spec 键写了不止一把（${specKeyLabels(entry)}），按 spec 键的先后只用 \`${spec.key}:\` 给的地址，其余被忽略 —— 两把都写通常是手误。`,
       ]
     : [];
 }

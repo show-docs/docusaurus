@@ -149,13 +149,14 @@ console.log(`
 `);
 
 // ---- 3. 「整页交给一个组件」的那几页真的由 `loadContent()` 交进了 component-page 的清单 ----
-// 判定住在各交出方：iframe 那族（`packages/theme-iframe/src/api-frame-contribute.mts`）把装了
-// 的那几层各交出一页，`component` 全是本包的 `@theme/ApiFramePage`，顺序 = 注册表顺序
+// 判定住在各交出方：iframe 那族的三条 API 层（`lib/api-frame-theme.mts` 的工厂代它们交）与本层
+// 各交自己那一页，`component` 全是 `@theme/ApiFramePage`，顺序 = 站点 `plugins` 的声明顺序
 // （命中优先级）；`theme-markmap` 交那一页 `markmap`（`src/component-pages.mts`），组件是
 // `@theme/MarkmapPage`；`theme-diff` 交那一页 `diff`（同样在 `src/component-pages.mts`），
-// 组件是 `@theme/DiffPage`。浏览器侧不再读 `siteConfig.plugins`，所以这里看的是 component-page
-// 那份生成模块，而不是生成的浏览器配置。这一条同时钉住「本站按包名声明的那几条真的被认成了
-// 装了」——认槽位读的是站点配置的原始 `plugins` / `themes`，形状变了或某一层没声明，清单里就少一条。
+// 组件是 `@theme/DiffPage`；`theme-erd` 交的是 `dbml_json`（`dbml-loader` 追加的那条命名导出，
+// 名字与清单里那把键一致），组件是 `@theme/ErdPage`。浏览器侧不再读 `siteConfig.plugins`，
+// 所以这里看的是 component-page 那份生成模块，而不是生成的浏览器配置。这一条同时钉住「本站
+// 声明的那几条真的被各包交了出来」——哪一层没声明或没交，清单里就少一条。
 const FRAME_KEYS = ['scalar', 'redoc', 'stoplight', 'iframe'];
 const FRAME_MATCHES = ['boolean', 'boolean', 'boolean', 'value'];
 const registryFile = path.join(
@@ -198,10 +199,10 @@ if (fs.existsSync(registryFile)) {
   );
   if (!keysOk) {
     console.log(
-      `   → 期望 ${FRAME_KEYS.join(' > ')}：注册表顺序，且每一条都指向 \`@theme/ApiFramePage\`。`,
+      `   → 期望 ${FRAME_KEYS.join(' > ')}：站点 \`plugins\` 的声明顺序，且每一条都指向 \`@theme/ApiFramePage\`。`,
     );
     console.log(
-      '      少了哪一条，先看站点 `plugins` 里那一层还在不在；判定与过滤住在 packages/theme-iframe/src/api-frame-contribute.mts。',
+      '      少了哪一条，先看站点 `plugins` 里那一层还在不在；三条 API 层由工厂代交，`iframe:` 由 theme-iframe 自己交。',
     );
     isOk = false;
   }
@@ -223,10 +224,12 @@ if (fs.existsSync(registryFile)) {
   }
   isOk &&= shapesOk;
 
-  // 两处视图层：`markmap` 按「开关或选项对象」判，`diff` 按「开关还能写参数」判（`true` /
-  // 路径 / `{ old, new }` 都算命中），命中的页各由本包的页面组件接。
+  // 三处视图层：`markmap` 按「开关或选项对象」判，`diff` 按「开关还能写参数」判（`true` /
+  // 路径 / `{ old, new }` 都算命中），`dbml_json` 是 erd 的 loader 追加的那条导出（恒是对象）。
+  // 命中的页各由本包的页面组件接。
   const viewPages = [
     { key: 'markmap', match: 'options', specifier: '@theme/MarkmapPage' },
+    { key: 'dbml_json', match: 'any', specifier: '@theme/ErdPage' },
     { key: 'diff', match: 'any', specifier: '@theme/DiffPage' },
   ];
   for (const page of viewPages) {
@@ -240,10 +243,10 @@ if (fs.existsSync(registryFile)) {
       continue;
     }
     console.log(
-      `      → 期望 match=${page.match} 且指向 \`${page.specifier}\`：站点 \`plugins\` 里还该有 theme-${page.key}，`,
+      `      → 期望 match=${page.match} 且指向 \`${page.specifier}\`：站点 \`plugins\` 里还该有交出它的那一层，`,
     );
     console.log(
-      `        条目由 packages/theme-${page.key}/src/component-pages.mts 交出。`,
+      `        条目由各包 src/component-pages.mts 交回 component-page 的清单。`,
     );
     isOk = false;
   }

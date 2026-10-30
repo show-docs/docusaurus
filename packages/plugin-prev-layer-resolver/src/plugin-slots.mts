@@ -7,9 +7,9 @@
 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，于是任何想用它的层都得先引那一族层，
 连带把「装了 theme-iframe」变成自己的安装前提 —— 而真正的前提只有这一个包。
 
-这一份是**纯函数**：不引 `node:*`、不引 React、不引 DOM，也不引 core。它因此既能被配置期
-（Node，jiti 直接吃）引，也能被浏览器侧那份装机判定引 —— 两处读的是同一份判据，不存在
-「装机判定认路径、前置检查只认包名」那种不对称。
+这一份是**纯函数**：不引 `node:*`、不引 React、不引 DOM，也不引 core。读者都在配置期
+（Node，jiti 直接吃）：各层 `loadContent()` 里那句「前置插件在不在」。纯函数也让判据本身
+能在单测里直接钉，不必先建一个站点。
 */
 
 /** 本包的包名 = 站点 `plugins` 里那一项的名字。 */
@@ -51,7 +51,7 @@ export function pluginSlotName(slot: unknown): string | undefined {
 /**
 一个槽位的名格是不是这条层：裸包名相等，或**该包目录内任何入口**的绝对路径
 （`docusaurus-theme-x` 与去前缀的 `theme-x` 两种目录段都认 —— 按包目录认，不钉具体
-入口文件名；钉文件名会把「产物改名」变成静默失效）。装机判定与覆盖槽位识别共用这一条。
+入口文件名；钉文件名会把「产物改名」变成静默失效）。各层的前置检查共用这一条。
 */
 export function slotIsNamespace(name: string, namespace: string): boolean {
   if (name === namespace) {
@@ -72,7 +72,7 @@ export function slotIsNamespace(name: string, namespace: string): boolean {
 
 /**
 两份清单里每个槽位的名字，合起来按声明顺序报名字（认不出的槽位直接略过）。
-装机判定与前置检查共用这一条，免得两边各写一套「四种写法怎么认」。
+前置检查与单测共用这一条，免得两边各写一套「四种写法怎么认」。
 */
 export function declaredNamespaces(declared: PluginSlots): string[] {
   return [...(declared.plugins ?? []), ...(declared.themes ?? [])]

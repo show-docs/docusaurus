@@ -11,8 +11,8 @@ oas3: /openapi-stoplight.yaml
 
 # API 文档示例
 
-下面这些正文在渲染后的页面上**看不到**：theme-iframe 在自己 `loadContent()` 里交给 theme-component-page 的那份清单
-命中 `stoplight` 时，这一页的整个 `DocItem` 换成 theme-iframe 的 `theme/ApiFramePage`，
+下面这些正文在渲染后的页面上**看不到**：theme-stoplight 在自己的 `loadContent()` 里把 `stoplight` 那一页交给 theme-component-page，
+命中时这一页的整个 `DocItem` 换成 theme-iframe 的 `theme/ApiFramePage`，
 整页换成一个 iframe，所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
 - 取的是 `static/openapi-stoplight.yaml`（构建产物里的 `/openapi-stoplight.yaml`）：frontmatter 的

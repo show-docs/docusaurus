@@ -29,7 +29,7 @@ describe('api-frame-registry：这一族清单的形状不变量', () => {
     expect('specFrontmatterKeys' in (external ?? {})).toBe(false);
   });
 
-  it('三条 internal 占前三、iframe 那条 external 排在最后（默认优先级就靠这个排列）', () => {
+  it('三条 internal 在前、iframe 那条 external 在最后（只是清单的阅读顺序，先后看站点 plugins）', () => {
     const kinds = apiFrameEntriesOrdered().map((e) => e.kind);
     expect(kinds).toEqual(['internal', 'internal', 'internal', 'external']);
   });

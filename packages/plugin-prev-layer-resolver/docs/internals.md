@@ -172,14 +172,13 @@ export default {
 这一个。搬过来之后，`theme-iframe` 那条继续由它的 `src/prerequisites.mts` 转调（它另外两条检查确实
 属于那一族层），不依赖那一族的层（如 `theme-component-page`）直接引这一份。
 
-**为什么是纯函数、为什么单开一条 `./plugin-slots` 出口**：读者有两处，一处在配置期（Node，
-jiti 直接吃 `dist/`），另一处在浏览器里（`theme-iframe/lib/api-frame-entries.ts` 那份装机判定，
-读的是 Docusaurus 序列化进浏览器配置的**原始**那两份清单）。包根本机会引 `node:*` 与 webpack，
-浏览器侧引它会把这些一起拖进 bundle，所以走一条只含这个文件的子路径。两处读同一份判据，
-因此不存在「装机判定认路径、前置检查只认包名」那种不对称。
+**为什么是纯函数、为什么单开一条 `./plugin-slots` 出口**：读者都在配置期（Node，jiti 直接吃
+`dist/`）—— 各层 `loadContent()` 里那句「前置插件在不在」。包根本机会引 `node:*` 与 webpack，
+配置期读者不该为此多背依赖，所以走一条只含这个文件的子路径；纯函数也让判据能在单测里直接钉，
+不必先建一个站点。
 
-判据本身的用例在 `test/plugin-slots.test.mts`；`test/api-frame-entries.test.mts` 与
-`test/prerequisites.test.mts` 从两侧再各跑一遍真实形状（路径写法、`themes` 那份清单）。
+判据本身的用例在 `test/plugin-slots.test.mts`；`test/prerequisites.test.mts` 再从调用方那一侧
+跑一遍真实形状（路径写法、`themes` 那份清单）。
 
 ## 输入处理：`@theme-prev/<rest>` 怎么切、怎么校验
 

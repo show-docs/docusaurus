@@ -7,14 +7,20 @@
 记在那份的头上）。这一份只放函数与转出的类型：不引 React、不引 DOM，和
 `theme-iframe/src/api-frame-registry.ts` 同一个约束（配置期那份类型检查没有 DOM）。
 
+**值有两处来源**：作者写在 frontmatter 里的那一格，以及 MDX 模块上的同名命名导出
+（`dbml_json` 这种编译期由 loader 产出的值由 `ComponentCreator` 挂到 default 组件上）。
+两处同名时 frontmatter 赢 —— 那是手写的那一格，导出是编译产物。**判法只有一种**：写在哪一份
+不影响 `match` 的语义，所以清单不必为「信号从哪来」多写一格。
+
 清单的**顺序 = 优先级**：一页同时写中两条键时，排在前面那条赢（和那族 iframe 框同一口径）。
 这一族没有「装没装」那一格 —— 清单由站点与交出条目的包给，本包装了整列才参与判定；
-「哪一层装了才交页」是交出方的事（`theme-iframe` 在 `src/api-frame-contribute.mts` 里做），
+「哪一层装了才交页」是交出方的事（各包在自己的 `loadContent()` 里交，没装的包不会跑它），
 机制层只看键写没写、写得对不对形状。
 */
 
 import type {
   ComponentPageEntry,
+  ComponentPageFacts,
   ComponentPageMatch,
   ComponentPageProps,
   ComponentPageValue,
@@ -24,10 +30,38 @@ export type {
   ComponentPageContent,
   ComponentPageDeclaration,
   ComponentPageEntry,
+  ComponentPageFacts,
   ComponentPageMatch,
   ComponentPageProps,
   ComponentPageValue,
 } from '../types/component-page.ts';
+
+/**
+这一页上那把键写下的东西：先 frontmatter 的自有键，再 MDX 模块的自有键，都没有算没写。
+
+两处都走 `Object.hasOwn`：原型上摸得到的名字（`toString` / `constructor`）不算「写了这一格」，
+否则一把顺便撞上的键名会在每一页都命中。模块那一侧不是对象 / 函数时（非文档页）直接算没写。
+*/
+function writtenValue(
+  key: string,
+  { frontMatter, content }: ComponentPageFacts,
+): unknown {
+  if (frontMatter !== undefined && Object.hasOwn(frontMatter, key)) {
+    return frontMatter[key];
+  }
+
+  if (
+    content === null ||
+    content === undefined ||
+    (typeof content !== 'object' && typeof content !== 'function')
+  ) {
+    return undefined;
+  }
+
+  return Object.hasOwn(content, key)
+    ? (content as Record<string, unknown>)[key]
+    : undefined;
+}
 
 /**
 这一条在某一页上命不命中：命中交回那把键写下的值，落空交回 `undefined`。
@@ -38,9 +72,9 @@ export type {
 */
 export function matchComponentPage(
   entry: ComponentPageEntry,
-  frontMatter: Record<string, unknown> | undefined,
+  facts: ComponentPageFacts,
 ): ComponentPageValue | undefined {
-  const written = frontMatter?.[entry.key];
+  const written = writtenValue(entry.key, facts);
 
   if (entry.match === 'value') {
     return typeof written === 'string' && written !== '' ? written : undefined;
@@ -108,14 +142,15 @@ function expectedShape(match: ComponentPageMatch): string {
 两种落空各给一条：
 
 - 键写了但形状不合判法（`boolean` 那条写了串文本、`value` 那条写了 `true`、`options` 那条
-  写了数组或 `null`、`any` 那条写了数字或数组）；
+  写了数组或 `null`、`any` 那条写了数字或数组）；两处来源一视同仁 —— 值从模块导出那份来的
+  也一样点名。
 - 清单里几条同时命中（通常是同一页上写了不止一把键），只用排在最前那条。
 
 页面地址带在每条里：同一毛病的两页各打一条，不带地址就会把后面那页吞掉。
 */
 export function componentPageWarnings(
   entries: readonly ComponentPageEntry[],
-  frontMatter: Record<string, unknown> | undefined,
+  facts: ComponentPageFacts,
   pagePath?: string,
 ): readonly string[] {
   const warnings: string[] = [];
@@ -123,11 +158,11 @@ export function componentPageWarnings(
   const hits: ComponentPageEntry[] = [];
 
   for (const entry of entries) {
-    if (frontMatter?.[entry.key] === undefined) {
+    if (writtenValue(entry.key, facts) === undefined) {
       continue;
     }
 
-    if (matchComponentPage(entry, frontMatter) === undefined) {
+    if (matchComponentPage(entry, facts) === undefined) {
       warnings.push(
         `${page} 写了 \`${entry.key}:\`，但清单里这一条按 \`${entry.match}\` 判，要的是${expectedShape(entry.match)}，这一条不参与，交回普通文档页。`,
       );

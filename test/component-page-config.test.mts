@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   normalizePages,
+  RESERVED_EXPORT_KEYS,
   RESERVED_FRONTMATTER_KEYS,
 } from '../packages/theme-component-page/src/config.mts';
 
@@ -126,6 +127,25 @@ describe('normalizePages：每一种写歪都点名到那一格', () => {
         ),
       );
     }
+  });
+
+  it('Docusaurus 给每份 MDX 模块注入的那五个导出名同样不许当键', () => {
+    // 判据除了 frontmatter 也读模块上的同名导出：拿 `metadata` 当键，`any` 会在整站每一页命中。
+    for (const key of RESERVED_EXPORT_KEYS) {
+      red(
+        [{ key, component: '@theme/A' }],
+        new RegExp(
+          String.raw`pages\[0\]\.key「${key}」是 Docusaurus 给每份 MDX 模块注入的导出名之一`,
+        ),
+      );
+    }
+
+    // 两份名单各管一处来源，不该重叠：叠上了报错就会指错那一句。
+    expect(
+      RESERVED_EXPORT_KEYS.filter((key) =>
+        RESERVED_FRONTMATTER_KEYS.includes(key),
+      ),
+    ).toEqual([]);
   });
 
   it('包交出的那一列撞了官方键名：报错点名到是哪个包', () => {

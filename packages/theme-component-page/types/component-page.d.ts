@@ -25,9 +25,12 @@
 */
 export type ComponentPageMatch = 'boolean' | 'value' | 'options' | 'any'
 
-/** 清单里的一条：一把 frontmatter 键 + 判法 + 给那个组件的静态入参。 */
+/** 清单里的一条：一把键 + 判法 + 给那个组件的静态入参。 */
 export type ComponentPageEntry = {
-  /** md frontmatter 里那条键名。 */
+  /**
+  那一把键的名字。判据按它读两处：先看这一页 frontmatter 里同名的键，没有再看 MDX 模块上
+  同名的命名导出（读法见下文的 `ComponentPageFacts`）。两处都没有 = 这一条不命中。
+  */
   key: string
   /** 这条键怎么算命中；缺它按 `boolean`（见 `src/config.mts` 的归一化）。 */
   match: ComponentPageMatch
@@ -42,6 +45,23 @@ export type ComponentPageEntry = {
 
 /** 命中那把键写下的值：`boolean` 恒为 `true`，`value` 是那串非空文本，`options` / `any` 是写下的那一格。 */
 export type ComponentPageValue = true | string | Record<string, unknown>
+
+/**
+判命中要看的那一页：两份事实，缺哪份都不影响另一份。
+
+- `frontMatter`：作者在文件头写下的那些键。
+- `content`：这一页 MDX 模块的 default 组件。Docusaurus 的 `ComponentCreator` 把每个非 `default`
+  的命名导出挂到它身上，所以 `content.dbml_json` 这种编译期由 loader 产出的值也在这里。
+
+**同名时 `frontMatter` 赢**：那是作者手写、看得见的一格，导出是编译产物。两处都没有才算没写。
+写在哪一份不影响判法，四种判法与形状门槛对两份一视同仁（`lib/component-page.ts`）。
+*/
+export type ComponentPageFacts = {
+  /** 这一页的 frontmatter 整份；非文档页可以缺席。 */
+  frontMatter?: Record<string, unknown>
+  /** 这一页的 MDX 模块（default 组件 + 挂在它身上的命名导出）；非文档页可以是任何东西。 */
+  content?: unknown
+}
 
 /**
 **配置里**写在一条条目上的形状：`ComponentPageEntry` 再多一格「命中后挂哪个组件」。

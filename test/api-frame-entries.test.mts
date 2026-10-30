@@ -20,8 +20,8 @@ const outer = apiFrameByNamespace(IFRAME)!;
 /**
 ## 一页上了框之后的那几格
 
-「这一页归哪一层」由 component-page 的清单判（`api-frame-contribute.test.mts` 钉交出什么），
-这里只剩页内的事：框里要渲染的地址从哪来、写歪了怎么提示。判据不引 React，单测与
+「这一页归哪一层」由 component-page 的清单判（各包交出的那一页由 `api-frame-pages.test.mts`
+钉形状），这里只剩页内的事：框里要渲染的地址从哪来、写歪了怎么提示。判据不引 React，单测与
 `theme/ApiFramePage` 引同一份。
 */
 
@@ -88,7 +88,7 @@ describe('framePageWarnings：框出不来、或用得不对劲时的说明', ()
 
     expect(rest).toEqual([]);
     expect(warning).toContain(
-      '/docs/a 的 spec 键写了不止一把（`oas3:` / `aas3:`），按注册表顺序只用 `oas3:`',
+      '/docs/a 的 spec 键写了不止一把（`oas3:` / `aas3:`），按 spec 键的先后只用 `oas3:`',
     );
     expect(warning).toContain('两把都写通常是手误');
   });

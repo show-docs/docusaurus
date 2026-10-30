@@ -9,9 +9,10 @@ node-bundle（没有 DOM）的类型检查。
 这一份住在 `src/`：入口要按它算接管清单，而入口过 `tsc`（`rootDir` 是 `src/`）；
 浏览器侧由站点编译，读的是这同一份源码（转出口在 `lib/api-frame-registry.ts`）。
 
-判定的先后 = 这份清单的顺序（**默认值**，站点可覆盖、没装的层不交 —— 那一步在
-`src/api-frame-contribute.mts`），语义与原层栈一致：越靠外的层先判自己的键。一页同写两把键时，
-排在前面那条赢。
+这一份只是族的**数据**清单，不再决定判定先后：装了哪几层、谁先判，现在由各包在自己的
+`loadContent()` 里交页的先后决定（`src/component-pages.mts` 交本层那条 `iframe:`，三条 API 层
+由 `lib/api-frame-theme.mts` 的工厂代交），也就是 component-page 那份清单的顺序 = 站点
+`plugins` 里的声明顺序，排在前面那条赢。
 
 键分两族：**四把匹配键**（`scalar` / `redoc` / `stoplight` / `iframe`；前三个是布尔，
 第四个是地址）与**两把 spec 键**（`oas3:` / `aas3:`，三条 API 层读同一组、按顺序取第一把
@@ -69,7 +70,16 @@ export type ApiFrameEntryExternal = ApiFrameEntryBase & {
 
 export type ApiFrameEntry = ApiFrameEntryInternal | ApiFrameEntryExternal;
 
-/** 这一族的清单（顺序 = 判定优先级，见文件头）。新增一条层的做法见 `docs/iframe-protocol.md`。 */
+/** `iframe:` 那一条：本层自己唯一要交的一页（`src/component-pages.mts` 与入口都读它）。 */
+export const IFRAME_ENTRY: ApiFrameEntryExternal = {
+  kind: 'external',
+  namespace: '@show-docs/docusaurus-theme-iframe',
+  frontmatterKey: 'iframe',
+  frameClass: 'iframe',
+  title: '其他文档',
+};
+
+/** 这一族的清单（只是数据；判定先后见文件头）。新增一条层的做法见 `docs/iframe-protocol.md`。 */
 const apiFrameEntries: readonly ApiFrameEntry[] = [
   {
     kind: 'internal',
@@ -104,16 +114,10 @@ const apiFrameEntries: readonly ApiFrameEntry[] = [
     frameClass: 'stoplight-frame',
     title: 'API 文档',
   },
-  {
-    kind: 'external',
-    namespace: '@show-docs/docusaurus-theme-iframe',
-    frontmatterKey: 'iframe',
-    frameClass: 'iframe',
-    title: '其他文档',
-  },
+  IFRAME_ENTRY,
 ];
 
-/** 按注册顺序遍历全部条目（`DocItem` 判键用的就是这个顺序）。 */
+/** 按清单顺序遍历全部条目（单测用来检查唯一性；判定先后不读这一格）。 */
 export function apiFrameEntriesOrdered(): readonly ApiFrameEntry[] {
   return apiFrameEntries;
 }

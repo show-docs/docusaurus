@@ -84,6 +84,27 @@ export const RESERVED_FRONTMATTER_KEYS: readonly string[] = [
 
 const reservedKeySet = new Set(RESERVED_FRONTMATTER_KEYS);
 
+/**
+构建自己注入的那些命名导出 —— 本层的清单也不许拿它们当 `key`。
+
+判据除了 frontmatter 还读 MDX 模块上的同名导出，而这几个是 Docusaurus 自己往每一份模块上挂的
+（`frontMatter` / `contentTitle` 来自 mdx-loader，`toc` 来自 remark-toc，`metadata` / `assets`
+看页面有没有），**几乎每一页都有**。拿它们当键，`match: 'any'` 那种判法会在整站每一页命中，
+和「拿 `title` 当键」同一种手误，所以同样在配置期红。
+
+这一份名单对的是 `ComponentCreator` 的「非 default 导出一律挂到组件上」那一步，比
+{@link RESERVED_FRONTMATTER_KEYS} 短得多，也不必随官方 schema 漂 —— 它只认这五个名字。
+*/
+export const RESERVED_EXPORT_KEYS: readonly string[] = [
+  'assets',
+  'contentTitle',
+  'frontMatter',
+  'metadata',
+  'toc',
+];
+
+const reservedExportKeySet = new Set(RESERVED_EXPORT_KEYS);
+
 /** 配置里那一条的形状（还没校验）。 */
 type DeclaredPage = {
   key?: unknown;
@@ -321,6 +342,12 @@ export function normalizePages(
     if (reservedKeySet.has(validatedKey)) {
       throw new Error(
         `theme-component-page 的 ${where}.key「${validatedKey}」是官方文档页 frontmatter 的那一组键名之一，不能当清单的键：那些键几乎每一页都写着（按 \`match: 'value'\` 判就是把整站正文换成这一个组件），语义还归 Docusaurus 自己。换一把自己的键名。`,
+      );
+    }
+
+    if (reservedExportKeySet.has(validatedKey)) {
+      throw new Error(
+        `theme-component-page 的 ${where}.key「${validatedKey}」是 Docusaurus 给每份 MDX 模块注入的导出名之一，不能当清单的键：判据除了 frontmatter 也读模块上的同名导出，而这些名字几乎每一页都有（按 \`match: 'any'\` 判就是每一页都命中）。换一把自己的键名。`,
       );
     }
 

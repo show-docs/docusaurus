@@ -58,7 +58,7 @@ export type ComponentPageThemeOptions = {
 本层交出的只有两件东西：一份主题层（`theme/DocItem` 那个套壳）与一列清单。
 
 清单在配置期校验成条目（`./config.mts`），再铺成一份浏览器读得到的注册表模块
-（`./registry-module.mts`，写进 Docusaurus 的生成目录）；那一层判 frontmatter、命中就把
+（`./registry-module.mts`，写进 Docusaurus 的生成目录）；那一层判清单、命中就把
 整个 `DocItem` 换成清单里那个组件。为什么非要生成一份文件，记在那份文件的头上。
 
 那一列有两个来源，站点自己写的那一列排前面（清单顺序就是命中优先级）：站点配置里的
@@ -67,8 +67,9 @@ export type ComponentPageThemeOptions = {
 边界与合成规则都在 `./contribute.mts`）。
 
 本层唯一的安装前提就是解析器插件那一个包，`loadContent()` 里当场查它（「在不在那两份清单里」
-那条判据住在解析器包自己的 `plugin-slots`）：缺了它，本层那份 `theme/DocItem` 要到打包那一步
-才撞 `@theme-prev/DocItem` 的 `Module not found`，报错点离真正的原因隔着一整个构建。
+那条判据住在解析器包自己的 `plugin-slots`）：缺了它，本包随包发出的那几份 `.tsx` / `.ts` 源码
+（`theme/DocItem`、`lib/`）没人认领，症状要到打包那一步才出现（`Module parse failed`），
+报错点离真正的原因隔着一整个构建。
 本层**不**引另一族层那份 `assertThemePrerequisites()` —— 通用机制不该把 `theme-iframe`
 变成自己的前提。
 

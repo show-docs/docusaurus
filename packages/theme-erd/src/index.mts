@@ -7,10 +7,12 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
 import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-iframe/prerequisites';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
+import { ERD_COMPONENT_PAGES } from './component-pages.mts';
 import { normalizeExports, planExports } from './options.mts';
 import type { ErdThemeOptions } from './types.mts';
 
@@ -68,6 +70,12 @@ export function validateOptions({
     : { exports: normalizeExports(declared.exports) };
 }
 
+/**
+本层的入口：`configureWebpack()` 让 `.dbml` 走「dbml-loader → 官方 mdx-loader」那条链，
+`loadContent()` 把 `dbml_json` 那一把键交给 `@show-docs/docusaurus-theme-component-page` ——
+命中的页由它那份 `DocItem` 判清单后整页换成 `@theme/ErdPage`。于是本层的前提有两个：共享外壳
+所在的 `theme-iframe`，与判清单的 `component-page`；缺了它们，`.dbml` 页照常编译，关系图却不出现。
+*/
 export default function theme(
   context: LoadContext,
   options: ErdThemeOptions = {},
@@ -80,11 +88,17 @@ export default function theme(
     name: '@show-docs/docusaurus-theme-erd',
     loadContent() {
       // 本层的 `ViewLayerDocItem` 住在 theme-iframe 未编译的 `lib/` 里：那个包没装，
-      // 站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。
+      // 站点就会在 `view-layer-shell.tsx` 上撞 `Module not found`。component-page 缺了则是
+      // 另一头的症状：`dbml_json` 那一页永远不会被交给 `@theme/ErdPage`。
       assertThemePrerequisites(context, {
         namespace: '@show-docs/docusaurus-theme-erd',
         iframe: true,
+        componentPage: true,
       });
+
+      return {
+        componentPages: ERD_COMPONENT_PAGES,
+      } satisfies ComponentPageContent;
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 剩下的东西（入口、loader、类型）。

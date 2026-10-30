@@ -1,14 +1,16 @@
 # @show-docs/docusaurus-theme-erd
 
 把 DBML 文件变成文档页：正文上方渲染数据库关系图，下方附上同一份模型的各格式导出。
-判据是**文件扩展名**：`.dbml` 命中，其余文件这一层等于透明。
+命中的判据是**产物里那把 `dbml_json`**：loader 只给 `.dbml` 页追加这条命名导出，
+`theme-component-page` 的清单判中它就把这一页整页交给本包的 `ErdPage`；其余页这一层等于透明。
 
 ## 安装
 
-本层的共享外壳住在 theme-iframe，`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
+「整页换成关系图页」这一格由 theme-component-page 判，本层的共享外壳住在 theme-iframe，
+`@theme-prev/*` 的别名由解析器插件提供，四个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-erd
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-iframe @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-erd
 ```
 
 ## 使用
@@ -22,10 +24,17 @@ export default {
   plugins: [
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-iframe',
-    '@show-docs/docusaurus-theme-erd'
+    '@show-docs/docusaurus-theme-erd',
+    '@show-docs/docusaurus-theme-component-page'
   ]
 };
 ```
+
+本层在自己的 `loadContent()` 里把 `dbml_json` 那一页交给 theme-component-page（交回的 content
+里带 `componentPages`），由它那份 `DocItem` 判清单后整页换成 `@theme/ErdPage`。这一把键不写在
+frontmatter 里 —— 判据读 MDX 模块上的同名命名导出，而它是 loader 追加的那条 `export const`。
+所以 component-page 要注册，而且要写在本层**之后** —— 越晚声明 = 层栈越靠外 = 越先判（见
+[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)）。
 
 ### 让 docs 插件收 `.dbml`
 
@@ -64,13 +73,17 @@ loader 会先摘掉它再把剩下的部分交给 DBML 解析器。
 
 ## 层栈
 
-本层提供 `theme/DocItem/index.tsx`：它先向下面那一层要 `DocItem` 的实现
-（`@theme-prev/DocItem`），把关系图摆在它前面，正文那一格照常交下去。命不中（这一页不是
-`.dbml`，产物里没有 `dbml_json` 那条导出）时原样交回，这一页看不出这一层存在过。
+本层不再提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `dbml_json` 条目（判法 `any`，
+组件指回 `@theme/ErdPage`），由 theme-component-page 在最外那一格命中后把整页换掉。这一把键
+不是作者写在 frontmatter 里的 —— 判据读 MDX 模块上的同名命名导出，而 `dbml_json` 正是 loader
+给 `.dbml` 页追加的那条 `export const`；`.md` / `.mdx` 页没有它，这一层等于透明。
+
+`ErdPage` 自己也不拼外壳 —— 它向官方要 `DocItem`（`@theme-init/DocItem`；仓库里只有
+component-page 这一层提供 `DocItem`，没有要串的链），把关系图摆在它前面，正文一格都不动。
 
 层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
 [`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)；
-这一层自己只负责「摆在哪一格」。
+这一层自己只负责「交哪一把键、摆在哪一格」。
 
 ## 配置
 
@@ -137,8 +150,10 @@ frontmatter 之后的原文。这两件在构建期就有了：生成器只在�
 ## 工作方式
 
 - 构建时由 webpack loader 把 `.dbml` 原文转成 MDX，再交给官方 `mdx-loader`；关系图数据
-  以 `export const dbml_json` 的形式随文档模块走到浏览器。
-- 关系图在 `DocItem` 前渲染，正文仍由官方 `DocItem` 正常渲染。
+  以 `export const dbml_json` 的形式随文档模块走到浏览器 —— 这条导出同时就是本层交给
+  theme-component-page 的那把键。
+- 关系图渲染在正文上方（`ErdPage` 里由共享外壳摆在 `DocItem` 之前），正文仍由官方 `DocItem`
+  正常渲染。
 - 关系图在浏览器端初始化，再缩放到能看见全部表节点。
 - 关系图初始化失败时显示一条提示，正文继续渲染。
 

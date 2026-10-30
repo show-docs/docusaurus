@@ -1,6 +1,6 @@
 import type { ComponentPageProps } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
 import { ViewLayerDocItem } from '@show-docs/docusaurus-theme-iframe/lib/view-layer-shell.tsx';
-import DocItem from '@theme-prev/DocItem';
+import DocItem from '@theme-init/DocItem';
 
 import { lazy } from 'react';
 import type { ComponentType, ReactNode } from 'react';
@@ -33,9 +33,9 @@ type Props = ComponentPageProps & { content?: MDXContent };
 交出的 `diff` 那一把键）：它判中后整页换成这个组件，所以这里**不再判键**，只把差异视图
 摆在正文上方。
 
-视图是正文的**前一个兄弟节点**：正文原样交给下面那一层 `DocItem`，页面结构（标题、目录、
-面包屑、页脚导航）都不受影响。`content` 来自 component-page（命中时它不再往下走），
-所以正文只能从这里拿。
+视图是正文的**前一个兄弟节点**：正文原样交给官方那一份 `DocItem`（`@theme-init/DocItem`），
+页面结构（标题、目录、面包屑、页脚导航）都不受影响。`content` 来自 component-page（命中时它
+不再往下走），所以正文只能从这里拿。
 */
 export default function DiffPage({ content }: Props): ReactNode {
   // post loader 给命中 frontmatter 的 md 追加 `export const diff`，

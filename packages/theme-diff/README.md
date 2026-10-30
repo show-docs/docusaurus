@@ -51,9 +51,10 @@ diff: true
 
 本层不再提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `diff` 条目（判法 `any` ——
 `true`、一串路径或 `{ old, new }` 都算命中，组件指回 `@theme/DiffPage`），由 theme-component-page
-在最外那一格命中后把整页换掉。`DiffPage` 自己也不拼外壳 —— 它向下面那一层要 `DocItem`
-（`@theme-prev/DocItem`），把差异视图摆在它前面，正文一格都不动；frontmatter 没写 `diff`、
-或写了却没取到差异时清单不命中，这一页看不出这一层存在过。
+在最外那一格命中后把整页换掉。`DiffPage` 自己也不拼外壳 —— 它向官方要 `DocItem`
+（`@theme-init/DocItem`；仓库里只有 component-page 这一层提供 `DocItem`，没有要串的链），把差异
+视图摆在它前面，正文一格都不动；frontmatter 没写 `diff`、或写了却没取到差异时清单不命中，
+这一页看不出这一层存在过。
 
 层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
 [`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)；

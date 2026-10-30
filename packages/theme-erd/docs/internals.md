@@ -6,15 +6,16 @@
 
 ## 组成
 
-| 文件                         | 编译吗              | 职责                                                                                       |
-| ---------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
-| `src/index.mts`              | ✅ `src/` → `dist/` | 入口：校验插件选项、算出这一页要装载哪些生成器、给出层目录、把 loader 挂到 `.dbml` 上      |
-| `src/options.mts`            | ✅                  | 配置期判据（纯函数）：清单的形状检查、`module` 三种写法的解析                              |
-| `src/loader/dbml-loader.mts` | ✅                  | `.dbml` 原文 → MDX：摘掉头部 frontmatter、解析成模型、装载每一条生成器、拼出页签与两张表格 |
-| `src/types.mts`              | ✅（只出类型）      | 把 `@dbml/core` 归一化模型补齐成能用的类型（见下），以及生成器契约那三型                   |
-| `erdiagram.d.ts`             | ❌（随包发的声明）  | `erdiagram` 那份包缺的类型声明                                                             |
-| `theme/DocItem/index.tsx`    | ❌ 站点编译         | 本层那一格：`content.dbml_json` 命中就把关系图摆在 `DocItem` 前面                          |
-| `components/erd-chart.tsx`   | ❌ 站点编译         | 浏览器侧：把模型交给 `erdiagram` 画关系图，初始化后缩放到能看见全部表节点                  |
+| 文件                         | 编译吗              | 职责                                                                                                                                                       |
+| ---------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`              | ✅ `src/` → `dist/` | 入口：校验插件选项、算出这一页要装载哪些生成器、给出层目录、把 loader 挂到 `.dbml` 上，并用 `loadContent()` 把 `dbml_json` 那一页交给 theme-component-page |
+| `src/component-pages.mts`    | ✅                  | 交给 theme-component-page 的那一条：`{ key: 'dbml_json', match: 'any', component: '@theme/ErdPage' }`                                                      |
+| `src/options.mts`            | ✅                  | 配置期判据（纯函数）：清单的形状检查、`module` 三种写法的解析                                                                                              |
+| `src/loader/dbml-loader.mts` | ✅                  | `.dbml` 原文 → MDX：摘掉头部 frontmatter、解析成模型、装载每一条生成器、拼出页签与两张表格，并写出 `export const dbml_json`                                |
+| `src/types.mts`              | ✅（只出类型）      | 把 `@dbml/core` 归一化模型补齐成能用的类型（见下），以及生成器契约那三型                                                                                   |
+| `erdiagram.d.ts`             | ❌（随包发的声明）  | `erdiagram` 那份包缺的类型声明                                                                                                                             |
+| `theme/ErdPage/index.tsx`    | ❌ 站点编译         | 本层那一页：theme-component-page 判中 `dbml_json` 后整页换成它，它把关系图摆在官方 `DocItem` 前面                                                          |
+| `components/erd-chart.tsx`   | ❌ 站点编译         | 浏览器侧：把模型交给 `erdiagram` 画关系图，初始化后缩放到能看见全部表节点                                                                                  |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -64,9 +65,11 @@ Docusaurus 读，DBML 解析器只收 `---` 块之后的部分 —— 所以那�
   `src/` 全份（`options.mts` 与 `loader/` 那几份）挂在覆盖率红线上（`vitest.config.mts` 的
   `coverage.include` 盖住每个包的 `src/`）。
 - 页面上那张图与那一串页签：`test/e2e/features/erd.feature`。
-- 共用外壳：三条视图层（本包、`theme-markmap`、`theme-diff`）的兜底、视图那一格、宽度补丁与页面组件的
-  全部内容都只有一份实现，住在 `packages/theme-iframe/lib/view-layer-shell.tsx`，每个包只留
-  「交哪把键、交哪个组件、交哪段说法」（markmap 与 diff 那边承接它的是清单挂上的 `MarkmapPage` /
-  `DiffPage`；本包仍是层栈里那份 `theme/DocItem`）。收在一处之前它们是每个包
-  各抄一遍的副本；`test/view-layer-copies.test.mts` 现在钉的是「三处引的是同一份」，
+- 交给 component-page 的那一把键：`src/component-pages.mts` 里那把键**就是** loader 写出的导出名，
+  `test/theme-erd.test.mts` 拿清单里的 `key` 去核 `export const <key> = ` 那一句，改名漏了一头就红。
+- 共用外壳：四条视图层（本包、`theme-markmap`、`theme-diff`、`theme-iframe` 的框页）的兜底、视图那一格、
+  宽度补丁与页面组件的全部内容都只有一份实现，住在 `packages/theme-iframe/lib/view-layer-shell.tsx`，
+  每个包只留「交哪把键、交哪个组件、交哪段说法」（四边承接它的分别是 `ErdPage` / `MarkmapPage` /
+  `DiffPage` / `ApiFramePage`，都由 component-page 的清单挂上）。
+  `test/view-layer-copies.test.mts` 钉的是这三页「引的是同一份、外壳一字不抄」，
   `test/view-layer-shell.test.mts` 量共享实现自己的分支。

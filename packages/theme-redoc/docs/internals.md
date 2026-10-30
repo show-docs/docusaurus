@@ -8,15 +8,15 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 
 ## 组成
 
-| 文件                             | 编译吗              | 职责                                                                                                                                                                                                                  |
-| -------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`/redoc-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它（补 `worker_threads` 空模块，见下） |
-| `theme/RedocPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`RedocUI`（`loadView` 按需取，见「首屏不下载渲染器」）、亮暗的属性名                                                          |
-| —— 外层那一格                    | ——                  | **本包没有外层 CSS**：框的尺寸与正文容器让位由 theme-iframe 那份共用的 `components/api-frame.css` 管（见「高度」一节）；`redoc-frame` 只剩类名，用来认「这一格是哪一层赢的」                                          |
-| `components/redoc-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `RedocStandalone`（只收地址那一种入参），外面套 `HashRouter` 与 `StyleSheetManager`；`LocationMirror` 把路由变化报给外层                                                                                 |
-| `components/redoc-color-mode.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的编译中间件：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到 `<html data-redoc-mode="dark">` 上（见「亮暗模式」一节）                                                                       |
-| `components/redoc-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Redoc 自己的三处东西（它那颗亮暗切换按钮、左栏底部的 Redocly 署名、章节标题旁那一整格操作按钮）。高度为什么不写在这里，见「高度」一节                                                          |
-| `tsconfig.build.json`            | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                |
+| 文件                             | 编译吗              | 职责                                                                                                                                                                                                                                                  |
+| -------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：调 `@show-docs/docusaurus-theme-iframe/lib/api-frame-theme.mts` 那份工厂一次，拿层目录、`loadContent()` 交回本包那一页、`/redoc-view` 的注册与 Plugin 形状；本包的 webpack 差异经 `configureWebpack` 交给它（补 `worker_threads` 空模块，见下） |
+| `theme/RedocPage/index.tsx`      | ❌ 站点编译         | **框内**那一页：调 theme-iframe 那份框内工厂（`lib/api-frame-view.tsx`）交三格 —— 包名、`RedocUI`（`loadView` 按需取，见「首屏不下载渲染器」）、亮暗的属性名                                                                                          |
+| —— 外层那一格                    | ——                  | **本包没有外层 CSS**：框的尺寸与正文容器让位由 theme-iframe 那份共用的 `components/api-frame.css` 管（见「高度」一节）；`redoc-frame` 只剩类名，用来认「这一格是哪一层赢的」                                                                          |
+| `components/redoc-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `RedocStandalone`（只收地址那一种入参），外面套 `HashRouter` 与 `StyleSheetManager`；`LocationMirror` 把路由变化报给外层                                                                                                                 |
+| `components/redoc-color-mode.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的编译中间件：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到 `<html data-redoc-mode="dark">` 上（见「亮暗模式」一节）                                                                                                       |
+| `components/redoc-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Redoc 自己的三处东西（它那颗亮暗切换按钮、左栏底部的 Redocly 署名、章节标题旁那一整格操作按钮）。高度为什么不写在这里，见「高度」一节                                                                                          |
+| `tsconfig.build.json`            | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -373,9 +373,8 @@ iframe-protocol 的「四个方向各走一条路」一节。`/redoc-view/?src=%
 
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 
-`docusaurus.config.mjs` 的 `plugins` 里在 scalar 之前、stoplight 之后（这一条先后现在只影响
-`@theme/` 层栈的覆写关系；四把键的判定顺序在 theme-iframe 的注册表默认与站点覆盖里定，与它无关），
-站点根的
+`docusaurus.config.mjs` 的 `plugins` 里在 scalar 之后、stoplight 之前（四把框键的判定先后 = 声明
+顺序，所以同页写中 scalar 与 redoc 时 scalar 先判），站点根的
 `package.json` 声明了 `"@show-docs/docusaurus-theme-redoc": "workspace:^"`。`pnpm build`、
 `pnpm verify:chain` 与 `pnpm test:e2e` 都绿，层栈里能看到 `packages/theme-redoc/theme`（只剩
 `RedocPage` 那一格）。
