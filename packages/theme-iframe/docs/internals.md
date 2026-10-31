@@ -52,9 +52,17 @@
 
 v3 之前，这一族（`scalar` / `redoc` / `stoplight` / `iframe` 四把键）的外层套壳、注册表、跨
 iframe 的消息协议、框内页面工厂都住在 `theme-iframe` 里，三条 API 层经它的配置期工厂
-`lib/api-frame-theme.mts` 交页。上一族的自注册提案与验收记在
-[`proposal-api-self-register.md`](./proposal-api-self-register.md)（已落地）；机制层统一分派
-那一步的设计与现状都在 [`theme-component-page` 的维护者文档](../../theme-component-page/docs/internals.md)里。
+`lib/api-frame-theme.mts` 交页。现在这一步早已落地：机制层统一分派，本层只剩 `iframe:` 那一条
+URL 框，设计与现状都在
+[`theme-component-page` 的维护者文档](../../theme-component-page/docs/internals.md)里。
+
+当年定下、今天仍然算数的两条口径：
+
+- **「装了哪几层」不再由中心扫一遍**。没装的包不会跑 `loadContent()`，也就不会交页 ——
+  既不需要名单，也不需要认 `plugins` 那四种声明形状；那份中心扫描与 `themeConfig.apiFrame.order`
+  这第二份清单一起删了。
+- **判定先后读的是站点 `componentPage` 的 `rules` 那一列**，不是 `plugins` 的声明顺序。本站
+  四层都写在 `plugins` 时两者看着一致，换成 `presets` / `plugins` 交错的装法就不成立了。
 
 搬走之后各归其主：
 

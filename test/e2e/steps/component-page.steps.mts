@@ -86,6 +86,8 @@ Then('框里摆的是还没拿到数据那一格', async ({ page }) => {
   ).toContainText('正在从这一页的文档里取数据');
 });
 
+// 框内那条地址不给站点的外壳：没有导航栏、没有页脚，整屏都是渲染器的
+// （iframe 里再套一层导航栏既占高度又是重复的壳）。
 Then('这一页没有站点的导航栏', async ({ page }) => {
   await expect(page.locator('.navbar')).toHaveCount(0);
 });

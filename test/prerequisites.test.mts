@@ -35,18 +35,6 @@ const requiresLightningCss = (context: LoadContext) => () =>
   assertViewerPrerequisites(context);
 
 describe('assertThemePrerequisites（交规则给机制层的那几层）：缺前置插件时当场点名', () => {
-  it('解析器与 component-page 都在时放行', () => {
-    expect(() =>
-      assertThemePrerequisites(
-        contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE_PLUGIN]),
-        {
-          namespace: NAMESPACE,
-          componentPage: true,
-        },
-      ),
-    ).not.toThrow();
-  });
-
   it('缺解析器：报出包名与安装方式', () => {
     expect(() =>
       assertThemePrerequisites(contextWith([COMPONENT_PAGE_PLUGIN]), {

@@ -206,12 +206,6 @@ Then('站点的亮暗模式不受操作系统影响', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
-// 框内那条地址不给站点的外壳：没有 navbar、没有 footer，整屏都是渲染器的
-// （iframe 里再套一层 navbar 既占高度又是重复的壳）。
-Then('这一页没有站点的 navbar', async ({ page }) => {
-  await expect(page.locator('.navbar')).toHaveCount(0);
-});
-
 /**
 整页交给这个框时容器不留白：那条 `.container:has(iframe)` 在 component-page 那份
 `components/component-frame.css` 里，同源框那几条规则都吃它。这里是**主题那三个框**

@@ -94,8 +94,8 @@ Docusaurus 官方那条 babel 规则把整个 `node_modules` 排除在外（只�
 `@show-docs` 家族的主题层与组件是**未编译的 `.tsx` / `.jsx`**，随包发布 —— 从 npm 装进真项目时，
 官方那条规则不编它们，于是报 `Module parse failed`。
 
-这一格由本插件认领：`configureWebpack` 里用官方 `utils.getJSLoader()` 补一条 `.tsx?` 规则，
-`include` 只收 `node_modules/@show-docs/` 底下的文件。
+这一格由本插件一处补上：`include` 只收 `node_modules/@show-docs/` 底下的文件，编译用的还是
+官方那条 babel loader（怎么补、为什么按 scope 认领，记在下面的维护者文档，这里不抄第二遍）。
 
 - **工作区里不认领**：pnpm 的软链把源码解析到 `node_modules` 之外，官方那条本来就在编；
   再命中一次就是同一份文件跑两遍 babel。

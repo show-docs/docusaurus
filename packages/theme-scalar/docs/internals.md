@@ -68,17 +68,11 @@ Scalar 那一格也就不会挂载。
 
 ## 同源，但每条消息仍然校验
 
-框里那一页是站点自己的一条路由，和外层同一个源，本来不存在跨源信任问题。每条消息还是要过 origin
-与来源窗口那两格（机制层的 `isTrustedMessage`）：防的是「别人往这一页 postMessage」时不被当成自家
-消息，而不是防自己。
-
-**但同源不是沙箱**：框里跑的还是本仓编译出来的组件，这道边界隔的是「别把渲染器的 DOM、路由与
-localStorage 带进文档页」，不是隔恶意代码。
-
-要渲染的那份文档来自这一页 frontmatter 里那两把键，取用时只认能解析成 `http:` / `https:`
-的那一条（机制层的 `httpUrlOf`，页面是 https 时 `http:` 会先升成 https），`javascript:` 那种喂不进去、
-拿不到就摆一条看得见的说明。这一格防的是文档作者自己写歪值，不是攻击面 —— 那条通道只送 JSON 写得
-出来的东西，也不是一条能被外部页面驱动的 RPC。
+框里那一页与外层同一个源，这套校验防的不是自己 —— 判据、`isTrustedMessage` 与「同源不是沙箱」那
+两句都记在机制层的
+[`iframe-protocol.md`](../../theme-component-page/docs/iframe-protocol.md)「那四条消息」一节，本层不抄第二遍。
+本层只多这一格：要渲染的那份文档由 `components/scalar-spec.ts` 从 `oas3:` / `aas3:` 两把键里挑，
+挑出来的地址交给机制层那条 `httpUrlOf` 判协议。
 
 ## 样式：那份表只在框内那一页
 
