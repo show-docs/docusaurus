@@ -29,8 +29,8 @@ type MDXContent = ComponentType<Record<string, unknown>> & {
 type Props = ComponentPageProps & { content?: MDXContent };
 
 /**
-本层交给 `@show-docs/docusaurus-theme-component-page` 的那一页（`src/component-pages.mts` 交出的
-`dbml_json` 那一把键）：它判中后整页换成这个组件，所以这里**不再判键**，只把关系图摆在正文上方。
+本层交给 `@show-docs/docusaurus-theme-component-page` 的那一页（`src/index.mts` 的
+`loadContent()` 交出的 `dbml_json` 那一把键）：它判中后整页换成这个组件，所以这里**不再判键**，只把关系图摆在正文上方。
 
 关系图是正文的**前一个兄弟节点**，不塞进 `content`：正文原样交给官方那一份 `DocItem`
 （`@theme-init/DocItem`），页面结构（标题、目录、面包屑、页脚导航）都不受影响。`content` 来自

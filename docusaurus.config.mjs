@@ -68,7 +68,7 @@ const config = {
       '@show-docs/docusaurus-theme-git-badge',
       { docs: [docsScope('packages'), docsScope('themes')] },
     ],
-    // `themes/` 那四个带渲染器的主题包的文档：一份独立的 docs 实例，接法与预设里那一份同形
+    // `themes/` 那四个功能层主题包的文档：一份独立的 docs 实例，接法与预设里那一份同形
     // （清单还是 `DOCS_INCLUDE` / `DOCS_EXCLUDE` 那一份，只是相对 `themes/` 解释）。
     //
     // `id` 是必需的：同一个插件挂两次而不给 id，官方直接抛「Plugin IDs must be unique」。

@@ -30,8 +30,8 @@
 `src` 是 frontmatter 那一条 `/404` 原样 —— 相对写法在产物里就保持相对，`serve` 在哪个 origin
 上它就指哪个 origin（见下面「服务端那一遍」）。无障碍标题用的是页面自己的 `title:`。
 
-包名挂 `@show-docs/`，与仓库其它包同一域，所以列进 `test/plugin.test.mts` 那条分包用例的目录清单
-只差改清单本身。
+包名挂 `@show-docs/`，与仓库其它包同一域；`test/plugin.test.mts` 那条分包用例扫的是三棵目录
+（`packages/`、`themes/`、`tools/`），本包跟着磁盘进清单，不必回来改一处手抄的名单。
 
 ## 组成
 
@@ -135,6 +135,6 @@ http 的话线上首屏还会先撞一次混合内容；把相对地址在构建
   这些未编译的源码归仓库根 `tsconfig.json` 检查，所以 `pnpm lint:type` 就是它们的门：
   `@docusaurus/router` / `@docusaurus/useDocusaurusContext` / `@docusaurus/useIsBrowser` 那几条
   别名靠仓库根那份 `module-aliases.d.ts`。
-- 覆盖率红线扫的是 `packages/*/src/**` 与 `packages/theme-iframe/lib/**`，所以
-  `lib/external-url.ts` 这一份要有单测钉到 100%（`test/external-url.test.mts`）；`theme/`
-  那一格是浏览器代码，由 e2e 那两条用例钉。
+- 覆盖率红线盖的是全部构建期代码（清单在 `vitest.config.mts` 的 `coverage.include`：两棵包根每个包的
+  `src/`，加上机制层与本包的 `lib/`），所以本包 `lib/external-url.ts` 这一份要有单测钉到 100%
+  （`test/external-url.test.mts`）；`theme/` 那一格是浏览器代码，由 e2e 那两条用例钉。

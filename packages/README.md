@@ -24,7 +24,7 @@ import DocCardList from '@theme/DocCardList';
 因此**页面上的地址等于文件相对它所属内容根的路径**：`/theme-erd/docs/erd-demo`
 就是 `packages/theme-erd/docs/erd-demo.dbml`。
 
-站点有**两棵内容根**：`packages/` 是插件与基础设施，另外四个带渲染器的主题包住在
+站点有**两棵内容根**：`packages/` 是插件与基础设施，另外四个功能层主题包住在
 `themes/`，由独立的一份文档插件实例挂在 `/themes` 前缀下 —— 落地页在
 [主题包说明](/themes/)，那一族的地址因此多一段，例如
 `/themes/theme-viewer/docs/viewer-demo`。两棵根各自一份侧边栏，共用同一份扫描逻辑

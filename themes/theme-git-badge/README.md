@@ -8,14 +8,15 @@
 
 ## 安装
 
+`theme/` 与 `components/` 是随包发布的未编译 TS 源码，编译它们的 babel 规则由解析器插件一处
+认领，所以还得装它并**注册成插件** —— 那是本层唯一一条安装前提，缺了它会在构建期当场点名。
+两个包一起安装：
+
 ```bash
-pnpm add @show-docs/docusaurus-theme-git-badge
+pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-git-badge
 ```
 
-需要 Docusaurus `^3.9.2` 与 Node `^24`。另外 `theme/` 与 `components/` 是随包发布的未编译 TS
-源码，编译它们的 babel 规则由
-[`@show-docs/docusaurus-plugin-prev-layer-resolver`](https://www.npmjs.com/package/@show-docs/docusaurus-plugin-prev-layer-resolver)
-一处认领，所以还得装并注册它 —— 缺了它会在构建期当场点名。
+需要 Docusaurus `^3.9.2` 与 Node `^24`。
 
 git 那一半要求构建机上有 `git`、且站点在仓库里；读不到就静默跳过 —— 少挂一枚徽标比构建失败好。
 

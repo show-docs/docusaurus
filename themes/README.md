@@ -1,14 +1,14 @@
 ---
 title: 主题包说明
-description: /themes/ 落地页：带渲染器的四个主题包，各自占侧边栏一顶层格。
+description: /themes/ 落地页：四个功能层主题包，各自占侧边栏一顶层格。
 ---
 
 import DocCardList from '@theme/DocCardList';
 
 # 主题包说明
 
-这一族是**带渲染器的主题包**：它们不改站点已有的那一格（导航栏、页脚、侧边栏），而是在文档页
-命中自己的触发条件时换掉或加上一块视图。四个包都在 `themes/` 下，站点因此给它们单独挂了一份
+这一族是**功能层主题包**：它们各接管站点已有的一格（导航栏、页脚、侧边栏、正文），只在命中
+自己的触发条件时动。四个包都在 `themes/` 下，站点因此给它们单独挂了一份
 `@docusaurus/plugin-content-docs` 实例，`routeBasePath` 是 `/themes` —— 所以这一页落在 `/themes/`，
 `theme-viewer` 的示例页落在 `/themes/theme-viewer/docs/viewer-demo`。
 
@@ -16,10 +16,10 @@ import DocCardList from '@theme/DocCardList';
 
 站点有**两棵内容根**，各自一份文档插件实例，规则一样、只是根不同：
 
-|                  | 内容根      | 前缀            | 侧边栏                |
-| ---------------- | ----------- | --------------- | --------------------- |
-| 插件与基础设施   | `packages/` | `/`（无目录段） | `sidebars.mts`        |
-| 带渲染器的主题包 | `themes/`   | `/themes`       | `sidebars-themes.mts` |
+|                | 内容根      | 前缀            | 侧边栏                |
+| -------------- | ----------- | --------------- | --------------------- |
+| 插件与基础设施 | `packages/` | `/`（无目录段） | `sidebars.mts`        |
+| 功能层主题包   | `themes/`   | `/themes`       | `sidebars-themes.mts` |
 
 于是「页面上的地址等于文件相对内容根的路径」这句话要按**所属的那一棵**读：`packages/` 里的
 `theme-erd/docs/erd-demo.dbml` 是 `/theme-erd/docs/erd-demo`，`themes/` 里的
@@ -36,5 +36,6 @@ import DocCardList from '@theme/DocCardList';
 `sidebars-themes.mts` 扫 `themes/` 得到，卡片说明取自各包 `package.json` 的 `description`；
 这一页自己也在侧边栏头一格，所以列表第一张是它本身。
 
-示例页跟着包走，触发条件不变：头像与复制按钮判导航栏/页脚那一格，图片查看器判正文里有没有
-图片，侧边栏徽标判 git；不命中的页面那一层等于透明。
+示例页跟着包走，触发条件各判各的：头像看站点配置里的 `userApi`（不写就整层不启用），复制按钮
+看 `themeConfig.footer.copyright` 那一格在不在，图片查看器看正文里有没有图片，侧边栏徽标看 git；
+都不命中的页面那一层等于透明。

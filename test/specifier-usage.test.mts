@@ -55,7 +55,7 @@ function componentsOf(root: string): string[] {
     );
 }
 
-/** 包所在的几棵根：`packages/`（插件与基础设施）、`themes/`（带渲染器的主题包）、`tools/`（假主题）。 */
+/** 包所在的几棵根：`packages/`（插件与基础设施）、`themes/`（功能层主题包）、`tools/`（假主题）。 */
 const PACKAGE_GROUPS = ['packages', 'themes', 'tools'];
 
 /** 有 `theme/` 目录的包与站点自己那一格。 */

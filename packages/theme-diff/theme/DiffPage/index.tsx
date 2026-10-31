@@ -29,8 +29,8 @@ type MDXContent = ComponentType<Record<string, unknown>> & {
 type Props = ComponentPageProps & { content?: MDXContent };
 
 /**
-本层交给 `@show-docs/docusaurus-theme-component-page` 的那一页（`src/component-pages.mts`
-交出的 `diff` 那一把键）：它判中后整页换成这个组件，所以这里**不再判键**，只把差异视图
+本层交给 `@show-docs/docusaurus-theme-component-page` 的那一页（`src/index.mts` 的
+`loadContent()` 交出的 `diff` 那一把键）：它判中后整页换成这个组件，所以这里**不再判键**，只把差异视图
 摆在正文上方。
 
 视图是正文的**前一个兄弟节点**：正文原样交给官方那一份 `DocItem`（`@theme-init/DocItem`），

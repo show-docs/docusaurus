@@ -357,7 +357,7 @@ export const tick = (): Promise<void> =>
   });
 
 /**
-仓库里的两棵**包根**：`packages/` 是插件与其余主题层，`themes/` 是随带渲染器的那几个主题包。
+仓库里的两棵**包根**：`packages/` 是插件与其余主题层，`themes/` 是那一族功能层主题包。
 */
 const PKG_ROOTS = ['packages', 'themes'];
 
