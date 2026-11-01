@@ -57,6 +57,13 @@ for (const l of layers) console.log(' '.repeat(3) + rel(l.owner));
 // `routeBasePath` 上），它渲染的是同一个 `DocCardList`，所以那条链应当**与内容根无关**。
 // 判据三头钉住这条链：两格正文里那四层必须**连续**出现；再取一个普通文档页，那一页整页都不该有
 // 包裹标记 —— 三条一起才钉住「只在渲染卡片列表的那两格发生，且哪一棵内容根都一样」。
+if (!fs.existsSync(path.join(root, 'build'))) {
+  // 判红而不是「跳过并说明」：退出码 0 会让什么都没验的一次运行看起来和全过一样
+  // （`pnpm verify` 里 build 先跑，所以那条链路不受影响；单独跑本脚本才会走到这里）。
+  console.log('\n❌ 未找到 build 产物，请先执行 `pnpm build` 再运行本脚本。');
+  process.exit(1);
+}
+
 const CHAIN = ['src/theme', 'theme-c', 'theme-b', 'theme-a'];
 const pages = [
   { chain: true, file: 'build/index.html' },
@@ -65,14 +72,7 @@ const pages = [
     chain: false,
     file: 'build/theme-markmap/docs/markmap-demo/index.html',
   },
-].filter(({ file }) => fs.existsSync(path.join(root, file)));
-
-if (pages.length === 0) {
-  // 判红而不是「跳过并说明」：退出码 0 会让什么都没验的一次运行看起来和全过一样
-  // （`pnpm verify` 里 build 先跑，所以那条链路不受影响；单独跑本脚本才会走到这里）。
-  console.log('\n❌ 未找到 build 产物，请先执行 `pnpm build` 再运行本脚本。');
-  process.exit(1);
-}
+];
 
 // swc 那份压缩（`future.faster.swcHtmlMinimizer`）把属性写成不带引号的，两种都要认得。
 const WRAPPER = /data-(?:site|theme)-wrapper="?([^" >]+)"?/g;
@@ -115,6 +115,14 @@ function outerArticle(html: string): string {
 
 let isOk = true;
 for (const { chain, file } of pages) {
+  if (!fs.existsSync(path.join(root, file))) {
+    // 缺页判红，不是少验一格：某一格的路径漂了一格（`routeBasePath`、slug、示例页改名），
+    // 按存在性过滤会让这一节安静地少跑一条，剩下的照样绿 —— 上面那句「退出码 0 看起来和
+    // 全过一样」对缺了一格同样成立。
+    console.log(`\n❌ ${file} 不在 build 产物里：这一格要验的那条判据没跑。`);
+    isOk = false;
+    continue;
+  }
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   const rendered = markersOf(html);
   const inArticle = markersOf(outerArticle(html));

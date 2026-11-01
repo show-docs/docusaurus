@@ -502,6 +502,21 @@ describe('官方主题目录与插件入口的其它边角', () => {
       fs.rmSync(fallback, { recursive: true, force: true });
       expect(resolveCoreRoot(root)).toBe(core);
       expect(resolveFallbackDir(root)).toBeNull();
+
+      // 链底那一格缺席必须**点名**：层栈不为空，所以 `index.mts` 那条「没拿到主题层栈」不会响，
+      // 而 `@theme-prev/X` 在这一格之后照样算得出落点 —— 算出来的是往里偏一层的那一格。
+      const warned: unknown[] = [];
+      const layers = layersFromPlugins({
+        siteDir: root,
+        plugins: [],
+        logger: {
+          warn: (...args: unknown[]) => {
+            warned.push(...args);
+          },
+        },
+      });
+      expect(layers.map((layer) => layer.kind)).not.toContain('fallback');
+      expect(String(warned[0])).toMatch(/theme-fallback/);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

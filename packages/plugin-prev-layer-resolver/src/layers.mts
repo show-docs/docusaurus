@@ -123,9 +123,10 @@ theme-fallback 目录 —— 按官方定义（`path.join(__dirname, '../../clie
 `__dirname` 是 `<core>/lib/webpack/aliases`）从 core 的模块位置推导，而不是把那段内部路径抄第二遍；
 锚点文件的存在性由 {@link resolveCoreModule} 保证，「这份 core 结构如官方所料」因此只有一个产地。
 
-拿不到 core 时返回 null：**这一层缺失，其余层不受影响**。刻意不做「反查别名表」的兜底 —— 别名表里
-只有被覆盖 / 冲突过的组件才有落点，全覆盖时一个指向 fallback 的值都没有，一层「有时在有时不在」的
-语义关键层比明说「这里拿不到」更难查。
+拿不到 core 时返回 null：**只有这一层缺失，其余层照旧** —— 但链底少一格之后 `@theme-prev/X`
+仍然算得出落点，算出来的是往里偏一层的那一格，所以 `layersFromPlugins` 在这一格点名声。
+刻意不做「反查别名表」的兜底 —— 别名表里只有被覆盖 / 冲突过的组件才有落点，全覆盖时一个指向
+fallback 的值都没有，一层「有时在有时不在」的语义关键层比明说「这里拿不到」更难查。
 */
 export function resolveFallbackDir(siteDir: string): string | null {
   // 锚点已由 `resolveCoreModule` 判过：不存在即 null，这里不必再兜一层。
@@ -210,8 +211,18 @@ export function layersFromPlugins({
 
   // ① 链底：theme-fallback（官方别名 target 的最后兜底），位置跟着 core 模块走。
   const fallback = resolveFallbackDir(siteDir);
-  if (fallback)
+  if (fallback) {
     add({ name: 'theme-fallback', owner: fallback, kind: 'fallback' });
+  } else {
+    // 这一层缺席是**点名才看得见**的那种错：上面那句注释说它「其余层不受影响」，确实不受影响，
+    // 但链底少一格之后 `@theme-prev/X` 仍然算得出落点 —— 算出来的是**错的那一层**，而不是
+    // 「本插件不工作」。`index.mts` 那条「没拿到主题层栈」只在栈整个为空时响，盖不住这一格。
+    logger?.warn?.(
+      '[plugin-prev-layer-resolver] 拿不到 theme-fallback 目录，链底那一层缺席：' +
+        '@theme-prev/* 的落点会整体往内偏一层（没有被覆盖的组件不再交回官方 fallback）。' +
+        '多半是 core 的目录形状变了（`lib/client/theme-fallback`），见本包 docs/internals.md「认层」一节。',
+    );
+  }
 
   // ② preset 主题 + 用户 plugin 主题：顺序 = plugin 声明顺序
   const declared = plugins ?? [];

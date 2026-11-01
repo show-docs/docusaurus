@@ -41,13 +41,16 @@ export default defineConfig({
       // 那一条命中判据与那张规则表、框内外的消息形状与两条同步 hook、按需装载渲染器那一层、
       // 三条视图层共用那份外壳、以及框内那页的地址算法），还有 `theme-iframe` 的 `lib/`
       // （`iframe:` 那一格嵌外站时地址怎么算）。
+      // `src/` 那一格按**扩展名列两种**（`.mts` 与 `.ts`）：绝大多数入口是 `.mts`，但
+      // `theme-component-page/src/frame-route.ts` 是 `.ts` —— 它被 `src/index.mts`（配置期）与
+      // `lib/frame-route.ts`（浏览器期）两侧共读，只写 `.mts` 的那一份 glob 会让它整个不进红线。
       // **不在**红线里的是各包 `theme/` 与 `components/` 下那些 React 视图 ——
       // 它们由 e2e 钉住，理由见 `test/README.md`。
       // `lib/` 里浏览器那几份要 DOM，靠测试文件自己标 `@vitest-environment jsdom` 切环境，
       // 全局口径仍是 node。
       include: [
-        'packages/*/src/**/*.mts',
-        'themes/*/src/**/*.mts',
+        'packages/*/src/**/*.{mts,ts}',
+        'themes/*/src/**/*.{mts,ts}',
         'packages/theme-iframe/lib/**',
         'packages/theme-component-page/lib/**',
       ],

@@ -186,6 +186,10 @@ export default function myTheme(context, options) {
 文件里写清了收录口径与默认导出的形状，这里不抄第二份。四条为什么收成一体，见
 [`docs/internals.md`](./docs/internals.md) 的「类型声明」。
 
+那一份 `.d.ts` 里 `import('react').FunctionComponent` 用到了 react 的类型，所以 `react` 按
+**optional peer** 声明：只有真去用这四条 specifier（也就是在 JSX 站点里）的消费者需要它，
+纯配置期用本包的站点不会因此多一个装包要求。
+
 消费方在 `tsconfig.json` 的 `files` 里点名它：
 
 ```json
@@ -300,6 +304,7 @@ export default function myTheme(context, options) {
 - **与 `pnpm swizzle` 共存**：wrap 只在站点层 `src/theme` 生成 `@theme-original/X` 包裹文件，
   不产生 `@theme-prev/*`；站点层改用 `@theme-prev/X` 则能拿到「最后一层插件主题」。
 - **会告警**：主题插件构造失败、组件名不是安全路径、层栈不变量违规、落点是 `theme-fallback`、
+  拿不到 `theme-fallback` 目录（链底那一层缺席）、
   导入者不属于任何已知层、resolver 缺 `internal-resolve` hook、`apply()` 抛错 / `doResolve` 失败。
 
   **告警 ≠ 放过**：哪些告警后面是硬失败、哪些是降级，只看上方「告警」一节的两档表

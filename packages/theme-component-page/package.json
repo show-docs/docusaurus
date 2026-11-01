@@ -41,12 +41,17 @@
     "prepublishOnly": "pnpm run build"
   },
   "peerDependencies": {
+    "@docusaurus/theme-common": "catalog:",
     "@docusaurus/types": "catalog:",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
-    "react": "catalog:"
+    "react": "catalog:",
+    "webpack": "catalog:"
   },
   "peerDependenciesMeta": {
     "@docusaurus/types": {
+      "optional": true
+    },
+    "webpack": {
       "optional": true
     }
   },

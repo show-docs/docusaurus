@@ -360,12 +360,18 @@ importers:
       '@docusaurus/types':
         specifier: 'catalog:'
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
+      react:
+        specifier: 'catalog:'
+        version: 18.3.1
       webpack:
         specifier: 'catalog:'
         version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
   packages/theme-component-page:
     dependencies:
+      '@docusaurus/theme-common':
+        specifier: 'catalog:'
+        version: 3.10.2(@docusaurus/plugin-content-docs@3.10.2(d293d914ee6820461757ceae56c79ab5))(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@docusaurus/types':
         specifier: 'catalog:'
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
@@ -375,6 +381,9 @@ importers:
       react:
         specifier: 'catalog:'
         version: 18.3.1
+      webpack:
+        specifier: 'catalog:'
+        version: 5.112.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(svgo@3.3.5)
 
   packages/theme-diff:
     dependencies:

@@ -45,9 +45,13 @@
   "peerDependencies": {
     "@docusaurus/core": "catalog:",
     "@docusaurus/types": "catalog:",
+    "react": "catalog:",
     "webpack": "catalog:"
   },
   "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
     "webpack": {
       "optional": true
     }
