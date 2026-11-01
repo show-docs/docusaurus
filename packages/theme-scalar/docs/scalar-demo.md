@@ -30,7 +30,7 @@ src="/__component-frame/">`。那条地址是 theme-component-page 自己注册�
 - **样式表是静态的，所以要在构建期摘出来**：Scalar 的样式是发布好的静态
   `@scalar/api-reference/style.css`，webpack 默认把它并进全站那一份 css，每一页都下载 —— 这一格与
   theme-redoc 相反（那张表是运行期注入的，只存在于框内那份文档），与 theme-stoplight 同处境。所以
-  本层在 `configureWebpack` 里把它摘成独立产物（三条 API 层共用的一份构建期工具
+  本层在 `configureWebpack` 里把它摘成独立产物（与 theme-stoplight 共用的一份构建期工具
   `@show-docs/docusaurus-theme-component-page/lib/isolate-renderer-css.ts`），只由框内那份文档挂一条
   `<link>`。厂商那份规则出厂就带 `.scalar-app` 前缀，实测对上站点没有改写 —— 前缀管的是
   「打不到站点」，管不了「每页都下载」，摘出来才是后者那一格。实测口径（站点那一份 112,608 字节、

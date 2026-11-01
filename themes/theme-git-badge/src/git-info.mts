@@ -25,7 +25,10 @@ export const RECENT_COMMITS = 5;
 */
 export const RECENT_WINDOW = '7 days ago';
 
-/** 「最近」的第一个口径的天数：7 天（按此刻的墙上时钟算，见 {@link isRecent}） */
+/**
+「最近」的第一个口径的天数：7 天。基准是**这一次构建打开仓库的那一刻**（`Repo.buildTime`），
+不是每问一份文件重读一次墙上时钟 —— 见 {@link isRecent}。
+*/
 export const RECENT_DAYS = 7;
 
 const DAY = 86_400;
@@ -50,6 +53,18 @@ export interface Repo {
   recent: ReadonlySet<string>;
   /** 逐文件读过的两个时刻。这就是那个「只读一次」的缓存 */
   times: Map<string, GitTimes>;
+  /**
+  这一次打开仓库的那一刻（秒）：整场构建里「7 天窗口」唯一的基准。
+
+  每问一份文件重读一次墙上时钟时，同一场构建的两页可以踩在窗口两侧（构建跑过一条秒级边界），
+  而 `RECENT_WINDOW` 那一次 `git log` 用的是打开那一刻 —— 两条口径会各按各的「此刻」算。
+  */
+  buildTime: number;
+  /**
+  这份检出被 `--depth` 截断过（CI 默认的 depth 1 就是它）。为真时，「历史到此为止」那一条提交
+  带来的文件名单与每一行历史都不算信号 —— 见 {@link splitCommits} 与 {@link readTimes}。
+  */
+  shallow: boolean;
 }
 
 /** 一份文件的时刻表；不在仓库里就整份空着 */
@@ -76,45 +91,83 @@ export function findRepoRoot(cwd: string): string | undefined {
   return root === '' ? undefined : POSIX(realpathSync(root));
 }
 
-/** `git log` 的输出切段：一段 = 一次提交，头一行是时刻（`%x01` 是段首，`%ct` 是秒） */
-function splitCommits(log: string): { time: number; files: string[] }[] {
+/**
+`git log` 的输出切段：一段 = 一次提交，头一行是「时刻 + 父项」（`%x01` 是段首，`%ct` 是秒，
+`%x02` 是这两截的分隔，`%P` 是父项）。
+
+父项带着一条只有浅克隆用得上的信息：`--depth` 截断处那一次提交在这里**没有父项**（git 不认识
+它上一级），于是那份文件名单是「对着空树比出来的」，也就是**整棵树每一个文件**，而不是「那次
+动了哪些文件」。认不出这一条，浅克隆里每份文件都既「只提交过一次」又「最近动过」。
+*/
+function splitCommits(log: string): Commit[] {
   return log
     .split('\u{1}')
     .filter(Boolean)
     .map((block) => {
-      const [time, ...files] = block
+      // 每一段都从 `\u{1}` 后那个头行开始（`filter(Boolean)` 之后必然还在），所以这里 `!` 成立
+      const [header, ...files] = block
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean);
 
-      return { time: Number(time), files };
+      const [time, parents] = header!.split('\u{2}', 2);
+
+      return { time: Number(time), parents, files };
     });
 }
 
+/** 一次提交：时刻（秒）、父项（截断处那一条是空或没有）、那次动过的文件 */
+interface Commit {
+  time: number;
+  parents: string | undefined;
+  files: string[];
+}
+
+/** 这一次提交是不是「历史到此为止」那一条 —— 只有浅克隆里才会有 */
+const isGraft = (commit: Commit, shallow: boolean): boolean =>
+  shallow && !commit.parents;
+
 /**
-初始化阶段一起读掉的那一下：HEAD 的时刻 + 最近动过的那些文件。
+初始化阶段一起读掉的那一下：HEAD 的时刻 + 最近动过的那些文件 + 这一场的两个基准。
 
-两次 `git log`，两条口径各一次：
+三次 git 调用：
 
+- `--is-shallow-repository`：这份检出有没有被 `--depth` 截断过历史（先问这个，后面两次要用它筛）；
 - `--max-count` 那条：全仓最后 {@link RECENT_COMMITS} 个提交，与时间无关；
 - `--since` 那条：窗口内的全部提交（**不能**同时带 `--max-count`，见常量注释）。
 
-两次都不带路径 —— 这就是「一次读所有 docs 的 git 情况」：路径只在后面逐份文件时才出现，
+后两次都不带路径 —— 这就是「一次读所有 docs 的 git 情况」：路径只在后面逐份文件时才出现，
 而答案大多也在这里就齐了（窗口内的文件、最后五个提交动过的文件）。
+
+**截断处那一条提交的文件名单不进 `recent`**：那份名单是整棵树，收进来就成了「全站都最近动过」。
+它的时刻照旧算（那一次提交自己的日期是真的），所以 `head` 不受影响。
+
+`buildTime` 在这里读一次、记在仓库上：后面逐文件的窗口判据一律用它（见 {@link isRecent}）。
 */
 export function openRepo(root: string): Repo {
+  // 只认 `true`：老 git（<2.15）不认这个开关，`rev-parse` 会把未知项原样打印出来，
+  // 那一律按「历史是完整的」处理 —— 认不准时别把判据关掉。
+  const shallow =
+    git(['rev-parse', '--is-shallow-repository'], root) === 'true';
+
   const at = (extra: string[]) =>
     splitCommits(
-      git(['log', ...extra, '--format=%x01%ct', '--name-only'], root),
+      git(['log', ...extra, '--format=%x01%ct%x02%P', '--name-only'], root),
     );
   const latest = at([`--max-count=${RECENT_COMMITS}`]);
   const window = at([`--since=${RECENT_WINDOW}`]);
+  const touched = (commits: Commit[]) =>
+    commits
+      .filter((commit) => !isGraft(commit, shallow))
+      .flatMap(({ files }) => files);
 
   return {
     root,
     head: latest[0]?.time,
-    recent: new Set([...latest, ...window].flatMap(({ files }) => files)),
+    recent: new Set([...touched(latest), ...touched(window)]),
     times: new Map(),
+    buildTime: Math.floor(Date.now() / 1000),
+    shallow,
   };
 }
 
@@ -173,37 +226,49 @@ export function repoPath(repo: Repo, filePath: string): string | undefined {
 不数 `--name-only` 的文件名行：重命名那一步会同时吐新旧两个名字，而 `--follow` 更早的提交
 里只有旧名 —— 按名字过滤计数会把历史数少，把重命名过的文件误判成「只提交过一次」。
 只提交过一次，那一次既是「创建」也是「更新」；两次以上就只有「更新」。
+
+浅克隆里这一列还要过一道筛（`%x02%P` 就是为它带的）：
+- **截断处那一条提交的这一行丢掉**。那份「这份文件在这次提交里被改过」是 git 对着空树比出来的，
+  不是那次真的动过它；它以下更不可能看得见。
+- 只剩这一行 ⇒ 这份文件没有任何可信历史，两个时刻都不给（浅克隆里全站不表态，而不是全站亮）；
+- 还剩下别行 ⇒ `updated` 取最新那一条真提交，但 `created` 不再给：「只提交过一次」这个结论
+  现在被截断那一行污染了 —— 这份文件完全可能在那之前就有了历史，只是看不见。
 */
 function readTimes(repo: Repo, path: string): GitTimes {
-  const commits = git(
-    ['log', '--follow', '--format=%ct', '--', path],
-    repo.root,
-  )
-    .split('\n')
-    .filter(Boolean)
-    .map(Number);
+  const commits = splitCommits(
+    git(['log', '--follow', '--format=%x01%ct%x02%P', '--', path], repo.root),
+  );
+  const trusted = commits.filter((commit) => !isGraft(commit, repo.shallow));
 
-  if (commits.length === 0) {
+  if (trusted.length === 0) {
     return noTimes;
   }
 
-  const [updated] = commits;
+  // 上面刚判过 `trusted.length !== 0`，所以截断处之前的第一条必然在
+  const updated = trusted[0]!.time;
 
-  return { created: commits.length === 1 ? updated : undefined, updated };
+  // 「一次都没丢掉」才是真的只提交过一次：丢过一行就意味着这份文件的历史在截断处以上还有
+  const historyIsWhole = trusted.length === commits.length;
+
+  return {
+    created: historyIsWhole && trusted.length === 1 ? updated : undefined,
+    updated,
+  };
 }
 
 /**
 这份文件算不算「最近」：上次提交落在 {@link RECENT_DAYS} 天内，或那份文件在最后
 {@link RECENT_COMMITS} 个 commit 里出现过。
 
-前一条按**此刻**（墙上时钟）算，不按 HEAD 那次提交的时刻算：仓库最后一次提交可能已经很
-久以前（几个月没提交的那种），拿它当基准会把几十天前改过的文件也算成「最近」。
+前一条按 `repo.buildTime` —— **这一次构建打开仓库的那一刻** —— 算，不按 HEAD 那次提交的时刻
+算：仓库最后一次提交可能已经很久的以前（几个月没提交的那种），拿它当基准会把几十天前改过的
+文件也算成「最近」。也不每问一份文件重读一次墙上时钟：一场构建只该有一个「此刻」，否则两页
+可以踩在窗口两侧，而 `openRepo()` 里 `--since` 那一次用的本来就是打开那一刻。
 后一条由 `openRepo()` 那两次 `git log` 给：`--since` 管前一条、`--max-count` 管后一条。
 */
 export function isRecent(repo: Repo, path: string, updatedAt: number): boolean {
   return (
-    repo.recent.has(path) ||
-    Math.floor(Date.now() / 1000) - updatedAt <= RECENT_DAYS * DAY
+    repo.recent.has(path) || repo.buildTime - updatedAt <= RECENT_DAYS * DAY
   );
 }
 

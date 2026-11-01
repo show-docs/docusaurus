@@ -56,6 +56,8 @@ jobs:
           # （`theme-diff` 的 loader 走的是「这份文件上一次被提交的那一版」与「工作区这一份」
           # 两端比，缺了历史就没有上一端）。实测：depth 1 的检出里
           # `git log --follow -n 2 -- packages/README.md` 只有一条、且工作区无改动。
+          # 徽标那一层（`theme-git-badge`）也吃这条：浅检出里「历史到此为止」那一条提交被 git
+          # 当成对着空树比出来的，名单是整棵树 —— 不挡的话全站亮成「新建」，挡住了则全站没有标记。
           fetch-depth: 0
       - uses: actions/setup-node@v6
         with:

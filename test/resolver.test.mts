@@ -259,20 +259,22 @@ describe('边界与降级', () => {
         cb: (e: null, r: unknown) => void,
       ) => cb(null, { path: req.request }),
     );
-    const resolver = {
-      getHook: (name: string) => {
-        hooked.push(name);
-        return { tapAsync };
-      },
-      ensureHook: (name: string) => {
-        hooked.push(`ensure:${name}`);
-        return name;
-      },
-      doResolve,
+    // 真实上游的 hook 对象带 `name`（栈上判等要用），且同名恒是同一个对象
+    // （`getHook` 只是查表）—— 「自检拿到的那份就是 doResolve 用的那份」要靠这点才钉得住。
+    const hooks = new Map<
+      string,
+      { name: string; tapAsync: typeof tapAsync }
+    >();
+    const getHook = (name: string) => {
+      hooked.push(name);
+      const hook = hooks.get(name) ?? { name, tapAsync };
+      hooks.set(name, hook);
+      return hook;
     };
+    const resolver = { getHook, doResolve };
     r.apply(resolver as never);
-    // 能力自检会先 ensure 一次 internal-resolve；入口 hook 必须是 resolve
-    expect(hooked).toEqual(['ensure:internal-resolve', 'resolve']);
+    // 出口必须先取（能力自检就是取出口这一次调用），入口 hook 必须是 resolve
+    expect(hooked).toEqual(['internal-resolve', 'resolve']);
     expect(tapAsync).toHaveBeenCalledWith(
       'PrevLayerResolverPlugin',
       expect.any(Function),
@@ -293,7 +295,7 @@ describe('边界与降级', () => {
     await tick();
 
     expect(doResolve).toHaveBeenCalledTimes(1);
-    expect(doResolve.mock.calls[0]![0]).toBe('internal-resolve');
+    expect(doResolve.mock.calls[0]![0]).toBe(hooks.get('internal-resolve'));
     expect((doResolve.mock.calls[0]![1] as { request: string }).request).toBe(
       logo(c),
     );
@@ -323,8 +325,7 @@ describe('边界与降级', () => {
       return fail(cb);
     });
     r.apply({
-      getHook: () => ({ tapAsync }),
-      ensureHook: () => 'x',
+      getHook: (name: string) => ({ name, tapAsync }),
       doResolve,
     } as never);
     const handler = tapAsync.mock.calls[0]![1] as (
@@ -349,8 +350,7 @@ describe('边界与降级', () => {
     const r = resolverFor([a, b, c, s]);
     const tapAsync = vi.fn();
     r.apply({
-      getHook: () => ({ tapAsync }),
-      ensureHook: () => 'resolve',
+      getHook: (name: string) => ({ name, tapAsync }),
       doResolve: vi.fn(),
     } as never);
     const handler = tapAsync.mock.calls[0]![1] as (
@@ -609,8 +609,7 @@ describe('诊断文案与判等字段的兜底（每一侧都可断言）', () =
       const tapAsync = vi.fn();
       const doResolve = vi.fn();
       r.apply({
-        getHook: () => ({ tapAsync }),
-        ensureHook: () => 'x',
+        getHook: (name: string) => ({ name, tapAsync }),
         doResolve,
       } as never);
       r.resolveTarget = () => {

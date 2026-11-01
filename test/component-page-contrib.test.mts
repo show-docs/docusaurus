@@ -373,6 +373,37 @@ describe('buildRuleTable：站点把那把键关掉（enabled: false）', () => 
     expect(table.notices).toEqual([]);
   });
 
+  it('两个包抢的那把键被站点写完整规则接手：不红，表里只有站点那一条', () => {
+    // 站点接手后两条默认规则都不再生效，和「关掉」一样没有后果；键名住在那两个包里，站点改不了
+    // 它们的声明，能收拾这个局面的只剩它自己。
+    const table = buildRuleTable(
+      siteOf(
+        [compOf('site-report', '@theme/SiteReport')],
+        [ruleOf('report', 'site-report')],
+      ),
+      [
+        pkgOf('pkg-a', 'a-report', '@theme/A', 'report'),
+        pkgOf('pkg-b', 'b-report', '@theme/B', 'report'),
+      ],
+    );
+
+    expect(keysOf(table)).toEqual(['report']);
+    expect(table.entries[0]!.specifier).toBe('@theme/SiteReport');
+    // 提示要把两家都点出来：只报一家会让站点以为另一家还在生效。
+    expect(table.notices).toEqual([
+      'theme-component-page：键「report」本来由 pkg-a 和 pkg-b 交出，站点配置里也写了这一把，用站点那一条（完整覆写不继承那条默认规则的 `match` / `source` / `render` / `props`）。',
+    ]);
+  });
+
+  it('抢键的那把只被站点引用（写一个字符串）：仍然红 —— 引用是把决定权交回包，两家各有一条时没有答案', () => {
+    expect(() =>
+      buildRuleTable(siteOf(undefined, ['report']), [
+        pkgOf('pkg-a', 'a-report', '@theme/A', 'report'),
+        pkgOf('pkg-b', 'b-report', '@theme/B', 'report'),
+      ]),
+    ).toThrow(/键「report」被 pkg-a 和 pkg-b 各交出一条默认规则/);
+  });
+
   it('两个包抢的那把键正好被站点关掉：不红 —— 两边都不生效，抢赢抢输没有后果', () => {
     const table = buildRuleTable(
       siteOf(undefined, [{ key: 'report', enabled: false }]),

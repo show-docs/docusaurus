@@ -8,17 +8,18 @@
 
 ## 组成
 
-| 文件                          | 职责                                                       |
-| ----------------------------- | ---------------------------------------------------------- |
-| `src/index.mts`               | 插件入口：推层栈 + 空层栈告警 + 注入 resolver              |
-| `src/layers.mts`              | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位  |
-| `src/plugin-slots.mts`        | 认层那两条判据 + 「本包注册了没有」那条前置检查（见下）    |
-| `src/plugins.mts`             | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表  |
-| `src/resolve.mts`             | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配    |
-| `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`）                  |
-| `src/source-js-rule.mts`      | 认领 `node_modules/@show-docs/` 下未编译 TS 源码的那条规则 |
-| `src/types.mts`               | 公共类型                                                   |
-| `types/theme-specifiers.d.ts` | `@theme*` 三条 specifier 的类型声明，见 README「类型声明」 |
+| 文件                          | 职责                                                                         |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `src/index.mts`               | 插件入口：推层栈 + 空层栈告警 + 注入 resolver                                |
+| `src/layers.mts`              | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位                    |
+| `src/plugin-slots.mts`        | 认那两份清单的纯判据（`slotIsNamespace` / 四种原始写法）                     |
+| `src/registered-plugins.mts`  | 「本包注册了没有」与「注册成了几份」两条前置检查：原始清单 + preset 两处都认 |
+| `src/plugins.mts`             | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表                    |
+| `src/resolve.mts`             | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配                      |
+| `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`）                                    |
+| `src/source-js-rule.mts`      | 认领 `node_modules/@show-docs/` 下未编译 TS 源码的那条规则                   |
+| `src/types.mts`               | 公共类型                                                                     |
+| `types/theme-specifiers.d.ts` | `@theme*` 三条 specifier 的类型声明，见 README「类型声明」                   |
 
 源码全在 `src/` 下，`dist/` 是它的编译产物（`rootDir` = `src/`），两者的文件一一对应。
 `types/` 不参与编译，见 README 的「类型声明」。
@@ -87,8 +88,12 @@ Docusaurus 插件在 `configureWebpack` 里给 `config.resolve.plugins` 追加�
 这一个 specifier 是**固定预设名**（`@theme-prev/`），不做成可配置项。
 
 ```js
-// 插件初始化（异步）：拿插件列表
-const plugins = await new PluginDiscovery(siteDir, logger).discover(); // 官方 loadContext + loadPluginConfigs
+// 插件初始化（异步）：拿插件列表（第三个参数是 `context.siteConfigPath`，见「配置文件」一节）
+const plugins = await new PluginDiscovery(
+  siteDir,
+  logger,
+  siteConfigPath
+).discover(); // 官方 loadContext + loadPluginConfigs
 
 export default {
   // configureWebpack（同步）：推层栈 + 注入 resolver
@@ -125,6 +130,14 @@ export default {
 这一格由本插件认领：`configureWebpack` 里用官方 `utils.getJSLoader()` 补一条 `.tsx?` 规则，
 `include` 走 `needsShowDocsSourceRule()`（`src/source-js-rule.mts`）。
 
+`getJSLoader()` 的入参要和官方那条一致：除了 `isServer`，官方还传
+`babelOptions: await getCustomBabelConfigFilePath(siteDir)`（core `lib/webpack/base.js`），
+本插件传的是**同一个产地取来的同一个值**（`src/source-js-rule.mts` 的 `siteBabelConfigPath`，
+借 core 自己的 `@docusaurus/babel` 依赖取）。少了这一格时 `getBabelOptions` 会退回
+`{ babelrc: false, configFile: false }` + 默认 preset —— 站点源码按站点的 `babel.config.js`
+编、这一族的源码按默认配置编，同一份代码两套编译，而差异只在产物里。取不到那个函数时退回
+`undefined`（= 少这一格的老行为）并**告警**。
+
 ### 认领范围为什么是「scope」而不是「包根」
 
 判据是 `node_modules/@show-docs/` 这一段，与具体哪个包无关：
@@ -160,11 +173,44 @@ export default {
 `test/view-layer-copies.test.mts`（「TS 源码的编译规则只有一处」），判据本身的用例在
 `test/source-js-rule.test.mts`。
 
-## 认层：`src/plugin-slots.mts` 里那两条判据
+## 认层：`src/plugin-slots.mts` 与 `src/registered-plugins.mts`
 
 「`siteConfig.plugins` / `themes` 里那一项是不是某个包」（`slotIsNamespace()`，连同
-`pluginSlotName()` 认那四种原始写法）与「本包注册了没有」（`assertPrevLayerResolverInstalled()`）
-住在 `src/plugin-slots.mts`，经包出口 `./plugin-slots` 发出去。
+`pluginSlotName()` 认那四种原始写法）住在 `src/plugin-slots.mts`，经包出口 `./plugin-slots` 发出去；
+「本包注册了没有」（`pluginIsRegistered()` / `assertPrevLayerResolverInstalled()`）住在
+`src/registered-plugins.mts`，经 `./registered-plugins` 发出去。同一份文件里还有另一道题：
+「**这个包被注册成了几份**」（`pluginInstanceCount()` / `assertSinglePluginInstance()`），
+吃不下第二份实例的那两层各调它一次。
+
+**为什么拆成两份**：前一份是纯函数，只看手上的那两份清单；后一份还要回答「清单上还可能有
+**第三处来源**」。站点把插件写在 `presets:` 里完全合法，而官方把那几份清单合并成真实插件表发生
+在 `loadPluginConfigs` 内部，`LoadContext` 上没有合并后的清单可读 —— 只读原始清单会把一个装齐了的
+站点判死（那句报错让它去 `pnpm add` 一个已经装着的包）。所以先按原始清单判（同步、也是绝大多数
+站点的全部），判不出且站点确实写了 `presets` 时，再复用官方那一对函数问一次：
+`loadContext({siteDir, config: siteConfigPath})` → `loadPresets(official)`，读它按声明顺序 flatMap
+出来的 `plugins` / `themes`。
+
+**代价与判错口径**：问官方那一跳只在「缺的这一侧 + 站点写了 presets」时发生，而且要等，
+所以这一格交回 `Promise`，各层 `loadContent()` 必须把它交回官方等（入口里别的活照旧同步干完，
+别让这一跳插到「必须在被读走之前装上」的那些动作前面 —— `theme-git-badge` 那一份是先把
+`parseFrontMatter` 包住再 `await` 的）。判错的两侧不对称：误报判死一个本来能成的构建，漏报只是
+把构建期注定会炸的那一步留到构建期，因此**问不到官方那一份时不拦**（core 结构变了、配置文件读不了、
+preset 函数自己抛，三种都退成「不知道」）；而「官方答了、那份清单里没有」判得实。
+
+「几份」那一道是同一套读法的第二个问题（`pluginInstanceCount()`：原始清单数一遍，站点写了 presets
+再把 preset 那份加上），误差方向也同一档 —— **只可能少判，不可能多判**：原始清单数到了就不去翻案，
+问不到官方时按原始清单那份交回。认的是包名而不是实例 id，因为官方只拦「同一插件挂两次又不给 id」，
+给了不同 id 的两份在它那里合法。`assertSinglePluginInstance()` 只在两份以上才响：一份都没有是
+「装没装」那道题（上面那一条报），这里跟着报只会让站点去多装一个本来不缺的包；「为什么这一层吃不下
+第二份」由调用方在 `why` 里自己说，本包不管 —— 否则这句话要在每家复读一遍。
+
+**这两条判据的上限是「注册」**：官方允许插件构造函数返回 `null` 自行禁用（core `init.js` 的
+`onlyInitializedPlugins()` 把 `plugin: null` 那些滤掉），那种包在清单上照样看得见，但官方不会跑它的
+`loadContent()`。读得到真实例的唯一一处是 `allContent`，而它不在 `LoadContext` 上 —— 所以
+「装了却什么都没交」不在本包的题目里，归机制层那一侧判。三处判据（层栈 / 注册 / `allContent`）各读
+什么、什么时候能给出不同答案，集中记在
+[`packages/theme-component-page/docs/internals.md`](../../theme-component-page/docs/internals.md)
+的「「装了」这件事有三处判据」。
 
 **为什么是本包的事**：后一条问的正是「提供 `@theme-prev/*` 别名的那个插件在不在」。这句话只有
 本包自己说得住。以前它住在 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，于是任何想用它的
@@ -174,13 +220,15 @@ export default {
 是这样，`themes/` 那一族（头像、复制按钮、侧边栏徽标、图片查看器）也是这样，护栏在
 `test/infrastructure-rules.test.mts`。
 
-**为什么是纯函数、为什么单开一条 `./plugin-slots` 出口**：读者都在配置期（Node，jiti 直接吃
-`dist/`）—— 各层 `loadContent()` 里那句「前置插件在不在」。包根本机会引 `node:*` 与 webpack，
-配置期读者不该为此多背依赖，所以走一条只含这个文件的子路径；纯函数也让判据能在单测里直接钉，
-不必先建一个站点。
+**为什么纯函数那一份单开一条 `./plugin-slots` 出口**：读者都在配置期（Node，jiti 直接吃
+`dist/`）。包根本机会引 `node:*` 与 webpack，配置期读者不该为此多背依赖，所以走一条只含这个
+文件的子路径；纯函数也让判据本身能在单测里直接钉，不必先建一个站点。
 
-判据本身的用例在 `test/plugin-slots.test.mts`；`test/prerequisites.test.mts` 再从调用方那一侧
-跑一遍真实形状（路径写法、`themes` 那份清单）。
+判据本身的用例在 `test/plugin-slots.test.mts`；preset 那一半在
+`test/registered-plugins.test.mts`（走真的 `loadContext` + `loadPresets`，替身掉就什么都没验）；
+`test/prerequisites.test.mts` 再从调用方那一侧跑一遍真实形状（路径写法、`themes` 那份清单）。
+「注册了两份要响」接进各层入口那一面由 `test/package-entries.test.mts` 里那两条
+「第二份实例当场点名」钉。
 
 ## 输入处理：`@theme-prev/<rest>` 怎么切、怎么校验
 
@@ -303,18 +351,19 @@ build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 
 ## 升级 `@docusaurus/core` 时的检查单
 
-本插件踩在六处**没有稳定性承诺**的内部契约上。`peerDependencies` 与版本护栏都只拦
+本插件踩在七处**没有稳定性承诺**的内部契约上。`peerDependencies` 与版本护栏都只拦
 「低于 `^3.9.2`」—— **高于已验证区间的漂移同样只会 warn、不会拦**，所以升级后必须跑
 下面这张单子，绿灯全亮才算真的兼容（这些用例就是护栏，只是分散在各契约面文件里）：
 
-| 内部契约                                                              | 守它的用例                                                                                                               |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `loadContext` / `loadPluginConfigs` 两个入口的存在与导出形状          | `test/discover.test.mts` 全文件（含「只挂 `default`」「加载即抛」两档降级）                                              |
-| `normalizePluginOptions`（`@docusaurus/utils-validation`）            | `test/discover.test.mts`「插件 options 校验」两节                                                                        |
-| `normalizeThemeConfig` + 各插件 `validateThemeConfig` 的两条查找路    | `test/discover.test.mts`「插件构造前的 themeConfig 合并」                                                                |
-| core 包结构锚点 `lib/webpack/aliases` → `../../client/theme-fallback` | `test/layers.test.mts`「theme-fallback 定位」+「路径遍历兜底」                                                           |
-| 层栈顺序 / 组件赢家 / 组件可见性与官方同口径                          | `test/layers.test.mts`「与官方 `loadThemeAliases` 同序」；`test/resolve.test.mts`「官方别名赢家」「组件可见性」          |
-| enhanced-resolve 的 `internal-resolve` hook 与 `contextInfo` 形态     | `test/enhanced-resolve.test.mts` 全文件；`test/resolver.test.mts`「挂在 resolve 入口」「没有 internal-resolve hook」两条 |
+| 内部契约                                                                 | 守它的用例                                                                                                               |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `loadContext` / `loadPluginConfigs` 两个入口的存在与导出形状             | `test/discover.test.mts` 全文件（含「只挂 `default`」「加载即抛」两档降级）                                              |
+| `loadContext` 的 `config` 入参（官方 `loadSiteConfig` 用它定位配置文件） | `test/discover.test.mts`「配置文件：读站点实际用的那一份」                                                               |
+| `normalizePluginOptions`（`@docusaurus/utils-validation`）               | `test/discover.test.mts`「插件 options 校验」两节                                                                        |
+| `normalizeThemeConfig` + 各插件 `validateThemeConfig` 的两条查找路       | `test/discover.test.mts`「插件构造前的 themeConfig 合并」                                                                |
+| core 包结构锚点 `lib/webpack/aliases` → `../../client/theme-fallback`    | `test/layers.test.mts`「theme-fallback 定位」+「路径遍历兜底」                                                           |
+| 层栈顺序 / 组件赢家 / 组件可见性与官方同口径                             | `test/layers.test.mts`「与官方 `loadThemeAliases` 同序」；`test/resolve.test.mts`「官方别名赢家」「组件可见性」          |
+| enhanced-resolve 的 `internal-resolve` hook 与 `contextInfo` 形态        | `test/enhanced-resolve.test.mts` 全文件；`test/resolver.test.mts`「挂在 resolve 入口」「没有 internal-resolve hook」两条 |
 
 跑法：`pnpm verify` —— 它含真实的 `docusaurus build` 与 `verify:chain` 端到端断言
 （四层链真的渲染出来），比单跑单测多一层保障。

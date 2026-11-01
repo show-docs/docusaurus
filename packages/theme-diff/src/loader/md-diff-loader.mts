@@ -3,21 +3,17 @@ import { dirname, relative, resolve } from 'node:path';
 
 import type { LoaderContext } from 'webpack';
 
+import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
+
 import type { DiffData, LoaderContextExtras } from '../types.mts';
 
-import {
-  readDiffValue,
-  resolveDiffTarget,
-  splitDiffValue,
-} from './diff-decision.mts';
+import { diffSpecOf, resolveDiffTarget } from './diff-decision.mts';
 import {
   findRepoRoot,
   readFilesChange,
   readLastChange,
   repoPathFromRoot,
 } from './git-diff.mts';
-
-const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
 
 /**
 一份文件的上一个版本与磁盘上此刻这一份之间的改动。仓库外、或没有上一个版本时 `undefined`。
@@ -77,8 +73,11 @@ function buildFilesData(
 }
 
 // `enforce: 'post'` loader：跑在 `@docusaurus/mdx-loader` 之后，收到的 `source` 是
-// 编译好的 MDX 模块。frontmatter 的判据从磁盘上的源文件读，不去解析生成代码里的
-// `export const frontMatter = …`（那是 Docusaurus 的内部格式，随版本变）。
+// 编译好的 MDX 模块。frontmatter 的判据从磁盘上的源文件读，但读法用**官方那一条**
+// （`DEFAULT_PARSE_FRONT_MATTER`：docs 插件没换读法时用的就是它），不去解析生成代码里的
+// `export const frontMatter = …`（那是 Docusaurus 的内部格式，随版本变）。站点那条规则读的
+// 也是官方解析之后的那一整份，「这一页开没开差异视图」因此只剩一种表现。
+// 站点若自己换了 `markdownConfig.parseFrontMatter`，这两处会重新分叉 —— 这一族只与官方默认那一份对齐。
 export default function loader(
   this: LoaderContext<unknown> & LoaderContextExtras,
   source: string,
@@ -87,33 +86,51 @@ export default function loader(
 
   const callback = this.async();
 
-  const raw = fs.readFileSync(this.resourcePath, 'utf8');
+  appendDiff(this, source)
+    .then((output) => callback(null, output))
+    // 源文件读不到（被删、没权限）时交回那份错误：这一格与官方那条 loader 同一个落点，
+    // 也让回调一定被调用 —— 少这一条，webpack 会永远等这一页。
+    .catch((error: unknown) => callback(error as Error));
+}
 
-  const frontMatterBlock = FRONT_MATTER.exec(raw)?.[1];
-  const value = frontMatterBlock && readDiffValue(frontMatterBlock);
+/**
+这一页最终的模块文本：按 frontmatter 里 `diff` 那一格决定原样交回，还是在末尾追加一条
+`export const diff`。不渲染时告警一句 —— 作者写了那把键却看不到视图，静默是最难查的那一种。
+*/
+async function appendDiff(
+  context: LoaderContext<unknown> & LoaderContextExtras,
+  source: string,
+): Promise<string> {
+  const raw = fs.readFileSync(context.resourcePath, 'utf8');
 
-  if (!value) {
-    callback(null, source);
-    return;
+  // 官方那一条读的是磁盘上这一份；整段 frontmatter 解析不了就当「没写这把键」——
+  // 真到构建里，mdx-loader 在那一步已经先报错了。
+  const { frontMatter } = await DEFAULT_PARSE_FRONT_MATTER({
+    fileContent: raw,
+    filePath: context.resourcePath,
+  }).catch(() => ({ frontMatter: undefined as unknown }));
+
+  const spec = diffSpecOf(frontMatter);
+
+  if (!spec) {
+    return source;
   }
 
   // 这一页不渲染差异视图：告警一句，正文原样交回
-  const skip = (warning: string): void => {
-    this.emitWarning(warning);
-    callback(null, source);
+  const skip = (warning: string): string => {
+    context.emitWarning(warning);
+    return source;
   };
 
-  const spec = splitDiffValue(value);
-
   if (spec.kind === 'invalid') {
-    skip(
-      `frontmatter 的 diff 写成 {old: 旧, new: 新} 时要正好这两个键，这一页不渲染差异视图：${value}`,
-    );
-    return;
+    return skip(`frontmatter 的 diff ${spec.reason}，这一页不渲染差异视图`);
   }
 
   // 地址一律相对这份 md 所在目录（`diff: true` 就是本文自己）
-  const baseDir = dirname(this.resourcePath);
+  const baseDir = dirname(context.resourcePath);
+  // 告警与日志里对「比的是哪两份」的称呼：pair 用两条写法，single 用那一格原值
+  const label =
+    spec.kind === 'pair' ? `${spec.old} 与 ${spec.new}` : spec.value;
 
   try {
     if (spec.kind === 'pair') {
@@ -125,49 +142,50 @@ export default function loader(
       ].find((side) => !fs.existsSync(side.target));
 
       if (missing) {
-        skip(
+        return skip(
           `frontmatter 的 diff 里 ${missing.word} 那一份不存在，这一页不渲染差异视图：${missing.target}`,
         );
-        return;
       }
+
+      // 那两份都在**这份 md 之外**：不登记依赖就没人改它们会触发重建（webpack 只认识这条
+      // 请求自己的文件）。git 那一路没法这样登记 —— 它的旧内容来自仓库历史，见
+      // `docs/internals.md`「这份数据缓存到哪一格」。
+      context.addDependency(oldTarget);
+      context.addDependency(newTarget);
 
       const pair = buildFilesData(baseDir, oldTarget, newTarget);
 
-      if (!pair) {
-        skip(`${spec.old} 与 ${spec.new} 没有差别，这一页不渲染差异视图`);
-        return;
-      }
-
-      callback(
-        null,
-        `${source}\nexport const diff = ${JSON.stringify(pair)};\n`,
-      );
-      return;
+      return pair
+        ? `${source}\nexport const diff = ${JSON.stringify(pair)};\n`
+        : skip(`${spec.old} 与 ${spec.new} 没有差别，这一页不渲染差异视图`);
     }
 
-    const target = resolveDiffTarget(spec.value, this.resourcePath);
+    const target = resolveDiffTarget(spec.value, context.resourcePath);
 
     if (!fs.existsSync(target)) {
-      skip(`frontmatter 的 diff 指向 ${spec.value}，这个文件不存在：${target}`);
-      return;
+      return skip(
+        `frontmatter 的 diff 指向 ${spec.value}，这个文件不存在：${target}`,
+      );
+    }
+
+    // `diff: <路径>` 比的是**那份文件**在 git 里的历史：它变了这一页才该重算
+    if (target !== context.resourcePath) {
+      context.addDependency(target);
     }
 
     const data = buildCommitData(target);
 
-    if (!data) {
-      skip(
-        `${spec.value} 没有可对比的上一个版本（不在 git 仓库里，或这份文件提交过一次之后没有再改动），这一页不渲染差异视图`,
-      );
-      return;
-    }
-
-    callback(null, `${source}\nexport const diff = ${JSON.stringify(data)};\n`);
+    return data
+      ? `${source}\nexport const diff = ${JSON.stringify(data)};\n`
+      : skip(
+          `${spec.value} 没有可对比的上一个版本（不在 git 仓库里，或这份文件提交过一次之后没有再改动），这一页不渲染差异视图`,
+        );
   } catch (error) {
     // git 本身出问题（仓库损坏、git 不在 PATH、那两份里有一份 git 读不到）只让这一页少一块视图，
     // 不让整站构建失败。抛出来的是 Error（`execFileSync` 与下面的读取都是），这里只是把 `catch`
     // 到的 unknown 取回一句可读的消息。
-    skip(
-      `向 git 取 ${value} 的差异失败，这一页不渲染差异视图：${(error as Error).message}`,
+    return skip(
+      `向 git 取 ${label} 的差异失败，这一页不渲染差异视图：${(error as Error).message}`,
     );
   }
 }

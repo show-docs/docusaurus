@@ -26,6 +26,10 @@
     "./plugin-slots": {
       "default": "./dist/plugin-slots.mjs",
       "types": "./dist/plugin-slots.d.mts"
+    },
+    "./registered-plugins": {
+      "default": "./dist/registered-plugins.mjs",
+      "types": "./dist/registered-plugins.d.mts"
     }
   },
   "files": [

@@ -1,15 +1,14 @@
 /**
-「`plugins` / `themes` 里那一个槽位是不是某个包」这一条判据，加上「解析器插件自己注册了没有」
-那一条前置检查。
+「`plugins` / `themes` 里那一个槽位是不是某个包」这一条判据。
 
-为什么住在这一包里：这两条问的都是**本包这件事** —— 那条别名（`@theme-prev/*`）由本包提供，
-所以「它在不在站点那两份清单里」这句话只有本包自己说得住。在此之前它住在
+为什么住在这一包里：这条问的是**本包这件事** —— 那条别名（`@theme-prev/*`）由本包提供，所以
+「它在不在站点那两份清单里」这句话只有本包自己说得住。在此之前它住在
 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，于是任何想用它的层都得先引那一族层，
 连带把「装了 theme-iframe」变成自己的安装前提 —— 而真正的前提只有这一个包。
 
-这一份是**纯函数**：不引 `node:*`、不引 React、不引 DOM，也不引 core。读者都在配置期
-（Node，jiti 直接吃）：各层 `loadContent()` 里那句「前置插件在不在」。纯函数也让判据本身
-能在单测里直接钉，不必先建一个站点。
+这一份是**纯函数**：不引 `node:*`、不引 React、不引 DOM，也不引 core。拿那份清单的判法因此
+也归不得这一份 —— 「站点还可能在 preset 里注册插件」那句话要问官方，住在
+`./registered-plugins.mts`。纯函数也让判据本身能在单测里直接钉，不必先建一个站点。
 */
 
 /** 本包的包名 = 站点 `plugins` 里那一项的名字。 */
@@ -78,32 +77,4 @@ export function declaredNamespaces(declared: PluginSlots): string[] {
   return [...(declared.plugins ?? []), ...(declared.themes ?? [])]
     .map((slot) => pluginSlotName(slot))
     .filter((name): name is string => name !== undefined);
-}
-
-/** 那一份清单里是不是注册了本包。 */
-export function resolverPluginRegistered(declared: PluginSlots): boolean {
-  return declaredNamespaces(declared).some((slot) =>
-    slotIsNamespace(slot, PLUGIN_NAME),
-  );
-}
-
-/**
-检查站点的**那一条**安装前提：本包自己注册成了插件。
-
-各主题层都在 `loadContent()` 里调用它，缺了就当场点名 —— 正常路径上缺了它，webpack 会停在
-`Module not found`，报错点离真正的原因隔着一整个构建。报错里点名的是**调用方**的包名：
-「谁需要本包」要说得清，站点才知道该回去看哪一层的文档。
-*/
-export function assertPrevLayerResolverInstalled(
-  namespace: string,
-  declared: PluginSlots,
-): void {
-  if (resolverPluginRegistered(declared)) {
-    return;
-  }
-
-  throw new Error(
-    `${namespace} 需要 ${PLUGIN_NAME}：所有主题的 \`@theme-prev/*\` 都由它提供别名。` +
-      `请先 \`pnpm add ${PLUGIN_NAME}\`，再把它加进 \`plugins\`（一个实例即可）。`,
-  );
 }

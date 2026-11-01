@@ -84,9 +84,16 @@ Docusaurus 把每一个 css 导入都并进同一个 `styles` chunk（`splitChun
 
 `configureWebpack()` 里给这一条路径加一条 `asset/resource` 规则 —— 文件原样发出去成为一个独立产物，
 `import` 拿到的是它的**地址**（一个字符串），由框内那份文档自己挂一条 `<link>`
-（`components/stoplight-ui.tsx`）。这一格与另两条 API 层用**同一份实现**：
+（`components/stoplight-ui.tsx`）。这一格与 `theme-scalar` 用**同一份实现**（`theme-redoc` 没有这一格：
+它那张表是运行期注入的，构建产物里根本没有它）：
 `@show-docs/docusaurus-theme-component-page/lib/isolate-renderer-css.ts`（为什么非在构建期动手、两条规则
 同时命中要怎么躲、`?url` 为什么用不了，都记在那份文件头）。本包只交两格：文件正则与探测用的假路径。
+
+假路径那一条不是装饰，它是这条防线的**自检**：官方哪天把带 css-loader 的那条规则换成别的形状（`test`
+不再是正则、或规则搬进 `oneOf`），探针就一条都命中不了。那种失配过去只是静默 —— 产物里少了独立那份
+css、样式漏回全站，要等 e2e 才红，而红的症状是「外层文档里不该有 `.sl-`」这种间接话。现在
+`isolateRendererCss()` 零命中当场抛（连 `module` 都没有也算零命中），报错点从构建末尾挪到配置期，
+与 `assertThemePrerequisites` 同一口径。
 
 > 两个坑，都是这一轮踩过或核过的：
 >

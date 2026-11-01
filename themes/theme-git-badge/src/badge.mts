@@ -20,7 +20,8 @@ export const PINNED_BADGE_KEY = 'git_badge';
 git 判出来的状态与徽标的对应：**只提交过一次且最近动过**是「新建」，其余**最近动过**的是
 「更新」。没进这张表的两种（不是最近、压根没有历史）都不表态。
 
-新建蕴含更新，所以「只提交过一次且最近动过」只有一个标记（一格一个）。
+新建蕴含更新，所以「只提交过一次且最近动过」只有一个标记（一格一个）。「只提交过一次」这一格
+只在历史真的看得见时才成立 —— 检出被 `--depth` 截断时那一头由 `./git-info.mts` 收掉。
 */
 const BADGE_BY_STATE: Record<string, GitBadgeKind | undefined> = {
   'once/recent': 'new',
@@ -28,12 +29,13 @@ const BADGE_BY_STATE: Record<string, GitBadgeKind | undefined> = {
 };
 
 /**
-git 判出来的那种徽标：判据是这份文件的两个时刻（`timesOf`）与「最近动过没有」
-（`isRecent`）。
+git 判出来的那种徽标：判据是这份文件的两个时刻（`timesOf`）与「最近动过没有」（`isRecent`）。
 
-「最近」的两个口径都在 git 那一侧：全仓最后 5 个提交，或最近 7 天（按此刻的墙上时钟算）。
+「最近」的两个口径都在 git 那一侧：全仓最后 5 个提交，或最近 7 天（按这一次构建打开仓库那一刻）。
 
-没进 git 的管辖范围、压根没有历史、或者不在这两个口径里 —— 三种都不表态。
+没进 git 的管辖范围、压根没有历史、或者不在这两个口径里 —— 三种都不表态。浅克隆里「历史到此
+为止」的那一条提交不算信号，于是它以下都读不出来（见 `./git-info.mts` 的 `openRepo()`）：这里
+看到的 `created` 只在历史真的看得见时才成立，所以这一层不再另判检出深度。
 */
 function gitBadgeKind(
   repo: Repo | undefined,

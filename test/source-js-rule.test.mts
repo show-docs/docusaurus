@@ -1,15 +1,32 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   needsShowDocsSourceRule,
   showDocsSourceRule,
+  siteBabelConfigPath,
 } from '../packages/plugin-prev-layer-resolver/src/source-js-rule.mts';
 
-/** `loader` 给个哨兵，方便断言它按 isServer 取。 */
-const utilsWith = (isServer: boolean) =>
-  ({
-    getJSLoader: () => ({ loader: `js-loader:${isServer}` }),
-  }) as never;
+import { mkdtempReal } from './helpers.mts';
+
+/**
+`loader` 给个哨兵（方便断言它按 isServer 取），同时记下 `getJSLoader` **收到的入参**
+—— 「官方那条规则传的那格 babelOptions，这里也传了」只能这样钉。
+*/
+function utilsWith(isServer: boolean) {
+  const calls: unknown[] = [];
+  return {
+    calls,
+    utils: {
+      getJSLoader: (options: unknown) => {
+        calls.push(options);
+        return { loader: `js-loader:${isServer}` };
+      },
+    } as never,
+  };
+}
 
 describe('needsShowDocsSourceRule()：这条规则认领哪些文件', () => {
   it('node_modules/@show-docs/ 下那份未编译的 TS 源码认领', () => {
@@ -113,7 +130,8 @@ describe('needsShowDocsSourceRule()：这条规则认领哪些文件', () => {
 
 describe('showDocsSourceRule()：规则那几格的形状', () => {
   it('test 只收 .ts / .tsx，include 走上面那条判据，use 是官方给的 loader', () => {
-    const rule = showDocsSourceRule(utilsWith(false), false);
+    const { utils } = utilsWith(false);
+    const rule = showDocsSourceRule(utils, false);
 
     expect(rule.test.test('index.tsx')).toBe(true);
     expect(rule.test.test('index.ts')).toBe(true);
@@ -133,11 +151,117 @@ describe('showDocsSourceRule()：规则那几格的形状', () => {
   });
 
   it('loader 按 isServer 取：客户端与服务端各一份', () => {
-    expect(showDocsSourceRule(utilsWith(true), true).use).toEqual([
+    expect(showDocsSourceRule(utilsWith(true).utils, true).use).toEqual([
       { loader: 'js-loader:true' },
     ]);
-    expect(showDocsSourceRule(utilsWith(false), false).use).toEqual([
+    expect(showDocsSourceRule(utilsWith(false).utils, false).use).toEqual([
       { loader: 'js-loader:false' },
     ]);
+  });
+
+  it('官方那条 JS 规则传的 babelOptions 必须一起传（否则这一族与站点源码两套编译）', () => {
+    // 官方那条规则是 `createJsLoader({ isServer, babelOptions: await
+    // getCustomBabelConfigFilePath(siteDir) })`（core `lib/webpack/base.js`）。少了 babelOptions
+    // 时 `getBabelOptions` 退回 `{ babelrc: false, configFile: false }` + 默认 preset，
+    // 于是站点按自己的 `babel.config.js` 编、这一族的源码按默认配置编 —— 差异只在产物里，
+    // 构建照绿。
+    const client = utilsWith(false);
+    showDocsSourceRule(client.utils, false, '/site/babel.config.js');
+    expect(client.calls).toEqual([
+      { isServer: false, babelOptions: '/site/babel.config.js' },
+    ]);
+
+    // 站点没有自定义配置时官方给的是 `undefined`，这里也必须原样是 undefined（不是空串、不是路径）
+    const server = utilsWith(true);
+    showDocsSourceRule(server.utils, true);
+    expect(server.calls[0]).toEqual({
+      isServer: true,
+      babelOptions: undefined,
+    });
+  });
+});
+
+/**
+`siteBabelConfigPath()`：取的是**官方那个函数**，判据不自己抄一遍。
+
+夹具站点必须留在仓库树内（临时目录在 `os.tmpdir()` 时上溯不到仓库根的 `node_modules`，
+就碰不到真的 `@docusaurus/babel`）—— 与 `helpers.mts` 里 `makePluginSite` 同一条理由。
+*/
+describe('siteBabelConfigPath()：与官方同源的 babel 配置路径', () => {
+  /** 一个「core 定位得到」的最小站点（真 `@docusaurus/babel` 靠上溯仓库根拿到）。 */
+  function makeSite(withBabelConfig: boolean): {
+    siteDir: string;
+    cleanup: () => void;
+  } {
+    // `mkdtempSync` 只建最后一级，`.temp/` 干净 checkout 里不存在 —— 同 helpers 里那段注释
+    const tempRoot = path.resolve(import.meta.dirname, '..', '.temp');
+    fs.mkdirSync(tempRoot, { recursive: true });
+    const root = mkdtempReal(path.join(tempRoot, 'babel-rule-site-'));
+    const siteDir = path.join(root, 'site');
+    fs.mkdirSync(path.join(siteDir, 'node_modules', '@docusaurus', 'core'), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(siteDir, 'node_modules', '@docusaurus', 'core', 'package.json'),
+      JSON.stringify({ name: '@docusaurus/core', version: '3.10.2' }),
+    );
+    const babelConfig = path.join(siteDir, 'babel.config.js');
+    if (withBabelConfig)
+      fs.writeFileSync(babelConfig, 'module.exports = {};\n');
+    return {
+      siteDir,
+      cleanup: () => fs.rmSync(root, { recursive: true, force: true }),
+    };
+  }
+
+  it('站点有 babel.config.js 时给出它的路径（走的是官方那个函数）', async () => {
+    const site = makeSite(true);
+    try {
+      const warn = vi.fn();
+      expect(await siteBabelConfigPath(site.siteDir, { warn })).toBe(
+        path.join(site.siteDir, 'babel.config.js'),
+      );
+      expect(warn, '官方函数取得到时不该告警').not.toHaveBeenCalled();
+    } finally {
+      site.cleanup();
+    }
+  });
+
+  it('站点没有时返回 undefined 且不告警', async () => {
+    const site = makeSite(false);
+    try {
+      const warn = vi.fn();
+      expect(await siteBabelConfigPath(site.siteDir, { warn })).toBeUndefined();
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      site.cleanup();
+    }
+  });
+
+  it('取不到官方那个函数时退回 undefined 并告警（静默退回 = 站点配了却没生效也看不出来）', async () => {
+    // shadow 掉上溯到的真 `@docusaurus/babel`：导出形状变了（函数不在）就是这一档。
+    const site = makeSite(true);
+    const babelDir = path.join(
+      site.siteDir,
+      'node_modules',
+      '@docusaurus',
+      'babel',
+    );
+    fs.mkdirSync(babelDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(babelDir, 'package.json'),
+      JSON.stringify({ name: '@docusaurus/babel', main: 'index.js' }),
+    );
+    fs.writeFileSync(
+      path.join(babelDir, 'index.js'),
+      'exports.getCustomBabelConfigFilePath = 42;\n',
+    );
+    try {
+      const warn = vi.fn();
+      expect(await siteBabelConfigPath(site.siteDir, { warn })).toBeUndefined();
+      expect(String(warn.mock.calls[0]![0])).toContain('@docusaurus/babel');
+    } finally {
+      site.cleanup();
+    }
   });
 });

@@ -1,10 +1,11 @@
-import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
+import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
 
 import type { LoadContext } from '@docusaurus/types';
 
 /**
-本包的两条安装前提，都住在这一个包里：解析器插件那条由它自己的 `./plugin-slots` 出口说
-（这里只是把站点那两份清单递过去），lightningcss 那条只有这一家用得到。
+本包的两条安装前提，都住在这一个包里：解析器插件那条由它自己的 `./registered-plugins` 出口说
+（这里只是把 `context` 递过去，那份出口会先读站点写的两份原始清单、再问 preset），lightningcss
+那条只有这一家用得到。
 
 「宿主必须用 lightningcss 压缩 CSS」这一条以前挂在机制层 `theme-component-page` 的
 `./prerequisites` 里，作为各层共用的一个开关 —— 但它从头到尾只有本包按过：判据说的是
@@ -47,16 +48,18 @@ function lightningCssMinimizerOn(future: SiteFuture | undefined): boolean {
 /**
 在 `loadContent()` 阶段检查本包的安装前提。
 
-读的是**站点配置**里那两份原始清单（`siteConfig.plugins` / `siteConfig.themes`），不是
-`context.plugins` —— `LoadContext` 没有那个字段。缺了解析器那条，要等整个构建才炸在
-`Module parse failed`（本包的 `theme/` 是随包发布的未编译 TS 源码）；没开那个压缩器，症状是
-查看器整层透明 —— 两处都在配置期点名比事后猜省一整轮构建。
+解析器那条由解析器包判：先读站点配置里那两份原始清单（`siteConfig.plugins` /
+`siteConfig.themes`），原始清单认不出时再问官方那一份（preset 展开之后的）—— `LoadContext`
+没有 `context.plugins` 那个字段，只看原始清单会把插件写在 preset 里的站点判死。缺了解析器那条，
+要等整个构建才炸在 `Module parse failed`（本包的 `theme/` 是随包发布的未编译 TS 源码）；没开那个
+压缩器，症状是查看器整层透明 —— 两处都在配置期点名比事后猜省一整轮构建。
+
+交回的是 `Promise`（preset 那一跳要等官方）：调用方的 `loadContent()` 要 `await` 它。
 */
-export function assertViewerPrerequisites(context: LoadContext): void {
-  assertPrevLayerResolverInstalled(NAMESPACE, {
-    plugins: context.siteConfig.plugins,
-    themes: context.siteConfig.themes,
-  });
+export async function assertViewerPrerequisites(
+  context: LoadContext,
+): Promise<void> {
+  await assertPrevLayerResolverInstalled(context, NAMESPACE);
 
   if (!lightningCssMinimizerOn(context.siteConfig.future)) {
     throw new Error(

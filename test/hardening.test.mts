@@ -117,8 +117,7 @@ describe('改写后的 request 与栈上 entry 的边角', () => {
         ) => cb(null, { ok: true }),
       );
       r.apply({
-        getHook: () => ({ tapAsync }),
-        ensureHook: (n: string) => ({ name: n }),
+        getHook: (name: string) => ({ name, tapAsync }),
         doResolve,
       } as never);
       const handler = tapAsync.mock.calls[0]![1] as (

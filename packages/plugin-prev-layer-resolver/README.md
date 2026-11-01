@@ -114,30 +114,70 @@ Docusaurus 官方那条 babel 规则把整个 `node_modules` 排除在外（只�
 缺本插件时，正常路径上要到打包那一步才报 `Module not found: @theme-prev/X` —— 报错点离真正的
 原因隔着一整个构建。所以每条主题层都在自己的 `loadContent()` 里先查一遍、缺了当场点名。
 
-那条判据（含「`plugins` / `themes` 里那一项是不是某个包」怎么认，四种原始写法：裸包名、
-`[包名, 选项]`、`[路径, 选项]`、`{name}` 对象；路径按**包目录**认，不钉具体入口文件名）住在
-本包的 `src/plugin-slots.mts`，由包出口 `./plugin-slots` 发出去：
+判据分两份：**怎么认那两份清单**（四种原始写法：裸包名、`[包名, 选项]`、`[路径, 选项]`、`{name}`
+对象；路径按**包目录**认，不钉具体入口文件名）是纯函数，住在 `src/plugin-slots.mts`；
+**去哪几处找那份清单**住在 `src/registered-plugins.mts` —— 站点还可以把插件写在 `presets:` 里，
+那一份要官方合并（`loadPresets`）之后才看得见，`LoadContext` 上没有合并后的清单可读。只看
+`siteConfig.plugins` / `themes` 会把一个装齐了的站点判死，让它去 `pnpm add` 一个已经装着的包。
+
+所以这一句是异步的，各层 `loadContent()` 要把它交回官方等：
 
 ```js
-import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
+import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
 
 // 主题层入口返回的那一份
 export default function myTheme(context, options) {
   return {
     name: 'my-theme',
-    loadContent() {
-      assertPrevLayerResolverInstalled('my-theme', {
-        plugins: context.siteConfig.plugins,
-        themes: context.siteConfig.themes
-      });
+    async loadContent() {
+      await assertPrevLayerResolverInstalled(context, 'my-theme');
     }
   };
 }
 ```
 
 它只查本插件，不查别家：报错文案里点名的是**调用方**的包名，站点据此知道该回去看哪一层的文档。
-这一份是纯函数，各层配置期那句「前置插件在不在」读的就是同一判据，
-理由与内部契约见 [`docs/internals.md`](./docs/internals.md) 的「认层」一节。
+判错的两侧不对称 —— 误报判死一个本来能成的构建，漏报只是把构建期注定会炸的那一步留到构建期，
+所以「问不到官方那一份」（core 结构变了、配置文件读不了、preset 函数自己抛）一律放行。
+`./plugin-slots` 那条纯函数出口仍然单独发了给只读清单的读者用，理由与内部契约见
+[`docs/internals.md`](./docs/internals.md) 的「认层」一节。
+
+## 「这一层只能有一份实例」那条检查（同一个出口）
+
+官方只拦「同一个插件挂两次又不给 id」（`Plugin IDs must be unique`），给了不同 id 的两份在它那里
+合法 —— 但合法不等于有用。吃不下第二份实例的那几层，症状都要等构建跑完才看得见，而且都不指向真正
+的原因（徽标那层第二份被「只包一次」的护栏原样交回，等于什么都没干；机制层那一份各写一遍同一份
+产物，谁说了算只看插件顺序）。所以同一份文件里还发这两个：
+
+```js
+import { assertSinglePluginInstance } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
+
+// 主题层入口返回的那一份
+export default function myTheme(context, options) {
+  return {
+    name: 'my-theme',
+    async loadContent() {
+      await assertSinglePluginInstance(
+        context,
+        'my-theme',
+        '为什么这一层吃不下第二份实例'
+      );
+    }
+  };
+}
+```
+
+数的是**包名**而不是实例 id，读法与上面那条同一套两档（原始清单 + preset），误差也同一档：
+只可能少判，不可能多判 —— 原始清单数到了就不翻案，问不到官方那一份时按原始清单那份交回。
+想要份数本身（不给判据、只做诊断）用同一份文件发出来的 `pluginInstanceCount()`。
+「为什么两份不行」归调用方自己在 `why` 里说，这里只负责数出来并给一句能照着改的话；一份都没有
+也不点名（那是「装没装」那道题，不是这道）。
+
+**两条都判到「注册」为止**：清单上有那个名字就算，官方允许插件构造函数返回 `null` 自行禁用，那种
+包在清单上照样看得见，但它的 `loadContent()` 不会跑 —— 读得到真实例的唯一一处是 `allContent`，而它
+不在 `LoadContext` 上，本包这一跳读不到。本仓库这十四个包的入口都不返回 `null`，所以这条今天不影响
+本站；三处判据（层栈 / 注册 / `allContent`）的分工记在
+[`theme-component-page` 的维护者文档](../theme-component-page/docs/internals.md)里。
 
 ## 类型声明
 
@@ -184,8 +224,10 @@ export default function myTheme(context, options) {
 3. **导入者不属于任何已知层**（`issuerIndex < 0`）：必定 `Module not found`，**硬失败**。
    三种成因（写在层外文件里 / issuer 是软链路径 / 层栈漏层）表现相同，告警把它们列全。
    这条**按类别限流**：消息里带 issuer 路径，按消息去重等于「同一个问题报 2000 次」。
-4. **resolver 没有 `internal-resolve` hook**：`apply()` 启动时自检一次（enhanced-resolve 的
-   内部 hook 名，换版本可能改名）。失败即告警并整体禁用改写，把「无声漂移」变成启动时可见。
+4. **resolver 没有 `internal-resolve` hook**：`apply()` 启动时向 resolver **要**这个 hook
+   （enhanced-resolve 的 `getHook` 在 hook 不存在时抛；同名的 `ensureHook` 会自己造一个，
+   拿它自检永远不会红 —— 所以自检只能用 `getHook`）。失败即告警并整体禁用改写，
+   把「无声漂移」变成启动时可见。
    4b. **匹配到 `@theme-prev/*` 却拿不到 issuer**：上游不再把 `contextInfo` 挂成
    `request.context` 时的漂移信号，正常构建里不该出现（webpack 的模块解析都带它）。
    告警并交回官方解析。**硬失败**。

@@ -1,7 +1,10 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
+import {
+  assertPrevLayerResolverInstalled,
+  assertSinglePluginInstance,
+} from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -26,8 +29,9 @@ export interface GitBadgeOptions {
   站点里有几份文档插件实例就写几份（数组）。不传 = 只管 `<siteDir>/docs` 整棵。
 
   地盘之外的文件一个标记都不给 —— 「页面」这个概念由文档插件定义，徽标跟着它走。
-  注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份本插件实例会被「只包一次」
-  的护栏吞掉，所以**多棵内容根只能在这一份实例里用数组表达**。
+  注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份本插件实例会被「只包一次」的护栏
+  原样交回（等于什么都没干），所以**多棵内容根只能在这一份实例里用数组表达**；真的注册了两份，
+  `loadContent()` 会当场点名，不会静默少一整棵根。
   */
   docs?: DocsScopes;
 }
@@ -83,15 +87,25 @@ export default function gitBadgeTheme(
 
   return {
     name: PLUGIN_NAME,
-    loadContent() {
+    async loadContent() {
+      // 顺序是刻意的：先装，再 await 那两条前提。官方会 `await` 每个插件的 `loadContent()`，
+      // 而让出一次微任务就赶不上 docs 读走 `parseFrontMatter`（见上面 `install` 的注释）；
+      // 缺解析器、多注册了一份都照样当场点名，只是红在装完之后。
+      //
       // 本层的 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，
-      // 缺了它症状是构建期才炸的 `Module parse failed` —— 当场点名更省事。这一层只改
-      // frontmatter 与侧边栏那两格，不交规则给机制层，所以安装前提只有解析器这一个
-      assertPrevLayerResolverInstalled(PLUGIN_NAME, {
-        plugins: context.siteConfig.plugins,
-        themes: context.siteConfig.themes,
-      });
+      // 缺了它症状是构建期才炸的 `Module parse failed`。这一层只改 frontmatter 与
+      // 侧边栏那两格，不交规则给机制层，所以**安装**前提只有解析器这一个；另一条是本层自己的
+      // 形状（只能有一份实例），就在下面。
       install();
+      await assertPrevLayerResolverInstalled(context, PLUGIN_NAME);
+      // 第二份实例过去只是静默不干活（徽标少一整棵根，而那份配置看着完全正常），所以数出来点名
+      await assertSinglePluginInstance(
+        context,
+        PLUGIN_NAME,
+        '注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份会被 `loadContent()` 里' +
+          '「只包一次」那道护栏原样交回。多棵内容根不靠多份实例：在这一份的 `docs` 数组里' +
+          '一份根转述一条。',
+      );
     },
     // 插件被单独 reload（`reloadSite()`）时会重跑这一阶段
     contentLoaded: install,

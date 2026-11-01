@@ -5,11 +5,13 @@ import path from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
+
 import {
-  readDiffValue,
+  diffSpecOf,
   resolveDiffTarget,
-  splitDiffValue,
 } from '../packages/theme-diff/src/loader/diff-decision.mts';
+import type { DiffSpec } from '../packages/theme-diff/src/loader/diff-decision.mts';
 import {
   findRepoRoot,
   readFilesChange,
@@ -36,37 +38,53 @@ git 那两组用例走**真实的 git**：临时目录里 `git init` 真提交�
 /** 编译好的 MDX 原文：这一层的 loader 只在它后面追加一条导出，内容本身无所谓。 */
 const MDX_SOURCE = 'export default function MDXContent() {};\n';
 
-/** 一次 loader 调用的三样产出：交回 webpack 的内容、错误、以及 `emitWarning` 收到的告警。 */
+/**
+一次 loader 调用的四样产出：交回 webpack 的内容、错误、`emitWarning` 收到的告警，
+以及 `addDependency` 登记的依赖。
+*/
 interface LoaderRun {
   output: string | null;
   error: string | null;
   warnings: string[];
+  dependencies: string[];
 }
 
 /**
 用一个假的 loader 上下文跑一遍本包那条 `enforce: 'post'` loader。
 
 真实上下文由 webpack 逐次构造，这一层只用到 `cacheable` / `async` / `resourcePath` /
-`emitWarning` 四件，其余一概不需要 —— 需要别的就是新增依赖，那时候这条替身会跟着变宽。
+`emitWarning` / `addDependency` 五件，其余一概不需要 —— 需要别的就是新增依赖，那时候这条
+替身会跟着变宽。判据走的是官方那份异步解析，所以要等回调真的被调用才收工。
 */
-function runLoader(resourcePath: string): LoaderRun {
+async function runLoader(resourcePath: string): Promise<LoaderRun> {
   const warnings: string[] = [];
-  const result: LoaderRun = { output: null, error: null, warnings };
+  const dependencies: string[] = [];
+  const result: LoaderRun = {
+    output: null,
+    error: null,
+    warnings,
+    dependencies,
+  };
+  const { promise, resolve } = Promise.withResolvers<LoaderRun>();
 
   const context = {
     resourcePath,
     cacheable: () => undefined,
+    addDependency: (file: string) => {
+      dependencies.push(file);
+    },
     emitWarning: (warning: string | Error) => {
       warnings.push(String(warning));
     },
     async: () => (error: Error | null, source?: string) => {
       result.error = error ? error.message : null;
       result.output = source ?? null;
+      resolve(result);
     },
   };
 
   loader.call(context as never, MDX_SOURCE);
-  return result;
+  return promise;
 }
 
 /** 取出产物末尾那条 `export const diff`，按 `DiffData` 读回来。 */
@@ -162,8 +180,8 @@ const repo = (options: Parameters<typeof makeRepo>[0]): string => {
   return root;
 };
 
-/** 把仓库里此刻的内容提交一句 `message`：夹具用它把「工作区干净」这一形状造出来。 */
-function commitAll(dir: string, message: string): void {
+/** 把仓库里此刻的内容提交一句 `second`：夹具用它把「工作区干净」这一形状造出来。 */
+function commitAll(dir: string): void {
   git(dir, ['add', '-A']);
   git(dir, [
     '-c',
@@ -172,7 +190,7 @@ function commitAll(dir: string, message: string): void {
     'user.email=fixture@example.com',
     'commit',
     '-m',
-    message,
+    'second',
   ]);
 }
 
@@ -182,79 +200,105 @@ afterAll(() => {
   }
 });
 
-describe('frontmatter 那把键的读法', () => {
-  it('`true` 与加不加引号的路径都算开了', () => {
-    expect(readDiffValue('diff: true')).toBe('true');
-    expect(readDiffValue('diff: ../docs/intro.md')).toBe('../docs/intro.md');
-    expect(readDiffValue('diff: "../docs/intro.md"')).toBe('../docs/intro.md');
-    expect(readDiffValue("diff: '../docs/intro.md'")).toBe('../docs/intro.md');
+/**
+把一段 frontmatter 正文按**官方那一条**（`DEFAULT_PARSE_FRONT_MATTER`，docs 插件没换读法时
+用的就是它）解析，再落成 {@link diffSpecOf} 的结果：这一族的判据与站点那条规则同源，用例也
+就从同一份解析出发，不再自己切文本。
+*/
+async function specOf(frontMatterBlock: string): Promise<DiffSpec | undefined> {
+  const { frontMatter } = await DEFAULT_PARSE_FRONT_MATTER({
+    fileContent: `---\n${frontMatterBlock}\n---\n\n正文\n`,
+    filePath: 'fixture.md',
   });
+  return diffSpecOf(frontMatter);
+}
 
-  it('`false`、`null` 与空值都算没开', () => {
-    expect(readDiffValue('diff: false')).toBeUndefined();
-    expect(readDiffValue('diff: null')).toBeUndefined();
-    expect(readDiffValue('diff:')).toBeUndefined();
-    expect(readDiffValue('diff:    ')).toBeUndefined();
-    expect(readDiffValue('title: 没有这把键')).toBeUndefined();
-  });
-
-  it('冒号前后的空白与制表符都吃得下，键名后面紧跟内容不算值', () => {
-    expect(readDiffValue('diff:\t true ')).toBe('true');
-    expect(readDiffValue('diffx: true')).toBeUndefined();
-  });
-
-  it('值折行写在下面几行：流式那几项收得回来，缩进与换行不影响分的形状', () => {
-    // 示例页的 frontmatter 就是这种形状：`diff:` 空着，`{ }` 那两项落在下面几行。
-    const folded =
-      'diff:\n  {\n    old: a.md,\n    new: b.md\n  }\ntitle: a.md';
-
-    expect(splitDiffValue(readDiffValue(folded)!)).toEqual({
-      kind: 'pair',
-      old: 'a.md',
-      new: 'b.md',
+describe('frontmatter 那把键的读法：与站点那条规则同一个来源', () => {
+  it('`true` 与加不加引号的路径都算开了，值落成 YAML 给的那一种', async () => {
+    expect(await specOf('diff: true')).toEqual({
+      kind: 'single',
+      value: 'true',
+    });
+    expect(await specOf('diff: ../docs/intro.md')).toEqual({
+      kind: 'single',
+      value: '../docs/intro.md',
+    });
+    expect(await specOf('diff: "../docs/intro.md"')).toEqual({
+      kind: 'single',
+      value: '../docs/intro.md',
     });
   });
 
-  it('值折行写成块式：`old:` 与 `new:` 各一行，行的先后同样不影响角色', () => {
-    const block = 'diff:\n  new: b.md\n  old: a.md';
-
-    expect(splitDiffValue(readDiffValue(block)!)).toEqual({
-      kind: 'pair',
-      old: 'a.md',
-      new: 'b.md',
+  it('带引号的键名也算开了：以前只有站点那边认得，页面因此少半块视图', async () => {
+    expect(await specOf('"diff": true')).toEqual({
+      kind: 'single',
+      value: 'true',
     });
-    // 按行分项，地址里带逗号也不碍事（流式那种按逗号分，才有这条限制）
+    expect(await specOf("'diff': 'a.md'")).toEqual({
+      kind: 'single',
+      value: 'a.md',
+    });
+  });
+
+  it('`diff:true` 不带空格：官方读不成一把键，两边一起看不见', async () => {
+    // 自己切文本的那一套会把它当成写了这把键（站点却看不见），只剩这一种表现才算收敛
+    expect(await specOf('diff:true')).toBeUndefined();
+  });
+
+  it('`false`、`null` 与空值都算没开', async () => {
+    expect(await specOf('diff: false')).toBeUndefined();
+    expect(await specOf('diff: null')).toBeUndefined();
+    expect(await specOf('diff:')).toBeUndefined();
+    expect(await specOf('diff:    ')).toBeUndefined();
+    expect(await specOf('title: 没有这把键')).toBeUndefined();
+  });
+
+  it('冒号后面是制表符也吃得下', async () => {
+    expect(await specOf('diff:\t true ')).toEqual({
+      kind: 'single',
+      value: 'true',
+    });
+  });
+
+  it('值折行写在下面几行：流式与块式都是那两份，键名定角色', async () => {
+    // 示例页的 frontmatter 就是流式折行那一种；块式是作者手写多行的那一种
     expect(
-      splitDiffValue(readDiffValue('diff:\n  old: a,b.md\n  new: c.md')!),
-    ).toEqual({ kind: 'pair', old: 'a,b.md', new: 'c.md' });
-  });
-
-  it('续行只到下一个顶格键为止，缩进的注释不算一项', () => {
-    const value = readDiffValue(
-      'diff:\n  # 对照哪两份\n  old: a.md\n  new: b.md\ntitle: 下一把键',
-    );
-
-    expect(value).not.toContain('下一把键');
-    expect(splitDiffValue(value!)).toEqual({
+      await specOf('diff:\n  {\n    old: a.md,\n    new: b.md\n  }'),
+    ).toEqual({ kind: 'pair', old: 'a.md', new: 'b.md' });
+    expect(await specOf('diff:\n  new: b.md\n  old: a.md')).toEqual({
       kind: 'pair',
       old: 'a.md',
       new: 'b.md',
     });
-  });
-
-  it('续行里只有空白：与空值一样算没开', () => {
-    expect(readDiffValue('diff:\n   \ntitle: 下一把键')).toBeUndefined();
-  });
-
-  it('续行中间有空行：空行不终止这把键，下面的几项照样收得回来', () => {
-    // YAML 的块映射里空行只是分隔：`diff` 那把键仍是 `{old, new}` 两项
-    const block = 'diff:\n  old: a.md\n\n  new: b.md\ntitle: 下一把键';
-
-    expect(splitDiffValue(readDiffValue(block)!)).toEqual({
+    // 地址里带逗号：块式按行分，不受流式那一条限制
+    expect(await specOf('diff:\n  old: a,b.md\n  new: c.md')).toEqual({
       kind: 'pair',
-      old: 'a.md',
-      new: 'b.md',
+      old: 'a,b.md',
+      new: 'c.md',
     });
+  });
+
+  it('缩进的注释与空行不改这把键的形状，下一个顶格键也不被吸进来', async () => {
+    expect(
+      await specOf(
+        'diff:\n  # 对照哪两份\n  old: a.md\n  new: b.md\ntitle: 下一把键',
+      ),
+    ).toEqual({ kind: 'pair', old: 'a.md', new: 'b.md' });
+    expect(
+      await specOf('diff:\n  old: a.md\n\n  new: b.md\ntitle: 下一把键'),
+    ).toEqual({ kind: 'pair', old: 'a.md', new: 'b.md' });
+  });
+
+  it('块式续行只有空白：与空值一样算没开', async () => {
+    expect(await specOf('diff:\n   \ntitle: 下一把键')).toBeUndefined();
+  });
+
+  it('不是对象的那几种 frontmatter：整段是标量或数组时不算写了这把键', () => {
+    // 官方解析失败、或整段是个标量时，交回的是那串原文而不是对象
+    expect(diffSpecOf('diff:true')).toBeUndefined();
+    expect(diffSpecOf(['a', 'b'])).toBeUndefined();
+    expect(diffSpecOf(undefined)).toBeUndefined();
+    expect(diffSpecOf(null)).toBeUndefined();
   });
 
   it('`resolveDiffTarget`：`true` 指本文自己，路径相对这份 md 所在目录', () => {
@@ -399,14 +443,14 @@ describe('git 里的上一个版本与此刻这一份落成一份数据', () => 
 });
 
 describe('md loader 的四种落点', () => {
-  it('命中时把差异追加成一条导出', () => {
+  it('命中时把差异追加成一条导出', async () => {
     // 两次提交、提交完就收工：工作区干净时右边就是这份文件最后一次被提交的结果，
     // 比的是它自己那两次提交之间的差异。
     const root = repo({ files: { 'docs/a.md': '第一版\n' } });
     const file = writeMd(root, 'diff: true');
-    commitAll(root, 'second');
+    commitAll(root);
 
-    const run = runLoader(file);
+    const run = await runLoader(file);
     expect(run.error).toBeNull();
     expect(run.warnings).toEqual([]);
     expect(run.output?.startsWith(MDX_SOURCE)).toBe(true);
@@ -418,7 +462,53 @@ describe('md loader 的四种落点', () => {
     expect(data.diff).toContain('正文一行');
   });
 
-  it('工作区里还有未提交的改动：导出的右边就是磁盘上此刻这一份', () => {
+  it('`diff: true` 比的是这份 md 自己：不往 webpack 登记额外依赖', async () => {
+    const root = repo({ files: { 'docs/a.md': '第一版\n' } });
+    const file = writeMd(root, 'diff: true');
+    commitAll(root);
+
+    const run = await runLoader(file);
+    expect(run.dependencies).toEqual([]);
+  });
+
+  it('写成另一份文件：那一份变了这一页才该重算，所以登记成依赖', async () => {
+    const root = repo({
+      files: { 'docs/a.md': '第一版\n', 'docs/other.md': '别的第一版\n' },
+      changes: [
+        { message: 'second', write: { 'docs/other.md': '别的第二版\n' } },
+      ],
+    });
+    const file = writeMd(root, 'diff: ./other.md');
+
+    const run = await runLoader(file);
+    expect(run.error).toBeNull();
+    expect(exportedDiff(run.output).fileName).toBe('docs/other.md');
+    expect(run.dependencies).toEqual([path.join(root, 'docs', 'other.md')]);
+  });
+
+  it('判据读的是磁盘上那一份的官方解析结果：产物里有没有 frontmatter 不相干', async () => {
+    // loader 收到的 `source` 是编译好的 MDX（不含 frontmatter）；带引号的键名以前只有
+    // 站点那条规则认得，于是页面判成差异页、数据却没生成 —— 现在两边读同一份解析。
+    const root = repo({ files: { 'docs/a.md': '第一版\n' } });
+    const file = writeMd(root, '"diff": true');
+    commitAll(root);
+
+    const run = await runLoader(file);
+
+    expect(exportedDiff(run.output).source).toBe('commit');
+  });
+
+  it('`diff:true` 不带空格：站点看不见这把键，这一页也不产出数据', async () => {
+    const root = repo({ files: { 'docs/a.md': '第一版\n' } });
+    const file = writeMd(root, 'diff:true');
+    commitAll(root);
+
+    const run = await runLoader(file);
+    expect(run.output).toBe(MDX_SOURCE);
+    expect(run.warnings).toEqual([]);
+  });
+
+  it('工作区里还有未提交的改动：导出的右边就是磁盘上此刻这一份', async () => {
     // 同一份夹具，frontmatter 这次不提交：判据与差异都读到磁盘上这一份，未提交的那段就在右边。
     const root = repo({
       files: { 'docs/a.md': '第一版\n' },
@@ -426,44 +516,69 @@ describe('md loader 的四种落点', () => {
     });
     const file = writeMd(root, 'diff: true');
 
-    const data = exportedDiff(runLoader(file).output);
+    const run = await runLoader(file);
+    const data = exportedDiff(run.output);
     expect(data.old).toContain('第二版');
     expect(data.diff).toContain('正文一行');
   });
 
-  it('没写这把键：原样交回，什么都不追加', () => {
+  it('没写这把键：原样交回，什么都不追加', async () => {
     const root = repo({ files: { 'docs/a.md': '第一版\n' } });
     const file = writeMd(root, 'title: 没有这把键');
-    const run = runLoader(file);
+    const run = await runLoader(file);
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.warnings).toEqual([]);
   });
 
-  it('写成路径却找不到那个文件：告警一句，原样交回', () => {
+  it('整段 frontmatter 解析不了：原样交回，不卡住这条 loader', async () => {
+    // 官方那一条解析是异步出口，坏掉的 YAML 以拒绝收场：这一格把它当成「没写这把键」。
+    // 真到构建里，mdx-loader 在那之前就把这一页判死了。
+    const root = repo({ files: { 'docs/a.md': '第一版\n' } });
+    const file = writeMd(root, 'foo: : bar\ndiff: true');
+    commitAll(root);
+
+    const run = await runLoader(file);
+    expect(run.output).toBe(MDX_SOURCE);
+    expect(run.error).toBeNull();
+  });
+
+  it('磁盘上那一份读不到：把那份错误交回 webpack，不让回调悬着', async () => {
+    // webpack 读过一次、这一层再读一次（判据要的是源文件而不是编译产物）：
+    // 中间被删掉或没权限时，这一页以构建错误收场，而不是永远等不到回调。
+    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-loader-gone-'));
+    tempDirs.push(dir);
+
+    const run = await runLoader(path.join(dir, 'docs', '没有这一份.md'));
+
+    expect(run.output).toBeNull();
+    expect(run.error).toContain('ENOENT');
+  });
+
+  it('写成路径却找不到那个文件：告警一句，原样交回', async () => {
     const root = repo({ files: { 'docs/a.md': '第一版\n' } });
     const file = writeMd(root, 'diff: ./不存在的.md');
-    const run = runLoader(file);
+    const run = await runLoader(file);
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.warnings).toHaveLength(1);
     expect(run.warnings[0]).toContain('这个文件不存在');
   });
 
-  it('不在 git 仓库里：告警一句，原样交回', () => {
+  it('不在 git 仓库里：告警一句，原样交回', async () => {
     const outside = mkdtempReal(path.join(os.tmpdir(), 'diff-loader-norepo-'));
     tempDirs.push(outside);
     const file = writeMd(outside, 'diff: true');
-    const run = runLoader(file);
+    const run = await runLoader(file);
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.warnings).toHaveLength(1);
     expect(run.warnings[0]).toContain('没有可对比的上一个版本');
   });
 
-  it('git 自己出问题（仓库里一个提交都还没有）：只让这一页少一块视图', () => {
+  it('git 自己出问题（仓库里一个提交都还没有）：只让这一页少一块视图', async () => {
     const root = mkdtempReal(path.join(os.tmpdir(), 'diff-loader-empty-repo-'));
     git(root, ['init', '-b', 'main']);
     tempDirs.push(root);
     const file = writeMd(root, 'diff: true');
-    const run = runLoader(file);
+    const run = await runLoader(file);
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.warnings).toHaveLength(1);
     expect(run.warnings[0]).toContain('向 git 取');
@@ -471,62 +586,76 @@ describe('md loader 的四种落点', () => {
   });
 });
 
-describe('值的形状：一份文件还是两份文件', () => {
-  it('花括号里正好 `old` 与 `new` 两个键就是两份对照，引号与空白都吃得下', () => {
-    expect(splitDiffValue('{old: a.md, new: b.md}')).toEqual({
+describe('值的形状：一份文件还是两份文件，写坏了就点名', () => {
+  it('花括号里正好 `old` 与 `new` 两个键就是两份对照，引号与空白都吃得下', async () => {
+    expect(await specOf('diff: {old: a.md, new: b.md}')).toEqual({
       kind: 'pair',
       old: 'a.md',
       new: 'b.md',
     });
-    expect(splitDiffValue('{"old":\t\'./a.md\', \'new\': "./b.md"}')).toEqual({
+    expect(await specOf(`diff: {"old":\t'a.md', 'new': "./b.md"}`)).toEqual({
       kind: 'pair',
-      old: './a.md',
+      old: 'a.md',
       new: './b.md',
     });
   });
 
-  it('两条的先后不重要：角色是键名定的', () => {
-    expect(splitDiffValue('{new: b.md, old: a.md}')).toEqual({
+  it('两条的先后不重要：角色是键名定的', async () => {
+    expect(await specOf('diff: {new: b.md, old: a.md}')).toEqual({
       kind: 'pair',
       old: 'a.md',
       new: 'b.md',
     });
   });
 
-  it('值里带冒号（绝对地址的盘符）不被切成两段', () => {
-    expect(splitDiffValue('{old: C:/tmp/a.md, new: b.md}')).toEqual({
+  it('值里带冒号（绝对地址的盘符）不被切成两段', async () => {
+    // YAML 只在冒号后面跟空白时才分键值，所以 `C:/tmp/a.md` 整串还是那一个值
+    expect(await specOf('diff: {old: C:/tmp/a.md, new: b.md}')).toEqual({
       kind: 'pair',
       old: 'C:/tmp/a.md',
       new: 'b.md',
     });
   });
 
-  it('`true` 与单个路径仍是一份文件，走它自己在 git 里的最近一次改动', () => {
-    expect(splitDiffValue('true')).toEqual({ kind: 'single', value: 'true' });
-    expect(splitDiffValue('../docs/intro.md')).toEqual({
+  it('`true` 与单个路径仍是一份文件，走它自己在 git 里的最近一次改动', async () => {
+    expect(await specOf('diff: true')).toEqual({
+      kind: 'single',
+      value: 'true',
+    });
+    expect(await specOf('diff: ../docs/intro.md')).toEqual({
       kind: 'single',
       value: '../docs/intro.md',
     });
   });
 
-  it('凑不出正好这两个键就点名，不猜作者要比什么', () => {
+  it('凑不出正好这两个键就点名，不猜作者要比什么', async () => {
     // 缺一个键就退回去猜另一份，比静默少比一份更难查；多出来的键同样是「作者没说要比谁」
-    for (const value of [
-      '{}',
-      '{old: a.md}',
-      '{old: a.md, new: }',
-      '{old: a.md, new: b.md, extra: c.md}',
-      '{a.md, b.md}',
+    for (const block of [
+      'diff: {}',
+      'diff: {old: a.md}',
+      'diff: {old: a.md, new: }',
+      'diff: {old: a.md, new: b.md, extra: c.md}',
+      'diff: {a.md, b.md}',
     ]) {
-      expect(splitDiffValue(value), value).toEqual({ kind: 'invalid', value });
+      const spec = await specOf(block);
+      expect(spec, block).toMatchObject({ kind: 'invalid' });
+      expect((spec as { reason: string }).reason, block).toContain(
+        '要正好这两个键',
+      );
     }
+  });
 
-    // 块式里有一行读不成 `键: 值`：整把作废，不把那一行当成谁的地址
-    const block = 'old: a.md\nnew: b.md\n这一行没有冒号';
-    expect(splitDiffValue(block), block).toEqual({
-      kind: 'invalid',
-      value: block,
-    });
+  it('写成数组、数字这些落不成地址的值：点名可以怎么写', async () => {
+    for (const block of ['diff: [a.md, b.md]', 'diff: 3']) {
+      const spec = await specOf(block);
+      expect(spec, block).toMatchObject({ kind: 'invalid' });
+      expect((spec as { reason: string }).reason, block).toContain('只能写');
+    }
+  });
+
+  it('告警里带上这一格实际写的那一份', async () => {
+    const spec = await specOf('diff: {old: a.md}');
+    expect((spec as { reason: string }).reason).toContain('{"old":"a.md"}');
   });
 });
 
@@ -604,11 +733,12 @@ describe('md loader 的两份文件落点', () => {
     return writeMd(dir, diffKey);
   }
 
-  it('命中：追加一条对照数据，来源是 `files`，左边那份的内容取自磁盘', () => {
+  it('命中：追加一条对照数据，来源是 `files`，左边那份的内容取自磁盘', async () => {
     // 这份 md 不在任何 git 仓库里：对照那一种不需要仓库
     const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-page-'));
     tempDirs.push(dir);
-    const run = runLoader(pairPage(dir, 'diff: {old: x.txt, new: y.txt}'));
+    const file = pairPage(dir, 'diff: {old: x.txt, new: y.txt}');
+    const run = await runLoader(file);
 
     expect(run.error).toBeNull();
     expect(run.warnings).toEqual([]);
@@ -623,11 +753,24 @@ describe('md loader 的两份文件落点', () => {
     expect(data.diff).toContain('+第二行');
   });
 
-  it('frontmatter 折行写：`{ }` 落在下面几行，视图数据照样产出', () => {
+  it('那两份都在这份 md 之外：都登记成依赖，改了才触发重建', async () => {
+    const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-deps-'));
+    tempDirs.push(dir);
+    const run = await runLoader(
+      pairPage(dir, 'diff: {old: x.txt, new: y.txt}'),
+    );
+
+    expect(run.dependencies).toEqual([
+      path.join(dir, 'docs', 'x.txt'),
+      path.join(dir, 'docs', 'y.txt'),
+    ]);
+  });
+
+  it('frontmatter 折行写：`{ }` 落在下面几行，视图数据照样产出', async () => {
     // 示例页（docs/diff-pair-demo.md）就是这个形状，曾经因为判据只读原文那一行而静默失效
     const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-folded-'));
     tempDirs.push(dir);
-    const run = runLoader(
+    const run = await runLoader(
       pairPage(dir, 'diff:\n  {\n    old: x.txt,\n    new: y.txt\n  }'),
     );
 
@@ -639,16 +782,18 @@ describe('md loader 的两份文件落点', () => {
     expect(data.diff).toContain('+第二行');
   });
 
-  it('先写 `new` 也一样：左右两格由键名定，不由写法先后定', () => {
+  it('先写 `new` 也一样：左右两格由键名定，不由写法先后定', async () => {
     const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-order-'));
     tempDirs.push(dir);
-    const run = runLoader(pairPage(dir, 'diff: {new: y.txt, old: x.txt}'));
+    const run = await runLoader(
+      pairPage(dir, 'diff: {new: y.txt, old: x.txt}'),
+    );
     const exported = /export const diff = (.*);\n$/.exec(run.output ?? '')?.[1];
     expect(exported, '产物末尾该有一条 `export const diff`').toBeDefined();
     expect((JSON.parse(exported!) as DiffData).caption).toBe('x.txt → y.txt');
   });
 
-  it('缺一份：告警点名是哪一个键，正文照常', () => {
+  it('缺一份：告警点名是哪一个键，正文照常', async () => {
     for (const [key, victim, word] of [
       ['new', 'y.txt', 'new（改动之后）'],
       ['old', 'x.txt', 'old（改动之前）'],
@@ -659,7 +804,7 @@ describe('md loader 的两份文件落点', () => {
       tempDirs.push(dir);
       const file = pairPage(dir, 'diff: {old: x.txt, new: y.txt}');
       fs.rmSync(path.join(dir, 'docs', victim));
-      const run = runLoader(file);
+      const run = await runLoader(file);
 
       expect(run.output).toBe(MDX_SOURCE);
       expect(run.warnings).toHaveLength(1);
@@ -668,7 +813,7 @@ describe('md loader 的两份文件落点', () => {
     }
   });
 
-  it('两份一模一样：告警说没有差别', () => {
+  it('两份一模一样：告警说没有差别', async () => {
     const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-same-'));
     tempDirs.push(dir);
     const file = pairPage(dir, 'diff: {old: x.txt, new: y.txt}');
@@ -677,17 +822,17 @@ describe('md loader 的两份文件落点', () => {
       path.join(dir, 'docs', 'x.txt'),
       path.join(dir, 'docs', 'y.txt'),
     );
-    const run = runLoader(file);
+    const run = await runLoader(file);
 
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.warnings).toHaveLength(1);
     expect(run.warnings[0]).toContain('没有差别');
   });
 
-  it('只写了一份：告警说正好那两个键，不去猜作者要比什么', () => {
+  it('只写了一份：告警说正好那两个键，不去猜作者要比什么', async () => {
     const dir = mkdtempReal(path.join(os.tmpdir(), 'diff-pair-shape-'));
     tempDirs.push(dir);
-    const run = runLoader(pairPage(dir, 'diff: {old: x.txt}'));
+    const run = await runLoader(pairPage(dir, 'diff: {old: x.txt}'));
 
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.warnings).toHaveLength(1);

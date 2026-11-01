@@ -95,10 +95,19 @@ type WebpackResult = {
   resolve?: { fallback?: Record<string, unknown> };
 };
 
+/**
+真实基线里那条带 css-loader 的规则：`isolateRendererCss` 的探针要靠它，所以不显式给配置的调用
+默认拿到这一份（形状照官方 `base.js`，值不重要）。给一份空的 `{}` 会让本包按「规则形状变了」处理，
+也就是抛。
+*/
+const baseWebpackConfig = () => ({
+  module: { rules: [{ test: /\.css$/i, use: ['css-loader'] }] },
+});
+
 /** 跑一遍 `configureWebpack`，交回它返回的那一格。 */
 const webpackOf = (
   plugin: Plugin,
-  config: unknown = {},
+  config: unknown = baseWebpackConfig(),
   isServer = false,
 ): WebpackResult =>
   plugin.configureWebpack!(
@@ -128,13 +137,19 @@ const expectThemePath = (plugin: Plugin, pkg: string): void => {
 const clientModulesOf = (plugin: Plugin): string[] =>
   plugin.getClientModules!() as string[];
 
-/** `loadContent`：前置检查那一格，缺什么当场点名；返回贡献方交回的那份 content。 */
-const loadContentOf = (plugin: Plugin): (() => unknown) =>
-  plugin.loadContent as () => unknown;
+/**
+`loadContent`：前置检查那一格，缺什么当场点名；返回贡献方交回的那份 content。
+
+交回的是 `Promise`（解析器那条前提在原始清单认不出时还要问 preset，见解析器包的
+`registered-plugins`），所以这里的断言一律 `await`。
+*/
+const loadContentOf = (plugin: Plugin): (() => Promise<unknown>) =>
+  plugin.loadContent as () => Promise<unknown>;
 
 /** 交回本层交给 component-page 的那一列（一份组件登记 + 一条规则，判表在机制层）。 */
-const contributedOf = (plugin: Plugin): unknown =>
-  (loadContentOf(plugin)() as { componentPage?: unknown }).componentPage;
+const contributedOf = async (plugin: Plugin): Promise<unknown> =>
+  ((await loadContentOf(plugin)()) as { componentPage?: unknown })
+    .componentPage;
 
 describe('plugin-lazy-compilation：开发期给客户端 webpack 开 lazyCompilation', () => {
   /** 把 `NODE_ENV` 摆成用例要的那一格，跑完恢复。 */
@@ -224,16 +239,18 @@ const STOPLIGHT = '@show-docs/docusaurus-theme-stoplight';
 机制层的 `prerequisites`（各层引的是同一份判据）。缺 component-page 的症状是「页面看着正常，
 那一格视图 / 框却安静地不出现」，所以各层在 `loadContent()` 里先查一遍。
 */
-const expectPrerequisites = (theme: (context: LoadContext) => Plugin): void => {
-  expect(loadContentOf(theme(contextWith([])))).toThrow(
+const expectPrerequisites = async (
+  theme: (context: LoadContext) => Plugin,
+): Promise<void> => {
+  await expect(loadContentOf(theme(contextWith([])))()).rejects.toThrow(
     new RegExp(RESOLVER_PLUGIN),
   );
-  expect(loadContentOf(theme(contextWith([RESOLVER_PLUGIN])))).toThrow(
-    COMPONENT_PAGE,
-  );
-  expect(() =>
+  await expect(
+    loadContentOf(theme(contextWith([RESOLVER_PLUGIN])))(),
+  ).rejects.toThrow(COMPONENT_PAGE);
+  await expect(
     loadContentOf(theme(contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE])))(),
-  ).not.toThrow();
+  ).resolves.not.toThrow();
 };
 
 describe('theme-iframe 入口：层目录、自己那一条 `iframe:`、两条安装前提', () => {
@@ -244,15 +261,15 @@ describe('theme-iframe 入口：层目录、自己那一条 `iframe:`、两条�
     expectThemePath(plugin, 'theme-iframe');
   });
 
-  it('loadContent：缺解析器、缺 component-page 都当场点名，装齐了才放行', () => {
-    expectPrerequisites(iframeTheme);
+  it('loadContent：缺解析器、缺 component-page 都当场点名，装齐了才放行', async () => {
+    await expectPrerequisites(iframeTheme);
   });
 
-  it('loadContent：只交自己那把 `iframe:` —— 三条 API 层由各包自己的 loadContent 交', () => {
+  it('loadContent：只交自己那把 `iframe:` —— 三条 API 层由各包自己的 loadContent 交', async () => {
     // 这一层收缩成「嵌外部站点那一个框」：组件是本包主题层那份 `ExternalFrame`，跨源的地址算法
     // 留在本包（`lib/external-url.ts`）；同源那份框、握手与框内页面都在机制层里，卸载本包
     // 三条 API 层照常可用（那条验收见 e2e）。
-    expect(contributedOf(iframeTheme(contextWith()))).toEqual({
+    expect(await contributedOf(iframeTheme(contextWith()))).toEqual({
       components: [{ id: 'external-frame', component: '@theme/ExternalFrame' }],
       rules: [
         {
@@ -278,15 +295,25 @@ describe('theme-component-page 入口：层目录、一列清单、以及本层�
     expectThemePath(plugin, 'theme-component-page');
   });
 
-  it('loadContent 只查解析器插件：缺了当场点名，装了才放行', () => {
+  it('loadContent 查两条前提：缺解析器、注册了两份各当场点名，装齐了才放行', async () => {
     // 本层不引公共那份 `assertThemePrerequisites()`（那是给**交规则的层**用的，本层自己
-    // 就是被要求的那一个）；它唯一的真前提是解析器插件，那条判据住在解析器包自己那里。
-    expect(loadContentOf(componentPageTheme(contextWith([])))).toThrow(
-      new RegExp(RESOLVER_PLUGIN),
-    );
-    expect(() =>
+    // 就是被要求的那一个）；两条前提都住在解析器包那个出口里：解析器在不在、本层被注册了几份。
+    await expect(
+      loadContentOf(componentPageTheme(contextWith([])))(),
+    ).rejects.toThrow(new RegExp(RESOLVER_PLUGIN));
+    await expect(
       loadContentOf(componentPageTheme(contextWith()))(),
-    ).not.toThrow();
+    ).resolves.not.toThrow();
+  });
+
+  it('第二份实例当场点名：过去只是各写一遍同一份产物，谁说了算看插件顺序', async () => {
+    // 官方只拦「同一插件挂两次又不给 id」，这里多查的那一条是「本层吃不下第二份」。
+    const twice = componentPageTheme(
+      contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE, COMPONENT_PAGE]),
+    );
+    await expect(loadContentOf(twice)()).rejects.toThrow(
+      new RegExp(String.raw`${COMPONENT_PAGE}[\s\S]*__component-frame`),
+    );
   });
 
   it('选项缺省 = 空清单：装上这一层但不配页面，站点照跑', () => {
@@ -377,12 +404,14 @@ describe('theme-avatar 入口', () => {
     ).toThrow(/userAPI/);
   });
 
-  it('缺解析器：当场点名；装齐了就放行（这一层不要求注册 theme-iframe）', () => {
+  it('缺解析器：当场点名；装齐了就放行（这一层不要求注册 theme-iframe）', async () => {
     const missing = avatarTheme(contextWith([]));
-    expect(() => loadContentOf(missing)()).toThrow(new RegExp(RESOLVER_PLUGIN));
+    await expect(loadContentOf(missing)()).rejects.toThrow(
+      new RegExp(RESOLVER_PLUGIN),
+    );
 
     const complete = avatarTheme(contextWith([RESOLVER_PLUGIN]));
-    expect(() => loadContentOf(complete)()).not.toThrow();
+    await expect(loadContentOf(complete)()).resolves.not.toThrow();
   });
 
   it('两处包名字面量对齐：主题层里那句就是入口那个常量', () => {
@@ -416,12 +445,14 @@ describe('theme-copy-button 入口', () => {
     expect(existsSync(modules[0]!)).toBe(true);
   });
 
-  it('缺解析器：当场点名；装齐了就放行（这一层不要求注册 theme-iframe）', () => {
+  it('缺解析器：当场点名；装齐了就放行（这一层不要求注册 theme-iframe）', async () => {
     const missing = copyButtonTheme(contextWith([]));
-    expect(() => loadContentOf(missing)()).toThrow(new RegExp(RESOLVER_PLUGIN));
+    await expect(loadContentOf(missing)()).rejects.toThrow(
+      new RegExp(RESOLVER_PLUGIN),
+    );
 
     const complete = copyButtonTheme(contextWith([RESOLVER_PLUGIN]));
-    expect(() => loadContentOf(complete)()).not.toThrow();
+    await expect(loadContentOf(complete)()).resolves.not.toThrow();
   });
 });
 
@@ -454,8 +485,8 @@ describe('theme-diff 入口', () => {
     expect(rules[0]!.loader).toMatch(/[/\\]loader[/\\]md-diff-loader\.mjs$/);
   });
 
-  it('loadContent：交出 diff 那一格，组件写的是 @theme/DiffPage', () => {
-    expect(contributedOf(diffTheme(contextWith()))).toEqual({
+  it('loadContent：交出 diff 那一格，组件写的是 @theme/DiffPage', async () => {
+    expect(await contributedOf(diffTheme(contextWith()))).toEqual({
       components: [{ id: 'diff', component: '@theme/DiffPage' }],
       // `any` 判法：`diff:` 那三种写下的开关形状（`true` / 路径 / `{ old, new }`）都算命中
       // （见 component-page 的判据）。
@@ -463,8 +494,8 @@ describe('theme-diff 入口', () => {
     });
   });
 
-  it('缺解析器、缺 component-page 都当场点名；装齐了才放行', () => {
-    expectPrerequisites(diffTheme);
+  it('缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
+    await expectPrerequisites(diffTheme);
   });
 });
 
@@ -476,20 +507,22 @@ describe('theme-erd 入口', () => {
     expectThemePath(plugin, 'theme-erd');
   });
 
-  it('loadContent：交出 dbml_json 那一格，组件写的是 @theme/ErdPage', () => {
-    expect(contributedOf(erdTheme(contextWith()))).toEqual({
+  it('loadContent：交出 dbml_json 那一格，组件写的是 @theme/ErdPage', async () => {
+    expect(await contributedOf(erdTheme(contextWith()))).toEqual({
       components: [{ id: 'erd', component: '@theme/ErdPage' }],
       // `any` 判法：`dbml_json` 是 loader 追加的那条导出，恒是一个对象（见 component-page 的判据）。
       rules: [{ key: 'dbml_json', match: 'any', component: 'erd' }],
     });
   });
 
-  it('缺解析器、缺 component-page 都当场点名', () => {
-    expectPrerequisites(erdTheme);
+  it('缺解析器、缺 component-page 都当场点名', async () => {
+    await expectPrerequisites(erdTheme);
   });
 });
 
 describe('theme-git-badge 入口：层目录、样式表与前置检查', () => {
+  const GIT_BADGE = '@show-docs/docusaurus-theme-git-badge';
+
   /**
   这一层要改 `siteConfig.markdown.parseFrontMatter`，所以站点上下文里得有一份 `markdown`；
   那一格长什么样与本组断言无关，只要解析器在那儿就行。
@@ -511,7 +544,7 @@ describe('theme-git-badge 入口：层目录、样式表与前置检查', () => 
   it('层目录与客户端模块：层是包根那份 `theme/`，样式表是包根那份', () => {
     const plugin = gitBadgeTheme(contextWithMarkdown([RESOLVER_PLUGIN]));
 
-    expect(plugin.name).toBe('@show-docs/docusaurus-theme-git-badge');
+    expect(plugin.name).toBe(GIT_BADGE);
     expectThemePath(plugin, 'theme-git-badge');
 
     const modules = clientModulesOf(plugin);
@@ -521,12 +554,25 @@ describe('theme-git-badge 入口：层目录、样式表与前置检查', () => 
     expect(existsSync(modules[0]!)).toBe(true);
   });
 
-  it('缺解析器：当场点名（两格是未编译的 TS 源码，由它那条 babel 规则编）', () => {
+  it('缺解析器：当场点名（两格是未编译的 TS 源码，由它那条 babel 规则编）', async () => {
     const missing = gitBadgeTheme(contextWithMarkdown([]));
-    expect(() => loadContentOf(missing)()).toThrow(new RegExp(RESOLVER_PLUGIN));
+    await expect(loadContentOf(missing)()).rejects.toThrow(
+      new RegExp(RESOLVER_PLUGIN),
+    );
 
     const complete = gitBadgeTheme(contextWithMarkdown([RESOLVER_PLUGIN]));
-    expect(() => loadContentOf(complete)()).not.toThrow();
+    await expect(loadContentOf(complete)()).resolves.not.toThrow();
+  });
+
+  it('第二份实例当场点名：那道「只包一次」的护栏自己不会报出来', async () => {
+    // 症状原本只是「徽标少一整棵根，而那份配置看着完全正常」—— 点名的是数份那一句，
+    // 报错里得把「多棵根写在同一份的 docs 数组里」那条路给出。
+    const twice = gitBadgeTheme(
+      contextWithMarkdown([RESOLVER_PLUGIN, GIT_BADGE, GIT_BADGE]),
+    );
+    await expect(loadContentOf(twice)()).rejects.toThrow(
+      new RegExp(String.raw`${GIT_BADGE}[\s\S]*只包一次[\s\S]*docs`),
+    );
   });
 });
 
@@ -562,16 +608,16 @@ describe('theme-markmap 入口', () => {
     expect(rules[0]!.loader).toMatch(/[/\\]loader[/\\]md-markmap-loader\.mjs$/);
   });
 
-  it('loadContent：交出 markmap 那一格，组件写的是 @theme/MarkmapPage', () => {
-    expect(contributedOf(markmapTheme(contextWith()))).toEqual({
+  it('loadContent：交出 markmap 那一格，组件写的是 @theme/MarkmapPage', async () => {
+    expect(await contributedOf(markmapTheme(contextWith()))).toEqual({
       components: [{ id: 'markmap', component: '@theme/MarkmapPage' }],
       // `options` 判法：`markmap: true` 与选项对象都算命中（见 component-page 的判据）。
       rules: [{ key: 'markmap', match: 'options', component: 'markmap' }],
     });
   });
 
-  it('缺解析器、缺 component-page 都当场点名；装齐了才放行', () => {
-    expectPrerequisites(markmapTheme);
+  it('缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
+    await expectPrerequisites(markmapTheme);
   });
 });
 
@@ -602,14 +648,14 @@ describe('theme-redoc 入口：worker_threads 给一个空模块', () => {
     expectThemePath(plugin, 'theme-redoc');
   });
 
-  it('loadContent：缺解析器、缺 component-page 都当场点名；装齐了才放行', () => {
+  it('loadContent：缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
     // 这一层不再要求 `theme-iframe`：外层框、那条握手循环与框内那份文档都在机制层里，
     // 卸载 `theme-iframe` 这一层照常可用。缺 component-page 则是交出的那一列永远不会被用到。
-    expectPrerequisites(redocTheme);
+    await expectPrerequisites(redocTheme);
   });
 
-  it('loadContent：交出 `redoc` 那一格，框内取 @theme/RedocView', () => {
-    expect(contributedOf(redocTheme(contextWith()))).toEqual({
+  it('loadContent：交出 `redoc` 那一格，框内取 @theme/RedocView', async () => {
+    expect(await contributedOf(redocTheme(contextWith()))).toEqual({
       components: [{ id: 'redoc', component: '@theme/RedocView' }],
       rules: [
         {
@@ -651,12 +697,12 @@ describe('theme-scalar 入口：把 Scalar 那份静态样式表摘出全站 css
     expectThemePath(plugin, 'theme-scalar');
   });
 
-  it('loadContent：缺解析器、缺 component-page 都当场点名；装齐了才放行', () => {
-    expectPrerequisites(scalarTheme);
+  it('loadContent：缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
+    await expectPrerequisites(scalarTheme);
   });
 
-  it('loadContent：交出 `scalar` 那一格，框内取 @theme/ScalarView', () => {
-    expect(contributedOf(scalarTheme(contextWith()))).toEqual({
+  it('loadContent：交出 `scalar` 那一格，框内取 @theme/ScalarView', async () => {
+    expect(await contributedOf(scalarTheme(contextWith()))).toEqual({
       components: [{ id: 'scalar', component: '@theme/ScalarView' }],
       rules: [
         {
@@ -728,12 +774,12 @@ describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node �
     expectThemePath(plugin, 'theme-stoplight');
   });
 
-  it('loadContent：缺解析器、缺 component-page 都当场点名；装齐了才放行', () => {
-    expectPrerequisites(stoplightTheme);
+  it('loadContent：缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
+    await expectPrerequisites(stoplightTheme);
   });
 
-  it('loadContent：交出 `stoplight` 那一格，框内取 @theme/StoplightView', () => {
-    expect(contributedOf(stoplightTheme(contextWith()))).toEqual({
+  it('loadContent：交出 `stoplight` 那一格，框内取 @theme/StoplightView', async () => {
+    expect(await contributedOf(stoplightTheme(contextWith()))).toEqual({
       components: [{ id: 'stoplight', component: '@theme/StoplightView' }],
       rules: [
         {
@@ -749,7 +795,7 @@ describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node �
   it('客户端：ProvidePlugin 补 `process`，fallback 补 buffer 与 url', () => {
     // 裸标识符 `process` 只由 ProvidePlugin 补（`resolve.fallback` 只管按模块 id 筛的
     // require）；`buffer` / `url` 走在「按 URL 取 schema」那条路上，置 false 会在运行时抛。
-    const result = webpackOf(stoplightTheme(contextWith()), {}, false);
+    const result = webpackOf(stoplightTheme(contextWith()));
 
     expect(result.plugins).toHaveLength(1);
     const provide = result.plugins![0] as FakeProvidePlugin;

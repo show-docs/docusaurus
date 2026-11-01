@@ -397,12 +397,12 @@ export class PrevLayerResolverPlugin {
   各自的成因见 `./docs/internals.md`「两个 hook 的选择」。
   */
   apply(resolver: ResolverLike): void {
-    // 能力自检 + 取出口 hook 是同一次调用：`ensureHook` 幂等，自检拿到的那份就是每次改写
-    // 要用的那份，不必每条 request 再走一遍 Tapable。为什么要自检，见 README
-    // 「告警」第 4 条。
-    let target: ReturnType<ResolverLike['ensureHook']>;
+    // 能力自检 + 取出口 hook 是同一次调用：`getHook` 在 hook 不存在时**抛**（上游
+    // `Resolver.js`：`ensureHook` 会创建未知 hook、恒不抛，用它自检等于没有护栏），
+    // 自检拿到的那份就是每次改写要用的那份。为什么要自检，见 README「告警」第 4 条。
+    let target: ReturnType<ResolverLike['getHook']>;
     try {
-      target = resolver.ensureHook('internal-resolve');
+      target = resolver.getHook('internal-resolve');
     } catch (error) {
       this.warn(
         '[plugin-prev-layer-resolver] 当前 resolver 没有 `internal-resolve` hook，`@theme-prev/*` 已整体禁用（保持官方解析）。' +
@@ -433,7 +433,7 @@ export class PrevLayerResolverPlugin {
 
         // 改写后 entry 不能与栈上已有 entry 判等，否则 `doResolve` 直接抛
         // `Recursion in resolving`。判等走上游口径（见 `stackHasEntry`），而改写只换
-        // `request`；`ensureHook` 返回的 hook 带名字（与 `label` 同一个前提）。
+        // `request`；`getHook` 返回的 hook 带名字（与 `label` 同一个前提）。
         if (stackHasEntry(resolveContext?.stack, target.name!, resolved.target))
           return callback();
 

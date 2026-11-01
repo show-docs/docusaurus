@@ -117,6 +117,41 @@ describe('discoverPlugins：用官方函数拿回官方顺序的插件列表', (
   });
 });
 
+/**
+配置文件不叫默认名时，「按默认名在 siteDir 里找」与「站点实际用的那一份」是两个文件
+（官方 `loadSiteConfig`：给了 `config` 就 `path.resolve(siteDir, config)`，否则在
+`docusaurus.config.<ext>` 里找 —— core `lib/server/config.js`）。少传第三个参数时层栈是**按另一份
+配置**推出来的：`--config` 起的站点会安静地拿到一条与真实构建不一致的链。
+*/
+describe('配置文件：读站点实际用的那一份', () => {
+  it('`--config` 形态的站点：传了 siteConfigPath 才推得出来，没传则降级并告警', async () => {
+    const site = makePluginSite('fixture-theme', '.mjs');
+    const declared = path.join(site.siteDir, 'docusaurus.config.mjs');
+    const custom = path.join(site.siteDir, 'custom.config.mjs');
+    fs.renameSync(declared, custom);
+    try {
+      // 只给 siteDir：默认名找不到 ⇒ loadContext 抛 ⇒ 整条推导降级
+      const warn = vi.fn();
+      expect(await new PluginDiscovery(site.siteDir, { warn }).discover()).toBe(
+        null,
+      );
+      expect(warn.mock.calls.map((c) => String(c[0])).join('\n')).toContain(
+        '读取 Docusaurus 插件列表失败',
+      );
+
+      // 加上官方 context 里那份 siteConfigPath：读的就是站点真的在用的那份配置
+      const plugins = await new PluginDiscovery(
+        site.siteDir,
+        { warn: vi.fn() },
+        custom,
+      ).discover();
+      expect(plugins?.map((p) => p.name)).toEqual(['fixture-theme']);
+    } finally {
+      site.cleanup();
+    }
+  }, 60_000);
+});
+
 describe('一次初始化一次推导', () => {
   it('同一实例只推导一次（同一个 Promise）；新实例 = 新推导', async () => {
     const logger = { warn: () => {} };

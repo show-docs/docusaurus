@@ -1,7 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
+import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -11,15 +11,13 @@ const thisDir = dirname(fileURLToPath(import.meta.url));
 export default function theme(context: LoadContext): Plugin {
   return {
     name: '@show-docs/docusaurus-theme-copy-button',
-    loadContent() {
+    async loadContent() {
       // 本层不交规则给机制层，安装前提只有解析器那一个；但 `theme/` 是未编译 TS 源码，
       // 编译它的 babel 规则由解析器插件一处认领，缺了它同样是构建期才炸。
-      assertPrevLayerResolverInstalled(
+      // 交回 Promise：官方 await 它，preset 里那一份要等官方合并完才看得见。
+      await assertPrevLayerResolverInstalled(
+        context,
         '@show-docs/docusaurus-theme-copy-button',
-        {
-          plugins: context.siteConfig.plugins,
-          themes: context.siteConfig.themes,
-        },
       );
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus

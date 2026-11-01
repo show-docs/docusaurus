@@ -299,15 +299,63 @@ export function makePluginSite(name: string, ext: '.mjs' | '.cjs'): PluginSite {
 }
 
 /**
-造一份假 `@docusaurus/core`：复制真实 `lib/`，只换 `server/site.js` 与
-`server/plugins/configs.js` 两个入口，让站点解析到它（而不是真实 core）。
+造一个「把插件写在 preset 里」的临时站点：配置文件只声明 `presets`，`plugins` / `themes` 由调用方给。
+
+preset 包按 CJS 写（`.cjs` 入口）：官方 `loadPresets` 用 `createRequire(siteConfigPath)` 定位它，
+再 `loadFreshModule` 取 `default ?? module`。夹具必须建在**仓库树内**（`resolveCoreModule` 靠上溯找
+`node_modules/@docusaurus/core`），走的是真的 `loadContext` + 真的 `loadPresets`。
+
+@param presetBody preset 包 `index.cjs` 的内容
+@param declared 站点配置里 `plugins` 那一格（`themes` 留空，要测的那一格是 preset）
+*/
+export function makePresetSite(
+  presetBody: string,
+  declared: unknown[] = [],
+): { siteDir: string; preset: string; cleanup(): void } {
+  const tempRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '.temp',
+  );
+  fs.mkdirSync(tempRoot, { recursive: true });
+  const root = mkdtempReal(path.join(tempRoot, 'preset-site-'));
+  const siteDir = path.join(root, 'site');
+  const preset = 'fixture-preset';
+  const pkg = path.join(siteDir, 'node_modules', preset);
+  fs.mkdirSync(pkg, { recursive: true });
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify({ name: preset, version: '1.0.0', main: 'index.cjs' }),
+  );
+  fs.writeFileSync(path.join(pkg, 'index.cjs'), presetBody);
+  fs.writeFileSync(
+    path.join(siteDir, 'docusaurus.config.mjs'),
+    `export default { title: 'fixture', url: 'https://example.com', baseUrl: '/', presets: ['${preset}'], plugins: ${JSON.stringify(declared)} };\n`,
+  );
+  return {
+    siteDir,
+    preset,
+    cleanup() {
+      fs.rmSync(root, { recursive: true, force: true });
+    },
+  };
+}
+
+/** preset 函数交回那一份插件清单的写法。 */
+export const presetReturning = (plugins: unknown[]): string =>
+  `module.exports = () => ({ name: 'fixture-preset', plugins: ${JSON.stringify(plugins)}, themes: [] });\n`;
+
+/**
+造一份假 `@docusaurus/core`：复制真实 `lib/`，只换 `server/site.js`、
+`server/plugins/configs.js`（以及需要时的 `server/plugins/presets.js`）那几个入口，
+让站点解析到它（而不是真实 core）。
 
 两个坑（复制而不是原地改 / 需要真实 core 当模板）见调用点注释；这里只负责造。
 @returns 假 core 包目录（调用方可继续改它的 package.json）
 */
 export function fakeCore(
   siteDir: string,
-  entries: { site: string; configs: string },
+  entries: { site: string; configs: string; presets?: string },
 ): string {
   const realSite = resolveCoreModule(process.cwd(), 'server/site.js');
   if (!realSite) throw new Error('测试前提：必须能定位到真实 @docusaurus/core');
@@ -324,6 +372,7 @@ export function fakeCore(
   const overrides: Record<string, string> = {
     'server/site.js': entries.site,
     'server/plugins/configs.js': entries.configs,
+    ...(entries.presets && { 'server/plugins/presets.js': entries.presets }),
   };
   for (const [name, source] of Object.entries(overrides))
     fs.writeFileSync(path.join(target, 'lib', name), source);

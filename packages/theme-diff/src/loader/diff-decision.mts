@@ -1,64 +1,89 @@
 import { dirname, resolve } from 'node:path';
 
-const DIFF_KEY = /^diff[ \t]*:(.*)$/m;
-
 /**
-`diff:` 的续行：这一行没写值、把内容折到下面几行时，把属于这把键的那几行读出来。
+`diff:` 那把键落成的形状。两种都用，第三条是写了但写坏了：
 
-只收缩进的后续行，遇到顶格的行（frontmatter 里下一把键）就停；缩进去掉、注释跳过，
-按行拼回一段交给 `splitDiffValue` 分形状。流式写法的 `{` / `}` 折成几行、块式写法的
-`old:` / `new:` 各占一行，都从这里收下来。
+- `single`：一份文件，比它在 git 里的最近一次改动（`value` 是 `true` 时就是本文自己）；
+- `pair`：`{old: 旧, new: 新}`，两份磁盘文件互相对照，不经过 git 历史；
+- `invalid`：那一格写的东西落不成上面两种。
 
-**空行不终止**：YAML 的块映射里空行只是分隔，键还在同一把下面 ——
-`diff:` 下面空一行再写 `old:` 与 `new:`，站点那边解析出来仍是两把键，这边也得收得回来。
-按空行截断的话，收回来的只剩一项，形状会掉成「一份文件」，而那个值还是一句看不懂的话。
+**键名定角色**，两条写的先后无关，`new` 那一份总是落在视图右边。
+
+凑不出正好这两个键就当写坏了 —— 缺一个就退回去猜另一份，比静默少比一份更难查；
+多一个键也不认（`{old, new, extra}` 里 `extra` 是谁、该比哪两份，作者自己都没说清）。
 */
-function readContinuation(block: string, from: number): string {
-  const lines: string[] = [];
+export type DiffSpec =
+  | { kind: 'single'; value: string }
+  | { kind: 'pair'; old: string; new: string }
+  | { kind: 'invalid'; reason: string };
 
-  for (const raw of block.slice(from).split('\n').slice(1)) {
-    if (raw.trim() === '') {
-      continue;
-    }
+/** 写坏了：交回**一句**说清哪儿不对的话，由 loader 拼成告警。 */
+function invalid(seen: unknown, what: string): DiffSpec {
+  return {
+    kind: 'invalid',
+    reason: `${what}（这一格写的是 ${JSON.stringify(seen)}）`,
+  };
+}
 
-    if (!/^[ \t]/.test(raw)) {
-      break;
-    }
+const NOT_PAIR = '写成 {old: 旧, new: 新} 时要正好这两个键';
 
-    const line = raw.trim();
-
-    if (!line.startsWith('#')) {
-      lines.push(line);
-    }
-  }
-
-  return lines.join('\n').trim();
+/** 只有非空的「文本」算一个地址；空串与纯空白不算写了。 */
+function address(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
 /**
-frontmatter 里 `diff:` 那个值：`true`，或加不加引号的路径；也认把 `{ }` 或
-`old:` / `new:` 折在下面几行的写法。
+frontmatter 里 `diff:` 那一格落成 {@link DiffSpec}；没写或关掉时交回 `undefined`
+（那一页本来就不该有差异视图，不打扰）。
 
-`false`、`null` 与空值都算没开；`true` 原样交回字符串，由调用方决定它指哪一份文件。
+入参是**官方解析之后的那一整份 frontmatter**（`@docusaurus/utils` 的
+`DEFAULT_PARSE_FRONT_MATTER`），所以这里的值是 YAML 给的类型：`diff: true` 是布尔、
+`diff: {old: a, new: b}` 是对象。这一族不再自己切文本 —— 「这一页开没开差异视图」在
+loader 与在站点（component-page 那条规则）读的是同一份解析结果，两套判据分叉的那些写法
+（带引号的键名、`diff:true` 不带空格）因此只剩一种表现：**官方那份**。
 */
-export function readDiffValue(frontMatterBlock: string): string | undefined {
-  const match = DIFF_KEY.exec(frontMatterBlock);
-
-  if (!match) {
+export function diffSpecOf(frontMatter: unknown): DiffSpec | undefined {
+  // 官方解析失败或整段是个标量时，`frontMatter` 是那串原文而不是对象：不算写了这把键
+  if (typeof frontMatter !== 'object' || frontMatter === null) {
     return undefined;
   }
 
-  const inline = match[1]!.trim();
-  const value =
-    inline || readContinuation(frontMatterBlock, match.index + match[0].length);
+  const { diff } = frontMatter as Record<string, unknown>;
 
-  if (!value || value === 'false' || value === 'null') {
+  // 没写这把键、写成 `null`、写成 `false`：这一页本来就不该有差异视图，不打扰
+  if (([undefined, null, false] as readonly unknown[]).includes(diff)) {
     return undefined;
   }
 
-  const quoted = /^(['"])(.*)\1$/s.exec(value);
+  // `diff: true`：比本文自己
+  if (diff === true) {
+    return { kind: 'single', value: 'true' };
+  }
 
-  return (quoted?.[2] ?? value).trim();
+  const path = address(diff);
+
+  if (path !== undefined) {
+    return { kind: 'single', value: path };
+  }
+
+  // 对象：只认正好 `old` / `new` 两把、且两把都是地址
+  if (typeof diff === 'object' && !Array.isArray(diff)) {
+    const entries = Object.entries(diff as Record<string, unknown>);
+    const old = address((diff as Record<string, unknown>).old);
+    const newer = address((diff as Record<string, unknown>).new);
+
+    return entries.length === 2 &&
+      old !== undefined &&
+      newer !== undefined &&
+      entries.every(([key]) => key === 'old' || key === 'new')
+      ? { kind: 'pair', old, new: newer }
+      : invalid(diff, NOT_PAIR);
+  }
+
+  return invalid(
+    diff,
+    '`diff` 只能写 `true`、一份文件的地址，或 {old: 旧, new: 新}',
+  );
 }
 
 /**
@@ -70,91 +95,4 @@ export function resolveDiffTarget(value: string, resourcePath: string): string {
   return value === 'true'
     ? resourcePath
     : resolve(dirname(resourcePath), value);
-}
-
-/**
-`diff:` 那个值落成的形状。两种都用，第三条是写了但写坏了：
-
-- `single`：一份文件，比它在 git 里的最近一次改动（`true` 就是本文自己）；
-- `pair`：`{old: 旧, new: 新}`（或 `old:` / `new:` 各一行），两份磁盘文件互相对照，不经过 git 历史；
-- `invalid`：凑不出正好 `old` 与 `new` 两个键。
-*/
-export type DiffSpec =
-  | { kind: 'single'; value: string }
-  | { kind: 'pair'; old: string; new: string }
-  | { kind: 'invalid'; value: string };
-
-const PAIR = /^\{(.*)\}$/s;
-
-/** 一项 `键: 值`；只切第一个冒号，值里再带冒号（Windows 的盘符写法）都不受影响。 */
-const ENTRY = /^([^:]+):(.*)$/;
-
-/** 去掉一项外面配对的那对引号，与 `readDiffValue` 对整行值做的是同一件事。 */
-function unquote(item: string): string {
-  const quoted = /^(['"])(.*)\1$/s.exec(item);
-
-  return quoted?.[2] ?? item;
-}
-
-/** 把一项一项的 `键: 值` 收成表；有一项读不成键值就整把作废（`undefined`）。 */
-function entriesOf(items: Iterable<string>): Map<string, string> | undefined {
-  const entries = new Map<string, string>();
-
-  for (const raw of items) {
-    const item = raw.trim();
-
-    if (!item) {
-      continue;
-    }
-
-    const entry = ENTRY.exec(item);
-
-    if (!entry) {
-      return undefined;
-    }
-
-    entries.set(unquote(entry[1]!.trim()), unquote(entry[2]!.trim()));
-  }
-
-  return entries;
-}
-
-/** 凑不出正好 `old` 与 `new` 两个键就当写坏了。 */
-function toPair(entries: Map<string, string>, value: string): DiffSpec {
-  const old = entries.get('old');
-  const newer = entries.get('new');
-
-  return !old || !newer || entries.size !== 2
-    ? { kind: 'invalid', value }
-    : { kind: 'pair', old, new: newer };
-}
-
-/**
-把值分成「一份文件」与「两份文件」两种形状。两份那种有两种写法：流式映射
-`diff: {old: a.md, new: b.md}`，以及块式映射 `old:` / `new:` 各占一行；`readDiffValue`
-把折行写的那几行原样拼回来，所以两处都落到这里。**键名定角色**，两条写的先后无所谓，
-`new` 那一份总是落在视图右边。逗号与空白都随意，键与值都可以加引号。
-
-流式那条按逗号分项，因此地址里不能带逗号；块式按行分，没有这条限制。
-
-凑不出正好这两个键就当写坏了 —— 缺一个就退回去猜另一份，比静默少比一份更难查；
-多一个键也不认（`{old, new, extra}` 里 `extra` 是谁、该比哪两份，作者自己都没说清）。
-*/
-export function splitDiffValue(value: string): DiffSpec {
-  const inside = PAIR.exec(value)?.[1];
-
-  if (inside === undefined) {
-    // 折行写成了块式：`old:` 与 `new:` 各一行，没有外层花括号
-    if (!value.includes('\n')) {
-      return { kind: 'single', value };
-    }
-
-    const entries = entriesOf(value.split('\n'));
-
-    return entries ? toPair(entries, value) : { kind: 'invalid', value };
-  }
-
-  const entries = entriesOf(inside.split(','));
-
-  return entries ? toPair(entries, value) : { kind: 'invalid', value };
 }

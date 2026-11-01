@@ -189,7 +189,7 @@ function exportedJson(output: string): DbmlModel {
 本层只交「一个组件 + 一条规则」。这里把那份 content 读出来，用的就是站点装本层时同一条路径
 （两份前提都在这句里满足）。
 */
-function contributedColumns() {
+async function contributedColumns() {
   const plugin = theme(
     {
       siteDir: '/site',
@@ -203,15 +203,15 @@ function contributedColumns() {
     } as unknown as Parameters<typeof theme>[0],
     {},
   ) as {
-    loadContent?: () => {
+    loadContent?: () => Promise<{
       componentPage: {
         components: { id: string; component: string }[];
         rules: { key: string; match: string; component: string }[];
       };
-    };
+    }>;
   };
 
-  return plugin.loadContent!().componentPage;
+  return plugin.loadContent!().then((content) => content.componentPage);
 }
 
 /**
@@ -221,7 +221,7 @@ function contributedColumns() {
 */
 describe('清单里那把键就是 loader 写出来的导出名', () => {
   it('`dbml_json` 既是交出的那一条的唯一一把键，也是产物里那条 `export const`', async () => {
-    const { components, rules } = contributedColumns();
+    const { components, rules } = await contributedColumns();
 
     expect(rules.map((rule) => rule.key)).toEqual(['dbml_json']);
     // 规则引用的是**登记名**，那一格必须能在同一列里查到；查不到时构建期就红，所以这里钉的是

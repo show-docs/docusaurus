@@ -29,7 +29,7 @@ Docusaurus 项目会用自己的 babel 编译它们；「谁来编」归
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/plugin-slots';
+import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -49,13 +49,10 @@ export default function theme(
 
   return {
     name: PLUGIN_NAME,
-    loadContent() {
+    async loadContent() {
       // 本层的 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领；
       // 缺了它要等整个构建才炸。这一层不交规则给机制层，所以安装前提只有解析器这一个。
-      assertPrevLayerResolverInstalled(PLUGIN_NAME, {
-        plugins: context.siteConfig.plugins,
-        themes: context.siteConfig.themes,
-      });
+      await assertPrevLayerResolverInstalled(context, PLUGIN_NAME);
     },
     contentLoaded({ actions }) {
       // 见文件头第 1 条：这是 `actions` 上那一个，不是生命周期方法。

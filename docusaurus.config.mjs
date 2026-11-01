@@ -62,8 +62,9 @@ const config = {
     // 插件手上拿不到，所以把每份实例的 `path` / `include` / `exclude` 在这里再写一遍 ——
     // 徽标的地盘跟着文档插件扫出来的那批文件走。站点有两份 docs 实例，就转述两份。
     //
-    // 只能有本层**一份**实例：注入走的是站点全局那一个 `markdown.parseFrontMatter`，
-    // 第二份实例会被「只包一次」的护栏静默吞掉，所以多棵内容根必须在这一份里用数组表达。
+    // 只能有本层**一份**实例：注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份会被
+    // 「只包一次」的护栏原样交回（不干活，也不报）。本层在 `loadContent()` 里数那两份清单，
+    // 注册了两份以上当场点名 —— 所以多棵内容根必须在这一份里用数组表达。
     [
       '@show-docs/docusaurus-theme-git-badge',
       { docs: [docsScope('packages'), docsScope('themes')] },

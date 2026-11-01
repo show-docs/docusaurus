@@ -307,7 +307,7 @@ describe('TS 源码的编译规则只有一处', () => {
       'utf8',
     );
     expect(source, '解析器插件里没有那条 TS 源码规则').toContain(
-      'utils.getJSLoader({ isServer })',
+      'utils.getJSLoader({ isServer, babelOptions })',
     );
     expect(source).toContain('needsShowDocsSourceRule');
   });
@@ -348,15 +348,12 @@ describe('TS 源码的编译规则只有一处', () => {
 });
 
 describe('两条 md 后处理 loader 的接线', () => {
-  /** 两条 md 后处理 loader 认 frontmatter 起止的那一条，两边必须是一个口径。 */
-  const frontMatterLine = `const FRONT_MATTER = /^---${String.raw`\r?\n([\s\S]*?)\r?\n---/;`}`;
-
   /**
   两条 md 后处理 loader（`enforce: 'post'`）各自从 frontmatter 认一把键，再往 MDX 产物后追加一条
   **同名**导出。两处必须同名：不一致时层里 `content.<键>` 永远是空的，页面安静地少一块视图，
   构建与用例都不报。
 
-  `keyFile` 是那把键的正则所在的那个文件 —— `theme-diff` 把这段判据拆到了 `diff-decision.mts`
+  `keyFile` 是那把键的判据所在的那个文件 —— `theme-diff` 把这段判据拆到了 `diff-decision.mts`
   （拆出来才给单测跑得到），`theme-markmap` 还在 loader 自己里。
   */
   const mdLoaders = [
@@ -374,12 +371,22 @@ describe('两条 md 后处理 loader 的接线', () => {
     },
   ] as const;
 
-  it('两条 md loader 的 frontmatter 正则相同', () => {
-    for (const { pkg, file } of mdLoaders) {
+  it('两条 md loader 读的是官方那一份解析', () => {
+    // 判据与站点那条规则同源靠的是同一份解析，不是两条长得像的文本切法：以前两包各有一份
+    // `FRONT_MATTER` 正则，站点那边读的却是官方解析之后的那一整份 —— 带引号的键名这类写法
+    // 于是只有站点看得见，页面判成这一页、数据却没生成。自己切文本的那一套不许再长回来。
+    for (const { pkg, file, keyFile } of mdLoaders) {
       expect(
         read(pkg, file),
-        `${pkg} 的 ${file} 里那条 FRONT_MATTER 与另一包不同口径`,
-      ).toContain(frontMatterLine);
+        `${pkg} 的 ${file} 不再用官方那一条（DEFAULT_PARSE_FRONT_MATTER）读 frontmatter`,
+      ).toContain('DEFAULT_PARSE_FRONT_MATTER({');
+
+      for (const target of [file, keyFile]) {
+        expect(
+          read(pkg, target),
+          `${pkg} 的 ${target} 里又自己切 frontmatter 了：那一处会与站点那条规则分叉`,
+        ).not.toMatch(/const\s+FRONT_MATTER\s*=/);
+      }
     }
   });
 
@@ -388,13 +395,11 @@ describe('两条 md 后处理 loader 的接线', () => {
       expect(
         read(pkg, keyFile),
         `${pkg} 的 ${keyFile} 里，frontmatter 判据不再认 \`${key}\` 这把键`,
-      ).toContain(`_KEY = /^${key}`);
+      ).toContain(`const { ${key} } = frontMatter`);
       expect(
         read(pkg, file),
         `${pkg} 的 ${file} 没把数据追加成 MDX 组件上的一条同名导出`,
-      ).toContain(
-        `\`\${source}\\nexport const ${key} = \${JSON.stringify(data)};\\n\``,
-      );
+      ).toContain(`\`\${source}\\nexport const ${key} = `);
     }
   });
 });

@@ -61,10 +61,36 @@ describe('isolateRendererCss()', () => {
     expect(rules[0]!.exclude).toBe(CSS.file);
   });
 
-  it('没有 `module.rules` 的配置原样放过（不抛）', () => {
-    const config = {} as Parameters<typeof isolateRendererCss>[0];
+  it('零命中当场点名：插一条没用的资源规则、把样式漏回全站那一份都不算交代', () => {
+    // 官方那条规则换成字符串 `test`：本包的判据（带 `use` 的规则对象 + 正则 `test`）就够不着了
+    const rules: Rule[] = [
+      { oneOf: [] },
+      { test: /\.mdx?$/, use: [{ loader: 'mdx-loader' }] },
+      { test: 'styles.css', use: [{ loader: 'css-loader' }] },
+    ];
+    const config = configWith(rules);
+
     expect(() => {
       isolateRendererCss(config, CSS);
-    }).not.toThrow();
+    }).toThrow(/摘不出打包/);
+    // 抛之前一条也没改：那条会挡路却没用的资源规则不该留在配置里
+    expect(rules).toHaveLength(3);
+    expect(config.module!.rules).toBe(rules);
+  });
+
+  it('连 `module` 都没有：同样点名，不是原样放过', () => {
+    const config = {} as Parameters<typeof isolateRendererCss>[0];
+
+    expect(() => {
+      isolateRendererCss(config, CSS);
+    }).toThrow(/没有 `module`/);
+  });
+
+  it('有 `module`、还没长出 `rules`：算零命中，且不会把配置改出个空数组再放过去', () => {
+    const config = { module: {} } as Parameters<typeof isolateRendererCss>[0];
+
+    expect(() => {
+      isolateRendererCss(config, CSS);
+    }).toThrow(/摘不出打包/);
   });
 });

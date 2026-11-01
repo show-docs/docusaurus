@@ -80,9 +80,11 @@ interface LoaderRun {
 用一个假的 loader 上下文跑一遍本包那条 `enforce: 'post'` loader。
 
 真实上下文由 webpack 逐次构造，这一层只用到 `cacheable` / `async` / `resourcePath` 三件。
+判据走的是官方那份异步解析，所以要等回调真的被调用才收工。
 */
-function runLoader(resourcePath: string): LoaderRun {
+async function runLoader(resourcePath: string): Promise<LoaderRun> {
   const result: LoaderRun = { output: null, error: null };
+  const { promise, resolve } = Promise.withResolvers<LoaderRun>();
 
   const context = {
     resourcePath,
@@ -90,11 +92,12 @@ function runLoader(resourcePath: string): LoaderRun {
     async: () => (error: Error | null, source?: string) => {
       result.error = error;
       result.output = source ?? null;
+      resolve(result);
     },
   };
 
   loader.call(context as never, MDX_SOURCE);
-  return result;
+  return promise;
 }
 
 /** 取出产物末尾那条 `export const markmap`，按 `MarkmapData` 读回来。 */
@@ -164,10 +167,10 @@ describe('buildMarkmapData：markdown 落成导图要的那份数据', () => {
 });
 
 describe('md loader 的四种落点', () => {
-  it('写了 `markmap:`：追加一条导出，数据是导图要的那份', () => {
+  it('写了 `markmap:`：追加一条导出，数据是导图要的那份', async () => {
     const file = writeMd('---\ntitle: 一页\nmarkmap: true\n---\n\n# 标题\n');
 
-    const run = runLoader(file);
+    const run = await runLoader(file);
     expect(run.error).toBeNull();
     expect(run.output?.startsWith(MDX_SOURCE)).toBe(true);
 
@@ -176,76 +179,116 @@ describe('md loader 的四种落点', () => {
     expect(data.frontmatter).toEqual({ title: '一页', markmap: true });
   });
 
-  it('判据读的是磁盘上那一份原文：产物里有没有 frontmatter 不相干', () => {
+  it('判据读的是磁盘上那一份的官方解析结果：产物里有没有 frontmatter 不相干', async () => {
     // loader 收到的 `source` 是编译好的 MDX（里面没有 frontmatter）；那把键是从磁盘上的
-    // 源文件读的 —— 判据若改成读产物，这一格就会静默失效（导图永远不出现）。
+    // 源文件按官方那一条读的 —— 判据若改成读产物，这一格就会静默失效（导图永远不出现）。
     const file = writeMd('---\nmarkmap: true\n---\n\n# 标题\n');
     expect(MDX_SOURCE).not.toContain('markmap');
 
-    const run = runLoader(file);
+    const run = await runLoader(file);
 
     expect(exportedMarkmap(run.output).frontmatter?.markmap).toBe(true);
   });
 
-  it('没写那把键：原样交回，什么都不追加', () => {
+  it('带引号的键名也算开了：以前站点判成导图页、数据却没生成', async () => {
+    const file = writeMd('---\n"markmap": true\n---\n\n# 标题\n');
+
+    const run = await runLoader(file);
+
+    expect(exportedMarkmap(run.output).root.content).toBe('&#x6807;&#x9898;');
+  });
+
+  it('`markmap:true` 不带空格：官方读不成一把键，两边一起看不见', async () => {
+    const file = writeMd('---\nmarkmap:true\n---\n\n# 标题\n');
+
+    const run = await runLoader(file);
+
+    expect(run.output).toBe(MDX_SOURCE);
+  });
+
+  it('没写那把键：原样交回，什么都不追加', async () => {
     const file = writeMd('---\ntitle: 没有这把键\n---\n\n# 标题\n');
 
-    const run = runLoader(file);
+    const run = await runLoader(file);
 
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.error).toBeNull();
   });
 
-  it('整个文件都没有 frontmatter：原样交回', () => {
+  it('整个文件都没有 frontmatter：原样交回', async () => {
     const file = writeMd('# 只有标题\n');
 
-    const run = runLoader(file);
+    const run = await runLoader(file);
 
     expect(run.output).toBe(MDX_SOURCE);
   });
 
-  it('键在嵌套里（前面缩进）：不算写了这把键', () => {
+  it('键在嵌套里（前面缩进）：不算写了这把键', async () => {
     // 那把键是**顶层**的：缩进一格就是别人的字段，原样交回
     const file = writeMd('---\nfoo:\n  markmap: true\n---\n\n# 标题\n');
 
-    const run = runLoader(file);
+    const run = await runLoader(file);
 
     expect(run.output).toBe(MDX_SOURCE);
   });
 
-  it('键名前面有别的字：不算写了这把键', () => {
+  it('键名前面有别的字：不算写了这把键', async () => {
     const file = writeMd('---\nnotmarkmap: true\n---\n\n# 标题\n');
 
-    const run = runLoader(file);
+    const run = await runLoader(file);
 
     expect(run.output).toBe(MDX_SOURCE);
   });
 
-  it('写成 `false` 或空值：视为没开启，原样交回', () => {
+  it('写成 `false` 或空值：视为没开启，原样交回', async () => {
     for (const value of ['false', 'null', '']) {
       const file = writeMd(`---\nmarkmap: ${value}\n---\n\n# 标题\n`);
 
-      const run = runLoader(file);
+      const run = await runLoader(file);
 
       expect(run.output, `markmap: ${value}`).toBe(MDX_SOURCE);
     }
   });
 
-  it('frontmatter 坏掉：markmap 自己也解析不出那把键，原样交回', () => {
-    const file = writeMd('---\nmarkmap: [没关上\n---\n\n# 标题\n');
+  it('写成对象那一种是渲染选项：也算开了', async () => {
+    const file = writeMd('---\nmarkmap:\n  color: red\n---\n\n# 标题\n');
 
-    const run = runLoader(file);
+    const run = await runLoader(file);
+
+    expect(exportedMarkmap(run.output).frontmatter?.markmap).toEqual({
+      color: ['red'],
+    });
+  });
+
+  it('站点那条规则判不成导图页的那几种形状：这里也不生成数据', async () => {
+    // 规则是 `{ key: 'markmap', match: 'options' }`：只认真布尔 `true` 与选项对象。
+    // 文本、数字、数组那些写法以前被当成真值，于是数据生成了、页面却是普通文档页。
+    for (const value of ['"一段文本"', '3', '[a.md, b.md]']) {
+      const file = writeMd(`---\nmarkmap: ${value}\n---\n\n# 标题\n`);
+
+      const run = await runLoader(file);
+
+      expect(run.output, `markmap: ${value}`).toBe(MDX_SOURCE);
+    }
+  });
+
+  it('整段 frontmatter 解析不了：原样交回，不卡住这条 loader', async () => {
+    // 官方那一条是异步出口，坏掉的 YAML 以拒绝收场：回调必须被调到，
+    // 否则 webpack 永远等不到这一页编译完（真到构建里，mdx-loader 先报错）。
+    const file = writeMd('---\nfoo: : bar\nmarkmap: true\n---\n\n# 标题\n');
+
+    const run = await runLoader(file);
 
     expect(run.output).toBe(MDX_SOURCE);
     expect(run.error).toBeNull();
   });
 
-  it('markmap 自己抛了：把那份错误交回 webpack，不产出内容', () => {
+  it('markmap 自己抛了：把那份错误交回 webpack，不产出内容', async () => {
     const file = writeMd('---\nmarkmap: true\n---\n\n# 标题\n');
 
     forced.throwOnTransform = true;
     try {
-      const run = runLoader(file);
+      const run = await runLoader(file);
 
       expect(run.output).toBeNull();
       expect(run.error?.message).toBe('markmap 自己炸了');

@@ -1,16 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  assertPrevLayerResolverInstalled,
   declaredNamespaces,
-  PLUGIN_NAME,
   pluginSlotName,
-  resolverPluginRegistered,
   slotIsNamespace,
 } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 
 /**
-## 那两份原始清单怎么认层，以及「本包注册了没有」那一条前置检查
+## 那两份原始清单怎么认层
 
 这一族判据住在解析器包，因为「`@theme-prev/*` 由谁提供」只有本包说得住：住在某一族层的
 `lib/` 里，别的层想用就得先装那一族层才能问这一句。它被各层配置期的 `loadContent()`
@@ -18,6 +15,9 @@ import {
 
 形状认错的代价是**静默失效**（那一层不当自己装了、或那句点名永远不响），所以四种写法、
 认不出名字的那些畸形格、以及按包目录段认路径的两条分支都在这里逐个钉住。
+
+「本包注册了没有」那一条**不在这里**：那份清单还可能来自 preset，要问官方才能拿全，
+判据与用例都在 `test/registered-plugins.test.mts`。
 */
 
 const IFRAME = '@show-docs/docusaurus-theme-iframe';
@@ -104,30 +104,5 @@ describe('declaredNamespaces：两份清单合起来报名字', () => {
     expect(declaredNamespaces({ plugins: null, themes: [IFRAME] })).toEqual([
       IFRAME,
     ]);
-  });
-});
-
-describe('resolverPluginRegistered / assertPrevLayerResolverInstalled：本包注册了没有', () => {
-  it('两份清单里任一处按名注册都算；没注册时返回 false', () => {
-    expect(resolverPluginRegistered({ plugins: [PLUGIN_NAME] })).toBe(true);
-    expect(
-      resolverPluginRegistered({
-        themes: [[PLUGIN_NAME, { keepPreviousAliases: false }]],
-      }),
-    ).toBe(true);
-    expect(resolverPluginRegistered({ plugins: [IFRAME], themes: [] })).toBe(
-      false,
-    );
-    expect(resolverPluginRegistered({})).toBe(false);
-  });
-
-  it('注册了则放行；缺了当场点名，报错里带着调用方的包名与安装方式', () => {
-    expect(() =>
-      assertPrevLayerResolverInstalled('probe', { plugins: [PLUGIN_NAME] }),
-    ).not.toThrow();
-
-    expect(() =>
-      assertPrevLayerResolverInstalled('probe', { plugins: [IFRAME] }),
-    ).toThrow(new RegExp(String.raw`probe[\s\S]*${PLUGIN_NAME}`));
   });
 });

@@ -17,7 +17,9 @@ Docusaurus 那边要回来。官方自己（`createBaseConfig` → `loadThemeAli
 取的列表；我们**复用它的第一步** `loadPluginConfigs`（只读配置 + 解析模块 + 归一化，
 **不调用插件构造函数**），再只保留**实例化后带 `getThemePath`** 的，顺序即官方看到的那个顺序：
 
-  plugins = await loadPluginConfigs(await loadContext({ siteDir }))
+  plugins = await loadPluginConfigs(
+    await loadContext({ siteDir, config: context.siteConfigPath }),
+  )
 
 不用 `initPlugins`：它会把本插件也实例化 ⇒ 本插件的初始化又走整条推导 ⇒ 自检漏判时是
 **无限递归 OOM**，不漏判也是三倍实例化。也不用 `loadPlugins`：它在下游，还会跑
@@ -55,7 +57,11 @@ interface NormalizedPluginConfig {
 type LoadPluginConfigsFn = (
   context: unknown,
 ) => Promise<NormalizedPluginConfig[]>;
-type LoadContextFn = (params: { siteDir: string }) => Promise<unknown>;
+/** 官方 `loadContext({siteDir, config})`；`./registered-plugins.mts` 那条也要问它。 */
+export type LoadContextFn = (params: {
+  siteDir: string;
+  config?: string;
+}) => Promise<unknown>;
 
 type CoreModule = Record<string, unknown> & {
   default?: Record<string, unknown>;
@@ -64,8 +70,10 @@ type CoreModule = Record<string, unknown> & {
 /**
 从 core 自己的模块上下文 import 它的 ESM 入口，取出名为 `name` 的导出（用 CJS
 require.resolve 定位文件）；命名导出与挂在 `default` 上两种形态都认。
+
+`./registered-plugins.mts` 那条「问官方要合并后的插件清单」走的是同一跳，所以这一把是导出的。
 */
-async function importCoreModule<T>(
+export async function importCoreModule<T>(
   siteDir: string,
   relative: string,
   name: string,
@@ -99,10 +107,17 @@ export class PluginDiscovery {
   // 不是「只擦类型」的语法（TS1294）。
   private readonly siteDir: string;
   private readonly logger: LoggerLike;
+  private readonly siteConfigPath: string | undefined;
 
-  constructor(siteDir: string, logger: LoggerLike) {
+  /**
+  @param siteConfigPath 站点**实际加载的那份配置文件**（官方 `context.siteConfigPath`）。
+  不传时推导读的是「按默认文件名在 siteDir 里找到的那份」—— 用 `docusaurus build --config
+  other.mjs` 起站点时那就是另一个文件，层栈会按一份没人用的配置算出来。
+  */
+  constructor(siteDir: string, logger: LoggerLike, siteConfigPath?: string) {
     this.siteDir = siteDir;
     this.logger = logger;
+    this.siteConfigPath = siteConfigPath;
   }
 
   /**
@@ -115,7 +130,11 @@ export class PluginDiscovery {
   @returns 拿不到时返回 null（调用方应降级，而不是当成空层栈）
   */
   discover(): Promise<DocusaurusPluginLike[] | null> {
-    this.pending ??= derivePlugins(this.siteDir, this.logger);
+    this.pending ??= derivePlugins(
+      this.siteDir,
+      this.logger,
+      this.siteConfigPath,
+    );
     return this.pending;
   }
 }
@@ -173,6 +192,7 @@ function checkDocusaurusVersion(siteDir: string, logger: LoggerLike): void {
 async function derivePlugins(
   siteDir: string,
   logger: LoggerLike,
+  siteConfigPath?: string,
 ): Promise<DocusaurusPluginLike[] | null> {
   const [loadContext, loadPluginConfigs] = await Promise.all([
     importCoreModule<LoadContextFn>(siteDir, 'server/site.js', 'loadContext'),
@@ -193,7 +213,11 @@ async function derivePlugins(
   checkDocusaurusVersion(siteDir, logger);
 
   try {
-    const context = await loadContext({ siteDir });
+    // `config` 必须是站点实际用的那份：官方 `loadSiteConfig` 在没有它时按默认文件名在
+    // siteDir 里找（`core/lib/server/config.js`），`--config` 起的站点于是被按**另一份配置**
+    // 推导 ⇒ 层栈与真实构建不一致，且看不出来。传绝对路径没问题：官方做
+    // `path.resolve(siteDir, customConfigFilePath)`，绝对路径原样通过。
+    const context = await loadContext({ siteDir, config: siteConfigPath });
     const configs = await loadPluginConfigs(context);
     return await instantiateThemePlugins(configs, context, siteDir, logger);
   } catch (error) {

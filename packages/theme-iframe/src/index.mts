@@ -32,11 +32,11 @@ babel 编译它们。本包要编译的只有这一份入口。「谁来编」�
 export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
-    loadContent() {
+    async loadContent() {
       // 两条前提都在这里点名：正常路径上缺了它们，症状都在打包那一步（那几页没人判 /
       // 外壳那份 TS 源码没人认领），报错点离真正的原因隔着一整个构建。判据住在
       // `@show-docs/docusaurus-theme-component-page/prerequisites`，与各视图层引的是同一份。
-      assertThemePrerequisites(context, {
+      await assertThemePrerequisites(context, {
         namespace: NAMESPACE,
         componentPage: true,
       });

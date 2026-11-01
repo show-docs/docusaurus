@@ -25,11 +25,11 @@ Redoc 这一层的入口：本包交出**一份组件与一条规则**（`redoc:
 export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
-    loadContent() {
+    async loadContent() {
       // 交出的那一页要由 component-page 判表才挂得上来；解析器插件缺了则是本包那几份
       // 未编译的 `.tsx` / `.ts` 没人认领。两样都在这里点名，而不是让 webpack 在某个页面文件
       // 上抛、或让那一页安静地不出现。
-      assertThemePrerequisites(context, {
+      await assertThemePrerequisites(context, {
         namespace: NAMESPACE,
         componentPage: true,
       });

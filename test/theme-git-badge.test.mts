@@ -101,16 +101,22 @@ const fakeParse =
 一份假仓库：时刻表已经填好，`timesOf` 直接命中缓存（不 spawn git）。
 
 `root` 必须是**真实存在**的目录 —— `repoPath` 要拿它跟文件路径算相对路径。
+`buildTime` 走真实默认值（构建那一刻），只有钉窗口基准的用例才覆盖它；`shallow` 一律 false，
+浅克隆那条路由真 git 的用例走真实的检出。
 */
 const fakeRepo = (
   root: string,
   times: Record<string, GitTimes>,
   recent: string[] = [],
+  anchored: Partial<Pick<Repo, 'buildTime'>> = {},
 ): Repo => ({
   root,
   head: undefined,
   recent: new Set(recent),
   times: new Map(Object.entries(times)),
+  buildTime: Math.floor(Date.now() / 1000),
+  shallow: false,
+  ...anchored,
 });
 
 /** 一份「碰一下就炸」的仓库：徽标被页面钉死时就不该问 git */
@@ -121,6 +127,8 @@ const explodingRepo = (): Repo => ({
   head: undefined,
   recent: new Set<string>(),
   times: new Map<string, GitTimes>(),
+  buildTime: Math.floor(Date.now() / 1000),
+  shallow: false,
 });
 
 describe('badgeKindOf：页面钉死的说了算，没钉才问 git', () => {
@@ -538,6 +546,21 @@ describe('isRecent：最近动过没有', () => {
       isRecent(fakeRepo('/', {}), PATH, now - (RECENT_DAYS + 1) * 86_400),
     ).toBe(false);
   });
+
+  it('窗口按「打开仓库那一刻」算，不按每问一份文件重读的时钟', () => {
+    // 这份仓库的基准是 8 天前（构建跑久了、或拿着老 `Repo` 再问一次），文件在那之后的
+    // 第 6 天动过。按 `buildTime` 是 6 天 = 窗口内；读墙上时钟就是 14 天 = 窗口外，
+    // 于是同一场构建里两页能踩在窗口两侧。
+    const buildTime = Math.floor(Date.now() / 1000) - 8 * 86_400;
+
+    expect(
+      isRecent(
+        fakeRepo('/', {}, [], { buildTime }),
+        PATH,
+        buildTime - (RECENT_DAYS - 1) * 86_400,
+      ),
+    ).toBe(true);
+  });
 });
 
 describe('git 那一侧（真 git 仓库）', () => {
@@ -593,6 +616,61 @@ describe('git 那一侧（真 git 仓库）', () => {
     run(['commit', '-q', '-m', '新的', '--no-verify'], now - 60);
 
     return { root, repo: openRepo(root) };
+  }
+
+  /**
+  `git clone --depth <n>` 一份到临时目录：CI 默认那种检出（`actions/checkout` 不带
+  `fetch-depth` 时就是 depth 1）。`--no-local` 是必须的：本地路径的克隆走 hardlink 快速通道，
+  git 会**忽略** `--depth` 并提示改用 `file://` —— 那样克隆出来的是一份完整历史，用例白测。
+  */
+  function shallowCloneOf(sourceRoot: string, depth: number): string {
+    const base = mkdtempReal(path.join(os.tmpdir(), 'git-badge-shallow-'));
+    tempRoots.push(base);
+    const target = path.join(base, 'clone');
+
+    execFileSync(
+      'git',
+      [
+        'clone',
+        '-q',
+        '--no-local',
+        '--depth',
+        String(depth),
+        sourceRoot,
+        target,
+      ],
+      { encoding: 'utf8' },
+    );
+
+    return target;
+  }
+
+  /**
+  三次提交的仓库，浅克隆那几条用例都从它 clone：
+  根提交建 `root.md`（之后没再动）与 `old.md`；`fresh.md` 只在 6 天前那一次里出现；
+  最新那次又动了 `old.md`。
+
+  `root.md` 是「只在根提交里出现过」那一格：完整检出里它没有父提交、但那是**真**根提交，仍然要
+  给出 `created` —— 少了这份文件，「没有父提交」这条就可以不判 `shallow` 也全绿。
+
+  三份内容必须**互不相同**：内容与已有文件一模一样的新建会被 git 当成复制/改名往前再追一行
+  （实测同样两次提交，内容相同给 2 行、不同给 1 行），这份仓库就不是一份干净的「只提交过一次」
+  样本了。
+  */
+  function makeThreeCommitRepo(): string {
+    const { root, commit } = gitRepo('git-badge-history-');
+
+    fs.writeFileSync(path.join(root, 'root.md'), 'root v1\n');
+    fs.writeFileSync(path.join(root, 'old.md'), 'old v1\n');
+    commit('建 root 与 old', now - 30 * DAY);
+
+    fs.writeFileSync(path.join(root, 'fresh.md'), 'fresh v1\n');
+    commit('建 fresh', now - 6 * DAY);
+
+    fs.appendFileSync(path.join(root, 'old.md'), 'old v2\n');
+    commit('又动 old', now - 60);
+
+    return root;
   }
 
   it('仓库根解析软链、正斜杠；不在仓库里时返回 undefined', () => {
@@ -668,6 +746,96 @@ describe('git 那一侧（真 git 仓库）', () => {
     expect(isRecent(repo, 'new.md', fresh.updated ?? 0)).toBe(true);
     // `old.md` 21 天前动过：窗口外，但出现在最后 5 个提交里
     expect(isRecent(repo, 'old.md', stale.updated ?? 0)).toBe(true);
+  });
+
+  it('浅克隆：截断处那一条提交的名单与历史都不算信号', () => {
+    const source = makeThreeCommitRepo();
+    const full = openRepo(source);
+
+    expect(full.shallow).toBe(false);
+    expect([...full.recent].toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'fresh.md',
+      'old.md',
+      'root.md',
+    ]);
+    // 完整检出是「应该长什么样」的那一侧：各自的历史都看得见，一次提交的给 created
+    expect(timesOf(full, path.join(source, 'fresh.md'))).toEqual({
+      created: now - 6 * DAY,
+      updated: now - 6 * DAY,
+    });
+    // 根提交里建的那份：没有父提交，但这是**真**根提交，不是 `--depth` 的截断点
+    expect(timesOf(full, path.join(source, 'root.md'))).toEqual({
+      created: now - 30 * DAY,
+      updated: now - 30 * DAY,
+    });
+    expect(
+      badgeKindOf({
+        filePath: path.join(source, 'fresh.md'),
+        frontMatter: {},
+        repo: full,
+      }),
+    ).toBe('new');
+
+    // depth 1：只剩「历史到此为止」那一条，它的名单是整棵树（实测：截断点被 git 当成没有父
+    // 提交的那一条来展示，对着空树比，三个文件都在）—— 挡住它以后，三份都没有可信历史，
+    // 全站不表态
+    const one = openRepo(shallowCloneOf(source, 1));
+
+    expect(one.shallow).toBe(true);
+    expect(one.head).toBe(now - 60);
+    expect(one.recent.size).toBe(0);
+    for (const file of ['old.md', 'fresh.md', 'root.md']) {
+      expect(timesOf(one, path.join(one.root, file))).toBe(noTimes);
+      expect(
+        badgeKindOf({
+          filePath: path.join(one.root, file),
+          frontMatter: {},
+          repo: one,
+        }),
+      ).toBeUndefined();
+    }
+
+    // depth 2：截断处往前还看得见一次真提交 —— 真的动过的那份照常判「更新」，
+    // 只在截断那份名单里出现过的仍然没有历史
+    const two = openRepo(shallowCloneOf(source, 2));
+
+    expect(two.head).toBe(now - 60);
+    expect([...two.recent]).toEqual(['old.md']);
+    expect(timesOf(two, path.join(two.root, 'old.md'))).toEqual({
+      created: undefined,
+      updated: now - 60,
+    });
+    expect(timesOf(two, path.join(two.root, 'fresh.md'))).toBe(noTimes);
+    expect(
+      badgeKindOf({
+        filePath: path.join(two.root, 'old.md'),
+        frontMatter: {},
+        repo: two,
+      }),
+    ).toBe('update');
+
+    // depth 3 == 整个历史都在：git 仍然把这份检出记成浅的，所以「没有父提交」那一条
+    // （这里是真根提交）也一律不算信号。徽标与完整检出逐个一样，代价落在只在根提交里
+    // 建过的那份文件上 —— 它这里没有历史，也就是不表态（少贴，不贴错）。
+    const three = openRepo(shallowCloneOf(source, 3));
+
+    expect(three.shallow).toBe(true);
+    expect(timesOf(three, path.join(three.root, 'fresh.md'))).toEqual({
+      created: now - 6 * DAY,
+      updated: now - 6 * DAY,
+    });
+    expect(
+      badgeKindOf({
+        filePath: path.join(three.root, 'fresh.md'),
+        frontMatter: {},
+        repo: three,
+      }),
+    ).toBe('new');
+    expect(timesOf(three, path.join(three.root, 'old.md'))).toEqual({
+      created: undefined,
+      updated: now - 60,
+    });
+    expect(timesOf(three, path.join(three.root, 'root.md'))).toBe(noTimes);
   });
 
   it('重命名过的文件按提交数算历史：不会把两段历史误判成「只提交过一次」', () => {

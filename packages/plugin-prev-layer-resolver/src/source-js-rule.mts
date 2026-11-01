@@ -27,6 +27,9 @@
 
 import type { Plugin } from '@docusaurus/types';
 
+import { resolveFromCore } from './layers.mts';
+import type { LoggerLike } from './types.mts';
+
 /** `.ts` / `.tsx` */
 const DOT_TS = /\.tsx?$/;
 
@@ -81,16 +84,54 @@ export interface SourceJsRule {
 }
 
 /**
-造出那条规则。`use` 用官方给的 `getJSLoader()`，与官方自己那条 JS 规则同一套 loader
-（同一份 babel 配置、同一套插件），差别只在「哪些文件归它」。
+造出那条规则。`use` 用官方给的 `getJSLoader()`，并把官方那条 JS 规则用的**同一格
+`babelOptions`** 一起传进去（见 {@link siteBabelConfigPath}）；差别只在「哪些文件归它」。
 */
 export function showDocsSourceRule(
   utils: ConfigureWebpackUtils,
   isServer: boolean,
+  babelOptions?: string,
 ): SourceJsRule {
   return {
     test: /\.tsx?$/,
     include: (file: string) => needsShowDocsSourceRule(file),
-    use: [utils.getJSLoader({ isServer })],
+    use: [utils.getJSLoader({ isServer, babelOptions })],
   };
+}
+
+/** 官方 `@docusaurus/babel` 导出里我们唯一用到的那个函数。 */
+type BabelModule = {
+  getCustomBabelConfigFilePath?: (
+    siteDir: string,
+  ) => Promise<string | undefined>;
+};
+
+/**
+站点那份自定义 babel 配置文件的绝对路径（没有则 `undefined`），**取官方同一个产地**：
+`@docusaurus/babel` 的 `getCustomBabelConfigFilePath`。
+
+为什么这一格必须传：官方那条 JS 规则传的就是它（core `lib/webpack/base.js` 里
+`createJsLoader({ isServer, babelOptions: await getCustomBabelConfigFilePath(siteDir) })`），
+不传时 `getBabelOptions` 会退回 `{ babelrc: false, configFile: false }` + 默认 preset。
+于是「站点自己的源码」按站点的 `babel.config.js` 编、「这一族随包发布的源码」按默认配置编
+—— 同一份代码两套编译，而差异只体现在产物里。
+
+定位不到 `@docusaurus/babel`（core 结构变了 / 依赖被裁剪）时退回 `undefined` = 今天的行为，
+但必须**告警**：静默退回会让「站点配了 babel.config.js 却没生效」看起来像配置写错了。
+*/
+export async function siteBabelConfigPath(
+  siteDir: string,
+  logger: LoggerLike,
+): Promise<string | undefined> {
+  const babel = resolveFromCore<BabelModule>(siteDir, '@docusaurus/babel');
+  const getFilePath = babel?.getCustomBabelConfigFilePath;
+  if (typeof getFilePath !== 'function') {
+    logger.warn?.(
+      '[plugin-prev-layer-resolver] 拿不到 @docusaurus/babel 的 getCustomBabelConfigFilePath，' +
+        '本包那条 TS 源码规则将用默认 babel 配置编译；若站点有自己的 babel.config.js，' +
+        '这一族的源码会和站点源码走两套编译。',
+    );
+    return undefined;
+  }
+  return getFilePath(siteDir);
 }

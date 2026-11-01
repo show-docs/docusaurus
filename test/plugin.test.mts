@@ -317,7 +317,8 @@ describe('注入的 resolver：能力自检与失败告警', () => {
   function tapApply(
     r: PrevLayerResolverPlugin,
     opts: {
-      ensureHookThrows?: boolean;
+      /** 上游没有 `internal-resolve` 了（真实 `getHook` 这时抛 `Hook … doesn't exist`） */
+      missingInternalResolve?: boolean;
       doResolveImpl?: (...args: never[]) => void;
     } = {},
   ): {
@@ -331,17 +332,22 @@ describe('注入的 resolver：能力自检与失败告警', () => {
       ) => void;
     } = {};
     r.apply({
-      getHook: () => ({
-        tapAsync: (
-          _name: string,
-          fn: (req: unknown, ctx: unknown, cb: (...a: never[]) => void) => void,
-        ) => {
-          box.handler = fn;
-        },
-      }),
-      ensureHook: (name: string) => {
-        if (opts.ensureHookThrows) throw new Error(`no such hook: ${name}`);
-        return name;
+      getHook: (name: string) => {
+        if (name === 'internal-resolve' && opts.missingInternalResolve)
+          throw new Error("Hook internalResolve doesn't exist");
+        return {
+          name,
+          tapAsync: (
+            _name: string,
+            fn: (
+              req: unknown,
+              ctx: unknown,
+              cb: (...a: never[]) => void,
+            ) => void,
+          ) => {
+            box.handler = fn;
+          },
+        };
       },
       doResolve: opts.doResolveImpl ?? (() => {}),
     } as never);
@@ -351,7 +357,7 @@ describe('注入的 resolver：能力自检与失败告警', () => {
   it('没有 internal-resolve hook → 能力自检告警并整体禁用（不再静默）', () => {
     const warn = vi.fn();
     const r = new PrevLayerResolverPlugin({ layers, logger: { warn } });
-    const box = tapApply(r, { ensureHookThrows: true });
+    const box = tapApply(r, { missingInternalResolve: true });
     // 判据取**行为**：自检失败即不 tap 任何 hook（整条 `@theme-prev/*` 交回官方解析），
     // 而不是再对外暴露一个「我禁用了没有」的字段 —— 那个字段只有测试看。
     expect(box.handler, '自检失败后不该再 tap').toBeUndefined();

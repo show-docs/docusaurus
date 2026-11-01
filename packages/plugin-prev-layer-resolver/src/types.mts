@@ -57,10 +57,16 @@ type ResolveAny = any;
 `Resolver.options.packageMap` 是必填，webpack 5.111 内联的那份还没有）。
 */
 export interface ResolverLike {
-  /** 取（必要时创建）具名 hook，返回值可直接喂给 `doResolve` */
-  ensureHook(name: string): { name?: string };
-  /** 挂 `resolve` 用的那个 hook */
+  /**
+  取具名 hook：入口 `resolve` 用它 tap，出口 `internal-resolve` 用它喂 `doResolve`。
+
+  **不存在时抛** `Hook <name> doesn't exist`（enhanced-resolve `Resolver.js` 的 `getHook`；
+  那里另一个 `ensureHook` 会**创建**未知 hook、恒不抛，所以自检只能用这一个）—— 这条护栏
+  靠的就是这个「会抛」。
+  */
   getHook(name: string): {
+    /** hook 自己的名字：栈上判等要用（见 `resolver.mts` 的 `stackHasEntry`） */
+    name?: string;
     tapAsync(
       name: string,
       fn: (

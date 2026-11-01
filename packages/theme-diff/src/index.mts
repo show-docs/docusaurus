@@ -31,11 +31,11 @@ const NAMESPACE = '@show-docs/docusaurus-theme-diff';
 export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
-    loadContent() {
+    async loadContent() {
       // 交出的那一页要由 component-page 判表才挂得上来（共享外壳 `ViewLayerDocItem` 也在那里）；
       // 解析器插件缺了则是本包那几份未编译的 `.tsx` / `.ts` 没人认领。都在这里点名，而不是让
       // webpack 在某个页面文件上抛、或让那一页安静地不出现。
-      assertThemePrerequisites(context, {
+      await assertThemePrerequisites(context, {
         namespace: NAMESPACE,
         componentPage: true,
       });

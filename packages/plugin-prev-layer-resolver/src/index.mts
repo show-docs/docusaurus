@@ -3,7 +3,7 @@ import type { LoadContext, Plugin } from '@docusaurus/types';
 import { layersFromPlugins } from './layers.mts';
 import { PluginDiscovery } from './plugins.mts';
 import { PrevLayerResolverPlugin } from './resolver.mts';
-import { showDocsSourceRule } from './source-js-rule.mts';
+import { showDocsSourceRule, siteBabelConfigPath } from './source-js-rule.mts';
 import type { LoggerLike } from './types.mts';
 
 // 「装了哪些主题插件、它们的实例长什么样」这一次推导在包外也有用处（集成测试按真站点骨架
@@ -32,14 +32,19 @@ export default async function prevLayerResolverPlugin(
   context: LoadContext,
   options: PrevLayerResolverOptions = {},
 ): Promise<Plugin> {
-  const { siteDir } = context;
+  const { siteDir, siteConfigPath } = context;
   const logger = options.logger ?? console;
 
   // 插件列表必须在 `configureWebpack` **之前**拿到：`applyConfigureWebpack()` 是同步的，
   // 而推导层栈要 import core 的 ESM 入口（只能 await）。这里是唯一「允许异步、结果又能
   // 留给 `configureWebpack` 用」的时机（同款说明见 docs/internals.md「插件如何注入 resolver」）。
   const plugins =
-    options.plugins ?? (await new PluginDiscovery(siteDir, logger).discover());
+    options.plugins ??
+    (await new PluginDiscovery(siteDir, logger, siteConfigPath).discover());
+
+  // 同上：`configureWebpack` 是同步的，而官方那格 `babelOptions` 只能 await 取；取一次，
+  // client / server 两轮共用。
+  const babelOptions = await siteBabelConfigPath(siteDir, logger);
 
   return {
     // 为什么取 `plugin-*` 而非 `theme-*`、为什么不顶 `@docusaurus/` 域：docs/internals.md
@@ -74,7 +79,7 @@ export default async function prevLayerResolverPlugin(
         // 把 `node_modules` 整个排除在外 —— 这一格补上，判据见 `source-js-rule.mts`。
         // 它与层栈无关：层栈空了这条规则照样在（那只是 `@theme-prev/*` 失效）。
         module: {
-          rules: [showDocsSourceRule(utils, isServer)],
+          rules: [showDocsSourceRule(utils, isServer, babelOptions)],
         },
       };
     },

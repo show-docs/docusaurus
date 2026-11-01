@@ -22,6 +22,14 @@
 只有被装载的插件能交：装在依赖里、没注册进 `plugins` / `themes` 的包不会出现。面也不再限于
 主题 —— 任何插件的 content 都看，兜底只剩站点那条 `enabled: false`。
 
+**在这一格里面「注册了」和「被装载了」是同一件事**：`allContent` 只有一个来源 —— 官方对每个真的
+被装载的实例跑一次 `loadContent()`。清单上有名字但构造函数返回 `null` 自行禁用的那个包不会出现在
+这里（本层那两条安装前提判的是「注册」，看不见这一层，见解析器包 `registered-plugins.mts` 文件头）。
+于是「某个包注册了却什么都没交」只有两种成因，各有一档信号：它本来就不交（合法，本层一眼都不看）；
+或它交的那一把键站点没提过 —— 站点**引用过**这把键时 `buildRuleTable()` 当场红，纯靠默认规则时
+缺席是合法配置（装了不等于要用它的整页接管），症状是那些页静默退回官方渲染，本仓库由
+`tools/scripts/verify-chain.mts` 从两份生成模块把每一条键名钉回来。
+
 **先后不在这张表里读插件声明顺序**：`allContent` 的键序恰好等于站点 `plugins` 的声明顺序，
 但那条顺序由官方的聚合实现给，不是它对外的承诺。最终表只看两件站点作者写得出来的东西：站点自己
 那一列的顺序，和剩下那些默认规则**按键名的固定字符串顺序**。同一站点多装一个包、把两项调个位，
@@ -174,13 +182,18 @@ function componentRegistry(
 /**
 各包交出的那些默认规则：键 → 规则与交出它的那些人。
 
-两族抢同一把 frontmatter 键没有合理的默认答案，所以默认红；唯一的豁免是站点已经把这把键关掉了
-（`{ key, enabled: false }`）—— 那时两边都不生效，抢赢抢输没有后果，红只会让站点没法用一句配置
-把两个包同时按住。`froms` 因此记全：关掉提示要把每一家都点出来。
+两族抢同一把 frontmatter 键没有合理的默认答案，所以默认红；唯一的豁免是站点已经替这件事作主 ——
+把自己那一列里**写过这把键**的那几种（一条完整规则、或 `enabled: false`）传进来（见
+{@link buildRuleTable} 里的 `taken`）。站点接手就是把两边的产物都换成站点那一条、关掉就是两边
+都不生效，两种都让「抢赢抢输」没有后果，红只会让站点没法用一句配置按住两个包。`froms` 因此记全：
+提示要把每一家都点出来。
+
+站点那一列里单写一个字符串（引用）不算接手：引用说的是「就用包交的那条」，两家各有一条时这句话
+没有答案，仍然红。
 */
 function defaultRules(
   contributed: readonly ContributedColumn[],
-  disabled: ReadonlySet<string>,
+  taken: ReadonlySet<string>,
 ): Map<string, { rule: NormalizedRule; froms: string[] }> {
   const defaults = new Map<string, { rule: NormalizedRule; froms: string[] }>();
 
@@ -189,13 +202,13 @@ function defaultRules(
       const owner = defaults.get(rule.key);
 
       if (owner !== undefined) {
-        if (disabled.has(rule.key)) {
+        if (taken.has(rule.key)) {
           owner.froms.push(from);
           continue;
         }
 
         throw new Error(
-          `theme-component-page 的键「${rule.key}」被 ${owner.froms[0]} 和 ${from} 各交出一条默认规则；同一把键只能有一个包接管，要两份都留着，给其中一条换一把键，或在站点配置里把这一把关掉（\`{ key: '${rule.key}', enabled: false }\`）`,
+          `theme-component-page 的键「${rule.key}」被 ${owner.froms[0]} 和 ${from} 各交出一条默认规则；同一把键只能有一个包接管。要么给其中一条换一把键，要么由站点接手这一把：在站点配置里写一条完整规则（\`{ key: '${rule.key}', component: '…' }\`）或把它关掉（\`{ key: '${rule.key}', enabled: false }\`）`,
         );
       }
 
@@ -243,7 +256,7 @@ function byKey(a: { key: string }, b: { key: string }): number {
 站点那一列与各包交出的那些默认规则怎么合成一张表。
 
 1. 先把两张归属表立起来（组件登记名、默认规则的键）—— 重名与抢键都在这一步红，唯一豁免是
-   站点已经把那一把关掉（见 {@link defaultRules}）；
+   站点自己那一列已经接过这把键（见 {@link defaultRules}）；
 2. 按站点那一列的顺序展开：引用取那条默认规则、完整规则整条替换、`enabled: false` 让这一把键
    谁交来都不生效。处理过的键不再追加默认规则；
 3. 剩下那些没被站点提过的默认规则，按**键名的固定字符串顺序**接在后面；
@@ -261,16 +274,21 @@ export function buildRuleTable(
   contributed: readonly ContributedColumn[],
 ): RuleTable {
   const registry = componentRegistry(site.components, contributed);
-  /** 站点说「这把键谁交来都不生效」的那几把：抢键与提示两边都要读它。 */
-  const disabled = new Set(
-    site.rules
-      .filter(
-        (item): item is { kind: 'disabled'; key: string } =>
-          item.kind === 'disabled',
-      )
-      .map((item) => item.key),
-  );
-  const defaults = defaultRules(contributed, disabled);
+  /**
+  站点那一列里自己写过的那几把键（完整规则或关掉）：抢键的红对这几把豁免。
+  只有引用（字符串）不算 —— 引用是把决定权交回包，两家抢时没有答案。
+  */
+  const taken = new Set<string>();
+
+  for (const item of site.rules) {
+    if (item.kind === 'disabled') {
+      taken.add(item.key);
+    } else if (item.kind === 'rule') {
+      taken.add(item.rule.key);
+    }
+  }
+
+  const defaults = defaultRules(contributed, taken);
   const notices: string[] = [];
   const entries: TableEntry[] = [];
   /** 这把键已经在站点那一列里处理过（引用、覆写、禁用都算），不再追加默认规则。 */
