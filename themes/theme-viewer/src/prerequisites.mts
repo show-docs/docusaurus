@@ -50,9 +50,10 @@ function lightningCssMinimizerOn(future: SiteFuture | undefined): boolean {
 
 解析器那条由解析器包判：先读站点配置里那两份原始清单（`siteConfig.plugins` /
 `siteConfig.themes`），原始清单认不出时再问官方那一份（preset 展开之后的）—— `LoadContext`
-没有 `context.plugins` 那个字段，只看原始清单会把插件写在 preset 里的站点判死。缺了解析器那条，
-要等整个构建才炸在 `Module parse failed`（本包的 `theme/` 是随包发布的未编译 TS 源码）；没开那个
-压缩器，症状是查看器整层透明 —— 两处都在配置期点名比事后猜省一整轮构建。
+没有 `context.plugins` 那个字段，只看原始清单会把插件写在 preset 里的站点判死。这一条今天不坏
+本包构建：层里那句 `@theme-init/...` 用的是官方别名，编源码那条 babel 规则归
+`@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它，配置期不查），
+留着它是这一族共用的前提。没开那个压缩器，症状是查看器整层透明 —— 配置期点名比事后猜省一整轮构建。
 
 交回的是 `Promise`（preset 那一跳要等官方）：调用方的 `loadContent()` 要 `await` 它。
 */

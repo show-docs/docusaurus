@@ -23,6 +23,8 @@ const {
   resolveFromCore,
   normalizeLayerPath,
 } = await import('../packages/plugin-prev-layer-resolver/src/layers.mts');
+const coreEntry =
+  await import('../packages/plugin-prev-layer-resolver/src/resolve-from-core.mts');
 const { PluginDiscovery } =
   await import('../packages/plugin-prev-layer-resolver/src/plugins.mts');
 
@@ -337,6 +339,17 @@ describe('theme-fallback 定位：跟着 core 走', () => {
     } finally {
       fs.rmSync(siteDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('包外那一格 core 定位出口', () => {
+  it('交回的就是 `layers.mts` 那三把函数本身，不是第二份判据', () => {
+    // `@show-docs/docusaurus-plugin-compile-source` 走包名引这一格（`./resolve-from-core`）。
+    // 出口指的是复制实现、还是同一个实现，只有比引用认得出：指错了文件时两边是两个函数对象，
+    // 而两份「怎么找 core」从此各漂各的（上游补上 `exports` 那天只改一处）。
+    expect(coreEntry.resolveFromCore).toBe(resolveFromCore);
+    expect(coreEntry.resolveCoreRoot).toBe(resolveCoreRoot);
+    expect(coreEntry.resolveCoreModule).toBe(resolveCoreModule);
   });
 });
 

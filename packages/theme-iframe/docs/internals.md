@@ -45,7 +45,7 @@
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/` 里的
 `.tsx`，本包就不编译第二遍；`theme/ExternalFrame` 引的那份 `lib/external-url.ts` 同样是源码，
-由站点按 `@show-docs` 这个 scope 认领（判据在解析器包的 `src/source-js-rule.mts`）。口径的产地
+由站点按 `@show-docs` 这个 scope 认领（判据在编译插件包的 `src/source-js-rule.mts`）。口径的产地
 在仓库根 README 的「构建包的编译口径」。
 
 ## 这一族收缩成了本层，其余搬去了机制层
@@ -77,7 +77,7 @@ URL 框，设计与现状都在
 | `src/prerequisites.mts`（安装前提检查）                                                                                                       | 机制层的 `src/prerequisites.mts`，各层经 `…/prerequisites` 子路径引                |
 
 于是验收成立：**卸载 `theme-iframe` 只影响 `iframe:` 那一把键**，三条 API 层与它们的同源框照常
-可用。磁盘上钉这一头的是 `test/infrastructure-rules.test.mts`（基础设施三格谁都不向上引：
+可用。磁盘上钉这一头的是 `test/infrastructure-rules.test.mts`（基础设施四格谁都不向上引：
 `theme-component-page` 引不到本包）与 `tools/scripts/verify-chain.mts`（按生成的那张表查三条
 API 键各自引用自己的登记名，`iframe:` 只多出一条、不替谁兜底）；真把本包从站点里卸掉跑一遍
 记在仓库根的验收清单里。
@@ -128,9 +128,9 @@ http 的话线上首屏还会先撞一次混合内容；把相对地址在构建
   里指向 `docs/…` 的链接对装包的人是断的 —— 认这个代价，因为少一份要点名、会和源码漂移的产物更贵。
 - 「谁来编本包未编译的 TS 源码」不归本包：官方 babel 规则排除 `node_modules`，不补的话 npm 安装后
   层源码报 `Module parse failed` —— 那一格由
-  `@show-docs/docusaurus-plugin-prev-layer-resolver` 一处认领（按 `@show-docs` 这个 scope，
-  判据在它的 `src/source-js-rule.mts`）。口径见仓库根 README 的「构建包的编译口径」，与解析器包
-  [internals](../../plugin-prev-layer-resolver/docs/internals.md) 的「谁来编未编译的 TS 源码」一节。
+  `@show-docs/docusaurus-plugin-compile-source` 一处认领（按 `@show-docs` 这个 scope，
+  判据在它的 `src/source-js-rule.mts`）。口径见仓库根 README 的「构建包的编译口径」，与那个包自己的
+  [internals](../../plugin-compile-source/docs/internals.md)。
 - 改 `theme/` 与 `components/` 不用先编译，`pnpm start` 直接生效；改入口要 `pnpm build:core`。
   这些未编译的源码归仓库根 `tsconfig.json` 检查，所以 `pnpm lint:type` 就是它们的门：
   `@docusaurus/router` / `@docusaurus/useDocusaurusContext` / `@docusaurus/useIsBrowser` 那几条

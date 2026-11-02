@@ -138,11 +138,12 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
   });
 
   /**
-  这一格与层栈无关：家族里那些**未编译**的 TS 源码随包发布，官方那条 babel 规则把整个
-  `node_modules` 排除在外 —— 由本插件补一条规则按 `@show-docs` 这个 scope 认领。
-  判据的细节在 `test/source-js-rule.test.mts`，这里钉「这条规则由本插件产出」。
+  这一格不在本包：编译这一族**未编译** TS 源码那条规则归
+  `@show-docs/docusaurus-plugin-compile-source`（判据在 `test/source-js-rule.test.mts`，
+  入口交出的形状钉在 `test/package-entries.test.mts`）。这里钉的是「本包不再交它」：
+  第二处 `module.rules` 长回来 = 同一份文件跑两遍 babel，而两条规则的判据从此各改各的。
   */
-  it('补上那条 TS 源码规则：官方不编的 node_modules 里的 @show-docs 源码归它', async () => {
+  it('不再交那条 TS 源码规则：`module.rules` 那一格归 plugin-compile-source', async () => {
     const plugin = await loadPlugin();
     const result = plugin.configureWebpack!(
       {} as never,
@@ -151,23 +152,7 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
       undefined,
     );
 
-    const rules = (result?.module?.rules ?? []) as Array<{
-      test: RegExp;
-      include: (file: string) => boolean;
-      use: unknown[];
-    }>;
-    expect(rules).toHaveLength(1);
-    const rule = rules[0]!;
-    expect(rule.test.test('index.tsx')).toBe(true);
-    expect(rule.use).toEqual([{ loader: 'js-loader' }]);
-    expect(
-      rule.include(
-        '/site/node_modules/@show-docs/docusaurus-theme-markmap/theme/MarkmapPage/index.tsx',
-      ),
-    ).toBe(true);
-    expect(
-      rule.include('/repo/packages/theme-markmap/theme/MarkmapPage/index.tsx'),
-    ).toBe(false);
+    expect(result?.module).toBeUndefined();
   });
 
   it('层栈为空时告警一次，且不改写任何 request', async () => {
@@ -723,6 +708,7 @@ describe('构建脚本与 CI 护栏', () => {
       'utf8',
     );
     for (const name of [
+      '@show-docs/docusaurus-plugin-compile-source',
       '@show-docs/docusaurus-plugin-lazy-compilation',
       '@show-docs/docusaurus-plugin-prev-layer-resolver',
       '@show-docs/theme-a',

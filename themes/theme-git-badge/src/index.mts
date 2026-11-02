@@ -92,10 +92,11 @@ export default function gitBadgeTheme(
       // 而让出一次微任务就赶不上 docs 读走 `parseFrontMatter`（见上面 `install` 的注释）；
       // 缺解析器、多注册了一份都照样当场点名，只是红在装完之后。
       //
-      // 本层的 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，
-      // 缺了它症状是构建期才炸的 `Module parse failed`。这一层只改 frontmatter 与
-      // 侧边栏那两格，不交规则给机制层，所以**安装**前提只有解析器这一个；另一条是本层自己的
-      // 形状（只能有一份实例），就在下面。
+      // 这一层只改 frontmatter 与侧边栏那两格，不交规则给机制层，所以**安装**前提只有解析器这一个
+      // （另一条是本层自己的形状 —— 只能有一份实例，就在下面）。解析器那一条**今天不坏本包构建**：
+      // 层里那句 `@theme-init/...` 用的是官方别名，编译本包未编译 TS 源码那条 babel 规则也归
+      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它）；
+      // 留着它是因为它是这一族共用的前提。
       install();
       await assertPrevLayerResolverInstalled(context, PLUGIN_NAME);
       // 第二份实例过去只是静默不干活（徽标少一整棵根，而那份配置看着完全正常），所以数出来点名
@@ -112,7 +113,7 @@ export default function gitBadgeTheme(
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 那一份入口。
     //
-    // 「谁来编」归 `@show-docs/docusaurus-plugin-prev-layer-resolver`（它按 `@show-docs`
+    // 「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`（它按 `@show-docs`
     // 这个 scope 认领 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
     getThemePath() {
       return resolve(thisDir, '../theme');

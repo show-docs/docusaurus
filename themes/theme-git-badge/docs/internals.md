@@ -80,9 +80,10 @@ styles/git-badge.css      按属性画：叶子行一个点、分类行的箭头
 
 `theme/` 里的两份组件都用 `@theme-init/...` 拿官方那一份：仓库里只有本层提供这两格，没有要串的
 链（规则见仓库根 README 的「基础设施包」一节）。本包仍必须是一个**主题层**（有
-`getThemePath()`），并且仍要装并注册解析器插件 —— 后者的理由是这两份组件是随包发布的未编译
-TS 源码，编译它们的 babel 规则由它一处认领（见解析器 README 的「编译 `@show-docs` 家族未编译
-的 TS 源码」）。
+`getThemePath()`），并且仍要装并注册解析器插件 —— 那一条是本包 `loadContent()` 里**当场查**的
+前提。另有一条只在装包那一步看得见的：这两份组件是随包发布的未编译 TS 源码，编译它们的 babel
+规则由 `@show-docs/docusaurus-plugin-compile-source` 一处认领（见它 README 的「接入」），本包只在
+`peerDependencies` 里点名它、不在配置期查它。
 
 官方别名 `@theme/DocSidebarItem/Link` 是**全局赢家**：主题路径按「fallback → preset 主题 →
 用户插件 → 站点 `src/theme`」的顺序枚举，**后者覆盖前者**。所以：

@@ -7,9 +7,15 @@ import {
   needsShowDocsSourceRule,
   showDocsSourceRule,
   siteBabelConfigPath,
-} from '../packages/plugin-prev-layer-resolver/src/source-js-rule.mts';
+} from '../packages/plugin-compile-source/src/source-js-rule.mts';
 
 import { mkdtempReal } from './helpers.mts';
+
+/**
+那条规则的判据与形状 —— 规则住在 `@show-docs/docusaurus-plugin-compile-source`，
+**只有那一处**（护栏见 `test/view-layer-copies.test.mts`「TS 源码的编译规则只有一处」）。
+入口是否真的交出它，钉在 `test/package-entries.test.mts`。
+*/
 
 /**
 `loader` 给个哨兵（方便断言它按 isServer 取），同时记下 `getJSLoader` **收到的入参**

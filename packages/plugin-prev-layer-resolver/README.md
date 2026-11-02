@@ -88,26 +88,15 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 不回落官方别名：能用的落点里没有语义对的（理由见
 [`docs/internals.md`](./docs/internals.md) 的「设计取舍」一节），宁可让人看到官方报错。
 
-## 编译 `@show-docs` 家族未编译的 TS 源码
+## 与那条「编译这一族未编译 TS 源码」的规则的分工
 
-Docusaurus 官方那条 babel 规则把整个 `node_modules` 排除在外（只给 `docusaurus*.js[x]` 开例外）。
-`@show-docs` 家族的主题层与组件是**未编译的 `.tsx` / `.jsx`**，随包发布 —— 从 npm 装进真项目时，
-官方那条规则不编它们，于是报 `Module parse failed`。
+本插件只往 `resolve.plugins` 里放 resolver，**不碰 `module.rules`**。编译 `@show-docs` 家族那些
+随包发布的 `.ts` / `.tsx` 是另一格，归
+[`@show-docs/docusaurus-plugin-compile-source`](../plugin-compile-source/README.md)：
+判据、认领范围、`babelOptions` 为什么必须与官方同源都写在那边，这里不抄第二遍。
 
-这一格由本插件一处补上：`include` 只收 `node_modules/@show-docs/` 底下的文件，编译用的还是
-官方那条 babel loader（怎么补、为什么按 scope 认领，记在下面的维护者文档，这里不抄第二遍）。
-
-- **工作区里不认领**：pnpm 的软链把源码解析到 `node_modules` 之外，官方那条本来就在编；
-  再命中一次就是同一份文件跑两遍 babel。
-- **别家的 scope 不认领**：这一族只发在 `@show-docs` 下。
-- **`.d.ts` 不认领**：声明文件没有运行期内容。
-
-这一格以前是**每个主题包各补一条**（同一个判据抄了七处，改一处忘另两处就是漂移），收在
-本插件一处之后各主题包不再自己补 —— 判据与实测见
-[`src/source-js-rule.mts`](./src/source-js-rule.mts) 与
-[`docs/internals.md`](./docs/internals.md) 的「谁来编未编译的 TS 源码」一节。
-
-**它与层栈无关**：层栈空了这条规则照样在（那只是 `@theme-prev/*` 失效）。
+两格互不依赖：层栈空了那条规则照样在（那只是 `@theme-prev/*` 失效）；摘掉那条规则，本插件照旧
+解析得动，坏的是那些 `.tsx` 进了 bundle 报 `Module parse failed`。
 
 ## 各主题层那条「本插件注册了没有」的检查
 
@@ -175,7 +164,7 @@ export default function myTheme(context, options) {
 
 **两条都判到「注册」为止**：清单上有那个名字就算，官方允许插件构造函数返回 `null` 自行禁用，那种
 包在清单上照样看得见，但它的 `loadContent()` 不会跑 —— 读得到真实例的唯一一处是 `allContent`，而它
-不在 `LoadContext` 上，本包这一跳读不到。本仓库这十四个包的入口都不返回 `null`，所以这条今天不影响
+不在 `LoadContext` 上，本包这一跳读不到。本仓库每一个包的入口都不返回 `null`，所以这条今天不影响
 本站；三处判据（层栈 / 注册 / `allContent`）的分工记在
 [`theme-component-page` 的维护者文档](../theme-component-page/docs/internals.md)里。
 
@@ -313,6 +302,6 @@ export default function myTheme(context, options) {
 ## 相关文档
 
 - [维护者文档](./docs/internals.md)：机制为什么这样设计、输入怎么校验、层归属怎么判、内部契约与实测记录。
-- 本包是基础设施链最下面的一格：上面依次是 `theme-component-page` 与 `theme-iframe`。
-  三格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
+- 本包是基础设施链最下面的一格：上面依次是 `plugin-compile-source`、`theme-component-page`
+  与 `theme-iframe`。四格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
 - `仓库根 README`：本包在仓库里的位置、构建口径与目录结构。

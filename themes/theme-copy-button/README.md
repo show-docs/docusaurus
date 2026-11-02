@@ -5,12 +5,15 @@
 
 ## 安装
 
-`theme/` 与 `components/` 是随包发布的未编译 TS 源码，编译它们的 babel 规则由解析器插件一处
-认领，所以还得装它并**注册成插件** —— 那是本层唯一一条安装前提：这一层不向
-`theme-component-page` 交规则，缺了那一格它照常工作。两个包一起安装：
+`theme/` 与 `components/` 是随包发布的未编译 TS 源码，编译它们的 babel 规则由
+`@show-docs/docusaurus-plugin-compile-source` 一处认领，所以它也得装上并**注册成插件** ——
+连同解析器插件，本层一共两条**插件**前提：解析器那一条在本层 `loadContent()` 里当场查
+（缺了红在配置加载那一句），编译那一条只在 `peerDependencies` 里点名（缺了要到打包才报
+`Module parse failed`）。这一层不向 `theme-component-page` 交规则，缺了那一格它照常工作。
+三个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-copy-button
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-copy-button
 ```
 
 ## 使用
@@ -21,6 +24,7 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 // docusaurus.config.mjs
 export default {
   plugins: [
+    '@show-docs/docusaurus-plugin-compile-source',
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-copy-button'
   ]

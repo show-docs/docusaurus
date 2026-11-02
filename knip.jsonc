@@ -1,0 +1,141 @@
+// knip 的口径：从「入口」出发顺着 import 图走，走不到的文件 / 依赖 / 导出即报出来。
+//
+// 这一仓库的入口几乎都不是「能被 import 看到的」：Docusaurus 靠别名（`@theme/X`）在运行时按
+// 目录名取主题层，插件名是配置里的**字符串**，webpack loader 是 `resolve(thisDir, './x.mjs')`
+// 算出来的**路径**。这些 knip 一律看不见，所以下面每个 workspace 的 `entry` 都是「把这个包真正
+// 会被加载的那几格交给它」。
+//
+// 三条刻意的取舍：
+// - 只交**真正会被加载**的那几格，不写 `src/**` 那种一把梭：后者等于自己关掉「包内没人引的文件」
+//   这一格信号，而那一格正是本工具要给的。`components/` 不在入口里 —— 各包的组件都由自己的主题层
+//   import（`theme/X/index.tsx` 里那句动态 `import('../../components/x.tsx')`），跟着图走就到了。
+// - knip 一个目录只认**一个** workspace 键（`packages/*` 与 `packages/theme-erd` 同时匹配时，非 glob
+//   那个整份胜出、不合并），所以带 loader 或带 `.d.ts` 转出的包要重复写全 `entry`。
+// - 每个包只写自己那份形状：entry / project 里的模式在这个包里一个文件都没匹配上时 knip 会出
+//   「Refine entry pattern / Remove from …」的配置提示，共享 glob 摊不平这几处差异。
+//
+// 名字尾上的 `!` = 「这一格是**生产**入口」。不加也不行：`--strict` 隐含 `--production`，而生产模式
+// 只认带 `!` 的那几条入口，其余一律取反 —— 于是本仓所有 `entry` 都被丢掉、图没有根，每个包的
+// 每一份 `src/` 文件都报成 unused（实测：45 个 unused files，其中 `src/config.mts` 这类
+// 被自己的入口按值 import 的文件也在列）。反过来，只服务测试与校验脚本的那几格**故意不带** `!`：
+// dev 口径当入口走，生产口径被取反、连 project 集合一起摘出去，strict 就不再把它们报成孤儿。
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "rules": {
+    // 「声明为 peer、又被引到」在本仓是**政策**不是缺陷：`@show-docs` 那一族约定由宿主提供的包
+    // （`react` / `webpack` / `@docusaurus/types`）一律进 `peerDependencies`，引没引不参与判断
+    // （`test/infrastructure-rules.test.mts` 查的是声明本身）。
+    "optionalPeerDependencies": "off",
+  },
+  // `dist/` 是 `tsc` 生成的产物。生产口径（`--production` / `--strict`）会顺着 package.json 的
+  // `exports` 把 `./dist/*.mjs`、`./dist/*.d.mts` 当入口读进来；实测 `ignoreFiles` 拦不住这一路（它
+  // 筛的是 entry/project 的 glob，manifest 推出来的入口不走这条），`"ignore": ["dist/**"]` 又因为
+  // 产物在 `.gitignore` 里、dev 口径匹配不到任何文件而招一片配置提示 —— 只剩 `ignoreIssues`：按路径
+  // 只对产物关掉「依赖」这一类判定。代价：产物里那条真实观察（发出去的 `.d.mts` 按 `import type` 引
+  // `@docusaurus/types`，而每个包把它声明成 optional peer）不再自动出现 —— 那是打包口径的决定、
+  // 不是死代码；源码侧「用了没声明」另有 `test/infrastructure-rules.test.mts` 那道护栏。
+  "ignoreIssues": {
+    "**/dist/**": ["dependencies", "unlisted"],
+    // 三个插件包对宿主 `@docusaurus/core` 的 peer 声明是「写在前、用在后」那条政策，不是漏删：
+    // `test/infrastructure-rules.test.mts` 写明「只判用而未声明，不判反过来」。而且本仓碰 core 的
+    // 方式全是**字符串路径**（`src/layers.mts` 里 `resolveFromSite(siteDir, '@docusaurus/core/package.json')`
+    // 那一处），knip 的 import 扫描本来就看不见 —— strict 于是报「声明了没用」。豁免走这一格而不是
+    // workspace 的 `ignoreDependencies`：后者在 dev 口径里会招「这条没用到」的配置提示。
+    "packages/plugin-*/*.json": ["dependencies"],
+  },
+  "workspaces": {
+    ".": {
+      "entry": [
+        // 站点自己的主题层：与包内同理，靠 `@theme` 别名按目录名加载。
+        // 站点入口那一格不在这里：knip 自带的 docusaurus 插件已经认领了 `docusaurus.config.mjs`。
+        "src/theme/**/*.{ts,tsx}!",
+        // `.dbml` 的导出模板：配置里写的是相对**站点根**的模块路径字符串（`./erd/table-names.mjs`）。
+        "erd/*.mjs!",
+        // 下面四条只有 dev 侧的消费者：e2e 步骤由 bddgen 生成的入口按名字引，夹具由测试按路径加载，
+        // 两份 helpers 被它们引，`tools/scripts/*.mts` 由 `pnpm verify:chain` 那条脚本直接跑。
+        "test/e2e/steps/*.mts",
+        "test/e2e/helpers.mts",
+        "test/helpers.mts",
+        "test/fixtures/**/*.mjs",
+        "tools/scripts/*.mts",
+      ],
+      "ignoreDependencies": [
+        // 站点 `dependencies` 里那一串 `@show-docs/*` 只以**字符串**出现在配置清单里，knip 追不到。
+        // 「装了但没注册」不由这一格管：`tools/scripts/verify-chain.mts` 当场点名。
+        "@show-docs/*",
+        // 只出现在 tsconfig 的 `extends`（`@nice-move/tsconfig`）与类型引用声明
+        // （`module-aliases.d.ts` 里那格 `@docusaurus/module-type-aliases`）：import 扫描读不到这两处。
+        "@nice-move/tsconfig",
+        "@docusaurus/module-type-aliases",
+        // prettier 的 import 排序插件由 `@nice-move/all-in-react/prettier` 那份共享配置点名。
+        "@ianvs/prettier-plugin-sort-imports",
+        // 发版 CLI：由 git hooks / 发版那侧的清单点名，本来就不在 import 图里。
+        "@bring-it/*",
+      ],
+    },
+    "packages/plugin-*": {
+      // 三个插件包：只有配置期那一份入口，没有主题层。
+      "entry": ["src/index.mts!"],
+    },
+    "packages/plugin-prev-layer-resolver": {
+      // 这个包发了四条出口（`.` + `./plugin-slots` + `./registered-plugins` + `./resolve-from-core`），
+      // 四条都指向 `./dist/*.mjs`，那份产物又不在版本库里 —— 顺 `exports` 走只能走到一堵不存在的墙，
+      // 源码那三份 API 文件于是成了「无人引的孤儿」。这里按源码文件名点名。
+      "entry": [
+        "src/index.mts!",
+        "src/plugin-slots.mts!",
+        "src/registered-plugins.mts!",
+        "src/resolve-from-core.mts!",
+      ],
+    },
+    "packages/theme-*": {
+      "entry": ["src/index.mts!", "theme/**/*.{ts,tsx}!"],
+    },
+    "packages/theme-component-page": {
+      // `./prerequisites` 那条子路径出口同样指向产物：七个包的入口按包名引它，顺不过去，
+      // 只能在这里点名（与解析器包那一条同一个理由）。
+      "entry": [
+        "src/index.mts!",
+        "src/prerequisites.mts!",
+        "theme/**/*.{ts,tsx}!",
+      ],
+      "ignoreUnresolved": [
+        // `types/component-page.d.ts` 用 `.ts` 后缀引（TS 认这一格，knip 的解析器不认 `.ts`→`.d.ts`）。
+        // 代价：knip 顺着这条边看不见那些类型的消费者，本包由此多报的「unused 类型」要手工核。
+        "\\.\\./types/component-page\\.ts",
+        "\\.\\/component-page\\.ts",
+      ],
+    },
+    "packages/theme-diff": {
+      // `src/loader/*.mts` 是 webpack loader：由 `resolve(thisDir, './loader/x.mjs')` 按路径给出，
+      // 不是 import，所以只能在这里点名。
+      "entry": ["src/index.mts!", "theme/**/*.{ts,tsx}!", "src/loader/*.mts!"],
+    },
+    "packages/theme-erd": {
+      // `scripts/emit-type-references.mjs` 由构建那一步（`pnpm build`）跑：knip 只把 manifest 里名为
+      // `start` 的 script 当生产输入，其余在生产口径下不算入口。不带 `!` 交进来 → dev 当入口、
+      // 生产取反，两边都安静。
+      "entry": [
+        "src/index.mts!",
+        "theme/**/*.{ts,tsx}!",
+        "src/loader/*.mts!",
+        "scripts/*.mjs",
+      ],
+    },
+    "packages/theme-markmap": {
+      "entry": ["src/index.mts!", "theme/**/*.{ts,tsx}!", "src/loader/*.mts!"],
+    },
+    "themes/*": {
+      "entry": ["src/index.mts!", "theme/**/*.{ts,tsx}!"],
+    },
+    "themes/theme-avatar": {
+      "entry": ["src/index.mts!", "theme/**/*.{ts,tsx}!"],
+      "ignoreUnresolved": ["\\.\\./types/avatar-config\\.ts"],
+    },
+    // 三层假主题：只用来钉「多个主题包裹同一个组件」这条链，入口在包根的 `index.mts`
+    // （knip 默认那条 `{index,cli,main}` 入口已经认领，别在这儿再写一遍）。
+    "tools/*": {
+      "entry": ["theme/**/*.{ts,tsx}!"],
+    },
+  },
+}

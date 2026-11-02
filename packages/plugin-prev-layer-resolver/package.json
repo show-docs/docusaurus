@@ -30,6 +30,10 @@
     "./registered-plugins": {
       "default": "./dist/registered-plugins.mjs",
       "types": "./dist/registered-plugins.d.mts"
+    },
+    "./resolve-from-core": {
+      "default": "./dist/resolve-from-core.mjs",
+      "types": "./dist/resolve-from-core.d.mts"
     }
   },
   "files": [

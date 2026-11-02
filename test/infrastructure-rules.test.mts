@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { builtinModules, createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,11 +8,12 @@ import { describe, expect, it } from 'vitest';
 import { pkgPath } from './helpers.mts';
 
 /**
-## 基础设施包那几条规则里，能在磁盘上查的四条
+## 基础设施包那几条规则里，能在磁盘上查的六条
 
-`plugin-prev-layer-resolver`、`theme-component-page`、`theme-iframe` 是这一仓的三格基础设施：
-按「一般 → 具体」排，各自能单独装上用，也被别的层当成机制复用。规则书在仓库根 README 的
-「基础设施包」一节；这一份钉住其中五条读文本就能查的：
+`plugin-prev-layer-resolver`、`plugin-compile-source`、`theme-component-page`、`theme-iframe`
+是这一仓的四格基础设施：按「一般 → 具体」排，各自能单独装上用，也被别的层当成机制复用。
+规则书在仓库根 README 的
+「基础设施包」一节；这一份钉住其中六条读文本就能查的：
 
 1. 每一格的 `@show-docs` 声明依赖只落在它**下面**那几格 —— 最下面的解析器包因此一个都没有，
    每一格拿掉上面任意几格都还能装；
@@ -29,6 +30,10 @@ import { pkgPath } from './helpers.mts';
 5. 前四条只管 `@show-docs` 那一族，这一条管**平台与厂商包**：一个包 `import` 的真 npm 包都得在
    自己那份 `package.json` 里声明过，宿主给的说明符（层别名、`@docusaurus/<导出名>` 那一族
    alias、Node 内建模块）例外。
+6. 第三条管的是「引了就得声明」，这一条管**另一头的同一件事**：谁把未编译的 `.ts` / `.tsx` 随包
+   发出去，谁就在 `peerDependencies` 里声明那条编译规则的包
+   （`@show-docs/docusaurus-plugin-compile-source`）。那一格不靠 `import` 建立，坏的时候是打包
+   报 `Module parse failed` —— 隔着一整个构建，所以按第三条同一条口径挪到装包那一步。
 
 读的是磁盘上的 `package.json` 与源码文本，不是某份手抄清单：新增一个包不必回来改这里。
 包住在两棵包根下（`packages/` 与 `themes/`），第三条按目录名扫**两边**，漏一棵就是静默失覆盖；
@@ -41,9 +46,10 @@ const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
 /** 两棵包根；包按**目录名**引用，落在哪一棵由磁盘定（`pkgPath`）。 */
 const PKG_ROOTS = ['packages', 'themes'];
 
-/** 三格基础设施，按「一般 → 具体」排：每一格只许依赖它下面那几格。 */
+/** 四格基础设施，按「一般 → 具体」排：每一格只许依赖它下面那几格。 */
 const INFRA_CHAIN = [
   'plugin-prev-layer-resolver',
+  'plugin-compile-source',
   'theme-component-page',
   'theme-iframe',
 ] as const;
@@ -52,6 +58,7 @@ const RESOLVER = '@show-docs/docusaurus-plugin-prev-layer-resolver';
 
 type Manifest = {
   name?: string;
+  files?: string[];
   dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -360,5 +367,79 @@ describe('平台与厂商包：用了就得声明，宿主给的例外', () => {
         DOCUSAURUS_ALIASES,
         `${specifier} 应由 core 的 client/exports 提供`,
       ).toContain(specifier);
+  });
+});
+
+/**
+## 第六条：谁发未编译源码，谁声明那条编译规则的包
+
+第三条管「引了就得声明」，靠 `import` 建立；这一条管**没有 `import` 的那一格**。各主题包的
+`theme/**`、`components/**` 与机制层的 `lib/**` 随包发布时是未编译的 `.ts` / `.tsx`，编译它们那条
+规则住在 `@show-docs/docusaurus-plugin-compile-source`，而这一族包一行都不 `import` 它 —— 站点漏装
+它，要到打包才报 `Module parse failed`，报错点隔着一整个构建。写在用它的这一侧的
+`peerDependencies` 里，缺的那一步就挪到装包时（同一口径见 `test/plugin.test.mts`
+「核心包声明了 peerDependencies」）。
+
+判据来自磁盘：读每个包自己那份 `files`，**免编译**的那些目录（`dist` 是编译产物、`!` 开头是排除）
+里只要有一个 `.ts` / `.tsx`（`.d.ts` 除外 —— 那条规则不认领声明文件），这一格就管它。新增一个发源码
+的包不必回来改清单；产地包自己只发 `dist`，因此不落在这条判据里。
+*/
+
+/** 那条编译规则的产地包名，从磁盘读：它改名了这条判据跟着红，而不是静默放行。 */
+const COMPILE_SOURCE = manifestOf('plugin-compile-source').name;
+
+const UNCOMPILED_FILE = /\.(?:ts|tsx)$/;
+
+/** 那个目录下（连子目录）有没有未编译的 `.ts` / `.tsx`。 */
+function hasUncompiledSource(folder: string): boolean {
+  if (!existsSync(folder) || !statSync(folder).isDirectory()) return false;
+
+  return readdirSync(folder, { withFileTypes: true }).some((entry) => {
+    const file = path.join(folder, entry.name);
+
+    return entry.isDirectory()
+      ? hasUncompiledSource(file)
+      : UNCOMPILED_FILE.test(entry.name) && !entry.name.endsWith('.d.ts');
+  });
+}
+
+/** 这个包是否把未编译的源码随包发出去 —— 看它自己那份 `files`，不看手抄清单。 */
+function publishesUncompiledSource(dir: string): boolean {
+  return (manifestOf(dir).files ?? []).some(
+    (entry) =>
+      !entry.startsWith('!') &&
+      entry !== 'dist' &&
+      hasUncompiledSource(pkgPath(repoRoot, dir, entry)),
+  );
+}
+
+describe('谁发未编译源码，谁就得声明那条编译规则的包', () => {
+  it('发了未编译 `.ts` / `.tsx` 的包，都在 `peerDependencies` 里声明了那个包', () => {
+    const publishers = packageDirs().filter((dir) =>
+      publishesUncompiledSource(dir),
+    );
+
+    // 前提校验：确有包走这一格。全空时这条判据没有输入，绿灯不代表任何东西。
+    expect(
+      publishers,
+      '两棵包根下应至少有一个包把未编译源码发出去',
+    ).not.toHaveLength(0);
+
+    const violations = publishers
+      .filter(
+        (dir) =>
+          !Object.hasOwn(
+            manifestOf(dir).peerDependencies ?? {},
+            COMPILE_SOURCE!,
+          ),
+      )
+      .map((dir) => `${relOf(dir)}/package.json`);
+
+    expect(
+      violations,
+      `这些包发了未编译的 .ts/.tsx，却没在 peer 里声明 ${COMPILE_SOURCE}：${violations.join(
+        '、',
+      )}`,
+    ).toEqual([]);
   });
 });

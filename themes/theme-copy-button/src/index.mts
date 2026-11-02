@@ -12,8 +12,10 @@ export default function theme(context: LoadContext): Plugin {
   return {
     name: '@show-docs/docusaurus-theme-copy-button',
     async loadContent() {
-      // 本层不交规则给机制层，安装前提只有解析器那一个；但 `theme/` 是未编译 TS 源码，
-      // 编译它的 babel 规则由解析器插件一处认领，缺了它同样是构建期才炸。
+      // 本层不交规则给机制层，安装前提只有解析器那一个。这一条**今天不坏本包构建**：层里用的是
+      // 官方那把 `@theme-init`，编译未编译 TS 源码那条 babel 规则归
+      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它）；
+      // 留着它是因为它是这一族共用的前提。
       // 交回 Promise：官方 await 它，preset 里那一份要等官方合并完才看得见。
       await assertPrevLayerResolverInstalled(
         context,
@@ -23,7 +25,7 @@ export default function theme(context: LoadContext): Plugin {
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 那一份入口。
     //
-    // 「谁来编」归 `@show-docs/docusaurus-plugin-prev-layer-resolver`（它按 `@show-docs`
+    // 「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`（它按 `@show-docs`
     // 这个 scope 认领 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
     getThemePath() {
       return resolve(thisDir, '../theme');

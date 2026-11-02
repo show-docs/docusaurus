@@ -67,5 +67,5 @@
 - `test/infrastructure-rules.test.mts`：`themes/` 那一族既不声明也不 import `theme-component-page`
   （本包引不到它才成立；那句「宿主必须用 lightningcss」从前挂在它上面，只有一个消费者，按
   仓库规则 6 收回本包）。
-- `test/view-layer-copies.test.mts`：那条编译未编译 TS 源码的 babel 规则只在解析器插件里有一份
-  （本包不再自己补）。
+- `test/view-layer-copies.test.mts`：那条编译未编译 TS 源码的 babel 规则只在
+  `@show-docs/docusaurus-plugin-compile-source` 里有一份（本包不再自己补）。

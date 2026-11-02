@@ -26,16 +26,19 @@ const NAMESPACE = '@show-docs/docusaurus-theme-iframe';
 
 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus 项目会用自己的
 babel 编译它们。本包要编译的只有这一份入口。「谁来编」归
-`@show-docs/docusaurus-plugin-prev-layer-resolver`（它按 `@show-docs` 这个 scope 认领
+`@show-docs/docusaurus-plugin-compile-source`（它按 `@show-docs` 这个 scope 认领
 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
 */
 export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
     async loadContent() {
-      // 两条前提都在这里点名：正常路径上缺了它们，症状都在打包那一步（那几页没人判 /
-      // 外壳那份 TS 源码没人认领），报错点离真正的原因隔着一整个构建。判据住在
-      // `@show-docs/docusaurus-theme-component-page/prerequisites`，与各视图层引的是同一份。
+      // 两条前提都在这里点名，判据住在 `@show-docs/docusaurus-theme-component-page/prerequisites`，
+      // 与各视图层引的是同一份。缺 component-page：那几页没人判，框安静地不出现，症状离原因隔着
+      // 一整个构建。缺解析器那一条**今天不坏本包的构建**：层里用的是官方那把 `@theme-init`，而
+      // 「谁来编本包那几份未编译的 `.tsx` / `.ts`」早已抽给
+      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它，
+      // 配置期不查）—— 这一条留着的理由只剩「与那一族共用同一份检查」，要不要拆归维护者定。
       await assertThemePrerequisites(context, {
         namespace: NAMESPACE,
         componentPage: true,

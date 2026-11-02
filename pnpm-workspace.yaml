@@ -16,6 +16,7 @@ catalog:
   '@docusaurus/core': '^3.9.2'
   '@docusaurus/theme-common': '^3.9.2'
   '@docusaurus/types': '^3.9.2'
+  '@docusaurus/utils': '^3.9.2'
   react: '~18.3.1'
   webpack: '^5.112.2'
 
@@ -32,7 +33,7 @@ catalog:
 # 把 peer 分组重新洗了一遍，洗完之后 `theme-stoplight` 独自在另一份副本里。实测（清掉 webpack
 # 持久缓存重建）：去掉这一格 override，`/packages/theme-stoplight/docs/stoplight-demo` 就回到上面
 # 那个 `ReactContextError`；
-# 加回来，五个用 `theme-common` 的工作区包全部软链到同一份，构建全绿。
+# 加回来，引 `theme-common` 的那几格工作区包与站点根全部软链到同一份，构建全绿。
 overrides:
   '@types/react': ~18.3.31
 

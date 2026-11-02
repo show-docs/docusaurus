@@ -12,7 +12,7 @@
 import type { FrameColorMode } from '@show-docs/docusaurus-theme-component-page/lib/frame-messages.ts';
 
 /** 框内那份文档 `<html>` 上代表当前亮暗模式的那条属性。 */
-export const COLOR_MODE_ATTRIBUTE = 'data-theme';
+const COLOR_MODE_ATTRIBUTE = 'data-theme';
 
 /**
 把外层送来的亮暗写成上面那条属性。

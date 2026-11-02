@@ -26,7 +26,7 @@ import type { FrameColorMode } from '@show-docs/docusaurus-theme-component-page/
 为什么不借站点自己那条 `data-theme`，见 component-page 的 `docs/iframe-protocol.md`
 的「为什么不用框架的那条存储同步」一节。
 */
-export const COLOR_MODE_ATTRIBUTE = 'data-redoc-mode';
+const COLOR_MODE_ATTRIBUTE = 'data-redoc-mode';
 
 /**
 把外层送来的亮暗写成上面那条属性。

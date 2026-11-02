@@ -15,8 +15,10 @@ export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
     async loadContent() {
-      // 本层的 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领，缺了它同样是
-      // 构建期才炸。
+      // 两条前提都在这一步点名。解析器那一条**今天不坏本包构建**：层里那句
+      // `@theme-init/DocItem/Content` 用的是官方别名，编译本包未编译 TS 源码那条 babel 规则也归
+      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它）——
+      // 留着它是因为它是这一族共用的前提。
       //
       // CSS 压缩器也只在这一步点名：`viewerjs` 那份样式表写的是原生嵌套，默认的
       // cssnano + clean-css 会把它压坏，而本包不再替宿主全站摊平 —— 那件事交给 lightningcss。
@@ -27,7 +29,7 @@ export default function theme(context: LoadContext): Plugin {
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 那一份入口。
     //
-    // 「谁来编」归 `@show-docs/docusaurus-plugin-prev-layer-resolver`（它按 `@show-docs`
+    // 「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`（它按 `@show-docs`
     // 这个 scope 认领 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
     getThemePath() {
       return resolve(thisDir, '../theme');

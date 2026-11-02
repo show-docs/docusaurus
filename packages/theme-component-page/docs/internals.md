@@ -313,4 +313,4 @@ docs 路由自定义了 `docItemComponent`，或站点 `src/theme/DocItem` 覆�
 | 某个包的 content 还写着旧的那格 `componentPages`，或站点还写旧的 `pages` 选项 | 那一步红一次，消息把迁移到 `componentPage: { components, rules }` 的话说清楚                                                                       |
 | 框里那份数据的某一格送不出去（某一页的 frontmatter 写了函数以外的东西）       | 外层不挂框，摆一条点名到那一格的说明；配置期能查的那一半早就红了                                                                                   |
 | 外层与框内不是同一轮构建（登记名查不到）                                      | 框里一条看得见的错误并点名那个登记名，不是空白                                                                                                     |
-| 解析器插件没注册（缺 `@theme-*` 那组别名与那条 babel 规则）                   | 配置加载那一步红，点名那个包与 `pnpm add`；不再等打包报 `Module not found`                                                                         |
+| 解析器插件没注册（缺 `@theme-prev/*` 那组别名）                               | 配置加载那一步红，点名那个包与 `pnpm add`；不再等打包报 `Module not found`                                                                         |

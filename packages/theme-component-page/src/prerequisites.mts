@@ -10,9 +10,11 @@ import type { LoadContext } from '@docusaurus/types';
 这里只是把上下文递过去），以及「要把命中的整页换掉就得把本层注册成插件」。
 
 这些包都按 `peerDependencies` 发给站点 —— 它们必须是**站点自己装、自己注册**的那一份，
-不能由主题包各自带一份副本。正常路径上缺了它们，webpack 会停在 `Module not found` /
-`Module parse failed`，报错点离真正的原因隔着一整个构建；所以各层在 `loadContent()` 里
-先查一遍，缺什么就当场点名。
+不能由主题包各自带一份副本。正常路径上缺了它们，一个是 webpack 停在 `Module not found`（那把
+别名没人给），一个是页面看着正常但那一格不出现，两处报错点都离真正的原因隔着一整个构建；
+所以各层在 `loadContent()` 里先查一遍，缺什么就当场点名。「谁来编随包发布的未编译 TS 源码」
+不在这一格：那条 babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，各包只在
+`peerDependencies` 里点名它，配置期不查。
 
 这一份原来住在 `theme-iframe` 里，于是「想用这句检查」得先依赖那一族框。现在它住在机制层：
 谁交规则、谁引公共外壳，都引同一份判据。**不交规则的层不必引它** —— 只看站点配置、
@@ -39,7 +41,7 @@ export type ThemePrerequisites = {
   缺了它，规则永远不会被用到 —— 页面看着正常，框 / 视图却不出现。
 
   「谁来编本包那几份未编译的 `lib/*.tsx`」不在这一格：它们由
-  `@show-docs/docusaurus-plugin-prev-layer-resolver` 按 `@show-docs` 这个 scope 统一认领
+  `@show-docs/docusaurus-plugin-compile-source` 按 `@show-docs` 这个 scope 统一认领
   （判据见它的 `src/source-js-rule.mts`）。
   */
   componentPage?: boolean;

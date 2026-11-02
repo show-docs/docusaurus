@@ -7,10 +7,12 @@
 ## 安装
 
 「整页换成差异页」这一格由 theme-component-page 判，本层的共享外壳也住在 theme-component-page 里，
-`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
+解析器插件是这一族共用的安装前提（`@theme-prev/*` 那把别名由它提供，本层的层里写的是官方那把
+`@theme-init`），「谁来编本包那几份未编译的 `.tsx`」由
+`@show-docs/docusaurus-plugin-compile-source` 那一条 babel 规则负责，四个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-diff
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-diff
 ```
 
 ## 使用
@@ -21,6 +23,7 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 // docusaurus.config.mjs
 export default {
   plugins: [
+    '@show-docs/docusaurus-plugin-compile-source',
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-diff',
     '@show-docs/docusaurus-theme-component-page'

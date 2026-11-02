@@ -3,7 +3,7 @@
 
 主题层（`theme/`）与共享组件（`components/`）是**源码**，站在包根上，不经 `tsc`：用本包的
 Docusaurus 项目会用自己的 babel 编译它们；「谁来编」归
-`@show-docs/docusaurus-plugin-prev-layer-resolver`（它按 `@show-docs` 这个 scope 认领
+`@show-docs/docusaurus-plugin-compile-source`（它按 `@show-docs` 这个 scope 认领
 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。本包只编译 `src/` 那两份。
 
 **配置怎么进浏览器**：走官方的插件全局数据。这一格有两个只读代码看不出来的形状（都实测在
@@ -50,8 +50,10 @@ export default function theme(
   return {
     name: PLUGIN_NAME,
     async loadContent() {
-      // 本层的 `theme/` 是未编译 TS 源码，编译它的 babel 规则由解析器插件一处认领；
-      // 缺了它要等整个构建才炸。这一层不交规则给机制层，所以安装前提只有解析器这一个。
+      // 这一层不交规则给机制层，`loadContent()` 里就只有解析器那一条安装前提。它**今天不坏本包
+      // 构建**：层里用的是官方那把 `@theme-init`，而编译本包未编译 TS 源码那条 babel 规则归
+      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它）——
+      // 留着这一条是因为它是这一族共用的前提，写 `@theme-prev/*` 的层缺了它才真的解析不动。
       await assertPrevLayerResolverInstalled(context, PLUGIN_NAME);
     },
     contentLoaded({ actions }) {

@@ -4,7 +4,7 @@
 */
 
 /** 主题层的来源：官方兜底 / preset 或用户 plugin / 站点 src/theme */
-export type ThemeLayerKind = 'fallback' | 'plugin' | 'site';
+type ThemeLayerKind = 'fallback' | 'plugin' | 'site';
 
 /** 层栈里的一层（内 → 外有序） */
 export interface ThemeLayer {

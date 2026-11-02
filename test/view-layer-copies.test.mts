@@ -273,13 +273,18 @@ describe('三条视图层共用的那一份外壳', () => {
 
 官方那条 babel 规则排除整个 `node_modules`，每个随包发布 `.tsx` 的主题包都得自己补一条规则。
 这七条规则以前各写一份（同一个判据抄七处），改一处忘另两处就是漂移；现在收在
-`@show-docs/docusaurus-plugin-prev-layer-resolver` 一处（`src/source-js-rule.mts`），
+`@show-docs/docusaurus-plugin-compile-source` 一处（`src/source-js-rule.mts`），
 按 `@show-docs` 这个 scope 认领。
 
-所以这里的钉法从「七处逐字相同」换成了「**只有那一份**」：任何主题包再自己补一条，
-就是第二处要改的地方。
+所以这里的钉法是三条：产地那一份**确实在**（读文本）、**除它以外任何包都不许再有第二份**
+（按磁盘扫两棵包根，包名不抄清单 —— 解析器包从前寄居过这一格，它长回来同样要红），
+以及各主题包不许在自己入口里补一条规则。「谁发未编译源码、谁就得在 peer 里声明那个包」是另一道题，
+在 `test/infrastructure-rules.test.mts`。
 */
 describe('TS 源码的编译规则只有一处', () => {
+  /** 那条规则的产地（包目录名，两棵包根下的哪一棵由磁盘定）。 */
+  const HOME_DIR = 'plugin-compile-source';
+
   /** 家族里带源码层的包：层与组件是随包发布的源码，官方那条规则不编。 */
   const sourcePackages = [
     'theme-markmap',
@@ -295,18 +300,20 @@ describe('TS 源码的编译规则只有一处', () => {
     'theme-stoplight',
   ] as const;
 
-  it('那条规则在解析器插件里有一份', () => {
+  /** 两棵包根下所有包目录（`packages/<名>` 与 `themes/<名>`），按磁盘读。 */
+  const allPackageDirs = ['packages', 'themes'].flatMap((root) =>
+    fs
+      .readdirSync(path.join(siteDir, root), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => `${root}/${entry.name}`),
+  );
+
+  it('那条规则在 plugin-compile-source 里有一份', () => {
     const source = fs.readFileSync(
-      path.join(
-        siteDir,
-        'packages',
-        'plugin-prev-layer-resolver',
-        'src',
-        'source-js-rule.mts',
-      ),
+      path.join(siteDir, 'packages', HOME_DIR, 'src', 'source-js-rule.mts'),
       'utf8',
     );
-    expect(source, '解析器插件里没有那条 TS 源码规则').toContain(
+    expect(source, `${HOME_DIR} 里没有那条 TS 源码规则`).toContain(
       'utils.getJSLoader({ isServer, babelOptions })',
     );
     expect(source).toContain('needsShowDocsSourceRule');
@@ -318,29 +325,33 @@ describe('TS 源码的编译规则只有一处', () => {
       expect(
         source,
         `${pkg} 的 src/index.mts 里又自己补了一条 TS 源码规则：` +
-          '这一格归 @show-docs/docusaurus-plugin-prev-layer-resolver 一处管',
+          '这一格归 @show-docs/docusaurus-plugin-compile-source 一处管',
       ).not.toMatch(/test:\s*\/\\\.tsx\?\$\//);
       expect(
         source,
-        `${pkg} 的 src/index.mts 里不该再出现 needsSiteJsRule（那份判据已并入解析器插件）`,
+        `${pkg} 的 src/index.mts 里不该再出现 needsSiteJsRule（那份判据收在 plugin-compile-source）`,
       ).not.toContain('needsSiteJsRule');
     }
   });
 
-  it('没有任何主题包在 `lib/` 里再放一份那条判据', () => {
-    // 那份判据以前住在 `theme-iframe/lib/` 里（文件名带 `source-js-rule`）。判据只有一份，
-    // 在解析器插件里；文件名再出现在别的包的 `lib/` 就说明第二处又长回来了。
-    const offenders = sourcePackages
-      .flatMap((pkg) => {
-        const libDir = pkgPath(siteDir, pkg, 'lib');
+  it('除产地那一格外，没有任何包再放一份那条判据', () => {
+    // 那份判据搬过两次家：以前住在各主题包的 `lib/` 里（文件名带 `source-js-rule`），后来寄在
+    // 解析器包的 `src/` 里。扫描面是**两棵包根的每个包**的 `src/` 与 `lib/`，所以无论哪一种
+    // 长回来都点名得出来。
+    const offenders = allPackageDirs
+      .filter((dir) => dir !== `packages/${HOME_DIR}`)
+      .flatMap((dir) =>
+        ['src', 'lib'].flatMap((sub) => {
+          const folder = path.join(siteDir, dir, sub);
 
-        return fs.existsSync(libDir)
-          ? fs
-              .readdirSync(libDir)
-              .filter((name) => name.includes('source-js-rule'))
-              .map((name) => `${pkg}/lib/${name}`)
-          : [];
-      })
+          return fs.existsSync(folder)
+            ? fs
+                .readdirSync(folder)
+                .filter((name) => name.includes('source-js-rule'))
+                .map((name) => `${dir}/${sub}/${name}`)
+            : [];
+        }),
+      )
       .join('、');
 
     expect(offenders, `又出现了一份 TS 源码判据：${offenders}`).toBe('');

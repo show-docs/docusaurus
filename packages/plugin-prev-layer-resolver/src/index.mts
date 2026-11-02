@@ -3,7 +3,6 @@ import type { LoadContext, Plugin } from '@docusaurus/types';
 import { layersFromPlugins } from './layers.mts';
 import { PluginDiscovery } from './plugins.mts';
 import { PrevLayerResolverPlugin } from './resolver.mts';
-import { showDocsSourceRule, siteBabelConfigPath } from './source-js-rule.mts';
 import type { LoggerLike } from './types.mts';
 
 // 「装了哪些主题插件、它们的实例长什么样」这一次推导在包外也有用处（集成测试按真站点骨架
@@ -42,16 +41,12 @@ export default async function prevLayerResolverPlugin(
     options.plugins ??
     (await new PluginDiscovery(siteDir, logger, siteConfigPath).discover());
 
-  // 同上：`configureWebpack` 是同步的，而官方那格 `babelOptions` 只能 await 取；取一次，
-  // client / server 两轮共用。
-  const babelOptions = await siteBabelConfigPath(siteDir, logger);
-
   return {
     // 为什么取 `plugin-*` 而非 `theme-*`、为什么不顶 `@docusaurus/` 域：docs/internals.md
     // 「名字说的是它做的事」。
     name: '@show-docs/docusaurus-plugin-prev-layer-resolver',
 
-    configureWebpack(_config, isServer, utils) {
+    configureWebpack(_config, _isServer, _utils) {
       // `plugins` 为 null（拿不到插件列表）时的降级由 `layersFromPlugins` 自己兜；
       // 此时层栈**不一定为空**：只要 core 与 `src/theme` 定位得到，缺席的是全部主题层。
       const layers = layersFromPlugins({ siteDir, plugins, logger });
@@ -71,15 +66,13 @@ export default async function prevLayerResolverPlugin(
       // 只返回**自己新增的那一个** resolver（webpack-merge 对数组是 concat，
       // 写成 `[resolver, ...已有]` 会让已有 resolver 实例化两次）：docs/internals.md
       // 「插件如何注入 resolver」。
+      //
+      // 这一格不碰 `module.rules`：编译这一族未编译 TS 源码那条规则归
+      // `@show-docs/docusaurus-plugin-compile-source`，判据与理由都在那个包（它和本包的分工
+      // 见那边 README「与解析器插件的分工」：层栈空了那条规则照样在，反之也一样）。
       return {
         resolve: {
           plugins: [resolverPlugin],
-        },
-        // 家族里那些**未编译**的 TS 源码（各主题包的层与组件）随包发布，官方那条 babel 规则
-        // 把 `node_modules` 整个排除在外 —— 这一格补上，判据见 `source-js-rule.mts`。
-        // 它与层栈无关：层栈空了这条规则照样在（那只是 `@theme-prev/*` 失效）。
-        module: {
-          rules: [showDocsSourceRule(utils, isServer, babelOptions)],
         },
       };
     },

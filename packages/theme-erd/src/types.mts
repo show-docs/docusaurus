@@ -2,7 +2,7 @@ import type { NormalizedModel } from '@dbml/core';
 
 // `@dbml/core` 的归一化模型在声明里把 `type.args` 漏了，导出的 JSON 里却一直带着
 // （`varchar(64)` 的 `64`）；生成器要按类型参数落东西（长度、精度）用的就是这一格。
-export interface DbmlColumnType {
+interface DbmlColumnType {
   schemaName: string | null;
   type_name: string;
   args: string | null;

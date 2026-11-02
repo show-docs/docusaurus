@@ -4,7 +4,7 @@ import type { IFeatures, IMarkmapJSONOptions } from 'markmap-lib';
 // markmap-lib 声明的 frontmatter 只有 `title` / `markmap` 两个键，但它实际是
 // **原样透传** md 的 yaml frontmatter（`draft` 这类站点键也在里面），所以这里按
 // 运行时真相把形状补全，而不是假装那些键不存在。
-export interface MarkmapFrontmatter {
+interface MarkmapFrontmatter {
   title?: string;
   draft?: string;
   /** `true` 只是开关；写成对象时它同时是导图的渲染选项 */

@@ -788,7 +788,7 @@ describe('configureWebpack：把 `.dbml` 接进 MDX 那条链', () => {
       include?: (file: string) => boolean;
     }>;
     // 本包只交自己的两条差异规则：编译未编译 TS 源码那条归
-    // `@show-docs/docusaurus-plugin-prev-layer-resolver` 一处管（不再各包各补一份）。
+    // `@show-docs/docusaurus-plugin-compile-source` 一处管（不再各包各补一份）。
     expect(returned).toHaveLength(2);
     expect(returned[0]?.test.test('.mjs')).toBe(true);
     expect(returned[0]?.resolve).toEqual({ fullySpecified: false });

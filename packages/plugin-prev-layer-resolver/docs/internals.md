@@ -14,10 +14,10 @@
 | `src/layers.mts`              | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位                    |
 | `src/plugin-slots.mts`        | 认那两份清单的纯判据（`slotIsNamespace` / 四种原始写法）                     |
 | `src/registered-plugins.mts`  | 「本包注册了没有」与「注册成了几份」两条前置检查：原始清单 + preset 两处都认 |
+| `src/resolve-from-core.mts`   | 「怎么定位 core」对包外开的那一格出口（实现住在 `src/layers.mts`）           |
 | `src/plugins.mts`             | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表                    |
 | `src/resolve.mts`             | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配                      |
 | `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`）                                    |
-| `src/source-js-rule.mts`      | 认领 `node_modules/@show-docs/` 下未编译 TS 源码的那条规则                   |
 | `src/types.mts`               | 公共类型                                                                     |
 | `types/theme-specifiers.d.ts` | `@theme*` 三条 specifier 的类型声明，见 README「类型声明」                   |
 
@@ -120,58 +120,17 @@ export default {
 承诺因此是**对外承诺** —— 消费者不能在这里加缓存，`reloadSite()` 之后拿到新层栈靠的就是它
 （上面那段「为什么分两步」与 `./plugins.mts` 的类文档）。
 
-## 谁来编未编译的 TS 源码
+## 「谁来编这一族未编译的 TS 源码」不在本包
 
-`@show-docs` 家族的主题层与组件是**未编译的 `.tsx` / `.jsx`**，随包发布 —— 由用它们的站点编译。
-官方那条 babel 规则（`@docusaurus/core/lib/webpack/base.js` 里的 `excludeJS`）把整个
-`node_modules` 排除在外，只给 `docusaurus*.js[x]` 开例外，所以从 npm 装进真项目时那些文件
-没人编，报 `Module parse failed`。
+那条 `.tsx?` 规则、它的认领范围、`babelOptions` 为什么必须与官方同源，以及它以前散在七个包里的
+经过，都搬进了 `@show-docs/docusaurus-plugin-compile-source`
+（[`../../plugin-compile-source/docs/internals.md`](../../plugin-compile-source/docs/internals.md)）。
+本包从它那里收回来的只有「与层栈无关」这一句：`configureWebpack` 现在只交 `resolve.plugins`。
 
-这一格由本插件认领：`configureWebpack` 里用官方 `utils.getJSLoader()` 补一条 `.tsx?` 规则，
-`include` 走 `needsShowDocsSourceRule()`（`src/source-js-rule.mts`）。
-
-`getJSLoader()` 的入参要和官方那条一致：除了 `isServer`，官方还传
-`babelOptions: await getCustomBabelConfigFilePath(siteDir)`（core `lib/webpack/base.js`），
-本插件传的是**同一个产地取来的同一个值**（`src/source-js-rule.mts` 的 `siteBabelConfigPath`，
-借 core 自己的 `@docusaurus/babel` 依赖取）。少了这一格时 `getBabelOptions` 会退回
-`{ babelrc: false, configFile: false }` + 默认 preset —— 站点源码按站点的 `babel.config.js`
-编、这一族的源码按默认配置编，同一份代码两套编译，而差异只在产物里。取不到那个函数时退回
-`undefined`（= 少这一格的老行为）并**告警**。
-
-### 认领范围为什么是「scope」而不是「包根」
-
-判据是 `node_modules/@show-docs/` 这一段，与具体哪个包无关：
-
-- **覆盖全族**：家族里带源码层的包有九个（三个视图层、查看器、复制按钮、iframe、三条 API 层），
-  各自认领自己的包根就是九份判据；按 scope 认领是一份。
-- **与层栈无关**：认领范围不依赖「站点注册了哪些层」，所以哪一族包没装、装了哪几条，都不影响
-  这一格 —— 以前按包根认领时，`theme-iframe` 自己那份入口得单独例外（它进 `tsc`，`lib/` 不在
-  那份 `rootDir` 里、引不到判据），例外一多就要逐个对齐。
-- **pnpm 的隔离布局照样在**：`node_modules/.pnpm/@show-docs+<包>@<版本>/node_modules/@show-docs/<包>/…`
-  —— 那一段 `node_modules/@show-docs/` 完整。
-
-### 为什么不重复官方那条
-
-判据与官方 `excludeJS` 对齐：**官方那条不编的（`node_modules` 里的），本包才编**。官方那条还
-额外放行 `docusaurus*.js[x]`，但本包只碰 `.ts` / `.tsx`，那一格与它无关 ——
-两条规则的 `test` 覆盖面没有交集，不存在同一份文件跑两遍 babel。
-
-工作区里（pnpm 软链把源码解析到 `node_modules` 之外）官方那条本来就在编，本包不认领：
-判据里 `node_modules/@show-docs/` 那一段不在，规则自然不命中。
-
-### 为什么不认领 `.mts` / `.cts` / `.d.ts`
-
-- `.mts` / `.cts`：官方那条规则的 `test` 是 `/\.[jt]sx?$/i`，同样不含这两类 —— 它们由 Node
-  自己带类型擦除加载（配置期那几份），不进浏览器 bundle。
-- `.d.ts`：声明文件没有运行期内容，编它只是白跑一遍。
-
-### 这一格以前散在七个包里
-
-同一个判据抄了七处（每个带源码层的包各补一条规则），改一处忘另两处就是漂移；而且漂移了不会有
-任何用例报红，只在**装机的站点**上以 `Module parse failed` 的形式现身。现在收在
-`src/source-js-rule.mts` 一处，各主题包不再自己补 —— 护栏在
-`test/view-layer-copies.test.mts`（「TS 源码的编译规则只有一处」），判据本身的用例在
-`test/source-js-rule.test.mts`。
+本包交出去给那边用的是**「怎么定位 core」那一格**（`./resolve-from-core`）：实现仍住在
+`src/layers.mts`（链底那一层就是从 core 的模块位置推出来的，与它同源），出口只开名字、
+不抄第二份判据 —— 为什么不让那边自己 require `@docusaurus/babel`，见
+`src/resolve-from-core.mts` 的文件头与那边那份维护者文档。
 
 ## 认层：`src/plugin-slots.mts` 与 `src/registered-plugins.mts`
 

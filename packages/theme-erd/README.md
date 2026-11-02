@@ -7,10 +7,12 @@
 ## 安装
 
 「整页换成关系图页」这一格由 theme-component-page 判，本层的共享外壳也住在 theme-component-page 里，
-`@theme-prev/*` 的别名由解析器插件提供，三个包一起安装：
+解析器插件是这一族共用的安装前提（`@theme-prev/*` 那把别名由它提供，本层的层里写的是官方那把
+`@theme-init`），「谁来编本包那几份未编译的 `.tsx`」由
+`@show-docs/docusaurus-plugin-compile-source` 那一条 babel 规则负责，四个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-erd
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-erd
 ```
 
 ## 使用
@@ -22,6 +24,7 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 export default {
   // 不带选项 = 只有 `@dbml/core` 那四个固定格式；导出模板要自己配，见下面的「配置」
   plugins: [
+    '@show-docs/docusaurus-plugin-compile-source',
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-erd',
     '@show-docs/docusaurus-theme-component-page'

@@ -16,7 +16,6 @@ import type {
   ComponentPageRender,
   ComponentPageRule,
   ComponentPageSource,
-  ComponentRegistration,
 } from '../types/component-page.ts';
 
 /** 登记表里一条经过校验的样子：一个登记名 + 它那个组件说明符。 */
@@ -556,10 +555,3 @@ export function normalizeSiteColumn(
     rules: normalizeSiteRules(rules),
   };
 }
-
-export type {
-  ComponentPageMatch,
-  ComponentPageRender,
-  ComponentPageSource,
-  ComponentRegistration,
-};

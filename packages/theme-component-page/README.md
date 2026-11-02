@@ -33,15 +33,18 @@
 ## 安装
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page
 ```
 
-解析器插件必须装上**并注册成插件**：本包随包发出的是未编译的 `.tsx` / `.ts` 源码
-（`theme/`、`components/`、`lib/`），「谁来编它们」那条 babel 规则由它按 `@show-docs` 这个 scope
-认领。它是本层唯一一条**安装**前提 —— 这一条在 `loadContent()` 里当场查（判据就住在那个包，
+本包随包发出的是未编译的 `.tsx` / `.ts` 源码（`theme/`、`components/`、`lib/`），「谁来编它们」
+那条 babel 规则由 `@show-docs/docusaurus-plugin-compile-source` 按 `@show-docs` 这个 scope 认领，
+所以它得装上**并注册成插件**：缺了它要到打包才报 `Module parse failed`，报错点隔着一整个构建，
+本层不在 `loadContent()` 里查它 —— 它在 `peerDependencies` 里点名（护栏见
+`test/infrastructure-rules.test.mts` 第六条：谁发未编译源码，谁就声明那个包）。
+
+解析器插件是本层唯一一条**当场查**的安装前提：这一条在 `loadContent()` 里查（判据就住在那个包，
 见它 README 的「各主题层那条「本插件注册了没有」的检查」；那一句是异步的，因为站点也可以把
-插件写在 `preset` 里），缺了它红在配置加载那一句，
-而不是等打包时报 `Module parse failed`。需要 Docusaurus `^3.9.2` 与 Node `^24`。
+插件写在 `preset` 里），缺了它红在配置加载那一句。需要 Docusaurus `^3.9.2` 与 Node `^24`。
 
 本层还有一条**形状**前提：只能有**一份**实例。那张表与框内那条路由都由本层一处生成，注册两份会各写
 一遍同一份产物、各注册一次同一个 `/__component-frame/`，而官方对「给了不同 id 的两份」不设拦 ——
@@ -61,6 +64,7 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 // docusaurus.config.mjs
 export default {
   plugins: [
+    '@show-docs/docusaurus-plugin-compile-source',
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
     [
       '@show-docs/docusaurus-theme-component-page',
@@ -338,7 +342,7 @@ export default {
 - 本包是基础设施链中间那一格：站点自己写两格是一条用法，别的插件在 `loadContent()` 里
   交回 `{ componentPage }` 是另一条（三条 API 层的框内视图、`theme-iframe` 的 `iframe:`、
   `theme-markmap` 的导图页、`theme-erd` 的关系图页与 `theme-diff` 的差异页就是这么接上的）。
-  三格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
+  四格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
 - [示例页](./docs/component-page-demo.md)：这一层命中时长什么样。
 - [跨 iframe 协议](./docs/iframe-protocol.md)：那条通道的四条消息、握手顺序、可见状态与边界。
 - [维护者文档](./docs/internals.md)：两张表怎么变成浏览器读得到的组件、为什么非要生成两份文件、

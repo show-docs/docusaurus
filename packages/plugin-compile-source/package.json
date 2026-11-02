@@ -1,0 +1,53 @@
+{
+  "name": "@show-docs/docusaurus-plugin-compile-source",
+  "version": "0.0.1",
+  "description": "补上那条官方没有的 babel 规则：编译 @show-docs 家族随包发布、尚未编译的 .ts / .tsx 源码",
+  "license": "UNLICENSED",
+  "author": {
+    "name": "Eric Chen"
+  },
+  "keywords": [],
+  "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/plugin-compile-source",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/show-docs/docusaurus.git",
+    "directory": "packages/plugin-compile-source"
+  },
+  "bugs": {
+    "url": "https://github.com/show-docs/docusaurus/issues"
+  },
+  "types": "dist/index.d.mts",
+  "main": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "default": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/.tsbuildinfo"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "@docusaurus/core": "catalog:",
+    "@docusaurus/types": "catalog:",
+    "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@docusaurus/types": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

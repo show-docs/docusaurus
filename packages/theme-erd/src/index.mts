@@ -96,8 +96,10 @@ export default function theme(
     name: '@show-docs/docusaurus-theme-erd',
     async loadContent() {
       // 交出的那一页要由 component-page 判表才挂得上来（共享外壳 `ViewLayerDocItem` 也在那里）；
-      // 解析器插件缺了则是本包那几份未编译的 `.tsx` / `.ts` 没人认领。都在这里点名，而不是让
-      // webpack 在某个页面文件上抛、或让那一页安静地不出现。
+      // 解析器那一条由它自己那份检查点名。都在这里点名，而不是让 webpack 在某个页面文件上抛、
+      // 或让那一页安静地不出现。本包那几份未编译的 `.tsx` / `.ts` 不在这一格：编译它们那条
+      // babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies`
+      // 里点名它，配置期不查。
       await assertThemePrerequisites(context, {
         namespace: '@show-docs/docusaurus-theme-erd',
         componentPage: true,
@@ -113,7 +115,7 @@ export default function theme(
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 剩下的东西（入口、loader、类型）。
     //
-    // 「谁来编」归 `@show-docs/docusaurus-plugin-prev-layer-resolver`（它按 `@show-docs`
+    // 「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`（它按 `@show-docs`
     // 这个 scope 认领 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
     getThemePath() {
       return resolve(thisDir, '../theme');

@@ -17,13 +17,13 @@ function git(args: string[], cwd: string): string {
 }
 
 /** 「最近」的第二个口径：落在全仓最后 5 个 commit 里 */
-export const RECENT_COMMITS = 5;
+const RECENT_COMMITS = 5;
 
 /**
 「最近」的第一个口径：7 天内。交给 `git log --since`，**不带 `--max-count`** ——
 带上它就成了「最后 5 个提交里还落在窗内的」，两条口径会被悄悄并成一条。
 */
-export const RECENT_WINDOW = '7 days ago';
+const RECENT_WINDOW = '7 days ago';
 
 /**
 「最近」的第一个口径的天数：7 天。基准是**这一次构建打开仓库的那一刻**（`Repo.buildTime`），

@@ -1,5 +1,5 @@
 /**
-本包那条 `.tsx?` babel 规则：让站点编译 `node_modules/@show-docs/` 下**未编译**的 TS 源码。
+那条 `.tsx?` babel 规则：让站点编译 `node_modules/@show-docs/` 下**未编译**的 TS 源码。
 
 ## 为什么要有这条规则
 
@@ -7,9 +7,9 @@
 `node_modules` 排除在外，只给 `docusaurus*.js[x]` 开例外 —— 从 npm 装进真项目的包，那些随包
 发布的 `.ts` / `.tsx`（主题层与组件）于是报 `Module parse failed`。
 
-这一格原先由**每个主题包自己**补一条规则（各自认领自己的包根），同一个判据抄了七处。收在
-这里一份之后，判据从「某个包根」放宽成「`@show-docs` 这个 scope」：谁家的包不重要，重要的是
-**这一族的东西只编一遍**。
+这一格原先由**每个主题包自己**补一条规则（各自认领自己的包根），同一个判据抄了七处；后来收进
+解析器插件一处，再收进本包 —— 因为它说的不是「链式覆盖」那件事，而是「谁编译」那件事，
+两件事本来就没有交集（`README.md`「与解析器插件的分工」）。
 
 ## 认领范围
 
@@ -25,10 +25,10 @@
   它们由 Node 自己带类型擦除加载（配置期那几份），不进浏览器 bundle。
 */
 
-import type { Plugin } from '@docusaurus/types';
+import type { LoggerLike } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
+import { resolveFromCore } from '@show-docs/docusaurus-plugin-prev-layer-resolver/resolve-from-core';
 
-import { resolveFromCore } from './layers.mts';
-import type { LoggerLike } from './types.mts';
+import type { Plugin } from '@docusaurus/types';
 
 /** `.ts` / `.tsx` */
 const DOT_TS = /\.tsx?$/;
@@ -116,8 +116,12 @@ type BabelModule = {
 于是「站点自己的源码」按站点的 `babel.config.js` 编、「这一族随包发布的源码」按默认配置编
 —— 同一份代码两套编译，而差异只体现在产物里。
 
-定位不到 `@docusaurus/babel`（core 结构变了 / 依赖被裁剪）时退回 `undefined` = 今天的行为，
-但必须**告警**：静默退回会让「站点配了 babel.config.js 却没生效」看起来像配置写错了。
+定位不到 `@docusaurus/babel`（core 结构变了 / 依赖被裁剪）时退回 `undefined` = 没有这一格的
+行为，但必须**告警**：静默退回会让「站点配了 babel.config.js 却没生效」看起来像配置写错了。
+
+`@docusaurus/babel` 是 core 的依赖、被 pnpm 隔离进 `.pnpm/`，从站点根解析恒为
+`MODULE_NOT_FOUND`，所以这一跳借解析器包那一格出口（`./resolve-from-core`）从 **core 的位置**
+require 它 —— 「怎么定位 core」因此仍然只有一份判据，在解析器包的 `src/layers.mts`。
 */
 export async function siteBabelConfigPath(
   siteDir: string,
@@ -127,8 +131,8 @@ export async function siteBabelConfigPath(
   const getFilePath = babel?.getCustomBabelConfigFilePath;
   if (typeof getFilePath !== 'function') {
     logger.warn?.(
-      '[plugin-prev-layer-resolver] 拿不到 @docusaurus/babel 的 getCustomBabelConfigFilePath，' +
-        '本包那条 TS 源码规则将用默认 babel 配置编译；若站点有自己的 babel.config.js，' +
+      '[plugin-compile-source] 拿不到 @docusaurus/babel 的 getCustomBabelConfigFilePath，' +
+        '那条 TS 源码规则将用默认 babel 配置编译；若站点有自己的 babel.config.js，' +
         '这一族的源码会和站点源码走两套编译。',
     );
     return undefined;

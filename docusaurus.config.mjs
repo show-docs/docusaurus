@@ -89,10 +89,16 @@ const config = {
         exclude: DOCS_EXCLUDE,
       },
     ],
+    // 编译 `@show-docs` 家族随包发布、尚未编译的 `.ts` / `.tsx`：官方那条 babel 规则把整个
+    // `node_modules` 排除在外，缺了它那些层与组件在打包时报 `Module parse failed`。判据与
+    // 「认领范围为什么是 scope」记在 `packages/plugin-compile-source/README.md`。
+    // 它和下面那项解析器是两件事（一个交 `module.rules`、一个交 `resolve.plugins`），
+    // 谁先谁后不影响结果。
+    '@show-docs/docusaurus-plugin-compile-source',
     // 链式覆盖：新增 `@theme-prev/X` 系列 specifier，不改 `@theme-original` 官方语义。
     // 不需要配置清单：这个数组的顺序就是层栈顺序。语义、推导与「改完源码要 `pnpm build:core`」
     // 的编译口径，记在 `packages/plugin-prev-layer-resolver/README.md`。
-    // 下面第一项不是层（没有 `getThemePath()`），是解析器；其余各项是层。
+    // 上面两项不是层（都没有 `getThemePath()`），其余各项是层。
     // eslint-disable-next-line unicorn/prefer-module -- 本文件由 Docusaurus 的配置加载器执行，`require` 在那儿真实存在（`pnpm build` 绿即为证）
     require.resolve('@show-docs/docusaurus-plugin-prev-layer-resolver'),
     // 三层假主题：只用来钉「多个主题包裹同一个组件」这条链，各自不提供渲染器

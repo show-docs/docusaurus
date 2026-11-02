@@ -97,10 +97,13 @@ function assertNoLegacyPages(options: ComponentPageThemeOptions): void {
 （官方 `allContent` 把各插件的 content 汇到一起，本层在 `allContentLoaded` 里读；约定、
 边界与合成算法都在 `./contribute.mts`）。
 
-本层唯一的**安装**前提就是解析器插件那一个包，`loadContent()` 里当场查它（判据住在解析器包自己的
-`registered-plugins`：先读站点写的那两份清单，读不到再问 preset）：缺了它，本包随包发出的那几份
-`.tsx` / `.ts` 源码（`theme/DocItem`、`components/`、`lib/`）没人认领，症状要到打包那一步才出现
-（`Module parse failed`），报错点离真正的原因隔着一整个构建。
+本层在 `loadContent()` 里当场查解析器插件那一个包（判据住在解析器包自己的 `registered-plugins`：
+先读站点写的那两份清单，读不到再问 preset）。这一条**今天不坏本层的构建**：`theme/DocItem` 里那句
+`@theme-init/DocItem` 用的是官方那把别名（`@docusaurus/core` 的 `webpack/aliases`），而本包随包发出的
+那几份 `.tsx` / `.ts` 源码（`theme/DocItem`、`components/`、`lib/`）谁来编也不在这一格 —— 那条 babel
+规则归 `@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies` 里点名它，配置期
+不查。留着这一条检查的理由只剩「这一族共用的安装前提」：写 `@theme-prev/*` 的那些层（站点的
+`src/theme` 与 `tools/theme-*`）缺了它才是真的解析不动。
 
 第二条前提是**只能有一份实例**（同一句 `loadContent()` 里查）：那张表与框内那条路由都由本层一处
 生成，两份实例会各写一遍同一份产物、各注册一次同一个 `/__component-frame/`（官方对重复路由只按
@@ -112,7 +115,7 @@ id」，给了不同 id 的两份在官方合法、在这一层不合法。
 里，本层不引自己那份）。
 
 主题层、`lib/` 与 `types/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus 项目会用自己的
-babel 编译它们。「谁来编」归 `@show-docs/docusaurus-plugin-prev-layer-resolver`（它按
+babel 编译它们。「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`（它按
 `@show-docs` 这个 scope 认领 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
 */
 export default function theme(

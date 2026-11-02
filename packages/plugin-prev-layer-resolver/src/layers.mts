@@ -18,7 +18,7 @@ const FALLBACK_THEME_PATH = 'src/theme';
 把所有错误都吞成 false）。用于目录与锚点；**组件候选必须走 {@link isFile}** ——
 `existsSync` 对目录也返回 true。
 */
-export function exists(p: string): boolean {
+function exists(p: string): boolean {
   return fs.existsSync(p);
 }
 

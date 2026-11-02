@@ -11,11 +11,13 @@ iframe，Redoc 在 component-page 那条通用框内路由（`/__component-frame
 
 ## 安装
 
-那一格框、两侧的握手与框内那份文档都由 theme-component-page 提供，`@theme/*` 的别名与
-「谁来编本包那几份未编译的 `.tsx`」由解析器插件提供，两个包一起安装：
+那一格框、两侧的握手与框内那份文档都由 theme-component-page 提供，解析器插件是这一族共用的
+安装前提（`@theme-prev/*` 那把别名由它提供；本层的层里只写官方那把 `@theme/*`），「谁来编本包
+那几份未编译的 `.tsx`」由 `@show-docs/docusaurus-plugin-compile-source` 那一条 babel 规则负责，
+四个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-redoc
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-redoc
 ```
 
 本层不依赖 `@show-docs/docusaurus-theme-iframe`（那一层只管「整页交给一个**外部站点**的 URL」
@@ -29,6 +31,7 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-
 // docusaurus.config.mjs
 export default {
   plugins: [
+    '@show-docs/docusaurus-plugin-compile-source',
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-redoc',
     // 提供 `DocItem` 那一份判表：写在各层之后 = 层栈最外 = 最先判

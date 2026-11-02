@@ -16,10 +16,14 @@
 
 ## 安装
 
-`@theme-prev/*` 的别名由解析器插件提供，命中与挂载由 component-page 负责，三个包一起安装：
+解析器插件是这一族共用的安装前提（`@theme-prev/*` 那把别名由它提供；本层那份 `@theme/ExternalFrame`
+只在机制层的清单里被登记名指到，层里不写 `@theme-prev`），命中与挂载由 component-page 负责，
+「谁来编本包那几份未编译的 `.tsx`」由 `@show-docs/docusaurus-plugin-compile-source` 那一条
+babel 规则负责，四个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver \
+pnpm add @show-docs/docusaurus-plugin-compile-source \
+  @show-docs/docusaurus-plugin-prev-layer-resolver \
   @show-docs/docusaurus-theme-component-page \
   @show-docs/docusaurus-theme-iframe
 ```
@@ -32,6 +36,7 @@ pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver \
 // docusaurus.config.mjs
 export default {
   plugins: [
+    '@show-docs/docusaurus-plugin-compile-source',
     '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-iframe',
     // component-page 提供 `DocItem` 并挂各层交来的规则（放在最后 = 层栈最外）
@@ -93,8 +98,9 @@ iframe: https://example.com/handbook/
 
 ## 相关文档
 
-- 本包是基础设施链最上面的一格（依赖下一格 `theme-component-page` 把规则挂上去）；最下面是
-  解析器包。三格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
+- 本包是基础设施链最上面的一格（依赖下一格 `theme-component-page` 把规则挂上去）；再往下是
+  编译插件 `plugin-compile-source`，最下面是解析器包。四格的规矩写在仓库根 `README.md` 的
+  「基础设施包」一节。
 - [维护者文档](./docs/internals.md)：包内组成、编译方式、这一族收缩的来龙去脉。
 - [跨 iframe 协议](../theme-component-page/docs/iframe-protocol.md)：机制层那条同源框的消息形状
   （本层的跨源框不走它）。

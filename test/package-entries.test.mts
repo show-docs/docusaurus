@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
+import compileSourcePlugin from '../packages/plugin-compile-source/src/index.mts';
+import type { CompileSourceOptions } from '../packages/plugin-compile-source/src/index.mts';
 import lazyCompilationPlugin from '../packages/plugin-lazy-compilation/src/index.mts';
 import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import componentPageTheme from '../packages/theme-component-page/src/index.mts';
@@ -224,6 +226,77 @@ describe('plugin-lazy-compilation：开发期给客户端 webpack 开 lazyCompil
       entries: true,
       imports: true,
     });
+  });
+});
+
+/**
+那条规则在 `configureWebpack` 交回来的那一格里长什么样（只列这里要钉的三格）。
+判据的细节与「babelOptions 为什么必须和官方同源」在 `test/source-js-rule.test.mts`，
+这里只钉入口确实把那一格交出去了。
+*/
+type SourceRule = {
+  test: RegExp;
+  include: (file: string) => boolean;
+  use: Array<{ loader: string }>;
+};
+
+describe('plugin-compile-source：交出一条编译这一族未编译 TS 源码的规则', () => {
+  /**
+  入口要拿 `siteDir` 去找官方那个 babel 配置的产地（`resolveFromCore` 靠上溯找到真的
+  `@docusaurus/babel`），所以夹具只能是**仓库树里**的目录；`contextWith()` 那份没有
+  `siteDir`，在这一族入口上用不上。
+
+  不给 `options` 那一臂走的是 `console`，所以下面两种调用各来一遍，`options` 的默认值与
+  `?? console` 那两格才算都被踩过。
+  */
+  const load = (options?: CompileSourceOptions) =>
+    compileSourcePlugin(
+      { siteDir: repoRoot } as unknown as LoadContext,
+      options,
+    );
+
+  it('名字是包名本身', async () => {
+    const plugin = await load();
+    expect(plugin.name).toBe('@show-docs/docusaurus-plugin-compile-source');
+  });
+
+  it('交出的只有一条 TS 源码规则：官方不编的那一族归它，且不碰 resolve.plugins', async () => {
+    const warned: unknown[] = [];
+    const plugin = await load({
+      logger: {
+        warn: (...args: unknown[]) => {
+          warned.push(...args);
+        },
+      },
+    });
+
+    const result = webpackOf(plugin);
+    const rules = (result.module?.rules ?? []) as unknown as SourceRule[];
+    expect(rules).toHaveLength(1);
+
+    const rule = rules[0]!;
+    expect(rule.test.test('index.tsx')).toBe(true);
+    expect(rule.test.test('index.js')).toBe(false);
+    expect(
+      rule.include(
+        '/site/node_modules/@show-docs/docusaurus-theme-markmap/theme/MarkmapPage/index.tsx',
+      ),
+    ).toBe(true);
+    expect(
+      rule.include('/repo/packages/theme-markmap/theme/MarkmapPage/index.tsx'),
+    ).toBe(false);
+    expect(rule.use).toEqual([{ loader: 'js-loader:false' }]);
+
+    // 这一格与层栈无关：`resolve.plugins` 归解析器插件，本包碰了就是两件事又缠回一处。
+    expect(result.resolve).toBeUndefined();
+    expect(warned, '本仓库能取到官方那个函数，不该告警').toEqual([]);
+  });
+
+  it('服务端那一轮也用服务端自己的 loader：客户端与服务端各一条', async () => {
+    const plugin = await load({ logger: {} });
+    expect(webpackOf(plugin, baseWebpackConfig(), true).module?.rules).toEqual([
+      expect.objectContaining({ use: [{ loader: 'js-loader:true' }] }),
+    ]);
   });
 });
 

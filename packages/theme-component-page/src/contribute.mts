@@ -100,9 +100,6 @@ function legacyContributionError(from: string): void {
   );
 }
 
-/** 旧的那一列（`pages` 插件选项）同理：读得到就点名，读不到就当没写。 */
-export const LEGACY_PAGES_OPTION = 'pages';
-
 /**
 把 `allContent` 里那些 `{ componentPage }` 逐条校验好。
 

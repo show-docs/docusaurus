@@ -20,7 +20,7 @@ import {
 } from '@show-docs/docusaurus-theme-component-page/lib/frontmatter-values.ts';
 
 /** 给 spec 地址的那两把键，**按优先级排列**（`oas3` 在前、`aas3` 在后）。 */
-export const SPEC_KEYS: readonly string[] = ['oas3', 'aas3'];
+const SPEC_KEYS: readonly string[] = ['oas3', 'aas3'];
 
 /** 告警里那两把键的写法：`` `oas3:` / `aas3:` ``。 */
 function specKeyLabels(): string {

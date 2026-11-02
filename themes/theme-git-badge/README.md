@@ -8,13 +8,15 @@
 
 ## 安装
 
-`theme/` 与 `components/` 是随包发布的未编译 TS 源码，编译它们的 babel 规则由解析器插件一处
-认领，所以还得装它并**注册成插件** —— 那是本层唯一一条**安装**前提，缺了它会在构建期当场点名。
+`theme/` 与 `components/` 是随包发布的未编译 TS 源码，编译它们的 babel 规则由
+`@show-docs/docusaurus-plugin-compile-source` 一处认领，所以它也得装上并**注册成插件**（本包不查
+它，只在 `peerDependencies` 里点名，缺了要到打包才报 `Module parse failed`）。解析器插件是另一条
+**安装**前提，缺了它会在构建期当场点名。
 另有一条**形状**前提：只能有一份本包实例，注册了两份同样当场点名（见下面「为什么只能有一份本包
-实例」）。两个包一起安装：
+实例」）。三个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-git-badge
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-git-badge
 ```
 
 需要 Docusaurus `^3.9.2` 与 Node `^24`。
