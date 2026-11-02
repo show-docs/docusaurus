@@ -53,14 +53,15 @@
 
 页面上那一格只有开浏览器才看得见，所以**浏览器侧**不在覆盖率红线里（口径见
 `test/README.md` 的「覆盖率」一节）。构建期那几格是量得到的：层目录与客户端模块在
-`test/package-entries.test.mts` 里，两条宿主前提住在本包的 `src/prerequisites.mts`、由
+`test/package-entries.test.mts` 里，本包那一条宿主前提住在本包的 `src/prerequisites.mts`、由
 `test/prerequisites.test.mts` 钉：
 
 - `test/e2e/features/viewer.feature`：点开第一张图、工具条那颗「下一张」、Esc 收起、
   换页时上一份查看器随换页销毁。
-- `test/prerequisites.test.mts`：本包那两条前提 —— 缺解析器、宿主没开 lightningcss 各当场点名，
-  老写法 `future.experimental_faster` 也认；连同本包入口有没有把它们接进 `loadContent()` 一起钉。
-  机制层那份 `./prerequisites` 只剩「要交规则得装上本层」一条，本包不引它。
+- `test/prerequisites.test.mts`：本包那一条前提 —— 宿主没开 lightningcss 当场点名，
+  老写法 `future.experimental_faster` 也认；连同本包入口有没有把它接进 `loadContent()` 一起钉。
+  解析器插件不在本包的题目里：层里那句 `@theme-init/DocItem/Content` 用的是官方别名。
+  机制层那份 `./prerequisites` 只剩「要交规则得装上本层」一条，本包也不引它。
 - `test/package-entries.test.mts`：本包入口交出的那几格 —— 层目录指哪一份、客户端模块那两个
   文件真的在磁盘上。
 - `test/plugin.test.mts` 的分包三件套：层目录、样式表与本包清单。

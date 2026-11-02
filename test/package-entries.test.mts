@@ -9,7 +9,6 @@ import type { LoadContext, Plugin } from '@docusaurus/types';
 import compileSourcePlugin from '../packages/plugin-compile-source/src/index.mts';
 import type { CompileSourceOptions } from '../packages/plugin-compile-source/src/index.mts';
 import lazyCompilationPlugin from '../packages/plugin-lazy-compilation/src/index.mts';
-import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import componentPageTheme from '../packages/theme-component-page/src/index.mts';
 import { COMPONENT_PAGE_PLUGIN } from '../packages/theme-component-page/src/prerequisites.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
@@ -56,11 +55,11 @@ const pkgDir = (name: string): string => pkgPath(repoRoot, name);
 一份够用的站点上下文：前置检查只读 `siteConfig.plugins` / `themes` / `future`，
 入口工厂只读 `siteConfig.baseUrl`。其余一概不需要。
 
-默认那份把两条前提都装齐（解析器 + component-page）：绝大多数用例只关心入口交出的形状，
-不需要再重复这两格。
+默认那份把这一族共用那条前提装上（component-page）：绝大多数用例只关心入口交出的形状，
+不需要再重复这一格。
 */
 const contextWith = (
-  plugins: unknown[] = [RESOLVER_PLUGIN, COMPONENT_PAGE_PLUGIN],
+  plugins: unknown[] = [COMPONENT_PAGE_PLUGIN],
 ): LoadContext =>
   ({
     siteConfig: {
@@ -142,7 +141,7 @@ const clientModulesOf = (plugin: Plugin): string[] =>
 /**
 `loadContent`：前置检查那一格，缺什么当场点名；返回贡献方交回的那份 content。
 
-交回的是 `Promise`（解析器那条前提在原始清单认不出时还要问 preset，见解析器包的
+交回的是 `Promise`（component-page 那条前提在原始清单认不出时还要问 preset，见解析器包的
 `registered-plugins`），所以这里的断言一律 `await`。
 */
 const loadContentOf = (plugin: Plugin): (() => Promise<unknown>) =>
@@ -308,25 +307,22 @@ const REDOC = '@show-docs/docusaurus-theme-redoc';
 const STOPLIGHT = '@show-docs/docusaurus-theme-stoplight';
 
 /**
-各层共用的那两条安装前提，各点一次名：解析器那条判据住在它自己的包里，component-page 那条住在
-机制层的 `prerequisites`（各层引的是同一份判据）。缺 component-page 的症状是「页面看着正常，
-那一格视图 / 框却安静地不出现」，所以各层在 `loadContent()` 里先查一遍。
+交规则给机制层的那几层共用的那一条安装前提：判据住在机制层的 `prerequisites`（各层引的是同一份）。
+缺它的症状是「页面看着正常，那一格视图 / 框却安静地不出现」，所以各层在 `loadContent()` 里先查一遍。
+解析器那一格不在这一族：各层的层里写的都是官方别名 `@theme-init/X`。
 */
 const expectPrerequisites = async (
   theme: (context: LoadContext) => Plugin,
 ): Promise<void> => {
   await expect(loadContentOf(theme(contextWith([])))()).rejects.toThrow(
-    new RegExp(RESOLVER_PLUGIN),
+    COMPONENT_PAGE,
   );
   await expect(
-    loadContentOf(theme(contextWith([RESOLVER_PLUGIN])))(),
-  ).rejects.toThrow(COMPONENT_PAGE);
-  await expect(
-    loadContentOf(theme(contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE])))(),
+    loadContentOf(theme(contextWith([COMPONENT_PAGE])))(),
   ).resolves.not.toThrow();
 };
 
-describe('theme-iframe 入口：层目录、自己那一条 `iframe:`、两条安装前提', () => {
+describe('theme-iframe 入口：层目录、自己那一条 `iframe:`、那一条安装前提', () => {
   it('层目录与 TS 主题路径都指向包根那份 theme/', () => {
     const plugin = iframeTheme(contextWith());
 
@@ -334,7 +330,7 @@ describe('theme-iframe 入口：层目录、自己那一条 `iframe:`、两条�
     expectThemePath(plugin, 'theme-iframe');
   });
 
-  it('loadContent：缺解析器、缺 component-page 都当场点名，装齐了才放行', async () => {
+  it('loadContent：缺 component-page 当场点名，装了才放行', async () => {
     await expectPrerequisites(iframeTheme);
   });
 
@@ -368,21 +364,18 @@ describe('theme-component-page 入口：层目录、一列清单、以及本层�
     expectThemePath(plugin, 'theme-component-page');
   });
 
-  it('loadContent 查两条前提：缺解析器、注册了两份各当场点名，装齐了才放行', async () => {
+  it('loadContent 只查本层那一条：一份实例就放行', async () => {
     // 本层不引公共那份 `assertThemePrerequisites()`（那是给**交规则的层**用的，本层自己
-    // 就是被要求的那一个）；两条前提都住在解析器包那个出口里：解析器在不在、本层被注册了几份。
+    // 就是被要求的那一个）。它自己那条住在解析器包那个出口里：本层被注册了几份。
     await expect(
-      loadContentOf(componentPageTheme(contextWith([])))(),
-    ).rejects.toThrow(new RegExp(RESOLVER_PLUGIN));
-    await expect(
-      loadContentOf(componentPageTheme(contextWith()))(),
+      loadContentOf(componentPageTheme(contextWith([COMPONENT_PAGE])))(),
     ).resolves.not.toThrow();
   });
 
   it('第二份实例当场点名：过去只是各写一遍同一份产物，谁说了算看插件顺序', async () => {
     // 官方只拦「同一插件挂两次又不给 id」，这里多查的那一条是「本层吃不下第二份」。
     const twice = componentPageTheme(
-      contextWith([RESOLVER_PLUGIN, COMPONENT_PAGE, COMPONENT_PAGE]),
+      contextWith([COMPONENT_PAGE, COMPONENT_PAGE]),
     );
     await expect(loadContentOf(twice)()).rejects.toThrow(
       new RegExp(String.raw`${COMPONENT_PAGE}[\s\S]*__component-frame`),
@@ -436,6 +429,8 @@ describe('theme-avatar 入口', () => {
     expectThemePath(plugin, 'theme-avatar');
     // 这一层用的全是 Infima 已有的类名，不交客户端模块 = 它确实没有一份要交给站点的样式表。
     expect(plugin.getClientModules).toBeUndefined();
+    // 这一层也没有配置期要查的前提：层里那句 `@theme-init/ColorModeToggle` 是官方别名。
+    expect(plugin.loadContent).toBeUndefined();
   });
 
   it('contentLoaded 交出的是配置期校验并补齐过的那一份', () => {
@@ -477,16 +472,6 @@ describe('theme-avatar 入口', () => {
     ).toThrow(/userAPI/);
   });
 
-  it('缺解析器：当场点名；装齐了就放行（这一层不要求注册 theme-iframe）', async () => {
-    const missing = avatarTheme(contextWith([]));
-    await expect(loadContentOf(missing)()).rejects.toThrow(
-      new RegExp(RESOLVER_PLUGIN),
-    );
-
-    const complete = avatarTheme(contextWith([RESOLVER_PLUGIN]));
-    await expect(loadContentOf(complete)()).resolves.not.toThrow();
-  });
-
   it('两处包名字面量对齐：主题层里那句就是入口那个常量', () => {
     // 浏览器侧那一层不能引 `src/`（那里是 Node 侧的编译产物），于是包名在两个文件里各写一次。
     // 漂了的症状是「头像静默消失」：全局数据里取到的那一格是 `undefined`。
@@ -506,7 +491,7 @@ describe('theme-avatar 入口', () => {
 
 describe('theme-copy-button 入口', () => {
   it('层目录与客户端模块：样式表是包根那份', () => {
-    const plugin = copyButtonTheme(contextWith());
+    const plugin = copyButtonTheme();
 
     expect(plugin.name).toBe('@show-docs/docusaurus-theme-copy-button');
     expectThemePath(plugin, 'theme-copy-button');
@@ -516,16 +501,8 @@ describe('theme-copy-button 入口', () => {
       path.join(pkgDir('theme-copy-button'), 'styles', 'copy-button.css'),
     ]);
     expect(existsSync(modules[0]!)).toBe(true);
-  });
-
-  it('缺解析器：当场点名；装齐了就放行（这一层不要求注册 theme-iframe）', async () => {
-    const missing = copyButtonTheme(contextWith([]));
-    await expect(loadContentOf(missing)()).rejects.toThrow(
-      new RegExp(RESOLVER_PLUGIN),
-    );
-
-    const complete = copyButtonTheme(contextWith([RESOLVER_PLUGIN]));
-    await expect(loadContentOf(complete)()).resolves.not.toThrow();
+    // 这一层没有配置期要查的前提：层里那句 `@theme-init/Footer/Copyright` 是官方别名。
+    expect(plugin.loadContent).toBeUndefined();
   });
 });
 
@@ -567,7 +544,7 @@ describe('theme-diff 入口', () => {
     });
   });
 
-  it('缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
+  it('缺 component-page 当场点名；装了才放行', async () => {
     await expectPrerequisites(diffTheme);
   });
 });
@@ -588,7 +565,7 @@ describe('theme-erd 入口', () => {
     });
   });
 
-  it('缺解析器、缺 component-page 都当场点名', async () => {
+  it('缺 component-page 当场点名', async () => {
     await expectPrerequisites(erdTheme);
   });
 });
@@ -615,7 +592,7 @@ describe('theme-git-badge 入口：层目录、样式表与前置检查', () => 
     }) as unknown as LoadContext;
 
   it('层目录与客户端模块：层是包根那份 `theme/`，样式表是包根那份', () => {
-    const plugin = gitBadgeTheme(contextWithMarkdown([RESOLVER_PLUGIN]));
+    const plugin = gitBadgeTheme(contextWithMarkdown([]));
 
     expect(plugin.name).toBe(GIT_BADGE);
     expectThemePath(plugin, 'theme-git-badge');
@@ -627,22 +604,10 @@ describe('theme-git-badge 入口：层目录、样式表与前置检查', () => 
     expect(existsSync(modules[0]!)).toBe(true);
   });
 
-  it('缺解析器：当场点名（两格是未编译的 TS 源码，由它那条 babel 规则编）', async () => {
-    const missing = gitBadgeTheme(contextWithMarkdown([]));
-    await expect(loadContentOf(missing)()).rejects.toThrow(
-      new RegExp(RESOLVER_PLUGIN),
-    );
-
-    const complete = gitBadgeTheme(contextWithMarkdown([RESOLVER_PLUGIN]));
-    await expect(loadContentOf(complete)()).resolves.not.toThrow();
-  });
-
   it('第二份实例当场点名：那道「只包一次」的护栏自己不会报出来', async () => {
     // 症状原本只是「徽标少一整棵根，而那份配置看着完全正常」—— 点名的是数份那一句，
     // 报错里得把「多棵根写在同一份的 docs 数组里」那条路给出。
-    const twice = gitBadgeTheme(
-      contextWithMarkdown([RESOLVER_PLUGIN, GIT_BADGE, GIT_BADGE]),
-    );
+    const twice = gitBadgeTheme(contextWithMarkdown([GIT_BADGE, GIT_BADGE]));
     await expect(loadContentOf(twice)()).rejects.toThrow(
       new RegExp(String.raw`${GIT_BADGE}[\s\S]*只包一次[\s\S]*docs`),
     );
@@ -689,7 +654,7 @@ describe('theme-markmap 入口', () => {
     });
   });
 
-  it('缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
+  it('缺 component-page 当场点名；装了才放行', async () => {
     await expectPrerequisites(markmapTheme);
   });
 });
@@ -721,7 +686,7 @@ describe('theme-redoc 入口：worker_threads 给一个空模块', () => {
     expectThemePath(plugin, 'theme-redoc');
   });
 
-  it('loadContent：缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
+  it('loadContent：缺 component-page 当场点名；装了才放行', async () => {
     // 这一层不再要求 `theme-iframe`：外层框、那条握手循环与框内那份文档都在机制层里，
     // 卸载 `theme-iframe` 这一层照常可用。缺 component-page 则是交出的那一列永远不会被用到。
     await expectPrerequisites(redocTheme);
@@ -770,7 +735,7 @@ describe('theme-scalar 入口：把 Scalar 那份静态样式表摘出全站 css
     expectThemePath(plugin, 'theme-scalar');
   });
 
-  it('loadContent：缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
+  it('loadContent：缺 component-page 当场点名；装了才放行', async () => {
     await expectPrerequisites(scalarTheme);
   });
 
@@ -847,7 +812,7 @@ describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node �
     expectThemePath(plugin, 'theme-stoplight');
   });
 
-  it('loadContent：缺解析器、缺 component-page 都当场点名；装齐了才放行', async () => {
+  it('loadContent：缺 component-page 当场点名；装了才放行', async () => {
     await expectPrerequisites(stoplightTheme);
   });
 

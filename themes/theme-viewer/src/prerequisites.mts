@@ -1,17 +1,17 @@
-import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
-
 import type { LoadContext } from '@docusaurus/types';
 
 /**
-本包的两条安装前提，都住在这一个包里：解析器插件那条由它自己的 `./registered-plugins` 出口说
-（这里只是把 `context` 递过去，那份出口会先读站点写的两份原始清单、再问 preset），lightningcss
-那条只有这一家用得到。
+本包那一条**当场查**的安装前提：宿主得用 lightningcss 压缩 CSS。
 
 「宿主必须用 lightningcss 压缩 CSS」这一条以前挂在机制层 `theme-component-page` 的
 `./prerequisites` 里，作为各层共用的一个开关 —— 但它从头到尾只有本包按过：判据说的是
 `viewerjs` 那一份样式表的形状（写的是 CSS 原生嵌套，默认的 cssnano + clean-css 会把它压坏），
 换个渲染器就是另一句话。按仓库那条「只收已经有两个消费者的机制」，它该留在用它的这一层，
 于是本包不再为了这一句去依赖机制层。
+
+另两条不在这一格：「谁来编随包发布的未编译 TS 源码」归
+`@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies` 里点名它，配置期不查；
+解析器插件那一格也不查 —— 层里那句 `@theme-init/DocItem/Content` 用的是官方别名。
 
 口径与实测记在 `docs/internals.md` 的「第三方那份样式表」一节。
 */
@@ -48,20 +48,9 @@ function lightningCssMinimizerOn(future: SiteFuture | undefined): boolean {
 /**
 在 `loadContent()` 阶段检查本包的安装前提。
 
-解析器那条由解析器包判：先读站点配置里那两份原始清单（`siteConfig.plugins` /
-`siteConfig.themes`），原始清单认不出时再问官方那一份（preset 展开之后的）—— `LoadContext`
-没有 `context.plugins` 那个字段，只看原始清单会把插件写在 preset 里的站点判死。这一条今天不坏
-本包构建：层里那句 `@theme-init/...` 用的是官方别名，编源码那条 babel 规则归
-`@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它，配置期不查），
-留着它是这一族共用的前提。没开那个压缩器，症状是查看器整层透明 —— 配置期点名比事后猜省一整轮构建。
-
-交回的是 `Promise`（preset 那一跳要等官方）：调用方的 `loadContent()` 要 `await` 它。
+没开那个压缩器，症状是查看器整层透明 —— 配置期点名比事后猜省一整轮构建。
 */
-export async function assertViewerPrerequisites(
-  context: LoadContext,
-): Promise<void> {
-  await assertPrevLayerResolverInstalled(context, NAMESPACE);
-
+export function assertViewerPrerequisites(context: LoadContext): void {
   if (!lightningCssMinimizerOn(context.siteConfig.future)) {
     throw new Error(
       `${NAMESPACE} 要求站点用 lightningcss 压缩 CSS：viewerjs 的样式表写的是原生嵌套，` +

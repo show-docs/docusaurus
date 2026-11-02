@@ -5,13 +5,14 @@
 
 ## 安装
 
-`theme/` 与 `components/` 是随包发布的未编译 TS 源码，所以本层有两条**插件**前提：解析器那一条
-本层 `loadContent()` 里当场查，编译那一条只在 `peerDependencies` 里点名 —— 两格各坏在哪、由谁
+`theme/` 与 `components/` 是随包发布的未编译 TS 源码，所以本层只有一条前提：编译那一条
+在 `peerDependencies` 里点名 —— 坏在哪一格、由谁
 认领，记在 [`plugin-compile-source` 的 README](/plugin-compile-source/)，这里不抄第二份。
-这一层不向 `theme-component-page` 交规则，缺了那一格它照常工作。三个包一起安装：
+这一层不向 `theme-component-page` 交规则，缺了那一格它照常工作；层里引的都是官方那几把别名，
+所以本包没有配置期要当场查的前提。两个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-copy-button
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-theme-copy-button
 ```
 
 ## 使用
@@ -23,7 +24,6 @@ pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugi
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-compile-source',
-    '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-copy-button'
   ]
 };

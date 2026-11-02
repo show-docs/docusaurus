@@ -53,15 +53,11 @@ export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
     async loadContent() {
-      // 交出的那一页要由 component-page 判表才挂得上来；解析器那一条由它自己那份检查点名。
-      // 两样都在这里点名，而不是让 webpack 在某个页面文件
-      // 上抛、或让那一页安静地不出现。本包那几份未编译的 `.tsx` / `.ts` 不在这一格：编译它们
-      // 那条 babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，本包只在
-      // `peerDependencies` 里点名它，配置期不查。
-      await assertThemePrerequisites(context, {
-        namespace: NAMESPACE,
-        componentPage: true,
-      });
+      // 交出的那一页要由 component-page 判表才挂得上来；缺了它那一页安静地不出现，
+      // 症状离原因隔着一整个构建，所以在配置期就点名。本包那几份未编译的 `.tsx` / `.ts`
+      // 不在这一格：编译它们那条 babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，
+      // 本包只在 `peerDependencies` 里点名它，配置期不查。
+      await assertThemePrerequisites(context, NAMESPACE);
 
       return {
         componentPage: {

@@ -22,29 +22,29 @@ flowchart TD
 
 ## 组成
 
-| 文件                                         | 谁编译它               | 管什么                                                                                                                                                                |
-| -------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                              | `tsc` → `dist/`        | 插件入口：查解析器插件那条安装前提（`loadContent`）、校验站点那两格、挂主题层、在 `allContentLoaded` 收集各插件交回的那一格、合成表、写两份生成模块、注册那条框内路由 |
-| `src/config.mts`                             | `tsc` → `dist/`        | 组件登记表与规则表的校验与归一化（配置期，红在「加载配置」那一句）：四种臂、两种读法、两种落点、`props` 判到底、两组保留键名                                          |
-| `src/contribute.mts`                         | `tsc` → `dist/`        | 别的插件交回那一条约定的读取，以及全站那一张最终表的合成（登记名去重、抢键红、站点那一列排前面、剩下的按键名固定字符串顺序追加）                                      |
-| `src/registry-module.mts`                    | `tsc` → `dist/`        | 两份生成模块的**文本**（配置期，纯函数）：文档页那一份与框内那一份，按 `render` 分两侧                                                                                |
-| `src/frame-route.ts`                         | `tsc` → `dist/`        | 那条通用框内路由的名字与地址算法（注册侧与请求侧共用同一份，所以常量必须住在 `src/`，见 `lib/frame-route.ts` 头上那句）                                               |
-| `src/prerequisites.mts`                      | `tsc` → `dist/`        | 发给**交规则的层**那一条安装前提：要交规则得装上本层（出口 `./prerequisites`；样式表隔离那一条现在住在用它的那一层，见 `themes/theme-viewer/src/prerequisites.mts`）  |
-| `lib/component-page.ts`                      | 用它的站点编（不编译） | 条目形状 + 命中判据 + 入参组装 + 落空与多命中告警；不引 React、不引 DOM                                                                                               |
-| `lib/frame-messages.ts`                      | 用它的站点编（不编译） | 那四条跨文档消息的形状、`isFrame*` 那道门槛、送出去那份数据的 JSON 判据                                                                                               |
-| `lib/frame-sync.tsx`                         | 用它的站点编（不编译） | 两侧的消息循环：外层 `useFrameHandshake`（握手 + 配色 + 接住框里报的那一段）、框内 `FrameBridgeProvider` / 那几条读状态的 hook                                        |
-| `lib/frame-url.ts`                           | 用它的站点编（不编译） | 框内那份文档的地址（同源、跟着 `trailingSlash`、从不带查询参数）与一条外部地址在这一页上能不能用（只升不降）                                                          |
-| `lib/frame-view.tsx`                         | 用它的站点编（不编译） | 框内那一页按需取渲染器那层壳（`useLazyView` / `LazyView`）：取之前只有一句话、取不到在框里摆一条看得见的说明                                                          |
-| `lib/frontmatter-values.ts`                  | 用它的站点编（不编译） | 「一组键里这一页写了哪几把」那一份读法（各条 API 层自己传入 `oas3` / `aas3` 那一串，机制层不认得它们）                                                                |
-| `lib/location-mirror.tsx`                    | 用它的站点编（不编译） | 把框内那份文档地址里 `#` 那一段报给外层那一格（Redoc / Elements 共用，`useLocation` 由各层自己交进来，不在这里选路由包）                                              |
-| `lib/view-layer-shell.tsx`                   | 用它的站点编（不编译） | 「在正文上方多插一块视图」那三条层共用的外壳（错误边界 + 视图 → 分隔线 → 容器 + 宽度补丁）                                                                            |
-| `lib/view-layer.ts` / `view-layer-labels.ts` | 用它的站点编（不编译） | 那句宽度补丁的文本与那一族提示文案的形状                                                                                                                              |
-| `lib/isolate-renderer-css.ts`                | 用它的站点编（不编译） | 把某一份第三方静态样式表从「并进全站那一份 css」改成「单独一个产物」的那条 webpack 接线（`theme-scalar` / `theme-stoplight` 用）                                      |
-| `types/component-page.d.ts`                  | 不产出（只有类型）     | 那两张表的形状：配置期校验它、浏览器期读它，两侧引同一份                                                                                                              |
-| `types/component-page-specifiers.d.ts`       | 不产出（只有类型）     | 告诉 TS 那两份生成模块存在，并把它们的形状钉成上面那一份                                                                                                              |
-| `theme/DocItem/index.tsx`                    | 用它的站点编（不编译） | 判表的那一格：命中 `page` 就挂组件，命中 `iframe` 就挂那个同源框，落空交回 `@theme-init/DocItem`                                                                      |
-| `theme/ComponentFramePage/index.tsx`         | 用它的站点编（不编译） | 框内那一份独立文档：按登记名查组件、四种看得见的状态，不套站点 Layout、不再判一遍表                                                                                   |
-| `components/component-frame.tsx` / `.css`    | 用它的站点编（不编译） | 外层文档里那一个 `<iframe>`：数据合法才挂、送不出的那一格在外层就挡下来给一句说明                                                                                     |
+| 文件                                         | 谁编译它               | 管什么                                                                                                                                                               |
+| -------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                              | `tsc` → `dist/`        | 插件入口：查本层那条单实例前提（`loadContent`）、校验站点那两格、挂主题层、在 `allContentLoaded` 收集各插件交回的那一格、合成表、写两份生成模块、注册那条框内路由    |
+| `src/config.mts`                             | `tsc` → `dist/`        | 组件登记表与规则表的校验与归一化（配置期，红在「加载配置」那一句）：四种臂、两种读法、两种落点、`props` 判到底、两组保留键名                                         |
+| `src/contribute.mts`                         | `tsc` → `dist/`        | 别的插件交回那一条约定的读取，以及全站那一张最终表的合成（登记名去重、抢键红、站点那一列排前面、剩下的按键名固定字符串顺序追加）                                     |
+| `src/registry-module.mts`                    | `tsc` → `dist/`        | 两份生成模块的**文本**（配置期，纯函数）：文档页那一份与框内那一份，按 `render` 分两侧                                                                               |
+| `src/frame-route.ts`                         | `tsc` → `dist/`        | 那条通用框内路由的名字与地址算法（注册侧与请求侧共用同一份，所以常量必须住在 `src/`，见 `lib/frame-route.ts` 头上那句）                                              |
+| `src/prerequisites.mts`                      | `tsc` → `dist/`        | 发给**交规则的层**那一条安装前提：要交规则得装上本层（出口 `./prerequisites`；样式表隔离那一条现在住在用它的那一层，见 `themes/theme-viewer/src/prerequisites.mts`） |
+| `lib/component-page.ts`                      | 用它的站点编（不编译） | 条目形状 + 命中判据 + 入参组装 + 落空与多命中告警；不引 React、不引 DOM                                                                                              |
+| `lib/frame-messages.ts`                      | 用它的站点编（不编译） | 那四条跨文档消息的形状、`isFrame*` 那道门槛、送出去那份数据的 JSON 判据                                                                                              |
+| `lib/frame-sync.tsx`                         | 用它的站点编（不编译） | 两侧的消息循环：外层 `useFrameHandshake`（握手 + 配色 + 接住框里报的那一段）、框内 `FrameBridgeProvider` / 那几条读状态的 hook                                       |
+| `lib/frame-url.ts`                           | 用它的站点编（不编译） | 框内那份文档的地址（同源、跟着 `trailingSlash`、从不带查询参数）与一条外部地址在这一页上能不能用（只升不降）                                                         |
+| `lib/frame-view.tsx`                         | 用它的站点编（不编译） | 框内那一页按需取渲染器那层壳（`useLazyView` / `LazyView`）：取之前只有一句话、取不到在框里摆一条看得见的说明                                                         |
+| `lib/frontmatter-values.ts`                  | 用它的站点编（不编译） | 「一组键里这一页写了哪几把」那一份读法（各条 API 层自己传入 `oas3` / `aas3` 那一串，机制层不认得它们）                                                               |
+| `lib/location-mirror.tsx`                    | 用它的站点编（不编译） | 把框内那份文档地址里 `#` 那一段报给外层那一格（Redoc / Elements 共用，`useLocation` 由各层自己交进来，不在这里选路由包）                                             |
+| `lib/view-layer-shell.tsx`                   | 用它的站点编（不编译） | 「在正文上方多插一块视图」那三条层共用的外壳（错误边界 + 视图 → 分隔线 → 容器 + 宽度补丁）                                                                           |
+| `lib/view-layer.ts` / `view-layer-labels.ts` | 用它的站点编（不编译） | 那句宽度补丁的文本与那一族提示文案的形状                                                                                                                             |
+| `lib/isolate-renderer-css.ts`                | 用它的站点编（不编译） | 把某一份第三方静态样式表从「并进全站那一份 css」改成「单独一个产物」的那条 webpack 接线（`theme-scalar` / `theme-stoplight` 用）                                     |
+| `types/component-page.d.ts`                  | 不产出（只有类型）     | 那两张表的形状：配置期校验它、浏览器期读它，两侧引同一份                                                                                                             |
+| `types/component-page-specifiers.d.ts`       | 不产出（只有类型）     | 告诉 TS 那两份生成模块存在，并把它们的形状钉成上面那一份                                                                                                             |
+| `theme/DocItem/index.tsx`                    | 用它的站点编（不编译） | 判表的那一格：命中 `page` 就挂组件，命中 `iframe` 就挂那个同源框，落空交回 `@theme-init/DocItem`                                                                     |
+| `theme/ComponentFramePage/index.tsx`         | 用它的站点编（不编译） | 框内那一份独立文档：按登记名查组件、四种看得见的状态，不套站点 Layout、不再判一遍表                                                                                  |
+| `components/component-frame.tsx` / `.css`    | 用它的站点编（不编译） | 外层文档里那一个 `<iframe>`：数据合法才挂、送不出的那一格在外层就挡下来给一句说明                                                                                    |
 
 `src/` 编成 `dist/`，其余都是源码：与其余各包同一口径（谁编译、为什么不编译，记在仓库根
 `README.md` 那张表里）。覆盖率红线因此是 `src/` 那六份 + `lib/` 那十二份
@@ -257,17 +257,19 @@ spec 键（`oas3:` / `aas3:`），键名由它们自己传给 `lib/frontmatter-v
 （`true` 比本文自己、路径比那一份、`{ old, new }` 比磁盘上那两份），所以用 `any`。那三条都是
 `render: 'page'`：它们在正文上方多插一块视图，要留正文，所以用不了 iframe 那一侧。
 
-本包在 `src/index.mts` 里跑**两条**前置检查，都走解析器包那一个出口
+本包在 `src/index.mts` 的 `loadContent()` 里只跑**一条**前置检查，走解析器包那一个出口
 （`@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins`）：
-`assertPrevLayerResolverInstalled()` 查注册器插件注册了没有（异步：站点也可以把它写在 `preset` 里，
-那一份要问官方才看得见），`assertSinglePluginInstance()` 查**本层自己**被注册成了几份。
-后者是这一层特有的：那张表与框内那条路由都由本层一处生成，两份实例各写一遍同一份产物、各注册一次
+`assertSinglePluginInstance()` 查**本层自己**被注册成了几份（异步：站点也可以把它写在 `preset` 里，
+那一份要问官方才看得见）。
+它是这一层特有的：那张表与框内那条路由都由本层一处生成，两份实例各写一遍同一份产物、各注册一次
 同一个 `/__component-frame/` —— 官方对「给了不同 id 的两份」不设拦，重复路由也只按 logger 报告，
 于是谁说了算只看插件顺序。要交的组件与规则写进同一份实例的 `components` / `rules` 就行。
-它**不**引 `theme-iframe`：本层是通用机制，站点不装它也用得上。别的层需要的另一条（要交规则得装
+**本层不查解析器插件注册了没有**：`theme/` 与 `lib/` 里用的都是官方别名，一层都不写
+`@theme-prev/*`，那一句只对真写它的层有意义（哪一层写哪一把由 `test/specifier-usage.test.mts` 判）。
+本包也**不**引 `theme-iframe`：本层是通用机制，站点不装它也用得上。别的层需要的另一条（要交规则得装
 本层）在本包的 `./prerequisites` 出口里，由**真把规则交出来**的那几层的入口调用；不交规则的层
-（`themes/` 那一族）直接引解析器那一句就够，不为本包的一条纯函数多背一条依赖 —— 同一条理由当年
-把这句检查从 `theme-iframe` 搬进了解析器包（见那里 `src/plugin-slots.mts` 的头上）。
+（`themes/` 那一族）没有这一条要查，也不必为本包的一句检查多背一条依赖 —— 同一条理由当年
+把「解析器装了没有」那句从 `theme-iframe` 搬进了解析器包（见那里 `src/plugin-slots.mts` 的头上）。
 
 本站把本层声明在其余各层**之后**，所以它在层栈最外、最先判（越晚声明 = 层栈越靠外 = 越先判，
 那条口径记在[解析器插件的 README](../../plugin-prev-layer-resolver/README.md)里）；换个位置放就
@@ -313,4 +315,4 @@ docs 路由自定义了 `docItemComponent`，或站点 `src/theme/DocItem` 覆�
 | 某个包的 content 还写着旧的那格 `componentPages`，或站点还写旧的 `pages` 选项 | 那一步红一次，消息把迁移到 `componentPage: { components, rules }` 的话说清楚                                                                       |
 | 框里那份数据的某一格送不出去（某一页的 frontmatter 写了函数以外的东西）       | 外层不挂框，摆一条点名到那一格的说明；配置期能查的那一半早就红了                                                                                   |
 | 外层与框内不是同一轮构建（登记名查不到）                                      | 框里一条看得见的错误并点名那个登记名，不是空白                                                                                                     |
-| 解析器插件没注册（缺 `@theme-prev/*` 那组别名）                               | 配置加载那一步红，点名那个包与 `pnpm add`；不再等打包报 `Module not found`                                                                         |
+| 本层被注册成两份实例（官方允许，只要 id 不同）                                | 配置加载那一步红，点名那个包与「为什么吃不下第二份」；不再让两份各写一遍同一份生成模块                                                             |

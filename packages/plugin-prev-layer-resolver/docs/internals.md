@@ -150,7 +150,7 @@ export default {
 出来的 `plugins` / `themes`。
 
 **代价与判错口径**：问官方那一跳只在「缺的这一侧 + 站点写了 presets」时发生，而且要等，
-所以这一格交回 `Promise`，各层 `loadContent()` 必须把它交回官方等（入口里别的活照旧同步干完，
+所以这一格交回 `Promise`，调它的层 `loadContent()` 必须把它交回官方等（入口里别的活照旧同步干完，
 别让这一跳插到「必须在被读走之前装上」的那些动作前面 —— `theme-git-badge` 那一份是先把
 `parseFrontMatter` 包住再 `await` 的）。判错的两侧不对称：误报判死一个本来能成的构建，漏报只是
 把构建期注定会炸的那一步留到构建期，因此**问不到官方那一份时不拦**（core 结构变了、配置文件读不了、
@@ -171,12 +171,14 @@ preset 函数自己抛，三种都退成「不知道」）；而「官方答了�
 [`packages/theme-component-page/docs/internals.md`](../../theme-component-page/docs/internals.md)
 的「「装了」这件事有三处判据」。
 
-**为什么是本包的事**：后一条问的正是「提供 `@theme-prev/*` 别名的那个插件在不在」。这句话只有
+**为什么是本包的事**：那一条问的正是「提供 `@theme-prev/*` 别名的那个插件在不在」。这句话只有
 本包自己说得住。以前它住在 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，于是任何想用它的
 层都得先引那一族层，连带把「装了 `theme-iframe`」变成自己的安装前提 —— 而真正的前提只有本包
 这一个。搬过来之后，交规则给机制层的那几层仍由机制层那份 `prerequisites` 转调（它另外那一条
-「要交规则得装上本层」确实属于那一族层）；不交规则的层直接引这一份 —— `theme-component-page`
-是这样，`themes/` 那一族（头像、复制按钮、侧边栏徽标、图片查看器）也是这样，护栏在
+「要交规则得装上本层」确实属于那一族层）；那一句「解析器装了没有」今天**没有一层再调** ——
+本仓发出去的层里写的都是官方别名，真写 `@theme-prev` 的只有站点的 `src/theme` 与 `tools/theme-*`
+那几层，它们不是插件、没有 `loadContent()` 可查。同一份文件里的另一道题（「注册成了几份」）
+还在被两家各查自己那一格：`theme-component-page` 与 `themes/theme-git-badge`，护栏在
 `test/infrastructure-rules.test.mts`。
 
 **为什么纯函数那一份单开一条 `./plugin-slots` 出口**：读者都在配置期（Node，jiti 直接吃

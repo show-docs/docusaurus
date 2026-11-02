@@ -80,8 +80,10 @@ styles/git-badge.css      按属性画：叶子行一个点、分类行的箭头
 
 `theme/` 里的两份组件都用 `@theme-init/...` 拿官方那一份：仓库里只有本层提供这两格，没有要串的
 链（规则见仓库根 README 的「基础设施包」一节）。本包仍必须是一个**主题层**（有
-`getThemePath()`），并且仍要装并注册解析器插件 —— 那一条是本包 `loadContent()` 里**当场查**的
-前提。另有一条只在装包那一步看得见的：这两份组件是随包发布的未编译 TS 源码，编译它们的 babel
+`getThemePath()`），但它不再查「解析器插件注册了没有」—— 层里那句 `@theme-init/...` 是官方别名，
+解析器不在场也解得开。本包仍装解析器包的**模块**：`loadContent()` 里当场查的那一条换成了
+「只能有一份本包实例」，那句判据住在那个包的 `./registered-plugins` 出口里。
+另有一条只在装包那一步看得见的：这两份组件是随包发布的未编译 TS 源码，编译它们的 babel
 规则由 `@show-docs/docusaurus-plugin-compile-source` 一处认领（见它 README 的「接入」），本包只在
 `peerDependencies` 里点名它、不在配置期查它。
 
@@ -260,7 +262,7 @@ CI 默认的检出（`actions/checkout` 不带 `fetch-depth` = depth 1）里，�
 一份 `DocsScope` 说的是一棵根，`include` / `exclude` 各自相对自己那棵根解释，`covers()` 取
 「任一棵里的一页」。为什么不改成「每棵根挂一份本包实例」：注入走的是站点全局那一个
 `markdown.parseFrontMatter`，第二份实例会被 `WRAPPED` 那记「已经是我」的护栏当成同一层而原样交回
-—— 它不干活，也不报错，症状只是徽标少一整棵根。所以 `loadContent()` 里除了那条解析器前提，还数一遍
+—— 它不干活，也不报错，症状只是徽标少一整棵根。所以 `loadContent()` 里数一遍
 那两份清单（判据在解析器包的 `registered-plugins`：`assertSinglePluginInstance()`，连 preset 交回的
 那一份一起数），两份以上当场点名，并把「多棵根写在同一份的 `docs` 数组里」写进报错。多棵根只能住在
 一份实例里。这一格形状由 `test/theme-git-badge.test.mts` 里「地盘可以多棵根」那一组钉住，跨根的真

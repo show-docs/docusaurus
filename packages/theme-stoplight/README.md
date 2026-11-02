@@ -5,18 +5,19 @@
 该文档页整页换成一个**同源** iframe，Elements 在 component-page 那条通用框内路由
 （`/__component-frame`）的一份独立文档里渲染那份文档。
 
-`oas3:` 摆 **OpenAPI**、`aas3:` 摆 **AsyncAPI 3** —— 两把都是 spec 键、给的都是地址，这一层
-不判断类型。
+`oas3:` 摆 **OpenAPI**、`aas3:` 摆 **AsyncAPI 3** —— 两把都是 spec 键、给的都是地址。它们的读法
+（取第一把非空的、两把都写时告警）走 component-page 那份共用判据，三条 API 层同一份说明，记在
+[跨 iframe 协议](../theme-component-page/docs/iframe-protocol.md)的「规则表」那一节，这里不抄第二份。
 
 ## 安装
 
-那一格框、两侧的握手与框内那份文档都由 theme-component-page 提供；本层另外两条**插件**前提
-（解析器那把别名、编本包那几份未编译 `.tsx` 的那条 babel 规则）各坏在哪一格、由谁认领，记在
+那一格框、两侧的握手与框内那份文档都由 theme-component-page 提供；本层另外那一条**插件**前提
+（编本包那几份未编译 `.tsx` 的那条 babel 规则）坏在哪一格、由谁认领，记在
 [plugin-compile-source 的 README](../plugin-compile-source/README.md)，这里不抄第二份。
-四个包一起安装：
+三个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-stoplight
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-stoplight
 ```
 
 本层不依赖 `@show-docs/docusaurus-theme-iframe`（那一层只管「整页交给一个**外部站点**的 URL」
@@ -31,7 +32,6 @@ pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugi
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-compile-source',
-    '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-stoplight',
     // 提供 `DocItem` 那一份判表：写在各层之后 = 层栈最外 = 最先判
     '@show-docs/docusaurus-theme-component-page'

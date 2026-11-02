@@ -113,10 +113,11 @@ export async function pluginIsRegistered(
 }
 
 /**
-检查站点的**那一条**安装前提：本包自己注册成了插件。
+给**层**用的那一条安装前提：本包自己注册成了插件。
 
-各主题层都在 `loadContent()` 里调用它，缺了就当场点名 —— 正常路径上缺了它，webpack 会停在
-`Module not found`，报错点离真正的原因隔着一整个构建。报错里点名的是**调用方**的包名：
+只有层里真写 `@theme-prev/*` 的才该调它 —— 缺了它，webpack 会停在 `Module not found`，报错点
+离真正的原因隔着一整个构建。只用官方别名（`@theme/X`、`@theme-original/X`、`@theme-init/X`）的层
+不查这一条：那三把是 core 自己挂的 alias，本包在不在都一样解得开。报错里点名的是**调用方**的包名：
 「谁需要本包」要说得清，站点才知道该回去看哪一层的文档。
 
 交回的是 `Promise`：见文件头那条「preset 里那一份要等官方那一步」。

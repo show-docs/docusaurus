@@ -1,10 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import {
-  assertPrevLayerResolverInstalled,
-  assertSinglePluginInstance,
-} from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
+import { assertSinglePluginInstance } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
 
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
@@ -88,17 +85,15 @@ export default function gitBadgeTheme(
   return {
     name: PLUGIN_NAME,
     async loadContent() {
-      // 顺序是刻意的：先装，再 await 那两条前提。官方会 `await` 每个插件的 `loadContent()`，
+      // 顺序是刻意的：先装，再 await 那条前提。官方会 `await` 每个插件的 `loadContent()`，
       // 而让出一次微任务就赶不上 docs 读走 `parseFrontMatter`（见上面 `install` 的注释）；
-      // 缺解析器、多注册了一份都照样当场点名，只是红在装完之后。
+      // 多注册了一份照样当场点名，只是红在装完之后。
       //
-      // 这一层只改 frontmatter 与侧边栏那两格，不交规则给机制层，所以**安装**前提只有解析器这一个
-      // （另一条是本层自己的形状 —— 只能有一份实例，就在下面）。解析器那一条**今天不坏本包构建**：
-      // 层里那句 `@theme-init/...` 用的是官方别名，编译本包未编译 TS 源码那条 babel 规则也归
-      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它）；
-      // 留着它是因为它是这一族共用的前提。
+      // 这一层只改 frontmatter 与侧边栏那两格，不交规则给机制层，也没有「装没装」那一条要查：
+      // 层里那句 `@theme-init/...` 用的是官方别名，编译本包未编译 TS 源码那条 babel 规则归
+      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它，
+      // 配置期不查）。剩下那一条是本层自己的形状 —— 只能有一份实例，就在下面。
       install();
-      await assertPrevLayerResolverInstalled(context, PLUGIN_NAME);
       // 第二份实例过去只是静默不干活（徽标少一整棵根，而那份配置看着完全正常），所以数出来点名
       await assertSinglePluginInstance(
         context,

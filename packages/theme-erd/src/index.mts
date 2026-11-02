@@ -72,8 +72,8 @@ export function validateOptions({
 /**
 本层的入口：`configureWebpack()` 让 `.dbml` 走「dbml-loader → 官方 mdx-loader」那条链，
 `loadContent()` 交出**一份组件与一条规则**（`dbml_json` 那一把键、`@theme/ErdPage`），判表与挂载
-都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：那一层（连同它背后的
-解析器插件）；缺了它，`.dbml` 页照常编译，关系图却不出现。
+都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：那一层；
+缺了它，`.dbml` 页照常编译，关系图却不出现。
 
 `dbml_json` 是 dbml-loader 写进编译结果的那条命名导出（`.dbml` 解析出来的模型），也是本层唯一
 能用来判断「这一页是不是关系图页」的信号：它不是作者写的 frontmatter，所以用的还是 component-page
@@ -96,14 +96,14 @@ export default function theme(
     name: '@show-docs/docusaurus-theme-erd',
     async loadContent() {
       // 交出的那一页要由 component-page 判表才挂得上来（共享外壳 `ViewLayerDocItem` 也在那里）；
-      // 解析器那一条由它自己那份检查点名。都在这里点名，而不是让 webpack 在某个页面文件上抛、
-      // 或让那一页安静地不出现。本包那几份未编译的 `.tsx` / `.ts` 不在这一格：编译它们那条
+      // 缺了它那一页安静地不出现，症状离原因隔着一整个构建，所以在配置期就点名。
+      // 本包那几份未编译的 `.tsx` / `.ts` 不在这一格：编译它们那条
       // babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies`
       // 里点名它，配置期不查。
-      await assertThemePrerequisites(context, {
-        namespace: '@show-docs/docusaurus-theme-erd',
-        componentPage: true,
-      });
+      await assertThemePrerequisites(
+        context,
+        '@show-docs/docusaurus-theme-erd',
+      );
 
       return {
         componentPage: {

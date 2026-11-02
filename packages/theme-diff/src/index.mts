@@ -18,8 +18,8 @@ const NAMESPACE = '@show-docs/docusaurus-theme-diff';
 /**
 本层的入口：`getThemePath()` 挂本包那一层（里面只有 `DiffPage` 与它依赖的差异视图），
 `loadContent()` 交出**一份组件与一条规则**（`diff` 那一把键、`@theme/DiffPage`），判表与挂载
-都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：那一层（连同它背后的
-解析器插件）；缺了它，页面看着正常但差异视图不出现。
+都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：那一层；
+缺了它，页面看着正常但差异视图不出现。
 
 `diff` 那把键的判法是 `any`：本层自己的读法（`src/loader/diff-decision.mts`）把 `true`、
 一串路径与 `{old, new}` 都认成「开了」，`false` / `null` / 空值都算没开 —— `any` 是同一口径的
@@ -33,14 +33,11 @@ export default function theme(context: LoadContext): Plugin {
     name: NAMESPACE,
     async loadContent() {
       // 交出的那一页要由 component-page 判表才挂得上来（共享外壳 `ViewLayerDocItem` 也在那里）；
-      // 解析器那一条由它自己那份检查点名。都在这里点名，而不是让 webpack 在某个页面文件上抛、
-      // 或让那一页安静地不出现。本包那几份未编译的 `.tsx` / `.ts` 不在这一格：编译它们那条
+      // 缺了它那一页安静地不出现，症状离原因隔着一整个构建，所以在配置期就点名。
+      // 本包那几份未编译的 `.tsx` / `.ts` 不在这一格：编译它们那条
       // babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies`
       // 里点名它，配置期不查。
-      await assertThemePrerequisites(context, {
-        namespace: NAMESPACE,
-        componentPage: true,
-      });
+      await assertThemePrerequisites(context, NAMESPACE);
 
       return {
         componentPage: {

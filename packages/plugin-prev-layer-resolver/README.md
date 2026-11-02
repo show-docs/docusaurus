@@ -98,10 +98,14 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 两格互不依赖：层栈空了那条规则照样在（那只是 `@theme-prev/*` 失效）；摘掉那条规则，本插件照旧
 解析得动，坏的是那些 `.tsx` 进了 bundle 报 `Module parse failed`。
 
-## 各主题层那条「本插件注册了没有」的检查
+## 「本插件注册了没有」那一条检查（只有真写 `@theme-prev/*` 的层用得上）
 
 缺本插件时，正常路径上要到打包那一步才报 `Module not found: @theme-prev/X` —— 报错点离真正的
-原因隔着一整个构建。所以每条主题层都在自己的 `loadContent()` 里先查一遍、缺了当场点名。
+原因隔着一整个构建。所以**层里真写 `@theme-prev`** 的那一层在自己的 `loadContent()` 里先查一遍、
+缺了当场点名。只用官方别名的层不查这一条：`@theme/X`、`@theme-init/X`、`@theme-original/X` 是
+core 自己挂的 webpack alias，本插件在不在都解得开。本仓发出去的那十几个包都属于后者，真写
+`@theme-prev` 的只有站点的 `src/theme` 与 `tools/theme-*` 那几层（哪一层写哪一把，
+`test/specifier-usage.test.mts` 在磁盘上判）。
 
 判据分两份：**怎么认那两份清单**（四种原始写法：裸包名、`[包名, 选项]`、`[路径, 选项]`、`{name}`
 对象；路径按**包目录**认，不钉具体入口文件名）是纯函数，住在 `src/plugin-slots.mts`；
@@ -109,7 +113,7 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 那一份要官方合并（`loadPresets`）之后才看得见，`LoadContext` 上没有合并后的清单可读。只看
 `siteConfig.plugins` / `themes` 会把一个装齐了的站点判死，让它去 `pnpm add` 一个已经装着的包。
 
-所以这一句是异步的，各层 `loadContent()` 要把它交回官方等：
+所以这一句是异步的，调它的层 `loadContent()` 要把它交回官方等：
 
 ```js
 import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';

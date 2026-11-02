@@ -16,8 +16,9 @@ export default {
 };
 ```
 
-两条都得注册，缺哪条坏哪一格：缺本包，这一族的 `.tsx` 没人编；缺解析器，`@theme-prev/*` 解析不动。
-本仓的站点把两格都按包名写在 `docusaurus.config.mjs` 的 `plugins` 里。
+缺本包，这一族的 `.tsx` 没人编。解析器插件是**另一格**、也是另一道题：只在有层真写 `@theme-prev/*`
+时才需要注册，只用官方别名的层不引它。本仓的站点把两格都按包名写在 `docusaurus.config.mjs` 的
+`plugins` 里（站点 `src/theme` 那几份写 `@theme-prev`）。
 
 用它们的主题包把本包写在 `peerDependencies` 里 —— 站点装那一层时它就跟着装上，漏注册在装包那一步
 就看得见，而不是等到打包。

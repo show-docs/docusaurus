@@ -7,12 +7,11 @@
 ## 安装
 
 「整页换成关系图页」这一格由 theme-component-page 判，本层的共享外壳也住在 theme-component-page 里，
-解析器插件是这一族共用的安装前提（`@theme-prev/*` 那把别名由它提供，本层的层里写的是官方那把
-`@theme-init`），「谁来编本包那几份未编译的 `.tsx`」由
-`@show-docs/docusaurus-plugin-compile-source` 那一条 babel 规则负责，四个包一起安装：
+「谁来编本包那几份未编译的 `.tsx`」由
+`@show-docs/docusaurus-plugin-compile-source` 那一条 babel 规则负责，三个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-erd
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-erd
 ```
 
 ## 使用
@@ -25,7 +24,6 @@ export default {
   // 不带选项 = 只有 `@dbml/core` 那四个固定格式；导出模板要自己配，见下面的「配置」
   plugins: [
     '@show-docs/docusaurus-plugin-compile-source',
-    '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-erd',
     '@show-docs/docusaurus-theme-component-page'
   ]
@@ -36,9 +34,9 @@ export default {
 `@theme/ErdPage` 登记成 `erd`，规则 `{ key: 'dbml_json', match: 'any' }`），由
 theme-component-page 那份 `DocItem` 判表后整页换成它。这一把键不写在 frontmatter 里 —— 判据读
 MDX 模块上的同名命名导出，而它是 loader 追加的那条 `export const`。所以 component-page 要注册，
-而且要写在本层**之后** —— 越晚声明 = 层栈越靠外 = 越先判（见
-[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)）。这条顺序只管
-「这一页归谁判」；同一页写中多把键时谁先命中，看站点 component-page 那一列 `rules` 的顺序。
+而且要写在本层**之后**。那条顺序只管「这一页归谁判」，不管同一页写中多把键时谁先命中（那看站点
+component-page 那一列 `rules` 的顺序）—— 两件事都记在
+[component-page 的 README](../theme-component-page/README.md)的「层栈与代价」那一节，这里不抄第二份。
 本层不依赖 `theme-iframe`。
 
 ### 让 docs 插件收 `.dbml`
@@ -85,10 +83,6 @@ loader 会先摘掉它再把剩下的部分交给 DBML 解析器。
 
 `ErdPage` 自己也不拼外壳 —— 它向官方要 `DocItem`（`@theme-init/DocItem`；仓库里只有
 component-page 这一层提供 `DocItem`，没有要串的链），把关系图摆在它前面，正文一格都不动。
-
-层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
-[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)；
-这一层自己只负责「交哪一把键、摆在哪一格」。
 
 ## 配置
 

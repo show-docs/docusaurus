@@ -14,17 +14,15 @@ const thisDir = dirname(fileURLToPath(import.meta.url));
 export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
-    async loadContent() {
-      // 两条前提都在这一步点名。解析器那一条**今天不坏本包构建**：层里那句
-      // `@theme-init/DocItem/Content` 用的是官方别名，编译本包未编译 TS 源码那条 babel 规则也归
-      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它）——
-      // 留着它是因为它是这一族共用的前提。
-      //
-      // CSS 压缩器也只在这一步点名：`viewerjs` 那份样式表写的是原生嵌套，默认的
+    loadContent() {
+      // CSS 压缩器在这一步点名：`viewerjs` 那份样式表写的是原生嵌套，默认的
       // cssnano + clean-css 会把它压坏，而本包不再替宿主全站摊平 —— 那件事交给 lightningcss。
       // 这一条判据住在本包的 `./prerequisites.mts`（只有这一家用它），本层不引机制层。
-      // 交回 Promise：解析器那一条还要问 preset（见 `./prerequisites.mts`）。
-      await assertViewerPrerequisites(context);
+      //
+      // 本层那句 `@theme-init/DocItem/Content` 用的是官方别名，「谁来编本包未编译的 TS 源码」
+      // 那条 babel 规则归 `@show-docs/docusaurus-plugin-compile-source`（本包只在
+      // `peerDependencies` 里点名它）—— 两条都不在这一步查。
+      assertViewerPrerequisites(context);
     },
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 那一份入口。

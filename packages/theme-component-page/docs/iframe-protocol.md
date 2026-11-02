@@ -68,7 +68,9 @@ import（`"@show-docs/docusaurus-theme-component-page": "workspace:^"`，一句�
 那条规则自己声明，本层不认识任何一把业务键。
 
 三条 API 层的键是布尔（`scalar: true` 只说「这一层接这一页」），**渲染哪份文档**另有两把 spec 键给
-（`oas3:` 摆 OpenAPI、`aas3:` 摆 AsyncAPI 3，取第一把非空的）。这一层不判断那个地址指向哪份文档 ——
+（`oas3:` 摆 OpenAPI、`aas3:` 摆 AsyncAPI 3），取第一把非空的。键名与先后由各层自己传给共用那份读法
+（`lib/frontmatter-values.ts`），三条层传的是同一串、`oas3:` 在前，所以两把都写时 `oas3:` 赢。
+这一层不判断那个地址指向哪份文档 ——
 判据在渲染器那边（按文档根上那个 `openapi` / `asyncapi` 字段分派）。两把 spec 键同时写通常是手误，
 按先后取第一把并告警。「用哪一层渲染」与「渲染哪份文档」是两件事：写了布尔键却没给 spec 地址，
 这一页仍然换成框，框里摆的是那句「这一页没给 X 要渲染的文档」的说明，不是渲染器，也不是空白

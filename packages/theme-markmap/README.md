@@ -6,12 +6,11 @@
 ## 安装
 
 「整页换成导图页」这一格由 theme-component-page 判，本层的共享外壳也住在 theme-component-page 里，
-解析器插件是这一族共用的安装前提（`@theme-prev/*` 那把别名由它提供，本层的层里写的是官方那把
-`@theme-init`），「谁来编本包那几份未编译的 `.tsx`」由
-`@show-docs/docusaurus-plugin-compile-source` 那一条 babel 规则负责，四个包一起安装：
+「谁来编本包那几份未编译的 `.tsx`」由
+`@show-docs/docusaurus-plugin-compile-source` 那一条 babel 规则负责，三个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-markmap
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-markmap
 ```
 
 ## 使用
@@ -23,7 +22,6 @@ pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugi
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-compile-source',
-    '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-markmap',
     '@show-docs/docusaurus-theme-component-page'
   ]
@@ -33,9 +31,9 @@ export default {
 本层在自己的 `loadContent()` 里交回一对条目（交回的 content 里带 `componentPage`：组件
 `@theme/MarkmapPage` 登记成 `markmap`，规则 `{ key: 'markmap', match: 'options' }`），由
 theme-component-page 那份 `DocItem` 判表后整页换成它。所以 component-page 要注册，而且要写在
-本层**之后** —— 越晚声明 = 层栈越靠外 = 越先判（见
-[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)）。这条顺序只管
-「这一页归谁判」；同一页写中多把键时谁先命中，看站点 component-page 那一列 `rules` 的顺序。
+本层**之后**。那条顺序只管「这一页归谁判」，不管同一页写中多把键时谁先命中（那看站点
+component-page 那一列 `rules` 的顺序）—— 两件事都记在
+[component-page 的 README](../theme-component-page/README.md)的「层栈与代价」那一节，这里不抄第二份。
 本层不依赖 `theme-iframe`。
 
 ### 写 frontmatter
@@ -60,10 +58,6 @@ markmap: true
 自己也不拼外壳 —— 它向官方要 `DocItem`（`@theme-init/DocItem`；仓库里只有 component-page 这
 一层提供 `DocItem`，没有要串的链），把导图摆在它前面，正文一格都不动；命不中时那一层等于透明，
 这一页看不出它存在过。
-
-层栈怎么推导、谁能盖住谁，是核心解析器那一格的事，见
-[`plugin-prev-layer-resolver` 的 README](../plugin-prev-layer-resolver/README.md)；
-这一层自己只负责「交哪一把键、摆在哪一格」。
 
 ## 配置
 

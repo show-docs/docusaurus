@@ -16,7 +16,7 @@ frontmatter 进组件。
 ```js title="docusaurus.config.mjs"
 export default {
   plugins: [
-    // ……解析器插件与其余各层
+    // ……编译插件与其余各层
     [
       '@show-docs/docusaurus-theme-component-page',
       {

@@ -6,7 +6,7 @@
 判定与挂载都不在本包：本包在自己的 `loadContent()` 里交回**一个组件 + 一条规则**给
 [`@show-docs/docusaurus-theme-component-page`](../theme-component-page/README.md)（组件是
 `@theme/ExternalFrame`，规则是 `iframe:` 那把键），由机制层那份 `DocItem` 判表、命中后把整个
-`DocItem` 换成这个组件。所以 component-page 与解析器插件是本包的安装前提，`loadContent()`
+`DocItem` 换成这个组件。所以 component-page 是本包的安装前提，`loadContent()`
 里当场点名。
 
 这一层只管「嵌别人的页面」：跨源，没有握手、没有消息通道，地址只能在父文档这一侧算完
@@ -16,14 +16,12 @@
 
 ## 安装
 
-解析器插件是这一族共用的安装前提（`@theme-prev/*` 那把别名由它提供；本层那份 `@theme/ExternalFrame`
-只在机制层的清单里被登记名指到，层里不写 `@theme-prev`），命中与挂载由 component-page 负责，
+命中与挂载由 component-page 负责，
 「谁来编本包那几份未编译的 `.tsx`」由 `@show-docs/docusaurus-plugin-compile-source` 那一条
-babel 规则负责，四个包一起安装：
+babel 规则负责，三个包一起安装：
 
 ```bash
 pnpm add @show-docs/docusaurus-plugin-compile-source \
-  @show-docs/docusaurus-plugin-prev-layer-resolver \
   @show-docs/docusaurus-theme-component-page \
   @show-docs/docusaurus-theme-iframe
 ```
@@ -37,7 +35,6 @@ pnpm add @show-docs/docusaurus-plugin-compile-source \
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-compile-source',
-    '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-iframe',
     // component-page 提供 `DocItem` 并挂各层交来的规则（放在最后 = 层栈最外）
     '@show-docs/docusaurus-theme-component-page'

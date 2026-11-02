@@ -5,19 +5,20 @@
 iframe，Redoc 在 component-page 那条通用框内路由（`/__component-frame`）的一份独立文档里渲染
 那份文档。
 
-`oas3:` 摆 **OpenAPI**、`aas3:` 摆 **AsyncAPI 3** —— 两把都是 spec 键、给的都是地址，这一层
-不判断类型，厂商自己按文档里那一格（`openapi:` / `asyncapi:`）认。两把同时写时 `oas3:` 优先
-（开发模式有一条告警）。
+`oas3:` 摆 **OpenAPI**、`aas3:` 摆 **AsyncAPI 3** —— 两把键的读法（取第一把非空的、两把都写时告警）
+走 component-page 那份共用判据，三条 API 层同一份说明，记在
+[跨 iframe 协议](../theme-component-page/docs/iframe-protocol.md)的「规则表」那一节，这里不抄第二份。
+本层只多说一句：Redoc 自己按文档根上那一格（`openapi:` / `asyncapi:`）分派，AsyncAPI 3 那份也渲染。
 
 ## 安装
 
-那一格框、两侧的握手与框内那份文档都由 theme-component-page 提供；本层另外两条**插件**前提
-（解析器那把别名、编本包那几份未编译 `.tsx` 的那条 babel 规则）各坏在哪一格、由谁认领，记在
+那一格框、两侧的握手与框内那份文档都由 theme-component-page 提供；本层另外那一条**插件**前提
+（编本包那几份未编译 `.tsx` 的那条 babel 规则）坏在哪一格、由谁认领，记在
 [plugin-compile-source 的 README](../plugin-compile-source/README.md)，这里不抄第二份。
-四个包一起安装：
+三个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-redoc
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-theme-component-page @show-docs/docusaurus-theme-redoc
 ```
 
 本层不依赖 `@show-docs/docusaurus-theme-iframe`（那一层只管「整页交给一个**外部站点**的 URL」
@@ -32,7 +33,6 @@ pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugi
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-compile-source',
-    '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-redoc',
     // 提供 `DocItem` 那一份判表：写在各层之后 = 层栈最外 = 最先判
     '@show-docs/docusaurus-theme-component-page'
@@ -61,8 +61,7 @@ oas3: /openapi.yaml
 URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保留文档正文外壳，也不渲染别的层挂在
 正文上方那些东西。框里只接**文档地址**这一种入参，不支持传入内联文档。
 
-两把 spec 键只是「文档地址」的两个出处：判据不在机制层，在本层
-（`components/redoc-spec.ts`）—— Redoc 认文档里 `asyncapi:` 那一格。AsyncAPI 3 那一版见
+那两把键的读法住在 `components/redoc-spec.ts`（机制层不认识它们）。AsyncAPI 3 那一版见
 [AsyncAPI 示例](./docs/redoc-asyncapi-demo.md)。
 
 ## 配置

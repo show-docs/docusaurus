@@ -301,7 +301,7 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
 照常渲染）；同页写中多把框键时谁先命中看站点 component-page 那一列 `rules` 的顺序，本层那条 `stoplight`
 在那一列里排在 `redoc` 之后、`iframe` 之前。站点根的 `package.json` 声明了
 `"@show-docs/docusaurus-theme-stoplight": "workspace:^"`，本包把 theme-component-page 与
-plugin-prev-layer-resolver 声明在 `peerDependencies`（各写 `workspace:^`，那份版本契约）。
+plugin-compile-source 声明在 `peerDependencies`（各写 `workspace:^`，那份版本契约）。
 `pnpm build`、`pnpm verify:chain` 与 `pnpm test:e2e` 都绿，层栈里能看到
 `packages/theme-stoplight/theme`（只剩 `StoplightView` 那一格）。
 

@@ -5,14 +5,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   resolve: {
     alias: {
-      // `@docusaurus/useIsBrowser` 磁盘上没有对应的那个包（它是 webpack 构建期才存在的
-      // alias），换成 `test/stubs/use-is-browser.ts` 那份替身 —— 换的理由写在替身头上。
-      '@docusaurus/useIsBrowser': fileURLToPath(
-        new URL('./test/stubs/use-is-browser.ts', import.meta.url),
-      ),
-      // 同理，`@theme/*` 也是 webpack 构建期的 specifier，磁盘上没有。视图层共享外壳
-      // （`packages/theme-component-page/lib/view-layer-shell.tsx`）要用官方 `Admonition` 报那一条提示，
-      // 单测里换成按它形状落地的一份替身 —— 换的理由写在替身头上。
+      // `@theme/*` 是 webpack 构建期才存在的 specifier，磁盘上没有对应的包。
+      // 视图层共享外壳（`packages/theme-component-page/lib/view-layer-shell.tsx`）要用官方
+      // `Admonition` 报那一条提示，单测里换成按它形状落地的一份替身 —— 换的理由写在替身头上。
       '@theme/Admonition': fileURLToPath(
         new URL('./test/stubs/admonition.tsx', import.meta.url),
       ),

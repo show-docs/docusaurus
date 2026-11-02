@@ -429,9 +429,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
@@ -453,9 +450,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
@@ -480,9 +474,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
@@ -504,9 +495,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
@@ -540,9 +528,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
@@ -570,9 +555,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
@@ -588,9 +570,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
       '@show-docs/docusaurus-theme-component-page':
         specifier: workspace:^
         version: link:../theme-component-page
@@ -621,9 +600,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../../packages/plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../../packages/plugin-prev-layer-resolver
       ahooks:
         specifier: ^3.11.0
         version: 3.11.0(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)
@@ -639,9 +615,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../../packages/plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../../packages/plugin-prev-layer-resolver
       react:
         specifier: 'catalog:'
         version: 18.3.1
@@ -675,9 +648,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../../packages/plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../../packages/plugin-prev-layer-resolver
       react:
         specifier: 'catalog:'
         version: 18.3.1

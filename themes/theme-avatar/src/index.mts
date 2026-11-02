@@ -16,7 +16,7 @@ Docusaurus 项目会用自己的 babel 编译它们；「谁来编」归
    `usePluginData(PLUGIN_NAME)` 去读（它按同一条路取，比自己去 `useGlobalData()` 里拆那一层稳）。
 
 缺 `contentLoaded` 这一格时症状不响：配置静静地不存在，头像静静地不出现。钉住它的是
-`test/package-entries.test.mts` 里那个 describe（它数「`loadContent` 与 `contentLoaded` 各交出了什么」）
+`test/package-entries.test.mts` 里那个 describe（它数这一层交出了什么）
 与一次真实 `pnpm build` 之后回读 `.docusaurus/docusaurus.config.mjs` 旁边那份 globalData。
 
 本层没有 `getClientModules()`：它用的类名（`avatar__photo`、`dropdown`）全是 Infima 已有的，
@@ -28,8 +28,6 @@ Docusaurus 项目会用自己的 babel 编译它们；「谁来编」归
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
-
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import type { AvatarThemeOptions } from '../types/avatar-config.ts';
@@ -39,8 +37,10 @@ import { normalizeConfig, PLUGIN_NAME } from './config.mts';
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
 
+// 官方按 `plugin(context, options)` 位置调用（`@docusaurus/core` 的 `plugins/init.js`），
+// 所以这一格形参不能省：本层现在不读它，它仍然占着 `context` 那一个位置。
 export default function theme(
-  context: LoadContext,
+  _context: LoadContext,
   options: AvatarThemeOptions = {},
 ): Plugin {
   // 配置期就判到底：写歪的形状红在加载配置那一句，而不是红在浏览器里那颗头像上。
@@ -48,13 +48,6 @@ export default function theme(
 
   return {
     name: PLUGIN_NAME,
-    async loadContent() {
-      // 这一层不交规则给机制层，`loadContent()` 里就只有解析器那一条安装前提。它**今天不坏本包
-      // 构建**：层里用的是官方那把 `@theme-init`，而编译本包未编译 TS 源码那条 babel 规则归
-      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它）——
-      // 留着这一条是因为它是这一族共用的前提，写 `@theme-prev/*` 的层缺了它才真的解析不动。
-      await assertPrevLayerResolverInstalled(context, PLUGIN_NAME);
-    },
     contentLoaded({ actions }) {
       // 见文件头第 1 条：这是 `actions` 上那一个，不是生命周期方法。
       actions.setGlobalData(config);

@@ -5,13 +5,14 @@
 
 ## 安装
 
-`theme/` 与 `components/` 是随包发布的未编译 TS 源码，所以本层有两条**插件**前提：解析器那一条
-本层 `loadContent()` 里当场查，编译那一条只在 `peerDependencies` 里点名 —— 两格各坏在哪、由谁
+`theme/` 与 `components/` 是随包发布的未编译 TS 源码，所以编译那一条前提只在
+`peerDependencies` 里点名 —— 坏在哪一格、由谁
 认领，记在 [`plugin-compile-source` 的 README](/plugin-compile-source/)，这里不抄第二份。
-这一层不向 `theme-component-page` 交规则，缺了那一格它照常工作。三个包一起安装：
+这一层不向 `theme-component-page` 交规则，缺了那一格它照常工作；层里引的都是官方那几把别名，
+所以配置期没有解析器那一条要查。两个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-viewer
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-theme-viewer
 ```
 
 站点的 CSS 压缩器必须是 lightningcss：`viewerjs` 那份样式表写的是 CSS 原生嵌套，Docusaurus
@@ -39,7 +40,6 @@ export default {
 export default {
   plugins: [
     '@show-docs/docusaurus-plugin-compile-source',
-    '@show-docs/docusaurus-plugin-prev-layer-resolver',
     '@show-docs/docusaurus-theme-viewer'
   ]
 };

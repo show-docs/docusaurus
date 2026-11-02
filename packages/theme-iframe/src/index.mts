@@ -32,16 +32,13 @@ export default function theme(context: LoadContext): Plugin {
   return {
     name: NAMESPACE,
     async loadContent() {
-      // 两条前提都在这里点名，判据住在 `@show-docs/docusaurus-theme-component-page/prerequisites`，
-      // 与各视图层引的是同一份。缺 component-page：那几页没人判，框安静地不出现，症状离原因隔着
-      // 一整个构建。缺解析器那一条**今天不坏本包的构建**：层里用的是官方那把 `@theme-init`，而
-      // 「谁来编本包那几份未编译的 `.tsx` / `.ts`」早已抽给
-      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它，
-      // 配置期不查）—— 这一条留着的理由只剩「与那一族共用同一份检查」，要不要拆归维护者定。
-      await assertThemePrerequisites(context, {
-        namespace: NAMESPACE,
-        componentPage: true,
-      });
+      // 本层交出的那一格要由 component-page 判表才挂得上来，判据住在
+      // `@show-docs/docusaurus-theme-component-page/prerequisites`，与各视图层引的是同一份。
+      // 缺它：那几页没人判，框安静地不出现，症状离原因隔着一整个构建。
+      // 「谁来编本包那几份未编译的 `.tsx` / `.ts`」不在这一格：那条 babel 规则归
+      // `@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies` 里点名它，
+      // 配置期不查。
+      await assertThemePrerequisites(context, NAMESPACE);
 
       return {
         componentPage: {
