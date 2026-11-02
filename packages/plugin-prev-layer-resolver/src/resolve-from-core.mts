@@ -2,7 +2,8 @@
 「怎么定位 core」对**包外**交出的那一格。
 
 实现仍住在 `./layers.mts`，这里只开名字、不抄第二份判据：那三把 helper 和层栈同源
-（链底那一层就是从 core 的模块位置推出来的，见 `docs/internals.md`「谁来定位 core」）。
+（链底那一层就是从 core 的模块位置推出来的，这一格与那边的分工记在 `docs/internals.md`
+的「谁来编这一族未编译的 TS 源码」不在本包」一节）。
 要它的是包外的消费者 —— `@show-docs/docusaurus-plugin-compile-source` 借 core 自己的
 `@docusaurus/babel` 依赖取官方那份 babel 配置路径，除这一格之外没有第二个理由引它。
 

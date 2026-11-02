@@ -29,16 +29,12 @@ import type {
 } from '../types/component-page.ts';
 
 export type {
-  ComponentPageContribution,
   ComponentPageContent,
   ComponentPageFacts,
   ComponentPageMatch,
   ComponentPageProps,
-  ComponentPageRender,
   ComponentPageRule,
   ComponentPageSource,
-  ComponentPageValue,
-  ComponentRegistration,
 } from '../types/component-page.ts';
 
 /**

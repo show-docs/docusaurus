@@ -38,14 +38,10 @@
     "@docusaurus/types": "catalog:",
     "@show-docs/docusaurus-plugin-compile-source": "workspace:^",
     "@show-docs/docusaurus-plugin-prev-layer-resolver": "workspace:^",
-    "react": "catalog:",
-    "webpack": "catalog:"
+    "react": "catalog:"
   },
   "peerDependenciesMeta": {
     "@docusaurus/types": {
-      "optional": true
-    },
-    "webpack": {
       "optional": true
     }
   },

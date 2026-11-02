@@ -11,7 +11,7 @@
 pnpm add @show-docs/docusaurus-plugin-lazy-compilation
 ```
 
-需要 Docusaurus `^3.9.2` 与 Node `^24`。版本停在 `0.0.0`（还没正式发版）。
+需要 Docusaurus `^3.9.2` 与 Node `^24`。版本号与发布状态以本包 `package.json` 为准，这里不抄第二份。
 
 ## 使用
 

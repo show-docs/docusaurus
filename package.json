@@ -64,7 +64,7 @@
     "@bring-it/npm": "^0.9.6",
     "@docusaurus/faster": "^3.10.2",
     "@docusaurus/types": "catalog:",
-    "@docusaurus/utils": "^3.9.2",
+    "@docusaurus/utils": "catalog:",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@mdx-js/react": "^3.1.1",
     "@nice-move/all-in-react": "^0.9.6",

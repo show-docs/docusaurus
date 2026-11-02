@@ -3,8 +3,8 @@
 `tools/` 装的是验证 / 调研用的 demo，**不属于核心包**。核心包见 [`packages/plugin-prev-layer-resolver`](../packages/plugin-prev-layer-resolver/README.md)。
 
 用三层本地主题插件（写法与站点层完全一致、每层都用 `@theme-prev/X` 包住上一层的同一个组件）验证
-「链可任意加长、每层写法相同」。它们包的是同一个组件 —— 主页正文区那张卡片列表（`DocCardList`），
-站点层 `src/theme` 再往最外面包一层，所以渲染出来是四层。
+「链可任意加长、每层写法相同」。它们包的是同一个组件 —— 两棵内容根落地页正文区那张卡片列表
+（`DocCardList`），站点层 `src/theme` 再往最外面包一层，所以渲染出来是四层。
 
 | 目录       | 内容                                                               |
 | ---------- | ------------------------------------------------------------------ |
@@ -39,8 +39,10 @@ pnpm verify:chain   # 读真实 build 产物（主页 `build/index.html` 与示�
 src/theme > theme-c > theme-b > theme-a > (theme-classic 的真实卡片列表)
 ```
 
-它**只在主页**：站点里只有 `packages/README.md` 写了 `<DocCardList />`，别的页面根本不渲染这个组件 ——
-所以不需要「按页面 id 分支」的代码。正因为这样，脚本在文档页那一格反过来断言整页一个包裹标记都没有。
+它**只在渲染卡片列表的那两页**：站点里写 `<DocCardList />` 的是 `packages/README.md`（主页）与
+`themes/README.md`（`/themes` 那棵内容根的落地页），别的页面根本不渲染这个组件 —— 所以不需要
+「按页面 id 分支」的代码。正因为这样，脚本在两格都断言那条链（与内容根无关），再取一个普通文档页
+反过来断言整页一个包裹标记都没有。
 
 浏览器里同样钉一次嵌套：`test/e2e/features/home.feature` 的那条用例要求
 `div[data-site-wrapper="src/theme"] > div[data-theme-wrapper="theme-c"] > … > div[data-theme-wrapper="theme-a"]`

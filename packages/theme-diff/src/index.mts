@@ -52,8 +52,7 @@ export default function theme(context: LoadContext): Plugin {
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 剩下的东西（入口、loader、类型）。
     //
-    // 「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`（它按 `@show-docs`
-    // 这个 scope 认领 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
+    // 「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`，本包不自己补 babel 规则。
     getThemePath() {
       return resolve(thisDir, '../theme');
     },

@@ -26,8 +26,7 @@ const NAMESPACE = '@show-docs/docusaurus-theme-iframe';
 
 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus 项目会用自己的
 babel 编译它们。本包要编译的只有这一份入口。「谁来编」归
-`@show-docs/docusaurus-plugin-compile-source`（它按 `@show-docs` 这个 scope 认领
-`node_modules` 里的 TS 源码），本包不自己补 babel 规则。
+`@show-docs/docusaurus-plugin-compile-source`，本包不自己补 babel 规则。
 */
 export default function theme(context: LoadContext): Plugin {
   return {

@@ -3,8 +3,7 @@
 
 主题层（`theme/`）与共享组件（`components/`）是**源码**，站在包根上，不经 `tsc`：用本包的
 Docusaurus 项目会用自己的 babel 编译它们；「谁来编」归
-`@show-docs/docusaurus-plugin-compile-source`（它按 `@show-docs` 这个 scope 认领
-`node_modules` 里的 TS 源码），本包不自己补 babel 规则。本包只编译 `src/` 那两份。
+`@show-docs/docusaurus-plugin-compile-source`，本包不自己补 babel 规则。本包只编译 `src/` 那两份。
 
 **配置怎么进浏览器**：走官方的插件全局数据。这一格有两个只读代码看不出来的形状（都实测在
 `@docusaurus/core@3.10.2` 的 `lib/server/plugins/` 里）：

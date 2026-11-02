@@ -115,8 +115,7 @@ id」，给了不同 id 的两份在官方合法、在这一层不合法。
 里，本层不引自己那份）。
 
 主题层、`lib/` 与 `types/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus 项目会用自己的
-babel 编译它们。「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`（它按
-`@show-docs` 这个 scope 认领 `node_modules` 里的 TS 源码），本包不自己补 babel 规则。
+babel 编译它们。「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`，本包不自己补 babel 规则。
 */
 export default function theme(
   context: LoadContext,

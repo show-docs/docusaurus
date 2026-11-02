@@ -2,8 +2,9 @@
 框内那条页面的地址怎么拼，以及一条地址在这份文档里能不能用。
 
 两份都是纯函数、不碰 DOM：`../components/component-frame` 用它算那个 `<iframe>` 的 `src`（服务端与
-客户端算出完全一样的字符串，两边不会在 `src` 这一格上对不上），各组件包用 {@link upgradeUrl}
-处理自己那份要取的外部地址，`theme-iframe` 的 `lib/external-url.ts` 也引它同一句。
+客户端算出完全一样的字符串，两边不会在 `src` 这一格上对不上），各组件包用 {@link httpUrlOf}
+处理自己那份要取的外部地址，`theme-iframe` 的 `lib/external-url.ts` 引的是 {@link upgradeUrl} 与
+{@link upgraded} 那两句（那一格嵌的是跨源地址，框内路由那条地址与它无关）。
 */
 
 /**

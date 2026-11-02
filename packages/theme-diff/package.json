@@ -31,7 +31,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@docusaurus/utils": "^3.9.2",
+    "@docusaurus/utils": "catalog:",
     "@git-diff-view/react": "^0.1.8"
   },
   "peerDependencies": {

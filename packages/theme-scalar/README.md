@@ -11,9 +11,9 @@ Docusaurus 主题插件。frontmatter 写 `scalar: true`（渲染哪份文档由
 
 ## 安装
 
-那一格框、两侧的握手与框内那份文档都由 theme-component-page 提供，解析器插件是这一族共用的
-安装前提（`@theme-prev/*` 那把别名由它提供；本层的层里只写官方那把 `@theme/*`），「谁来编本包
-那几份未编译的 `.tsx`」由 `@show-docs/docusaurus-plugin-compile-source` 那一条 babel 规则负责，
+那一格框、两侧的握手与框内那份文档都由 theme-component-page 提供；本层另外两条**插件**前提
+（解析器那把别名、编本包那几份未编译 `.tsx` 的那条 babel 规则）各坏在哪一格、由谁认领，记在
+[plugin-compile-source 的 README](../plugin-compile-source/README.md)，这里不抄第二份。
 四个包一起安装：
 
 ```bash

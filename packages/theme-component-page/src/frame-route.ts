@@ -2,9 +2,9 @@
 通用框内那条独立页面的地址。
 
 这里是**数据**，纯串 + 纯函数、不引 Node 也不引 React：配置期（`./index.mts` 拿它
-`addRoute`）与浏览器期（`../theme/ComponentFrame` 拿它算那个 `<iframe>` 的 `src`）读的是同一份
-源码，那条地址因此在注册与请求两侧不会各写一遍。浏览器侧的转出口在 `../lib/frame-route.ts`
-（为什么数据住在 `src/`、浏览器却从 `lib/` 引，记在那一份头上）。
+`addRoute`）与浏览器期（`../components/component-frame.tsx` 经 `../lib/frame-route.ts` 拿它算那个
+`<iframe>` 的 `src`）读的是同一份源码，那条地址因此在注册与请求两侧不会各写一遍。浏览器侧的转出口在
+`../lib/frame-route.ts`（为什么数据住在 `src/`、浏览器却从 `lib/` 引，记在那一份头上）。
 
 一条路由服务整族：`render: 'iframe'` 的规则都渲染在这一份文档里，框里渲染哪个组件由外层送进
 来的登记名决定（见 `../lib/frame-messages.ts`），所以各包不再自带 `/xxx-view`。

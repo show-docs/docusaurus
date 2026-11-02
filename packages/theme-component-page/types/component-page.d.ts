@@ -10,7 +10,7 @@
 `rootDir` 不管它，两侧都能引同一份、不再各写一遍。
 
 站点侧写组件时不必知道这一格：从 `@show-docs/docusaurus-theme-component-page/lib/component-page.ts`
-引 `ComponentPageProps` 就行（那一份把这里的类型转出去）。
+引 `ComponentPageProps` 就行（那一份只把外面要用的那几格转出去，其余留在这里）。
 */
 
 /**
