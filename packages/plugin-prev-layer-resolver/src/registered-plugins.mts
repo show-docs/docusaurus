@@ -2,7 +2,6 @@ import type { LoadContext } from '@docusaurus/types';
 
 import {
   declaredNamespaces,
-  PLUGIN_NAME,
   slotIsNamespace,
   type PluginSlots,
 } from './plugin-slots.mts';
@@ -110,30 +109,6 @@ export async function pluginIsRegistered(
   const fromPresets = await presetSlots(context);
 
   return fromPresets === null || slotsMention(fromPresets, required);
-}
-
-/**
-给**层**用的那一条安装前提：本包自己注册成了插件。
-
-只有层里真写 `@theme-prev/*` 的才该调它 —— 缺了它，webpack 会停在 `Module not found`，报错点
-离真正的原因隔着一整个构建。只用官方别名（`@theme/X`、`@theme-original/X`、`@theme-init/X`）的层
-不查这一条：那三把是 core 自己挂的 alias，本包在不在都一样解得开。报错里点名的是**调用方**的包名：
-「谁需要本包」要说得清，站点才知道该回去看哪一层的文档。
-
-交回的是 `Promise`：见文件头那条「preset 里那一份要等官方那一步」。
-*/
-export async function assertPrevLayerResolverInstalled(
-  context: LoadContext,
-  namespace: string,
-): Promise<void> {
-  if (await pluginIsRegistered(context, PLUGIN_NAME)) {
-    return;
-  }
-
-  throw new Error(
-    `${namespace} 需要 ${PLUGIN_NAME}：所有主题的 \`@theme-prev/*\` 都由它提供别名。` +
-      `请先 \`pnpm add ${PLUGIN_NAME}\`，再把它加进 \`plugins\`（一个实例即可；写进某个 preset 的 \`plugins\` / \`themes\` 里也算）。`,
-  );
 }
 
 /** 那两份清单里写着这个包的条目数 —— 认包名，不认实例 id。 */

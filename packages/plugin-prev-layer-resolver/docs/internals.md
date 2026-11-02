@@ -8,18 +8,18 @@
 
 ## 组成
 
-| 文件                          | 职责                                                                         |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `src/index.mts`               | 插件入口：推层栈 + 空层栈告警 + 注入 resolver                                |
-| `src/layers.mts`              | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位                    |
-| `src/plugin-slots.mts`        | 认那两份清单的纯判据（`slotIsNamespace` / 四种原始写法）                     |
-| `src/registered-plugins.mts`  | 「本包注册了没有」与「注册成了几份」两条前置检查：原始清单 + preset 两处都认 |
-| `src/resolve-from-core.mts`   | 「怎么定位 core」对包外开的那一格出口（实现住在 `src/layers.mts`）           |
-| `src/plugins.mts`             | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表                    |
-| `src/resolve.mts`             | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配                      |
-| `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`）                                    |
-| `src/types.mts`               | 公共类型                                                                     |
-| `types/theme-specifiers.d.ts` | `@theme*` 三条 specifier 的类型声明，见 README「类型声明」                   |
+| 文件                          | 职责                                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| `src/index.mts`               | 插件入口：推层栈 + 空层栈告警 + 注入 resolver                                                      |
+| `src/layers.mts`              | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位                                          |
+| `src/plugin-slots.mts`        | 认那两份清单的纯判据（`slotIsNamespace` / 四种原始写法）                                           |
+| `src/registered-plugins.mts`  | 「本包注册了没有」与「注册成了几份」两条判据（后者另发一条现成的点名）：原始清单 + preset 两处都认 |
+| `src/resolve-from-core.mts`   | 「怎么定位 core」对包外开的那一格出口（实现住在 `src/layers.mts`）                                 |
+| `src/plugins.mts`             | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表                                          |
+| `src/resolve.mts`             | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配                                            |
+| `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`）                                                          |
+| `src/types.mts`               | 公共类型                                                                                           |
+| `types/theme-specifiers.d.ts` | `@theme*` 三条 specifier 的类型声明，见 README「类型声明」                                         |
 
 源码全在 `src/` 下，`dist/` 是它的编译产物（`rootDir` = `src/`），两者的文件一一对应。
 `types/` 不参与编译，见 README 的「类型声明」。
@@ -136,7 +136,7 @@ export default {
 
 「`siteConfig.plugins` / `themes` 里那一项是不是某个包」（`slotIsNamespace()`，连同
 `pluginSlotName()` 认那四种原始写法）住在 `src/plugin-slots.mts`，经包出口 `./plugin-slots` 发出去；
-「本包注册了没有」（`pluginIsRegistered()` / `assertPrevLayerResolverInstalled()`）住在
+「本包注册了没有」（`pluginIsRegistered()`，报错文案由调用方自己给）住在
 `src/registered-plugins.mts`，经 `./registered-plugins` 发出去。同一份文件里还有另一道题：
 「**这个包被注册成了几份**」（`pluginInstanceCount()` / `assertSinglePluginInstance()`），
 吃不下第二份实例的那两层各调它一次。
@@ -171,15 +171,17 @@ preset 函数自己抛，三种都退成「不知道」）；而「官方答了�
 [`packages/theme-component-page/docs/internals.md`](../../theme-component-page/docs/internals.md)
 的「「装了」这件事有三处判据」。
 
-**为什么是本包的事**：那一条问的正是「提供 `@theme-prev/*` 别名的那个插件在不在」。这句话只有
-本包自己说得住。以前它住在 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，于是任何想用它的
-层都得先引那一族层，连带把「装了 `theme-iframe`」变成自己的安装前提 —— 而真正的前提只有本包
-这一个。搬过来之后，交规则给机制层的那几层仍由机制层那份 `prerequisites` 转调（它另外那一条
-「要交规则得装上本层」确实属于那一族层）；那一句「解析器装了没有」今天**没有一层再调** ——
-本仓发出去的层里写的都是官方别名，真写 `@theme-prev` 的只有站点的 `src/theme` 与 `tools/theme-*`
-那几层，它们不是插件、没有 `loadContent()` 可查。同一份文件里的另一道题（「注册成了几份」）
-还在被两家各查自己那一格：`theme-component-page` 与 `themes/theme-git-badge`，护栏在
-`test/infrastructure-rules.test.mts`。
+**为什么是本包的事**：那一条问的是「这一族的插件在不在站点那两份清单上」，而「哪一份清单、
+按什么名字认」只有本包自己说得住。以前它住在 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，
+于是任何想用它的层都得先引那一族层，连带把「装了 `theme-iframe`」变成自己的安装前提 —— 而真正的
+前提只有本包这一个。搬过来之后，交规则给机制层的那几层仍由机制层那份 `prerequisites` 转调（它
+另外那一条「要交规则得装上本层」确实属于那一族层）；「解析器装了没有」那一句**现成的断言删了** ——
+本仓发出去的层写的都是官方别名，真写 `@theme-prev` 的只有站点的 `src/theme` 与 `tools/theme-*`
+那几层，它们不是插件、没有 `loadContent()` 可查，留着那句只是没人接的一格 API。这一格剩下的是
+判据 `pluginIsRegistered`：要查的那一层自己调它、自己写报错（README 那段给的就是这一份写法），
+本仓今天的消费者 `theme-component-page` 用它查的是它自己那一格。同一份文件里的另一道题
+（「注册成了几份」）还在被两家各查自己那一格：`theme-component-page` 与 `themes/theme-git-badge`，
+护栏在 `test/infrastructure-rules.test.mts`。
 
 **为什么纯函数那一份单开一条 `./plugin-slots` 出口**：读者都在配置期（Node，jiti 直接吃
 `dist/`）。包根本机会引 `node:*` 与 webpack，配置期读者不该为此多背依赖，所以走一条只含这个

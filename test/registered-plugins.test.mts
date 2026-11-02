@@ -6,7 +6,6 @@ import type { LoadContext } from '@docusaurus/types';
 
 import { PLUGIN_NAME } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import {
-  assertPrevLayerResolverInstalled,
   assertSinglePluginInstance,
   pluginInstanceCount,
   pluginIsRegistered,
@@ -155,40 +154,6 @@ describe('问不到官方那一份时不拦', () => {
   });
 });
 
-describe('assertPrevLayerResolverInstalled：缺了才点名，报错带上调用方', () => {
-  it('原始清单里没有、preset 里有 → 放行', async () => {
-    const site = makePresetSite(presetReturning([PLUGIN_NAME]));
-    try {
-      await expect(
-        assertPrevLayerResolverInstalled(
-          contextOf(site.siteDir, { presets: [site.preset] }),
-          '@show-docs/docusaurus-theme-probe',
-        ),
-      ).resolves.not.toThrow();
-    } finally {
-      site.cleanup();
-    }
-  });
-
-  it('三处都没有 → 报错里点名调用方与本包，并说明写进 preset 也算', async () => {
-    const site = makePresetSite(presetReturning(['some-other-plugin']));
-    try {
-      await expect(
-        assertPrevLayerResolverInstalled(
-          contextOf(site.siteDir, { presets: [site.preset] }),
-          '@show-docs/docusaurus-theme-probe',
-        ),
-      ).rejects.toThrow(
-        new RegExp(
-          String.raw`@show-docs/docusaurus-theme-probe[\s\S]*${PLUGIN_NAME}[\s\S]*pnpm add[\s\S]*preset`,
-        ),
-      );
-    } finally {
-      site.cleanup();
-    }
-  });
-});
-
 /**
 「注册成了几份」是另一道题：官方只拦「同一插件挂两次又不给 id」，给了不同 id 的两份在它那里合法，
 而在吃不下第二份实例的那几层里，第二份只是不干活（徽标那层）或把第一份写的产物盖掉（机制层那一份）。
@@ -281,7 +246,7 @@ describe('assertSinglePluginInstance：两份以上才点名', () => {
   });
 
   it('一份都没有 → 也不点名：缺不缺归另一道题', async () => {
-    // 这一层有没有装上由 `assertPrevLayerResolverInstalled` 那一句报，这里只判「多了」。
+    // 这一层有没有装上由 `pluginIsRegistered` 那一条判据报（报错文案归调用方），这里只判「多了」。
     // 写成 `count !== 1` 就在这一臂变红，而那句报错会让站点重复装一个本来不缺的包。
     await expect(
       assertSinglePluginInstance(

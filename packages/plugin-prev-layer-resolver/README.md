@@ -98,7 +98,7 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 两格互不依赖：层栈空了那条规则照样在（那只是 `@theme-prev/*` 失效）；摘掉那条规则，本插件照旧
 解析得动，坏的是那些 `.tsx` 进了 bundle 报 `Module parse failed`。
 
-## 「本插件注册了没有」那一条检查（只有真写 `@theme-prev/*` 的层用得上）
+## 「本插件注册了没有」那一条判据（只有真写 `@theme-prev/*` 的层用得上）
 
 缺本插件时，正常路径上要到打包那一步才报 `Module not found: @theme-prev/X` —— 报错点离真正的
 原因隔着一整个构建。所以**层里真写 `@theme-prev`** 的那一层在自己的 `loadContent()` 里先查一遍、
@@ -113,23 +113,33 @@ core 自己挂的 webpack alias，本插件在不在都解得开。本仓发出�
 那一份要官方合并（`loadPresets`）之后才看得见，`LoadContext` 上没有合并后的清单可读。只看
 `siteConfig.plugins` / `themes` 会把一个装齐了的站点判死，让它去 `pnpm add` 一个已经装着的包。
 
-所以这一句是异步的，调它的层 `loadContent()` 要把它交回官方等：
+所以那一句是异步的，调它的层 `loadContent()` 要把它交回官方等。本包只交判据，不代写报错文案 ——
+要查的那一层自己点名自己，报错里带上「谁需要本包」，站点才知道该回去看哪一层的文档：
 
 ```js
-import { assertPrevLayerResolverInstalled } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
+import { pluginIsRegistered } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
 
 // 主题层入口返回的那一份
 export default function myTheme(context, options) {
   return {
     name: 'my-theme',
     async loadContent() {
-      await assertPrevLayerResolverInstalled(context, 'my-theme');
+      const installed = await pluginIsRegistered(
+        context,
+        '@show-docs/docusaurus-plugin-prev-layer-resolver'
+      );
+      if (!installed) {
+        throw new Error(
+          'my-theme 需要 @show-docs/docusaurus-plugin-prev-layer-resolver：`@theme-prev/*` 由它提供别名，请先装上并加进 `plugins`。'
+        );
+      }
     }
   };
 }
 ```
 
-它只查本插件，不查别家：报错文案里点名的是**调用方**的包名，站点据此知道该回去看哪一层的文档。
+那条判据查的是**任一**包名，不只本包：本仓现在唯一的消费者 `theme-component-page` 用它查的是
+自己那一格（`assertThemePrerequisites`），要查解析器注册了没有的那一层照上面的写法自己查。
 判错的两侧不对称 —— 误报判死一个本来能成的构建，漏报只是把构建期注定会炸的那一步留到构建期，
 所以「问不到官方那一份」（core 结构变了、配置文件读不了、preset 函数自己抛）一律放行。
 `./plugin-slots` 那条纯函数出口仍然单独发了给只读清单的读者用，理由与内部契约见

@@ -14,7 +14,7 @@ import type { LoadContext } from '@docusaurus/types';
 `@show-docs/docusaurus-plugin-compile-source`，各包只在 `peerDependencies` 里点名它，配置期不查；
 解析器插件那一条也不查 —— 这一族各层的层里写的都是官方别名 `@theme-init/X`，真写
 `@theme-prev/*` 的是站点的 `src/theme` 与 `tools/theme-*` 那几层，要查那一格的层自己引解析器包
-那一句（`assertPrevLayerResolverInstalled`）。哪些层用哪一把别名由 `test/specifier-usage.test.mts`
+那条判据（`pluginIsRegistered`）点名自己。哪些层用哪一把别名由 `test/specifier-usage.test.mts`
 钉着。
 
 住在 `src/` 而不是 `lib/`：这一份只在配置期（Node）跑，由 `tsc` 编进 `dist/`，包出口用

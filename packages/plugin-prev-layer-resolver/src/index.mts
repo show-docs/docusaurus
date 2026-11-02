@@ -1,6 +1,7 @@
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import { layersFromPlugins } from './layers.mts';
+import { PLUGIN_NAME } from './plugin-slots.mts';
 import { PluginDiscovery } from './plugins.mts';
 import { PrevLayerResolverPlugin } from './resolver.mts';
 import type { LoggerLike } from './types.mts';
@@ -43,8 +44,8 @@ export default async function prevLayerResolverPlugin(
 
   return {
     // 为什么取 `plugin-*` 而非 `theme-*`、为什么不顶 `@docusaurus/` 域：docs/internals.md
-    // 「名字说的是它做的事」。
-    name: '@show-docs/docusaurus-plugin-prev-layer-resolver',
+    // 「名字说的是它做的事」。名字与「这一族在 `plugins` 里叫什么」取同一处。
+    name: PLUGIN_NAME,
 
     configureWebpack(_config, _isServer, _utils) {
       // `plugins` 为 null（拿不到插件列表）时的降级由 `layersFromPlugins` 自己兜；
