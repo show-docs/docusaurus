@@ -31,7 +31,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@scalar/api-reference": "^1.76.0"
+    "@scalar/api-reference": "^1.76.4"
   },
   "peerDependencies": {
     "@docusaurus/theme-common": "catalog:",

@@ -33,7 +33,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "ahooks": "^3.10.0"
+    "ahooks": "^3.11.0"
   },
   "peerDependencies": {
     "@docusaurus/types": "catalog:",
