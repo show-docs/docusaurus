@@ -7,7 +7,8 @@
 `test/package-entries.test.mts` 里配了一条读原文回对的测试：两处漂了，头像就在导航栏里静默消失。
 
 这里用 `@theme-init`（官方别名）而不是 `@theme-prev`：仓库里只有本层提供这个组件，
-没有要串的链 —— 判据与例外见仓库根 README 的「基础设施包」一节。
+没有要串的链 —— 判据与例外见
+`packages/plugin-prev-layer-resolver/docs/internals.md` 的「基础设施链的规矩」一节。
 */
 
 import ColorModeToggle from '@theme-init/ColorModeToggle';

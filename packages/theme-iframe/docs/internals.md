@@ -44,7 +44,8 @@
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/` 里的
 `.tsx`，本包就不编译第二遍；`theme/ExternalFrame` 引的那份 `lib/external-url.ts` 同样是源码，
 由站点按 `@show-docs` 这个 scope 认领（判据在编译插件包的 `src/source-js-rule.mts`）。口径的产地
-在仓库根 README 的「构建包的编译口径」。
+在[编译插件包的维护者文档](../../plugin-compile-source/docs/internals.md) 的
+「这一族构建包的编译口径」。
 
 ## 本层在这一族里的位置
 
@@ -99,8 +100,9 @@ http 的话线上首屏还会先撞一次混合内容；把相对地址在构建
 
 ## 编译口径
 
-`src/index.mts` 进 `tsc`（差量清单与理由记在仓库根 README 的「构建包的编译口径」，这里不抄
-第二份）。本包自己的几格：
+`src/index.mts` 进 `tsc`（差量清单与理由记在
+[编译插件包的维护者文档](../../plugin-compile-source/docs/internals.md) 的
+「这一族构建包的编译口径」，这里不抄第二份）。本包自己的几格：
 
 - 入口里的 `getThemePath()` 返回 `../theme` —— 相对的是**产物**目录（`dist/`），不是 `src/`。
 - `src/` 只有入口一份。
@@ -113,8 +115,9 @@ http 的话线上首屏还会先撞一次混合内容；把相对地址在构建
 - 「谁来编本包未编译的 TS 源码」不归本包：官方 babel 规则排除 `node_modules`，不补的话 npm 安装后
   层源码报 `Module parse failed` —— 那一格由
   `@show-docs/docusaurus-plugin-compile-source` 一处认领（按 `@show-docs` 这个 scope，
-  判据在它的 `src/source-js-rule.mts`）。口径见仓库根 README 的「构建包的编译口径」，与那个包自己的
-  [internals](../../plugin-compile-source/docs/internals.md)。
+  判据在它的 `src/source-js-rule.mts`）。口径见
+  [编译插件包的维护者文档](../../plugin-compile-source/docs/internals.md) 的
+  「这一族构建包的编译口径」。
 - 改 `theme/` 与 `components/` 不用先编译，`pnpm start` 直接生效；改入口要 `pnpm build:core`。
   这些未编译的源码归仓库根 `tsconfig.json` 检查，所以 `pnpm lint:type` 就是它们的门：
   `@docusaurus/router` / `@docusaurus/useDocusaurusContext` / `@docusaurus/useIsBrowser` 那几条

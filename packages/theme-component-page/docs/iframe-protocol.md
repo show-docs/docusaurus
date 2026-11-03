@@ -38,7 +38,9 @@ import（`"@show-docs/docusaurus-theme-component-page": "workspace:^"`，一句�
 | `theme/DocItem/index.tsx`            | ❌ 站点编译         | 判表那一步：命中就把整个 `DocItem` 换成规则里那个组件，`render: 'page'` 直接铺、`render: 'iframe'` 换成上面那个框                                                 |
 | `lib/isolate-renderer-css.ts`        | ❌ 配置期           | 构建期把一张渲染器样式表从全站 bundle 里摘出来当独立文件发（`theme-scalar` 与 `theme-stoplight` 各调一次）                                                        |
 
-「编译吗」那一列的判据是谁编译 —— 口径的产地在仓库根 README 的「构建包的编译口径」。这一族的特别之处
+「编译吗」那一列的判据是谁编译 —— 口径的产地在
+[plugin-compile-source 的维护者文档](../../plugin-compile-source/docs/internals.md) 的
+「这一族构建包的编译口径」。这一族的特别之处
 是那条框内路由**不是文档页**：它由本层插件在 `allContentLoaded` 里经 `actions.addRoute` 注册
 （`src/index.mts`），产物是 `build/__component-frame/index.html`。
 

@@ -15,7 +15,9 @@
 | `tsconfig.build.json`             | ——                     | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                            |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
-本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
+本包就不编译第二遍；口径的产地在
+[plugin-compile-source 的维护者文档](/plugin-compile-source/docs/internals) 的
+「这一族构建包的编译口径」。
 
 这一层覆盖的是 `DocItem/Content`，不是 `DocItem`：它不摆任何东西、也不读 frontmatter，
 判据是正文里真的有 `<img>`。命不中时这一层等于透明。

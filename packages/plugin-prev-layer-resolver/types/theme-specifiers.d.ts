@@ -10,7 +10,7 @@
 - `@theme/X`          → 最终生效的实现（全局赢家）
 - `@theme-original/X` → 与 `@theme/X` 同一个文件
 - `@theme-init/X`     → 最初那一份（官方别名；本仓只给「没有第二层覆盖」的组件用，
-  规矩见仓库根 README 的「基础设施包」一节）
+  规矩见本包 README 的「工作方式」一节）
 - `@theme-prev/X`     → 我下面最近一层提供的 X
 
 语义详见本包 README 的「工作方式」那张表。默认导出钉成 `FunctionComponent`，props 收成

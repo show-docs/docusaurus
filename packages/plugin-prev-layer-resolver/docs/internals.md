@@ -22,22 +22,60 @@
 
 源码全在 `src/` 下，`dist/` 是它的编译产物（`rootDir` = `src/`），两者的文件一一对应。
 三条出口发的是 `src/` 那一份（`./plugin-slots`、`./registered-plugins` 两条整条指过去，
-`.` 那条只把 `types` 指过去），口径与代价记在仓库根 README 的
-「构建包的编译口径」。`types/` 不参与编译，见 README 的「类型声明」。
+`.` 那条只把 `types` 指过去），口径与代价记在下面「配置期跨包的出口」一节。
+`types/` 不参与编译，见 README 的「类型声明」。
 
 ## 实现结构
 
 实现按「纯函数 / 副作用」切开：能穷举的解析逻辑在无副作用的函数里（`src/resolve.mts` /
 `src/layers.mts` / `src/resolver.mts` 的目标选择），副作用留在接线处（`src/index.mts` 推层栈、
 `src/plugins.mts` 读插件列表、`src/resolver.mts` 的 `apply()`）。各文件职责见上方「组成」，
-各目录职责与「放错地方会怎样」见仓库根 README 的「目录结构」。
+各目录职责见仓库根 README 的「目录结构」；放错地方的代价见本包 README 的「使用约束」。
 
 > 源码是 ESM 的 `.mts`，相对 import 写**源码名**（`./layers.mts`），产出时才变成 `./layers.mjs`；
-> 这条口径与差量清单记在仓库根 README 的「构建包的编译口径」，这里不抄第二份。`tsc` 把改写后的
-> import 搬进包内 `dist/`，站点按包名拿到的那一份入口（`.` 的 `default`）就是 `dist/index.mjs`，
-> 所以改完源码要 `pnpm build:core`。另外两条子路径与 `.` 的 `types` 指回 `src/*.mts`：读它们的是
-> 别的包在配置期的源码，而那一步跑在任何构建之前 —— 口径、`files` 那笔闭包账、以及「Node 凭什么
-> 吃得动未编译的 `.mts`」都记在仓库根 README 那张表里，这里不抄第二份。
+> 这条口径与差量清单记在[编译插件包的维护者文档](../../plugin-compile-source/docs/internals.md)的
+> 「这一族构建包的编译口径」，这里不抄第二份。`tsc` 把改写后的 import 搬进包内 `dist/`，站点按包名
+> 拿到的那一份入口（`.` 的 `default`）就是 `dist/index.mjs`，所以改完源码要 `pnpm build:core`。
+> 另外两条子路径与 `.` 的 `types` 指回 `src/*.mts`：读它们的是别的包在配置期的源码，而那一步跑在任何
+> 构建之前 —— 口径、`files` 那笔闭包账、以及「Node 凭什么吃得动未编译的 `.mts`」都记在下面
+> 「配置期跨包的出口」一节。
+
+## 配置期跨包的出口
+
+本包的三条出口（`.` 的 `types` + `./plugin-slots` / `./registered-plugins`）发的都是 `./src/*.mts`，
+**不指 `dist/`**。
+
+理由是那三道静态闸门 —— `lint:type`、`typecheck`、`lint:eslint:check` —— 都不 build：干净检出里
+`dist/` 还不存在，出口指产物的话，按包名引这几把出口的那些入口当场 TS2307（`import type` 也查），
+`import-x/no-unresolved` 跟着红。**两道闸门与 knip 读的都是 `exports` 这一处**，没有第二张要同步的表。
+
+运行期这一侧分两种装法，两边都实测过：
+
+- **工作区里（pnpm 软链）**：软链把 realpath 挪出 `node_modules`，Node 默认剥类型
+  （`base.json` 的 `erasableSyntaxOnly` 保证 `.mts` 里没有需要编译才存在的语法），连 plain `import()`
+  都吃得动。各包 `engines.node` 的下界跟着根那份 `engines` 走（`^24.0.0 || ^26.0.0`），就是这一格。
+- **真·npm 安装**：包被**复制**进 `node_modules`，Node 自己有一条
+  `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` 拒绝对 `node_modules` 下的源码剥类型。这一格由官方
+  加载插件入口那一步接住 —— Docusaurus 用 jiti 的 `loadFreshModule` 读配置与插件入口
+  （`@docusaurus/utils/lib/moduleUtils.js`），jiti 自带剥类型、不受那条限制：把本包与
+  `theme-git-badge` 的 tarball 解进同一个 `node_modules`、用 jiti 加载
+  `theme-git-badge/dist/index.mjs`，它按包名引 `…/registered-plugins`（指回 `src/registered-plugins.mts`）
+  那一条边走得通，入口也照常跑出插件实例。
+
+**边界**：这几把源码出口只承诺 Docusaurus 配置期那条加载链；站点自己拿 plain `import()` 去引一把子路径，
+npm 安装下撞的就是上面那条限制。同一格限制早就是 `./lib/*` 那一族的前提 ——
+`theme-scalar` / `theme-stoplight` 的 `dist/index.mjs` 一直在配置期按包名引本包的
+`lib/isolate-renderer-css.ts`。
+
+代价两条：
+
+1. `files` 得把**被引源码的传递闭包**一起点名（本包发整个 `src/`），少一个文件就是发布物里的运行期
+   `ERR_MODULE_NOT_FOUND`。护栏在 `test/plugin.test.mts` 里那条「`exports` 指回源码的那几格，那份源码
+   连同它的相对 import 闭包都在发布清单里」—— 它在真打包清单上把闭包走完。
+2. 各包 `.` 那条只换 `types`，`default` 仍是 `dist/index.mjs` —— 插件入口那一份照旧要 `pnpm build:core`
+   才生效。
+
+使用者侧的那一半（接入、语义、边界）在 [`../README.md`](../README.md) 的「出口」一节。
 
 ## 名字说的是它做的事
 
@@ -381,6 +419,77 @@ build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 所以这四条是一个整体，**不能只删 `@theme-prev` 那一条**。文件怎么被消费方收进 program（`files`
 点名）、为什么它不编译、发布要靠 `files` 带上 `types/`，是使用者要照着做的那一半，记在
 [`../README.md`](../README.md) 的「类型声明」一节。
+
+## 基础设施链的规矩
+
+这一族的基础设施有四格：本包（最一般）、`plugin-compile-source`、`theme-component-page`、
+`theme-iframe`（最具体）。地图见仓库根 README 的「基础设施包」一节。
+
+判据不是「谁比较大」，而是**有没有别的层靠它成形**：功能层回答「这一页长什么样」，基础设施回答
+「这一类页怎么被交给别的东西」，并且只实现一次。依赖只能从具体指向一般 —— 下面那一格不知道上面是谁。
+两种用法都要成立（单独装上 / 被别人复用），缺一条就不成基础设施。
+
+下面是这一格的规则。第 1–3 条、第 5 条与第 10 条读磁盘就能查：前者由
+`test/infrastructure-rules.test.mts` 与 `test/view-layer-copies.test.mts`、后者由
+`test/specifier-usage.test.mts` 钉住；其余靠评审。
+
+1. **四格按一般度分层，依赖只从具体指向一般。** `theme-component-page` 是 `theme-iframe` 的基础设施
+   —— 整页交给一个框就是整页交给一个组件的一支特例：`theme-iframe` 可以用它，它不能用
+   `theme-iframe`；上面那几格都可以用解析器包，解析器包一个都不用。下面那格不知道上面是谁，
+   反向依赖就是把「一般」焊死在某一支上。
+2. **功能层只能依赖基础设施，功能层之间互不依赖。** 基础设施也不 `import` 任何功能层。
+   注册表里用**字符串**登记别的层（`'@show-docs/docusaurus-theme-scalar'` 那种）是数据，
+   不是依赖 —— 只有 `import` 才算。反过来也一样：**用不到的那一格不许声明** —— 只有真把规则
+   交给 `theme-component-page` 的层才引它 —— 它们引的也只有 `./lib/` 那两格（那份类型与样式表
+   分流）；`themes/`
+   那一族（头像、复制按钮、侧边栏徽标、图片查看器）各管自己那一格，既不引机制层也不声明它，
+   装包时要的只剩编译插件那一条 —— 徽标那一层
+   另装解析器包的**模块**跑自己那条单实例判据，但也不查解析器**注册**了没有：层里写的是官方别名。
+3. **单独可用是硬要求。** 每格只依赖它下面那几格，所以拿掉上面任意几格都还能装：
+   解析器包和 `plugin-compile-source` 对 `@show-docs` 的依赖都为零（编译插件取那份 babel 配置路径
+   那一跳改成按自己的依赖清单直接引官方 `@docusaurus/babel`），`theme-component-page` 只声明编译插件那一格，
+   `theme-iframe` 再加
+   `theme-component-page`（框页今天就是经后者挂上去的 —— 方向正是一般到具体）。
+   新增依赖前先问：这条能不能只往下要？不能，就说明放错了地方。
+4. **复用要走显式出口。** 别的层引的是 `exports` 点名的子路径（`./lib/*`、`./types/*`、
+   `./plugin-slots`、`./registered-plugins`），不深挖 `dist/`。
+   同一个子出口里不要混进两种运行环境：浏览器会引到的那几份
+   不许拉进 `node:*`（配置期那几份由 jiti 直接吃源码，浏览器那几份由 webpack 编译）。
+5. **一份判据一处实现。** 同一个判断只有一份，别的层引它、不抄它。视图层那三处共用外壳
+   就是这条的样板，护栏在 `test/view-layer-copies.test.mts`。
+   同一条的另一头是「谁用它」：编译这一族未编译 TS 源码那条 babel 规则只住在
+   `plugin-compile-source` 一处，各主题包一行都不 `import` 它 —— 但**谁把 `.ts` / `.tsx` 随包发出去，
+   谁就在 `peerDependencies` 里声明它**，站点漏装的那一步因此红在装包而不是拖到打包
+   （护栏在 `test/infrastructure-rules.test.mts` 第六条，
+   按各包自己那份 `files` 判，新增一个发源码的包不必回来改清单）。
+6. **只收已经有两个消费者的机制。** 一个层自己只用一次的形状留在那个层里；成为基础设施要等
+   第二个消费者真的出现。提前抽象多出来的是一层要同步的东西，不是少写几行。
+7. **机制不带业务默认。** 空配置等于「没有这一层」：`theme-component-page` 的空清单不命中任何页，
+   `theme-iframe` 没写那几把键时页面照旧，解析器包没装插件时层栈就不存在。基础设施不替站点挑
+   组件、挑地址、挑文案。
+8. **失败必须可见。** 配置期能判的错在配置期红掉并点名到哪一格；只有浏览器才知道的落空给开发
+   模式告警。装上了却安静地什么都不做，是最难查的一类。
+9. **两种用法都要有文档与用例。** 单独用法写在包 README，复用契约写在包 `docs/`；`src/` 与
+   `lib/` 在覆盖率红线上，`theme/` 与 `components/` 由 e2e 钉。加一条复用契约，两边的用例一起加。
+10. **没有第二层覆盖就别走链。** 仓库里只有一个层提供某个组件时，那个层用官方别名
+    `@theme-init/X`（最初那一份）—— `@theme-prev/X` 留给真有两层以上覆盖的组件
+    （`DocCardList` 那种）。多一层链没换来任何东西，只多一次按导入者算落点；
+    反过来，有多个提供者却用 `@theme-init` 会跳过下面那几层。
+
+### 新增一层之前先问
+
+- **要 `@theme-prev/*` 链式覆写、认某个槽位？** 用解析器包，别在各层各补一份。
+- **这一族随包发布的未编译 `.ts` / `.tsx` 要被编？** 用 `@show-docs/docusaurus-plugin-compile-source`，
+  别在各层各补一条 babel 规则。
+- **包一个组件时？** 仓库里只有你这一层提供它 → `@theme-init/X`；有两层以上 → `@theme-prev/X`。
+- **这一页整页交给一个组件？** 走 `theme-component-page` 的清单（站点写 `components` + `rules`
+  两格，或主题包在 `loadContent()` 里交回 `componentPage: { components, rules }`），别新写一层 `DocItem`。
+- **整页放进一个同源框？** 也只走 `theme-component-page`：交一个组件、配一条 `render: 'iframe'` 的规则，
+  框内那份文档、握手与地址都在机制层的 `lib/` 里，别自己拼 iframe 与 `postMessage`
+  （`scalar` / `redoc` / `stoplight` 三条就是这么接的）。嵌**别人站点**的页面是 `theme-iframe` 的
+  `iframe:`，跨源、没有那套通道。
+- **只在正文上方加一块视图？** 用 `theme-component-page/lib/view-layer-shell.tsx` 那份外壳
+  （`theme-markmap` / `theme-erd` / `theme-diff` 三条都引它，三页都由 component-page 的清单挂上）。
 
 ## 语言与编译约定
 

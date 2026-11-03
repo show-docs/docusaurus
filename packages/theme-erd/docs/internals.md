@@ -17,7 +17,9 @@
 | `components/erd-chart.tsx`   | ❌ 站点编译         | 浏览器侧：把模型交给 `erdiagram` 画关系图，初始化后缩放到能看见全部表节点                                                                                                                                                                                                             |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
-本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
+本包就不编译第二遍；口径的产地在
+[plugin-compile-source 的维护者文档](../../plugin-compile-source/docs/internals.md) 的
+「这一族构建包的编译口径」。
 
 ## `@dbml/core` 实测到的几件事
 

@@ -13,7 +13,31 @@
 | `src/source-js-rule.mts` | 认领范围判据、规则形状、`babelOptions` 的取源    |
 
 源码全在 `src/` 下，`dist/` 是它的编译产物（`rootDir` = `src/`）。改完源码要 `pnpm build:core`
-—— 站点按包名拿到的是 `dist/index.mjs`（口径见仓库根 README「构建包的编译口径」）。
+—— 站点按包名拿到的是 `dist/index.mjs`。
+
+## 这一族构建包的编译口径
+
+本包答的是「谁编译这一族未编译的源码」，这一族包**自己**怎么编也记在这里 —— 十五个构建包的
+`tsconfig.build.json` 是**同一份差量**：`extends: @nice-move/tsconfig/node-bundle.json`，再写
+`noEmit: false` 与 `rootDir` / `outDir`，能从 extends 拿的一律不重抄（各包里的注释只留指针）。
+
+| 口径                     | 内容                                                                                                                                                                                                                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 编译范围                 | 只有 `src/`，而 `src/` 里只放 **Node 侧要跑的代码**：核心包的解析器、主题包的入口与 webpack loader、类型。JSX 一份都不进 `tsc`。                                                                                                                                                                                         |
+| 层与组件为什么不编译     | 用它们的站点会编译，编译两遍只是多出一份要 `files` 点名、会和源码漂移的产物。「谁编译」那一格的判据见本文件「认领范围为什么是 scope」与「为什么不重复官方那条」两节。实测根据：`tools/theme-*/theme/**` 一直是未编译的 `.tsx`，站点收进层栈照样绿 —— `pnpm verify:chain` 打印的层栈里就有那一格。                        |
+| 让 `tsc` 编 JSX 要付什么 | 多一条产物口径：`react.json` 给的 `react-jsx` 会把 JSX 编成 `.js`，而包是 `"type": "module"`，服务端构建里 babel 先把 `import()` 变成 `require('./x.js')` —— 纯 ESM 模块的 parser 不认 `require`，依赖进不了 bundle，静态渲染阶段报 `Cannot find module`；要躲它得单独钉 `jsx: "preserve"`。少编译一层就少一条这种口径。 |
+| 相对 import              | 统一写**源码名**（`./x.mts` / `./x.tsx`）。编译过的由 `node-bundle.json` 的 `rewriteRelativeImportExtensions` 在产出时改成产物名（`./x.mjs`）；未编译的那份原样交给 webpack，磁盘上就是这个文件，所以两种写法都指得到。`allowImportingTsExtensions` 不用写 —— `base.json` 已给。                                         |
+| `files` 点名与 `docs/`   | 发布只点站点运行时与类型要吃的格子（`dist`、`theme`、`components`、`lib`、`types`），各包的 `docs/`（维护者文档与那份共享约定）**不进** `files` —— 实现记录留在仓库里读，代价与判据见 [theme-iframe 的编译口径](../../theme-iframe/docs/internals.md)。                                                                  |
+
+样式表那一格不是模块、`tsc` 也不搬：包根 `styles/` 里那几份走 `getClientModules()`；第三方那几份**静态**
+样式表由各层入口在构建配置期把它们从「打进全站那一份 css」改成「各自一个产物」。每包自己的写法、隔离
+那份实现与踩过的坑在它自己的维护者文档里。
+
+未编译源码的类型检查由仓库根 `tsconfig.json` 接手（`*.module.css`、`@docusaurus/router` 这类只在构建期
+存在的依赖靠根那份 `module-aliases.d.ts`），`@theme*` 那三条 specifier 的声明归解析器包，
+`@stoplight/elements` 缺的 `types` 由依赖补丁补上 —— 这三格的落点分别在
+[解析器包的维护者文档](../../plugin-prev-layer-resolver/docs/internals.md)、
+[theme-stoplight 的维护者文档](../../theme-stoplight/docs/internals.md) 与 `pnpm-workspace.yaml` 的注释里。
 
 ## babelOptions 必须和官方同源
 

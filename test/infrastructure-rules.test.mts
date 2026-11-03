@@ -12,8 +12,8 @@ import { pkgPath } from './helpers.mts';
 
 `plugin-prev-layer-resolver`、`plugin-compile-source`、`theme-component-page`、`theme-iframe`
 是这一仓的四格基础设施：按「一般 → 具体」排，各自能单独装上用，也被别的层当成机制复用。
-规则书在仓库根 README 的
-「基础设施包」一节；这一份钉住其中六条读文本就能查的：
+规则书在 `packages/plugin-prev-layer-resolver/docs/internals.md` 的
+「基础设施链的规矩」一节；这一份钉住其中六条读文本就能查的：
 
 1. 每一格的 `@show-docs` 声明依赖只落在它**下面**那几格 —— 最下面的解析器包因此一个都没有，
    每一格拿掉上面任意几格都还能装；

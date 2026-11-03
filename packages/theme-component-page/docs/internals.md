@@ -46,7 +46,8 @@ flowchart TD
 | `components/component-frame.tsx` / `.css`    | 用它的站点编（不编译） | 外层文档里那一个 `<iframe>`：数据合法才挂、送不出的那一格在外层就挡下来给一句说明                                                |
 
 `src/` 编成 `dist/`，其余都是源码 —— 配置期要跑的代码只有 `src/` 那一格，包里没有第二条源码出口
-（口径与代价记在仓库根 `README.md` 那张表里，
+（口径与代价记在[编译插件包的维护者文档](../../plugin-compile-source/docs/internals.md) 的
+「这一族构建包的编译口径」，
 样式表隔离那一条安装前提住在用它的那一层，见 `themes/theme-viewer/src/prerequisites.mts`）。
 覆盖率红线因此是 `src/` 那五份 + `lib/` 那十二份
 （`vitest.config.mts` 的 `coverage.include`），`theme/` 与 `components/` 那两层只有开页面才看得见，

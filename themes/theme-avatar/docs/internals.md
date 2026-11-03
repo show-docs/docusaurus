@@ -61,7 +61,8 @@
 | `enableHostname` / `userApi` / 两条菜单地址 | 缺省是空串，空串 = 关闭                  | 一个可安装的包不该带着别的工程的域名：不写就是不启用，而不是指向一个不存在的服务                                                                                       |
 
 `@theme-init/ColorModeToggle` 用的是官方别名：仓库里只有本层提供这一格，没有第二层覆盖，所以
-不走链（链式覆盖才走 `@theme-prev`）。规则与判据在仓库根 README 的「基础设施包」一节。
+不走链（链式覆盖才走 `@theme-prev`）。规则与判据在
+[解析器包的维护者文档](/plugin-prev-layer-resolver/docs/internals) 的「基础设施链的规矩」一节。
 
 `ahooks` 这一条依赖是本层要用的：`useRequest` 给的是防抖、节流与浏览器端那份请求缓存，本层只是
 用它，不是重写它。

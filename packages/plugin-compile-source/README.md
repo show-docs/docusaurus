@@ -57,5 +57,5 @@ export default {
 
 ## 相关文档
 
-- [`docs/internals.md`](./docs/internals.md)：认领范围为什么是 scope、为什么不重复官方那条。
-- 仓库根 README 的「构建包的编译口径」：`build:core` 编什么、主题层与组件为什么不进那份编译。
+- [`docs/internals.md`](./docs/internals.md)：认领范围为什么是 scope、为什么不重复官方那条；
+  同一份文件还收着**这一族构建包的编译口径**（`build:core` 编什么、主题层与组件为什么不进那份编译）。

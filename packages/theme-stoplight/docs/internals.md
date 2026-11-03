@@ -17,7 +17,9 @@
 | `tsconfig.build.json`                | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                                                      |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
-本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
+本包就不编译第二遍；口径的产地在
+[plugin-compile-source 的维护者文档](../../plugin-compile-source/docs/internals.md) 的
+「这一族构建包的编译口径」。
 
 **外层那一格与跨 iframe 的那一套都不在本包**：套壳、那条通用框内路由、四条消息的形状、来源校验、
 两侧的监听全在 `@show-docs/docusaurus-theme-component-page`（`components/component-frame.tsx` 与

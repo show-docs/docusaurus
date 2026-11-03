@@ -78,7 +78,8 @@
       "entry": ["src/index.mts!"],
     },
     "packages/plugin-prev-layer-resolver": {
-      // 三条出口现在都指回 `src/*.mts`（口径见仓库根 README「构建包的编译口径」），入口由 manifest
+      // 三条出口现在都指回 `src/*.mts`（口径见
+      // `packages/plugin-compile-source/docs/internals.md` 的「这一族构建包的编译口径」），入口由 manifest
       // 自己给出，这里不需要点名任何源码文件 —— 这块的存在只为压掉上面那条 glob：不压住它，
       // `src/index.mts!` 会被重复点名，knip 报一条「冗余入口」的 Configuration hint。
       "entry": [],

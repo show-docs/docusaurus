@@ -9,7 +9,8 @@ import { describe, expect, it } from 'vitest';
 `@theme-prev/X` 是一条链：它解析到**导入者下方最近一层**提供的 X，代价是按导入者算一次落点。
 只有真有两层在覆盖同一个组件时才需要它。仓库里只有一个层提供 X 时，「下面那层」就是最初那一份，
 `@theme-init/X`（官方别名）指向同一个文件，所以普通包裹用 `@theme-init` 就够；反之，有多个提供者
-却用 `@theme-init`，就会跳过中间那一层。规则书在仓库根 README 的「基础设施包」一节。
+却用 `@theme-init`，就会跳过中间那一层。规则书在
+`packages/plugin-prev-layer-resolver/docs/internals.md` 的「基础设施链的规矩」一节。
 
 这一份读磁盘：把每个 `theme/` 根提供的组件列出来（组件名 = 相对路径去掉扩展名与结尾的
 `/index`，与官方建别名同口径），再看各层源码里的 import。三层判据：
@@ -103,7 +104,7 @@ function violationOf(usage: Usage): string | undefined {
   }
 
   if (usage.providers === 1 && usage.kind === 'prev') {
-    return `${label}：仓库里只有一层提供它，用 \`@theme-init\` 就够（规则见仓库根 README 的「基础设施包」一节）`;
+    return `${label}：仓库里只有一层提供它，用 \`@theme-init\` 就够（规则见 \`packages/plugin-prev-layer-resolver/docs/internals.md\` 的「基础设施链的规矩」一节）`;
   }
 
   return usage.providers > 1 && usage.kind === 'init'

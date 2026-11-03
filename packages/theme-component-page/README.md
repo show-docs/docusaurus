@@ -343,7 +343,8 @@ export default {
 - 本包是基础设施链中间那一格：站点自己写两格是一条用法，别的插件在 `loadContent()` 里
   交回 `{ componentPage }` 是另一条（三条 API 层的框内视图、`theme-iframe` 的 `iframe:`、
   `theme-markmap` 的导图页、`theme-erd` 的关系图页与 `theme-diff` 的差异页就是这么接上的）。
-  四格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
+  四格的规矩写在[解析器包的维护者文档](../plugin-prev-layer-resolver/docs/internals.md) 的
+  「基础设施链的规矩」一节。
 - [示例页](./docs/component-page-demo.md)：这一层命中时长什么样。
 - [跨 iframe 协议](./docs/iframe-protocol.md)：那条通道的四条消息、握手顺序、可见状态与边界。
 - [维护者文档](./docs/internals.md)：两张表怎么变成浏览器读得到的组件、为什么非要生成两份文件、

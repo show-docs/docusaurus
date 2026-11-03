@@ -1,3 +1,16 @@
+// 站点根**刻意不是 ESM 包**：根 `package.json` 不写 `"type": "module"`，配置靠 `.mjs` 扩展名拿 ESM。
+// 这是修 `.docusaurus/` 里 `require.resolveWeak` 报错的**唯一**产地 ——
+// webpack 按「扩展名 + 最近 `package.json` 的 `type`」给模块判型：根上写了 `"type": "module"`，
+// Docusaurus 生成的 `.docusaurus/*.js`（CJS 风格）就会被判成 `javascript/esm`，
+// `require.resolveWeak(...)` 不被改写、原样进产物，而 SSG 注入的 `require` 没有它 ——
+// `pnpm build` 当场死在 `TypeError: require.resolveWeak is not a function`。
+//
+// 这不是本仓库代码的问题（零自定义插件的最小站点 + `"type": "module"` 同样红）。不该为它给 webpack
+// 打判型补丁（那会让所有源码被降级成 `javascript/auto`，`import` 语义变了比原报错更难查），也不该
+// 让源码为它改回 CJS —— 去掉根上的 `"type"` 才是对准根因：`.docusaurus/` 是构建中间产物，模块格式
+// 该由生成它的代码（CJS 风格）决定。所以实际落点只有这一处：配置用 `.mjs`（Docusaurus 按 `.mjs`
+// 加载配置；无 `"type"` 时 `.js` 会被当 CJS）。
+//
 // 文档插件扫哪些文件。放在外面是因为有几处要**同一份**：每份 docs 实例的 `docs` 选项（真正
 // 生效的那一份）与徽标那一层的 `docs`（转述给它的地盘判据）。抄两遍迟早会漂，漂了就是
 // 「徽标挂在一批站点里不存在的页面上」或者「站点里的页面一个徽标都没有」。

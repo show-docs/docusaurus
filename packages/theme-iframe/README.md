@@ -97,8 +97,8 @@ iframe: https://example.com/handbook/
 ## 相关文档
 
 - 本包是基础设施链最上面的一格（依赖下一格 `theme-component-page` 把规则挂上去）；再往下是
-  编译插件 `plugin-compile-source`，最下面是解析器包。四格的规矩写在仓库根 `README.md` 的
-  「基础设施包」一节。
+  编译插件 `plugin-compile-source`，最下面是解析器包。四格的规矩写在
+  [解析器包的维护者文档](../plugin-prev-layer-resolver/docs/internals.md) 的「基础设施链的规矩」一节。
 - [维护者文档](./docs/internals.md)：包内组成、编译方式、这一族与机制层的分工。
 - [跨 iframe 协议](../theme-component-page/docs/iframe-protocol.md)：机制层那条同源框的消息形状
   （本层的跨源框不走它）。

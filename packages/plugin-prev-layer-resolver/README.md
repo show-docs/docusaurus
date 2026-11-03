@@ -80,7 +80,7 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 **没有第二层覆盖的组件别走链**：仓库里只有一个层提供 X 时，那个层用官方别名
 `@theme-init/X`（最初那一份）就够 —— 它解析到的就是同一个文件，还少一次按导入者算落点；
 有两个以上提供者才用 `@theme-prev/X`（用 `@theme-init` 会跳过下面那几层）。判据与例外写在
-仓库根 `README.md` 的「基础设施包」一节，`test/specifier-usage.test.mts` 读磁盘钉着。
+[维护者文档](./docs/internals.md) 的「基础设施链的规矩」一节，`test/specifier-usage.test.mts` 读磁盘钉着。
 
 ### 层栈里没人提供该组件时
 
@@ -151,8 +151,8 @@ export default function myTheme(context, options) {
 官方加载插件入口与配置那份 jiti（`@docusaurus/utils/lib/moduleUtils.js` 的 `loadFreshModule`）—— 站点自己
 拿 plain `import()` 去引一把子路径不在这条承诺里：文件真落在 `node_modules` 里时，Node 有
 `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` 这一格限制。`.` 那条的 `default` 仍是 `dist/index.mjs` ——
-站点把本包注册成插件时拿到的还是产物，改完源码照旧要 `pnpm build:core`。口径与代价记在仓库根
-README 的「构建包的编译口径」。
+站点把本包注册成插件时拿到的还是产物，改完源码照旧要 `pnpm build:core`。口径与代价记在
+[维护者文档](./docs/internals.md) 的「配置期跨包的出口」一节。
 
 ## 「这一层只能有一份实例」那条检查（同一个出口）
 
@@ -326,5 +326,5 @@ export default function myTheme(context, options) {
 
 - [维护者文档](./docs/internals.md)：机制为什么这样设计、输入怎么校验、层归属怎么判、内部契约与实测记录。
 - 本包是基础设施链最下面的一格：上面依次是 `plugin-compile-source`、`theme-component-page`
-  与 `theme-iframe`。四格的规矩写在仓库根 `README.md` 的「基础设施包」一节。
-- `仓库根 README`：本包在仓库里的位置、构建口径与目录结构。
+  与 `theme-iframe`。四格的规矩写在[维护者文档](./docs/internals.md) 的「基础设施链的规矩」一节。
+- `仓库根 README`：本包在仓库里的位置、分包清单与目录结构。
