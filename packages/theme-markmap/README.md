@@ -53,7 +53,7 @@ markmap: true
 
 ## 层栈
 
-本层不再提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `markmap` 条目（判法 `options`，组件指回
+本层不提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `markmap` 条目（判法 `options`，组件指回
 `@theme/MarkmapPage`），由 theme-component-page 在最外那一格命中后把整页换掉。`MarkmapPage`
 自己也不拼外壳 —— 它向官方要 `DocItem`（`@theme-init/DocItem`；仓库里只有 component-page 这
 一层提供 `DocItem`，没有要串的链），把导图摆在它前面，正文一格都不动；命不中时那一层等于透明，
@@ -85,8 +85,8 @@ markmap: true
 - 只处理 `.md` 文件，`.mdx` 不触发。
 - 导图在浏览器端渲染，静态 HTML 里没有导图内容，对搜索引擎不可见。
 - frontmatter 必须是文件开头的 YAML 块；写在正文里的 `markmap:` 不会生效。
-- 必须同时注册 theme-component-page：本层交出的那一页由它判清单后挂上（缺了它，
-  `loadContent()` 当场点名，不会等到页面一片空白才被发现）。它还要写在本层之后，
+- 必须同时注册 theme-component-page：本层交出的那一页由它判清单后挂上（缺了它，交回的那一列没有
+  判表的人，这一页退回普通文档页 —— 配置期不查，没有人当场点名）。它还要写在本层之后，
   否则判不到这一页。
 - 一页只挂一个整页组件：同一页既写 `markmap:` 又写 `iframe:`（或别的清单键）时，
   按清单顺序只用排在前面那条，导图不一定赢。

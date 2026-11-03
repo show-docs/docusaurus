@@ -61,7 +61,7 @@ import DocCardList from '@theme/DocCardList';
 
 - 链式覆盖方案（[docusaurus-plugin-prev-layer-resolver](./plugin-prev-layer-resolver/README.md)）—— 落地实现：`@theme-prev/X` 系列 specifier；实现细节在它的[维护者文档](./plugin-prev-layer-resolver/docs/internals.md)。
 - 编译这一族未编译 TS 源码那一条规则（[docusaurus-plugin-compile-source](./plugin-compile-source/README.md)）—— 官方那条 babel 规则为什么漏掉 `node_modules`、这一条按 `@show-docs` 这个 scope 认领哪些文件；实现细节在它的[维护者文档](./plugin-compile-source/docs/internals.md)。
-- 各主题包的行为与约束就在上面那一排卡片里。`tools/theme-{a,b,c}` 那三层假主题不占一格：它们只用来钉这条层栈，没有面向使用者的文档，说明在仓库里的 `tools/README.md`。`scalar`、`redoc` 与 `stoplight` 那三条共用的同源框（`/__component-frame` 那条路由、iframe 地址与两份文档之间那几条消息）住在 [theme-component-page](./theme-component-page/README.md) 的 `lib/`，口径在它的[跨 iframe 协议](./theme-component-page/docs/iframe-protocol.md)；判键、替换 `DocItem` 与挂那个通用 `<iframe>` 也在这一层（`theme/DocItem` + `components/component-frame.tsx`），三条 API 层只交自己的组件与规则、各自不再有 `DocItem`，也都不依赖 [theme-iframe](./theme-iframe/README.md) —— 那个包收缩成「嵌外部站点」一件事，只交 `iframe:` 这一把键与它自己的 `@theme/ExternalFrame`。
+- 各主题包的行为与约束就在上面那一排卡片里。`tools/theme-{a,b,c}` 那三层假主题不占一格：它们只用来钉这条层栈，没有面向使用者的文档，说明在仓库里的 `tools/README.md`。`scalar`、`redoc` 与 `stoplight` 那三条共用的同源框（`/__component-frame` 那条路由、iframe 地址与两份文档之间那几条消息）住在 [theme-component-page](./theme-component-page/README.md) 的 `lib/`，口径在它的[跨 iframe 协议](./theme-component-page/docs/iframe-protocol.md)；判键、替换 `DocItem` 与挂那个通用 `<iframe>` 也在这一层（`theme/DocItem` + `components/component-frame.tsx`），三条 API 层只交自己的组件与规则、各自不交 `DocItem`，也都不依赖 [theme-iframe](./theme-iframe/README.md) —— 那个包只做「嵌外部站点」一件事，交 `iframe:` 这一把键与它自己的 `@theme/ExternalFrame`。
 
 ## 命令
 

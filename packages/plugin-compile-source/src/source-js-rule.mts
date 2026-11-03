@@ -25,9 +25,7 @@
   它们由 Node 自己带类型擦除加载（配置期那几份），不进浏览器 bundle。
 */
 
-import type { LoggerLike } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
-import { resolveFromCore } from '@show-docs/docusaurus-plugin-prev-layer-resolver/resolve-from-core';
-
+import { getCustomBabelConfigFilePath } from '@docusaurus/babel';
 import type { Plugin } from '@docusaurus/types';
 
 /** `.ts` / `.tsx` */
@@ -99,13 +97,6 @@ export function showDocsSourceRule(
   };
 }
 
-/** 官方 `@docusaurus/babel` 导出里我们唯一用到的那个函数。 */
-type BabelModule = {
-  getCustomBabelConfigFilePath?: (
-    siteDir: string,
-  ) => Promise<string | undefined>;
-};
-
 /**
 站点那份自定义 babel 配置文件的绝对路径（没有则 `undefined`），**取官方同一个产地**：
 `@docusaurus/babel` 的 `getCustomBabelConfigFilePath`。
@@ -116,26 +107,19 @@ type BabelModule = {
 于是「站点自己的源码」按站点的 `babel.config.js` 编、「这一族随包发布的源码」按默认配置编
 —— 同一份代码两套编译，而差异只体现在产物里。
 
-定位不到 `@docusaurus/babel`（core 结构变了 / 依赖被裁剪）时退回 `undefined` = 没有这一格的
-行为，但必须**告警**：静默退回会让「站点配了 babel.config.js 却没生效」看起来像配置写错了。
+这一跳本包自己引得到：`@docusaurus/babel` 是正式发布的包，`exports` 里 `"."` 带着 `types`，
+函数也从顶层导出（`lib/index.d.ts` 就两行 re-export）。它只是 core 的依赖，但从**本包**的解析
+上下文引与从 core 的位置引，拿到的是同一个答案 —— 那个函数是 `path.join(siteDir,
+BABEL_CONFIG_FILE_NAME)` 加一次存在性检查，纯按 `siteDir` 算，不读任何进程级状态。所以过去那一格
+「借解析器包从 core 的位置 require」（`./resolve-from-core`）没有留下来的理由：本包不该为了拿一个
+公开 API 而依赖另一件机制（「谁编译」与「链式覆盖」是两件事，见 `README.md`）。
 
-`@docusaurus/babel` 是 core 的依赖、被 pnpm 隔离进 `.pnpm/`，从站点根解析恒为
-`MODULE_NOT_FOUND`，所以这一跳借解析器包那一格出口（`./resolve-from-core`）从 **core 的位置**
-require 它 —— 「怎么定位 core」因此仍然只有一份判据，在解析器包的 `src/layers.mts`。
+装不到 `@docusaurus/babel` 时红在配置加载那一步（`ERR_MODULE_NOT_FOUND`）—— 这一格归依赖清单，
+不在代码里兜：过去那种「取不到就 `logger.warn` 后退回默认 babel 配置」的静默臂会让「站点配了
+`babel.config.js` 却没生效」看起来像配置写错了。
 */
-export async function siteBabelConfigPath(
+export function siteBabelConfigPath(
   siteDir: string,
-  logger: LoggerLike,
 ): Promise<string | undefined> {
-  const babel = resolveFromCore<BabelModule>(siteDir, '@docusaurus/babel');
-  const getFilePath = babel?.getCustomBabelConfigFilePath;
-  if (typeof getFilePath !== 'function') {
-    logger.warn?.(
-      '[plugin-compile-source] 拿不到 @docusaurus/babel 的 getCustomBabelConfigFilePath，' +
-        '那条 TS 源码规则将用默认 babel 配置编译；若站点有自己的 babel.config.js，' +
-        '这一族的源码会和站点源码走两套编译。',
-    );
-    return undefined;
-  }
-  return getFilePath(siteDir);
+  return getCustomBabelConfigFilePath(siteDir);
 }

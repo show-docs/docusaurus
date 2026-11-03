@@ -2,9 +2,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
-import type { LoadContext, Plugin } from '@docusaurus/types';
+import type { Plugin } from '@docusaurus/types';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
@@ -27,19 +26,14 @@ const NAMESPACE = '@show-docs/docusaurus-theme-iframe';
 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus 项目会用自己的
 babel 编译它们。本包要编译的只有这一份入口。「谁来编」归
 `@show-docs/docusaurus-plugin-compile-source`，本包不自己补 babel 规则。
+
+本层交出的那一格要由 component-page 判表才挂得上来 —— 那一层得装进站点**并注册成插件**，
+缺了它框安静地不出现。本层**不查**这一条：站点那份 `plugins` 清单自己负责。
 */
-export default function theme(context: LoadContext): Plugin {
+export default function theme(): Plugin {
   return {
     name: NAMESPACE,
-    async loadContent() {
-      // 本层交出的那一格要由 component-page 判表才挂得上来，判据住在
-      // `@show-docs/docusaurus-theme-component-page/prerequisites`，与各视图层引的是同一份。
-      // 缺它：那几页没人判，框安静地不出现，症状离原因隔着一整个构建。
-      // 「谁来编本包那几份未编译的 `.tsx` / `.ts`」不在这一格：那条 babel 规则归
-      // `@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies` 里点名它，
-      // 配置期不查。
-      await assertThemePrerequisites(context, NAMESPACE);
-
+    loadContent() {
       return {
         componentPage: {
           components: [

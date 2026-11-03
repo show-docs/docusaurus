@@ -17,15 +17,15 @@
 的 `theme.customCss` 点名收进样式表管线）；里面那三层各自带着自己的样式表，
 见 [`tools/README.md`](../../tools/README.md)。
 
-## 这一层为什么不再管侧边栏徽标
+## 这一层为什么不管侧边栏徽标
 
 侧边栏那枚「新建 / 更新」徽标（**git** 判：只提交过一次且最近动过 = 新建，最近动过 = 更新过）
-归 `themes/theme-git-badge` 那一层管了 —— 判据、载体、画法、样式全在包里。
+不归这一层 —— 判据、载体、画法、样式全在 `themes/theme-git-badge` 包里。
 
-**为什么不能留在站点层**：官方别名 `@theme/DocSidebarItem/Link` 是**全局赢家**，主题路径按
+**为什么不能放在站点层**：官方别名 `@theme/DocSidebarItem/Link` 是**全局赢家**，主题路径按
 「fallback → preset 主题 → 用户插件 → 站点 `src/theme`」枚举，**后者覆盖前者**。站点层若提供
 这一格，它就压过插件层 —— 徽标那一层再好看也轮不到它。所以两格只能二选一，本仓选了「让包里
-那一层接管」，站点层不再 swizzle `DocSidebarItem/*`。
+那一层接管」，站点层不 swizzle `DocSidebarItem/*`。
 
 理由与证据（载体是哪条通道、为什么换 `label` 而不是另插一个元素、层栈顺序怎么定的）在
 [`themes/theme-git-badge/docs/internals.md`](../../themes/theme-git-badge/docs/internals.md)。

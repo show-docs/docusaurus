@@ -3,9 +3,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
-import type { LoadContext, Plugin } from '@docusaurus/types';
+import type { Plugin } from '@docusaurus/types';
 
 const require = createRequire(import.meta.url);
 
@@ -18,8 +17,8 @@ const NAMESPACE = '@show-docs/docusaurus-theme-markmap';
 /**
 本层的入口：`getThemePath()` 挂本包那一层（里面只有 `MarkmapPage` 与它依赖的导图组件），
 `loadContent()` 交出**一份组件与一条规则**（`markmap` 那一把键、`@theme/MarkmapPage`），
-判表与挂载都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：
-那一层；缺了它，页面看着正常但导图不出现。
+判表与挂载都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：那一层要
+装进站点并注册成插件，缺了它页面看着正常但导图不出现 —— 本层**不查**这一条，那一份清单站点自己负责。
 
 `markmap` 那把键的判法是 `options`：写 `true` 或一个选项对象都算命中 —— 后者既是开关，
 也是交给导图组件的那份选项；写 `false` / 空值不算。命中后整页交给 `@theme/MarkmapPage`
@@ -28,17 +27,10 @@ const NAMESPACE = '@show-docs/docusaurus-theme-markmap';
 组件写的是 `@theme/MarkmapPage` 而不是硬路径：站点在 `src/theme/MarkmapPage` 放一份就覆写掉它，
 与站点自己那一列同一条口径。
 */
-export default function theme(context: LoadContext): Plugin {
+export default function theme(): Plugin {
   return {
     name: NAMESPACE,
-    async loadContent() {
-      // 交出的那一页要由 component-page 判表才挂得上来；缺了它那一页安静地不出现，
-      // 症状离原因隔着一整个构建，所以在配置期就点名。
-      // 本包那几份未编译的 `.tsx` / `.ts` 不在这一格：编译它们那条
-      // babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies`
-      // 里点名它，配置期不查。
-      await assertThemePrerequisites(context, NAMESPACE);
-
+    loadContent() {
       return {
         componentPage: {
           components: [{ id: 'markmap', component: '@theme/MarkmapPage' }],

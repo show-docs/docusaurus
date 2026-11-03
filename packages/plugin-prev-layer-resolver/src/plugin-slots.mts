@@ -50,7 +50,8 @@ export function pluginSlotName(slot: unknown): string | undefined {
 /**
 一个槽位的名格是不是这条层：裸包名相等，或**该包目录内任何入口**的绝对路径
 （`docusaurus-theme-x` 与去前缀的 `theme-x` 两种目录段都认 —— 按包目录认，不钉具体
-入口文件名；钉文件名会把「产物改名」变成静默失效）。各层的前置检查共用这一条。
+入口文件名；钉文件名会把「产物改名」变成静默失效）。本包那两句判据 —— 这一格注册了没有、
+注册成了几份 —— 共用这一条。
 */
 export function slotIsNamespace(name: string, namespace: string): boolean {
   if (name === namespace) {

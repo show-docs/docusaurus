@@ -2,9 +2,6 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { LoggerLike } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
-import { assertSinglePluginInstance } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
-
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import type {
@@ -54,9 +51,9 @@ export type ComponentPageThemeOptions = {
   rules?: readonly (string | ComponentPageRuleOption)[];
   /**
   注入 logger（测试用）；缺省用 `console`。官方 `LoadContext` 里没有 logger 这一格，
-  解析器插件也是同一口径（`PrevLayerResolverOptions.logger`）。
+  这一族只用它报「站点压住了某个包交出的那一条」那种消息。
   */
-  logger?: LoggerLike;
+  logger?: { warn?: (...args: unknown[]) => void };
 };
 
 /**
@@ -94,22 +91,19 @@ function assertNoLegacyPages(options: ComponentPageThemeOptions): void {
 （官方 `allContent` 把各插件的 content 汇到一起，本层在 `allContentLoaded` 里读；约定、
 边界与合成算法都在 `./contribute.mts`）。
 
-本层在 `loadContent()` 里只查**自己**那一条：只能有一份实例（判据住在解析器包的
-`registered-plugins`，先读站点写的那两份清单，读不到再问 preset）。另外两件事不在这一格：
-`theme/DocItem` 里那句 `@theme-init/DocItem` 用的是官方那把别名（`@docusaurus/core` 的
-`webpack/aliases`），本层不需要解析器插件在场；本包随包发出的那几份 `.tsx` / `.ts` 源码
-（`theme/DocItem`、`components/`、`lib/`）谁来编归
+本层在配置期**一条前提都不查**。它自己的注册状态、以及「交规则的层有没有装上本层」那两条过去都
+住在入口的 `loadContent()` 里，判据取自解析器包那份插件清单；本层要装的依赖只有 Docusaurus
+官方那一样，所以那两条一起删掉了。今天没人替站点兜着这两件事：**本层装进站点、且只注册一份**
+是站点配置自己的责任。两份实例不红，它们各写一遍同一份产物、各注册一次同一个
+`/__component-frame/`（官方对重复路由只按 `onDuplicateRoutes` 报一句），谁说了算只看插件顺序；
+没装本层也不红，各层交出的那一列没有判表的人，安静地不挂上任何一页。
+
+另外两件事本来就不在这一格：`theme/DocItem` 里那句 `@theme-init/DocItem` 用的是官方那把别名
+（`@docusaurus/core` 的 `webpack/aliases`），本层不需要解析器插件在场；本包随包发出的那几份
+`.tsx` / `.ts` 源码（`theme/DocItem`、`components/`、`lib/`）谁来编归
 `@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies` 里点名它，配置期不查。
 真写 `@theme-prev/*` 的那几层（站点的 `src/theme` 与 `tools/theme-*`）要查解析器在场，那是它们
 自己的事 —— 这一族各层的层里都不写它。
-
-这一条判的是**只能有一份实例**：那张表与框内那条路由都由本层一处
-生成，两份实例会各写一遍同一份产物、各注册一次同一个 `/__component-frame/`（官方对重复路由只按
-`onDuplicateRoutes` 报一句），谁说了算只看插件顺序。官方那边唯一拦得住的是「同一插件挂两次又不给
-id」，给了不同 id 的两份在官方合法、在这一层不合法。
-
-交规则的层要查的那一条住在 `./prerequisites.mts`（包出口 `./prerequisites`）：本层自己的前提由
-入口在 `loadContent()` 里直接查，不引自己那份。
 
 主题层、`lib/` 与 `types/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus 项目会用自己的
 babel 编译它们。「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`，本包不自己补 babel 规则。
@@ -127,16 +121,6 @@ export default function theme(
 
   return {
     name: NAMESPACE,
-    async loadContent() {
-      // 两份实例在官方那里是合法的（给了不同 id 就行），在本层不是：见文件头那一段
-      await assertSinglePluginInstance(
-        context,
-        NAMESPACE,
-        '那张表与框内那条路由都由本层一处生成 —— 两份实例各写一遍同一份产物、各注册一次' +
-          '同一个 `/__component-frame/`，谁说了算只看插件顺序。要交的组件与规则都写进同一份实例的' +
-          '`components` / `rules` 就行。',
-      );
-    },
     getThemePath() {
       return resolve(thisDir, '../theme');
     },

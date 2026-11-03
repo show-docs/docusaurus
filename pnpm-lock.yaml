@@ -172,6 +172,9 @@ settings:
 
 catalogs:
   default:
+    '@docusaurus/babel':
+      specifier: ^3.9.2
+      version: 3.10.2
     '@docusaurus/core':
       specifier: ^3.9.2
       version: 3.10.2
@@ -197,6 +200,7 @@ overrides:
 pnpmfileChecksum: sha256-SLcNPKCc/uxkkGN9gRhySgpUAuULJIsqVEbSTbagx4M=
 
 patchedDependencies:
+  '@stoplight/elements@9.0.29': 4fcf0ad037cddefde49827c6d5bb3138a912f26465b1c4a9efb681eb69b3ad30
   react-dom@18.3.1: 7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5
 
 importers:
@@ -357,15 +361,15 @@ importers:
 
   packages/plugin-compile-source:
     dependencies:
+      '@docusaurus/babel':
+        specifier: 'catalog:'
+        version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
       '@docusaurus/core':
         specifier: 'catalog:'
         version: 3.10.2(d293d914ee6820461757ceae56c79ab5)
       '@docusaurus/types':
         specifier: 'catalog:'
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
 
   packages/plugin-lazy-compilation:
     dependencies:
@@ -402,9 +406,6 @@ importers:
       '@show-docs/docusaurus-plugin-compile-source':
         specifier: workspace:^
         version: link:../plugin-compile-source
-      '@show-docs/docusaurus-plugin-prev-layer-resolver':
-        specifier: workspace:^
-        version: link:../plugin-prev-layer-resolver
       react:
         specifier: 'catalog:'
         version: 18.3.1
@@ -575,7 +576,7 @@ importers:
         version: link:../theme-component-page
       '@stoplight/elements':
         specifier: ^9.0.29
-        version: 9.0.29(@babel/core@7.29.7(supports-color@10.2.2))(@babel/template@8.0.0)(@react-spectrum/provider@3.11.1(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)
+        version: 9.0.29(patch_hash=4fcf0ad037cddefde49827c6d5bb3138a912f26465b1c4a9efb681eb69b3ad30)(@babel/core@7.29.7(supports-color@10.2.2))(@babel/template@8.0.0)(@react-spectrum/provider@3.11.1(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -15560,7 +15561,7 @@ snapshots:
       - wonka
       - xstate
 
-  '@stoplight/elements@9.0.29(@babel/core@7.29.7(supports-color@10.2.2))(@babel/template@8.0.0)(@react-spectrum/provider@3.11.1(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)':
+  '@stoplight/elements@9.0.29(patch_hash=4fcf0ad037cddefde49827c6d5bb3138a912f26465b1c4a9efb681eb69b3ad30)(@babel/core@7.29.7(supports-color@10.2.2))(@babel/template@8.0.0)(@react-spectrum/provider@3.11.1(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)':
     dependencies:
       '@scarf/scarf': 1.4.0
       '@stoplight/elements-core': 9.0.29(@babel/core@7.29.7(supports-color@10.2.2))(@babel/template@8.0.0)(@react-spectrum/provider@3.11.1(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)

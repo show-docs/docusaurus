@@ -4,8 +4,6 @@
 哪些做法试过不行。使用者要看的（怎么触发、能分享的地址长什么样、有哪些局限）在
 [`README.md`](../README.md)，这里不重复。
 
-源码注释里那些「理由见包 README『…』一节」的指针，落在本节这些章节上的已经改指这份文件。
-
 ## 组成
 
 | 文件                                 | 编译吗              | 职责                                                                                                                                                                                                                                                                                                        |
@@ -14,7 +12,7 @@
 | `theme/StoplightView/index.tsx`      | ❌ 站点编译         | **框内**那一格里 Elements 那一份：挑地址、把亮暗写成 `data-theme`、按需取渲染接线（`LazyView`）、报回 `#` 段；「这一页归谁」不在这里判                                                                                                                                                                      |
 | `components/stoplight-spec.ts`       | ❌ 站点编译         | `oas3:` / `aas3:` 两把键的读法与先后（只本层认识它们），以及两把都写时那句开发期说明                                                                                                                                                                                                                        |
 | `components/stoplight-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `API`（只收地址那一种入参），外面套 `HashRouter`；`LocationMirror` 把路由变化报给外层；那条 `<link>` 挂 Elements 的样式表                                                                                                                                                                      |
-| `components/stoplight-color-mode.ts` | ❌ 站点编译         | 只有一行：框内那份文档 `<html>` 上代表亮暗的那条属性名。单独一份是为了让框内那一格拿得到它却碰不到 Elements（见「首屏不下载渲染器」）                                                                                                                                                                       |
+| `components/stoplight-color-mode.ts` | ❌ 站点编译         | 就亮暗那一格：框内那份文档 `<html>` 上代表亮暗的那条属性名，加上写它的那一句。单独一份是为了让框内那一格拿得到它却碰不到 Elements（见「首屏不下载渲染器」）                                                                                                                                                 |
 | `components/stoplight-ui.css`        | ❌ 站点编译         | 生效在框内那一页：给 `.stoplight-root` 定高、把站点主题加在 Elements 子树上的几处默认样式还原、收掉署名与那颗发送按钮、滚动条配色沿用站点                                                                                                                                                                   |
 | `tsconfig.build.json`                | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                                                                                      |
 
@@ -41,9 +39,9 @@
 | 亮暗模式          | 站点的 `<html data-theme>`，开关在这                                         | 自己 `<html>` 上的 `data-theme`，值由外层送来                        |
 | 要渲染哪份文档    | 不决定：那一页的 frontmatter 整份送进框内                                    | 由 `components/stoplight-spec.ts` 从 frontmatter 里挑                |
 
-## 上一版的做法（prefixwrap）为什么换掉
+## 为什么是 iframe，不是构建期圈定（prefixwrap）
 
-上一版是 Elements 直接渲染在文档页里，靠构建期把它的样式逐条圈进 `.stoplight-root`
+Elements 直接渲染在文档页里时，样式得靠构建期逐条圈进 `.stoplight-root`
 （`configurePostCss()` + `postcss-prefixwrap`）。圈定能收的只有「一条规则打到哪些元素」这一层，
 收不到的有几处：`body` 与 `:root` 上那批变量、它自己的路由（换一条接口就改整份文档的地址）、
 `@stoplight/mosaic` 往 localStorage 写的那份存档、它按整份文档用的 `document.querySelector`。
@@ -57,7 +55,7 @@
 
 `/__component-frame/` 是 `theme-component-page` 用 `actions.addRoute()` 注册的一条插件路由
 （`exact: true`，组件 `@theme/ComponentFramePage`），**三条 `render: 'iframe'` 的层共用这一条**：
-本包不注册路由，也没有属于自己的那份框内页面（旧的 `/stoplight-view` 随组件自注册那一步一起删了）。
+本包不注册路由，也没有只属于自己的那份框内页面。
 框里渲染哪一个组件由外层那条 `init` 消息里的**登记名**决定。
 
 地址里**不带查询参数**：要渲染哪份文档写在送进去的那份 frontmatter 里，所以这个 `src` 只跟站点走，
@@ -90,26 +88,23 @@ Docusaurus 把每一个 css 导入都并进同一个 `styles` chunk（`splitChun
 同时命中要怎么躲、`?url` 为什么用不了，都记在那份文件头）。本包只交两格：文件正则与探测用的假路径。
 
 假路径那一条不是装饰，它是这条防线的**自检**：官方哪天把带 css-loader 的那条规则换成别的形状（`test`
-不再是正则、或规则搬进 `oneOf`），探针就一条都命中不了。那种失配过去只是静默 —— 产物里少了独立那份
-css、样式漏回全站，要等 e2e 才红，而红的症状是「外层文档里不该有 `.sl-`」这种间接话。现在
-`isolateRendererCss()` 零命中当场抛（连 `module` 都没有也算零命中），报错点从构建末尾挪到配置期，
-与 `assertThemePrerequisites` 同一口径。
+不再是正则、或规则搬进 `oneOf`），探针就一条都命中不了。这种失配若是静默的 —— 产物里少了独立那份
+css、样式漏回全站，要等 e2e 才红，而红的症状是「外层文档里不该有 `.sl-`」这种间接话 —— 就抓不住根因，
+所以 `isolateRendererCss()` 零命中当场抛（连 `module` 都没有也算零命中），报错点就在配置期，
+与本仓其余配置期那几条判据同一口径。
 
 > 两个坑，都是这一轮踩过或核过的：
 >
 > - **资源规则要 `push` 到末尾，不能 `unshift` 到最前**。webpack 5 里 `rules[0]` 那条 `...`
 >   是占位符（项目内所有规则都排在它**之后**），它自己不去匹配文件 —— 插到最前面，资源规则就
->   被它挡在门外。这件事是 `theme-stoplight` 原来自带的那份 `unshift` 实现的遗留问题：它一直没生效，
->   只是因为 Elements 那份 css 早就没并进全站那一份（实测 `styles.<hash>.css` 里 `.sl-` 0 处），
->   症状被别的原因遮住了。
+>   被它挡在门外，而且一声不响：产物里只是少了独立那份 css。
 > - **改了 `configureWebpack()` 要 `pnpm clear` 再 `pnpm build`**：webpack 的持久化缓存不认配置
->   函数的改动（同一目录里 `configurePostCss()` 那一版就栽过）。
+>   函数的改动。
 >
 > 还有一条**不是**坑：`asset/resource` 接走文件之后，`<link href={…}>` 那一格要写成
 > `String(namespace)` 或 `require()`，**不能**用默认导入 —— Docusaurus 给 `.css` 配的 `css-loader`
 > 开着 `esModule: false`，那块「模块」没有真正的 default，默认导入能过构建、产物里却是 `undefined`
 > （实测告警 `export 'default' … was not found`，`<link href={undefined}>` 什么也不加载）。
-> `theme-stoplight` 那份 `<link>` 一直是有效的，因为它的 `asset/resource` 从来没命中过。
 
 `styles.min.css` 里没有 `url()`、没有 `@import`、没有 data URI（实测各 0 处），所以不经 css-loader
 也不丢东西 —— 这是这一格能这么拆的前提，Elements 升版若引入 `url()`，得改回 css-loader 那一路。
@@ -125,12 +120,12 @@ css、样式漏回全站，要等 e2e 才红，而红的症状是「外层文档
 
 `theme/StoplightView/index.tsx` 交给 `LazyView` 的也是模块级那一句
 `loadView: () => import('../../components/stoplight-ui.tsx')`，
-本包的 CSS（含那条被 `asset/resource` 单独发出去的 Elements 样式表）因此不再是入口的静态依赖。
+本包的 CSS（含那条被 `asset/resource` 单独发出去的 Elements 样式表）因此不是入口的静态依赖。
 
-上一版没拆出来的原因写在这里当反例：那时 `API` 与 `COLOR_MODE_ATTRIBUTE` 在同一份文件上，
-框内那一格需要后者，一句静态 import 就够 webpack 把这一份模块连同它的静态 `require` 一起并进
-入口 chunk（1.82 MB 的 Elements 主体落在同一个 chunk 里，`import()` 拿到的只是同一个 chunk 里的
-另一个模块）。现在常量搬到 `components/stoplight-color-mode.ts`，那份文件只有一行字符串。
+反例记在这里：`API` 与 `COLOR_MODE_ATTRIBUTE` 不许写在同一份文件上 —— 框内那一格只需要后者，一句
+静态 import 就够 webpack 把这一份模块连同它的静态 `require` 一起并进入口 chunk（1.82 MB 的 Elements
+主体落在同一个 chunk 里，`import()` 拿到的只是同一个 chunk 里的另一个模块）。常量与写它的
+`applyStoplightColorMode()` 因此单独住在 `components/stoplight-color-mode.ts`，那份文件不碰 Elements。
 
 实测（`pnpm build` 之后用 Playwright 在本地静态服务上量整页的传输字节 —— 外层与框内两份文档合起来算，
 响应头的 `content-length` 累加，视口 1440×720）：
@@ -146,8 +141,7 @@ css、样式漏回全站，要等 e2e 才红，而红的症状是「外层文档
 
 ## 浏览器 bundle 要补的那几格 Node 侧依赖
 
-这一格服务的是**框内那份文档**（Elements 整个跑在那一份文档里，站点的文档页只嵌一个框，
-不再加载它），补的还是同一批东西。三种形状：
+这一格服务的是**框内那份文档**（Elements 整个跑在那一份文档里，站点的文档页只嵌一个框，不加载它），补的还是同一批东西。三种形状：
 
 **① `require('url')` / `require('buffer')`** —— `@stoplight/json-schema-ref-parser` 里
 `require('url')`、`@stoplight/yaml-ast-parser` 里 `require('buffer')`。webpack 5 起不再自动补
@@ -170,8 +164,17 @@ Node 核心模块，站点构建会直接 `Module not found`。客户端那一�
 > —— 取到 `undefined`，那几个分支走非浏览器一侧。示例页用的是站点根绝对路径 `/openapi-stoplight.yaml`，
 > 所以结果一样；要嵌相对路径的 spec，得再把它显式设成 `true`。
 
-**③ `@stoplight/elements` 的类型** —— 它 `exports` 里没有 `types`，那一格由仓库根 `tsconfig.json`
-的 `paths` 补，只影响类型检查，不影响产物。
+**③ `@stoplight/elements` 的类型** —— 它 `exports` 里只写 `require` / `import`，没写 `types`，按
+exports 解析的 TypeScript 因此拿不到它包里那份 `index.d.ts`（TS7016）。补法在**依赖那一侧**：
+`patches/@stoplight__elements@9.0.29.patch` 只往 `.` 那格里加 `"types": "./index.d.ts"` 一行
+（落点与删除条件见 `pnpm-workspace.yaml` 的 `patchedDependencies`）。整个仓库没有
+`compilerOptions.paths`，也不许再为类型加一份。
+`types` 不是 webpack 也不是 Node 的条件名，产物仍取 `index.mjs`，运行时一字不变。
+
+代价：这一格修的是**本仓的解析**，不是那个包发出去的清单。站点从 npm 装
+`@show-docs/docusaurus-theme-stoplight`，自己跑 `tsc`（`moduleResolution` 认 exports 的那几种）时
+同样会撞 TS7016，得自己补 —— 本层不替站点写 `paths`，也不发一份 `declare module` 的 ambient
+替身（那份只会把真实类型换成手抄的形状）。上游补上 `types` 就两头都没这件事。
 
 ## 亮暗模式：配色跟站点的开关走，靠的是两条属性正好同名
 
@@ -215,12 +218,11 @@ Elements 这一版没有给用户看的亮暗切换按钮（`theme-redoc` 那边
 与最大宽度 + `.main-wrapper:has(.component-frame) + .footer` 收页脚），本包**不**重复写那三条。
 iframe 是一个「尺寸由外面决定」的元素，不给它定高，框就只有一点高、里面那份文档的滚动条也没地方长。
 
-页脚那一格以前是本层独有的一条（写在 `stoplight-frame.css` 里、认自己那个类名）：
-框已经占满 navbar 以下那一屏，页脚留在下面只会被推出可视区，显式收掉与「整页交给 Elements」的观感
-一致。站点配上 `themeConfig.footer` 之后实测到那是**这一族共有的**问题 —— `theme-redoc`、
-`theme-scalar` 与 `theme-iframe` 自己那三条页，页脚留在框下面多出一条 238px 的空白（那一页因此
-能滚 238px，滚到的只有页脚），所以那条规则收进了上面那份共用的里，认 `.component-frame`；
-本包不再有只属于自己的外层规则，`stoplight-frame.css` 随之删掉。判据是共用的那一句
+页脚那一格的理由：框已经占满 navbar 以下那一屏，页脚留在下面只会被推出可视区，显式收掉与
+「整页交给 Elements」的观感一致。站点配上 `themeConfig.footer` 之后实测到那是**这一族共有的**问题 ——
+`theme-redoc`、`theme-scalar` 与 `theme-iframe` 自己那三条页，页脚留在框下面多出一条 238px 的空白（那一页因此
+能滚 238px，滚到的只有页脚），所以那条规则在上面那份共用的 `component-frame.css` 里，认
+`.component-frame`；本包不写只属于自己的外层规则，也不许再放第二份页脚声明。判据是共用的那一句
 「这一页没有站点的页脚」（每条命中页各钉一次），反面一句「这一页有站点的页脚」钉在 markmap
 那一页上 —— 缺了反面那句，站点没装配页脚时正面试跑会假绿。
 
@@ -270,13 +272,13 @@ Elements 的 `API` 外面套着它自己的 `withRouter`，那个高阶组件按
   `"react-router-dom": "^6.30.6"` 钉住，它要和 `elements-core` 自己声明的那一条落在同一份产物上
   （pnpm 的扁平安装在这里帮了忙，但它不是保证 —— 判据就是那句「Elements 的详情面板换成那条接口，
   外层地址也跟着换」）。
-- `options` 里那一条 `router: 'hash'` **不再**决定用哪种路由（外面那层 `HashRouter` 才是），它喂
+- `options` 里那一条 `router: 'hash'` **不**决定用哪种路由（外面那层 `HashRouter` 才是），它喂
   的是 Elements 的 `RouterTypeContext`：章节标题那颗锚点链接按这一格决定要不要把 `#id` 接在当前
   路径后面（`hash` 那一支会，见它包里的 `LinkHeading`）。
 - **不传 `basePath`**：命中 `outerRouter` 那一支时它会被拿去做「从当前路径里剥掉前缀」那一步，
   而这一份文档没有前缀可剥，传了只会让侧栏认不出当前那条接口。
 
-有一条老教训跟着换了对象但依然成立：**渲染器认不出当前地址时一个字都不报**，而是把它自己那份
+有一条教训一直成立：**渲染器认不出当前地址时一个字都不报**，而是把它自己那份
 404 摆在正文区 —— 左栏、搜索框、样式全在，页面看着完全正常，中间写着找不到内容。这一页
 `#/operations/createOrder` 那一段是 `operationId` **原样**（大小写不变），与 Redoc 那段全小写的
 形状不同，抄错就成了那种「看着正常其实空了」的失败。
@@ -326,10 +328,9 @@ plugin-compile-source 声明在 `peerDependencies`（各写 `workspace:^`，那�
 - **服务端那一遍两份文档都不渲染东西**：外层那份 html 里只有 iframe 标签本身，框内那份只有那句
   「正在从这一页的文档里取数据…」（那一份数据要靠握手才送进来，SSR 那一遍根本没有），那条指向
   Elements 样式表的 `<link>` 也是客户端起来之后才挂上的。
-- `pnpm build` 现在**不再**冒 `[zustand persist middleware] … 'mosaic-theme' … does not contain a
-'removeItem' method` 那一句：以前是预渲染各包自带的框内页面（旧的 `/stoplight-view`）时求值
-  Elements 模块树里 mosaic 那个 store 在抱怨。那条路由没了、框内那份文档在收到数据之前不渲染任何
-  渲染器，抱怨也就没了。清过 webpack 持久缓存重新构建实测过（`pnpm clear && pnpm build`）：
+- `pnpm build` 不冒 `[zustand persist middleware] … 'mosaic-theme' … does not contain a
+'removeItem' method` 那一句：框内那份文档在收到数据之前不渲染任何渲染器，预渲染那一遍不会去求值
+  Elements 模块树里 mosaic 那个 store。清过 webpack 持久缓存重新构建实测过（`pnpm clear && pnpm build`）：
   整场构建除 `theme-scalar` 那条被 `ignoreWarnings` 按住的之外**一句告警都不冒**。
   `mosaic-theme` 这个键在产物里只由 `@stoplight/elements` 与
   `@stoplight/mosaic` 两个包提到，Redoc 不碰它；本层不读也不写那份存档（「亮暗模式」一节量的是

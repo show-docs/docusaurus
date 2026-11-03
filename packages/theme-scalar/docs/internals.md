@@ -4,7 +4,7 @@
 收掉的那几处各自的判据、各处实测到的数字与取值。使用者要看的（怎么触发、能分享的地址长什么样、
 有哪些局限）在 [`README.md`](../README.md)，这里不重复。
 
-源码注释里那些「理由见包 README『…』一节」的指针，落在本节这些章节上的已经改指这份文件。
+源码注释里那些「理由见包 README『…』一节」的指针，凡落在这些章节上的，指向的都是这份文件。
 
 ## 组成
 
@@ -49,7 +49,7 @@ Scalar 那份组件在自己渲染时会往 `<body>` 上写类名（亮暗那两
 | 本层放的东西    | 一个 `<iframe class="component-frame" title="页面标题">`（机制层的通用套壳） | `ScalarUI` 挂的那一格，根是 Scalar 自己的 `.scalar-app.scalar-api-reference`   |
 | 那一格渲染什么  | 只有框，没有正文外壳                                                         | 按 `init` 消息里的登记名（`scalar`）选出来的 `@theme/ScalarView`               |
 | Scalar 的运行时 | 不加载，一行都没有（`.scalar-app` 0 个）                                     | 全在这里（实测那一份文档里 `.scalar-app` 3 格，布局根只有 1 格）               |
-| 样式表          | 全站那一份 css（**不再含 Scalar 那份**）                                     | 全站那一份 + 一条 `<link>` 指向 Scalar 那份（单独一个产物，实测 277,962 字节） |
+| 样式表          | 全站那一份 css（**不含 Scalar 那份**）                                       | 全站那一份 + 一条 `<link>` 指向 Scalar 那份（单独一个产物，实测 277,962 字节） |
 | 亮暗模式        | 站点的 `<html data-theme>`，开关在这                                         | 自己 `<body>` 上的 `dark-mode` / `light-mode`，值由外层送来                    |
 | 要渲染哪份文档  | 不决定：那一页的 frontmatter 整份送进框内                                    | 由 `components/scalar-spec.ts` 从 frontmatter 里挑                             |
 
@@ -57,7 +57,7 @@ Scalar 那份组件在自己渲染时会往 `<body>` 上写类名（亮暗那两
 
 `/__component-frame/` 是 `theme-component-page` 用 `actions.addRoute()` 注册的一条插件路由
 （`exact: true`，组件 `@theme/ComponentFramePage`），**三条 `render: 'iframe'` 的层共用这一条**：
-本包不注册路由，也没有属于自己的那份框内页面（旧的 `/scalar-view` 随组件自注册那一步一起删了）。
+本包不注册路由，也没有属于自己的那份框内页面。
 框里渲染哪一个组件由外层那条 `init` 消息里的**登记名**决定。
 
 地址里**不带查询参数**：要渲染哪份文档写在送进去的那份 frontmatter 里，所以这个 `src` 只跟站点走，
@@ -76,8 +76,8 @@ Scalar 那一格也就不会挂载。
 
 ## 样式：那份表只在框内那一页
 
-这一节的结论分两段，前一段是本层与 `theme-redoc` 的分野，后一段是它从「全站都在」改成「只有框内有」
-的那一步。
+这一节的结论分两段，前一段是本层与 `theme-redoc` 的分野，后一段是那份样式表怎么做到
+「不进全站那一份、只在框内挂」。
 
 **第一段：Scalar 出厂自带作用域前缀，改不到站点的任何一处。**它那份 Tailwind 编译产物里 1330 条规则
 的选择器都带 `.scalar-app:not(#\#):not(#\#):not(#\#):not(#\#)` 前缀（`important: '.scalar-app'`
@@ -93,8 +93,8 @@ Scalar 那一格也就不会挂载。
 `*, :before, :after` 注册的自定义属性默认值，没有哪条站点规则读 `--tw-*`。
 
 **第二段：前缀让样式打不到站点，但拦不住它被每页下载。**这条 import 是静态的，webpack 会把它并进
-全站那一份 `assets/css/styles.<hash>.css`，于是每一页都带着它 —— 曾经净增 359 KB（同一份产物的两次
-构建对照：去掉那一行 82,841 字节，引上 441,957 字节）。现在这一份由 `src/index.mts` 在构建期摘成独立
+全站那一份 `assets/css/styles.<hash>.css`，于是每一页都带着它、每页净多 359 KB（同一份产物的两次
+构建对照：去掉那一行 82,841 字节，引上 441,957 字节）。这一份由 `src/index.mts` 在构建期摘成独立
 产物，与 `theme-stoplight` 用同一份实现
 （`@show-docs/docusaurus-theme-component-page/lib/isolate-renderer-css.ts`，两处踩过的坑记在
 `theme-stoplight` 的维护者文档「样式」一节），只由框内那份文档挂一条 `<link>`。
@@ -110,15 +110,9 @@ Scalar 那一格也就不会挂载。
 | `build/assets/css/styles.<hash>.css` | 113,707 | 站点那一份：`.scalar-app` 只剩 1 处，是本包 `scalar-ui.css` 自己写的那条 |
 | `build/assets/css/style.<hash>.css`  | 277,962 | Scalar 那一份：只在框内那份文档里被 `<link>`                             |
 
-先前记的 108K / 236K 是**换压缩器之前**量的 —— 站点那格现在用 lightningcss（见仓库根
-`docusaurus.config.mjs` 那条），厂商那份表又从 1.75.0 升到 1.76.0，两处都动过，数字是重新量的。
-站点那一份里 `.scalar-app` 从 3 处掉到 1 处：被摘掉的那条规则本身带两个选择器
+站点那一份里 `.scalar-app` 只剩 1 处：摘掉的那条厂商规则本身带两个选择器
 （`.generate-sdk-button` 与 `.selected-client-action`），每个都写一遍 `.scalar-app.scalar-api-reference`
 （1.76.0 起那颗由厂商自己收，见「收掉的几处」一节）。
-
-先前那份表并进全站那一份时，构建里会跟着几条 Css Minimizer 的告警（`postcss-calc` 算不动
-`(50 - l) * infinity`、`@container` 那段嵌套被 clean-css 吃掉一条规则）；换压缩器之后都不冒了，
-来龙去脉记在「随这一层多出来的构建告警」一节与仓库根 `docusaurus.config.mjs` 的那条注释里。
 
 因为规则带着 `:not(#\#)` 那四段 ID 级权重，**本层想覆盖它就得写 `!important`**。实测：不带
 `!important` 的同一条规则注进页面也不生效（`scalar-ui.css` 里那条署名那一格量过一次 ——
@@ -212,14 +206,14 @@ Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上�
 
 站点默认的版式给正文那一格留的是 `calc(100% - var(--doc-sidebar-width))`，文档侧栏 300px，
 所以 1440 视口下框 1140、1280 视口下框 980 —— 后者正好差那一档。本层**不**为此去改站点那侧的
-版式（先前写过两条 `body:has(.scalar-frame)` 把 `--doc-sidebar-width` 收成 0，让框吃满整幅，
-代价是那种页面上站点的页面列表没了；已经去掉。外层那一格本包**没有**自己的 CSS ——
+版式（那两条 `body:has(.scalar-frame)` 把 `--doc-sidebar-width` 收成 0、让框吃满整幅的写法不许再
+长回来：代价是那种页面上站点的页面列表没了。外层那一格本包**没有**自己的 CSS ——
 框定高与正文容器让位由 `render: 'iframe'` 那一族共用机制层那份
 `components/component-frame.css`）。于是这一格里剩下的事实是：
 
 - **窗口够宽，左栏就展开**：实测 1440×720 视口下框 1140、Scalar 的 `<aside>` 288 宽、六条接口
-  链接都可见，站点的文档侧栏 300 宽照旧在。e2e 的视口因此从 `Desktop Chrome` 自带的 1280 加到
-  1440（`playwright.config.mts`），那几句「三个接口都在 Scalar 的左栏里」「Scalar 左栏贴满那一份文档的一屏」量的才是展开态；
+  链接都可见，站点的文档侧栏 300 宽照旧在。e2e 的视口因此定在 1440（`playwright.config.mts`，不用
+  `Desktop Chrome` 自带的 1280），那几句「三个接口都在 Scalar 的左栏里」「Scalar 左栏贴满那一份文档的一屏」量的才是展开态；
   高度照旧 720，几层按高度算的判据不动。
 - **窗口窄就是抽屉，这是厂商那一条断点，不是本层能钉的**：1280×720 实测框 980，`<aside>` 宽 0、
   链接全在 DOM 里但 `hidden`，正文顶上多一颗「打开菜单」。要在窄窗口里也常开，只能往框内那份
@@ -244,9 +238,8 @@ Scalar 的界面文案（左栏「简介」、搜索那一行、代码示例上�
 - 单独打开 `/__component-frame/`（没有外层，于是收不到 `init`，一直停在占位那一格）只要 **588 KB**，
   **一份渲染器都不下载**
 
-拆之前那一版同一个页面要 **4.02 MB**：整棵依赖图都挂在路由 chunk 的同步分支上，进这一页得先下完。
 `scalar-ui.css` 与厂商那份 `style.css` 也跟着走进按需那一路 —— 前者随 `scalar-ui.tsx`，后者是它的
-构建期摘成独立产物（见「样式」一节），不再压在这一页的首屏上，也不再进全站那一份。
+构建期摘成独立产物（见「样式」一节），不压在这一页的首屏上，也不进全站那一份。
 
 框里那一下会先空着：那条 `import()` 在 effect 里，不是 `React.lazy`，所以没有 `Suspense` 兜底。
 理由与三家的共同口径记在机制层的
@@ -271,7 +264,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   转成后者（`new PopStateEvent('popstate')`）。这一转不成环：Scalar 自己写历史用的是
   `pushState` / `replaceState`，两条都不触发 `hashchange`。
 
-有一条跟着 redoc 那一份搬过来的教训，在 Scalar 这一层换了形状但同样成立：**它拿到坏地址不抛异常**，
+有一条与 `theme-redoc` 同类、在 Scalar 这一层同样成立的教训：**它拿到坏地址不抛异常**，
 而是在正文区打一句 `Document 'api-1' could not be loaded`（实测），页面其余部分照常。判据钉在
 「Scalar 没有报那份文档取不到」那一句。
 
@@ -311,7 +304,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   `DownloadLink` 按这一格取值决定摆不摆（`yaml` / `json` / `both` 才渲染，`direct` 要有 spec 地址，
   其余整格不生成）。上面那条口径说「给读文档的人用的不收」，这一格是个边界：那两颗递的是**原始文件**，
   不是看文档的能力，而文件本身对读的人并没有藏起来 —— 地址就写在这一页的 frontmatter 里，
-  `static/` 下那份 yaml 直接请求也能存。这一层只是不再把它做成一颗按钮递到手边。
+  `static/` 下那份 yaml 直接请求也能存。这一层只是不把它做成一颗按钮递到手边。
   走 `documentDownloadType` 而不是同名的旧写法 `hideDownloadButton: true`，是因为后者在
   `@scalar/types@0.25.0` 里已标 deprecated：它会把这一格换算成 `none`（行为一样），同时往控制台
   补一句 `[DEPRECATED]`。**收之前的实测**：`/theme-scalar/docs/scalar-demo` 框里 1 颗 `.download-container`、2 颗
@@ -336,8 +329,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   7 颗，钉死后 3 颗）。**1.76.0 起这一格还顺带收掉两处**：厂商把它递成
   `useGenerateSdk({ disabled: () => showDeveloperTools === 'never' })`，那颗「生成 SDK」于是整个
   不渲染；厂商 `sidebarCta` 的本机分支也先看它（这一层那格推广位本来就被 `mcp.disabled` 压成
-  API client 那颗入口，厂商这一条是另一条独立的路）。本层原先自己加的那条收「生成 SDK」的 CSS
-  因此摘掉了（见下面那条）。
+  API client 那颗入口，厂商这一条是另一条独立的路）。
 - **左栏底部那条「powered by Scalar」署名与 Scalar 那张推广位**：`scalar-ui.css` 里一条
   `display: none !important` 收掉整格。走 CSS 而不是配置是因为配置里**没有这一格**：查过
   `@scalar/types@0.25.0` 那份 `api-reference-configuration` 的 schema，`hide*` 一共七条
@@ -348,18 +340,17 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   选择器认的是**它是什么**（装着指向 `https://scalar.com/?utm_source=powered-by` 那条链接的
   `aside` 直接子格），不是 Tailwind 那串 `flex flex-col gap-3 px-3 pb-3` —— 换个版本类名就重排。
   收的是那一整格，但**左栏整格不收**：`e2e` 里配了一句「左栏那一格还在」。
-- **那颗「生成 SDK」**：**厂商 1.76.0 自己收的**，本层不再用 CSS 单收它。厂商那一颗的判据本来整个
+- **那颗「生成 SDK」**：**厂商 1.76.0 自己收的**，本层不用 CSS 单收它。厂商那一颗的判据整个
   住在代码里（`features/generate-sdk/use-generate-sdk.js` 的 `isLocalUrl(window.location.href)`，
   配置里没有一格管它），于是它是**只在本地冒出来**的那一族：1.75.0 时实测 `localhost` 起站点框里
-  有 3 颗（客户端选择器右上角 1 颗 + 接口代码示例页脚 2 颗），线上那份 0 颗 —— 本层原先自己加了
-  一条 CSS（`scalar-ui.css` 里 `.generate-sdk-button` 与 `.selected-client-action`）把它们收掉。
+  有 3 颗（客户端选择器右上角 1 颗 + 接口代码示例页脚 2 颗），线上那份 0 颗。
   1.76.0 起厂商把 `useGenerateSdk` 的 `disabled` 接到 `showDeveloperTools === 'never'` 上
   （`ApiReference.vue` 里 `disabled: () => mergedConfig.value.showDeveloperTools === "never"`），
   那一格为真时 `GenerateSdkButton` 返回空注释节点 —— **那颗按钮整个不渲染**，不止是看不见。
-  本层那一格 `showDeveloperTools: 'never'` 早就按死了，于是那条 CSS 与它那句「先钉 DOM 里
-  认得出来」的 e2e 判据一起摘掉，e2e 现在按数量判 0。
-  跟着的一条依赖约束：本包 `@scalar/api-reference` 的范围因此抬到 `^1.76.0` —— 装到 1.75.0 的
-  消费者会看到那颗按钮重新冒出来（那一版厂商还没接 `disabled`）。
+  本层那一格 `showDeveloperTools: 'never'` 按死了，所以不需要任何收它的 CSS（`.generate-sdk-button`
+  那类规则不许再写回 `scalar-ui.css`），e2e 按数量判 0。
+  跟着的一条依赖约束：本包 `@scalar/api-reference` 的范围定在 `^1.76.4`（下限在 1.76.0 之后）——
+  装到 1.75.0 的消费者会看到那颗按钮冒出来（那一版厂商还没接 `disabled`）。
   厂商留的另一条路仍然没有走：文档 `info` 里写 `x-scalar-sdk-installation`（`hasRenderableSdks`
   认它）也能让那颗就地消失，但它同时把客户端选择器换成「SDK 安装说明」那张卡，动的是**这份演示
   文档的内容与正文一整块**，比收一颗按钮大。
@@ -369,7 +360,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
 （`listOrders` / `createOrder` / `getOrder`）。实测它是标题旁 `div.flex.flex-wrap.gap-1` 里的一颗
 `div`，e2e 那句按「整段文案正好等于 `createOrder`」认，把代码示例里那几个同样出现的字排除掉。
 
-还有一格是**表态，不改行为**：`telemetry: false`。厂商默认 `true`，但实测这份安装的 1.76.0 里
+还有一格是**表态，不改行为**：`telemetry: false`。厂商默认 `true`，但实测装着的这一版（1.76.4）里
 `dist/plugins/posthog/index.js` 没有任何地方 import（不载插件就什么都不发），所以这一格现在等于
 没写；留下来是按本层的口径表一句，也是给厂商哪天默认载上时的一道防线。
 
@@ -387,11 +378,11 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
 `Module not found`，打开页面也没有 `ReferenceError`（`e2e` 那句「浏览器里没有运行期错误」兜的正是
 后者 —— stoplight 那一层当初就是构建全绿、页面一开就 `process is not defined`）。
 
-真正需要记的是**依赖图**那一格，不是 polyfill：接进这一层时 `@docusaurus/theme-common` 被 peer
-分组洗成两份物理副本，`/theme-stoplight/docs/stoplight-demo` 在 SSG 阶段报 `ReactContextError`，靠
-`pnpm-workspace.yaml` 里那条 `overrides: { '@types/react': ~18.3.31 }` 收回去。来龙去脉与两次
-对照实验（去掉就红、加回来就绿，都清了 webpack 持久缓存）记在 `pnpm-workspace.yaml` 那份注释与
-仓库根 README。
+真正需要记的是**依赖图**那一格，不是 polyfill：`pnpm-workspace.yaml` 里那条
+`overrides: { '@types/react': ~18.3.31 }` 是本层的硬约束，不能摘 —— 少了它，
+`@docusaurus/theme-common` 会被 peer 分组洗成两份物理副本，`/theme-stoplight/docs/stoplight-demo`
+在 SSG 阶段报 `ReactContextError`。判据是那两次对照实验（去掉就红、加回来就绿，都清了 webpack
+持久缓存）；来龙去脉记在 `pnpm-workspace.yaml` 那份注释与仓库根 README。
 
 ### 随这一层多出来的构建告警
 
@@ -408,15 +399,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   **处理**：`src/index.mts` 的 `configureWebpack()` 用 webpack 的 `ignoreWarnings` 按模块名按住这一条
   （判据是 `@scalar/api-reference` 里这个具体文件，不是全局消息匹配，别处真出了同名告警照旧报）。
   按住的前提是原样留给浏览器执行就是正确行为 —— 这一支只服务 `pluginUrls` 配置，本层没有配它。
-  这一格是本层自己的 `configureWebpack()`：v3 把各包自带的框内页面收进机制层那条共用路由之后，
-  本包不再经任何工厂，webpack 那两格都直接写在入口里。
-- ~~`Css Minimizer plugin … postcss-calc: Lexical error on line 1: Unrecognized text`，报错的那一处是
-  `(50 - l) * infinity`~~ —— 出自 Scalar 那份 `style.css`（这个模式在 `@stoplight/elements` 那边搜不到），
-  是 Tailwind 4 那种「自定义属性参与 calc」的写法，postcss-calc 算不动就原样留着。**这一条现在不冒了**：
-  站点把 CSS 压缩器换成了 lightningcss（仓库根 `docusaurus.config.mjs` 的 `future.faster` 那一格，
-  理由与三条告警一起消失的实测记在那份注释里）。同一次构建里原先还跟着三条 minimizer 告警
-  （`Empty property '--csstools-color-scheme--light'` 与两条 `Invalid font values`），一并没了。
-  换压缩器之前那些都只是在报，压缩器忽略过去、文件照发，不影响产物。
+  这一格是本层自己的 `configureWebpack()`：本包不经任何工厂，webpack 那两格都直接写在入口里。
 
 清过 webpack 持久缓存重新构建（`pnpm clear && pnpm build`）量过一次：除上面那条被 `ignoreWarnings`
 按住的之外，**一句告警都不冒**，只有两遍编译的耗时与最后那句 `[SUCCESS]`。
@@ -496,5 +479,5 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
 本层只用了 `agent`、`darkMode`、`forceDarkModeState`、`hideDarkModeToggle`、
 `hideTestRequestButton`、`localization`、`mcp`、`onSidebarClick`、`showDeveloperTools`、
 `showOperationId`、`telemetry`、`url` 这十二格。其中每一条都对着 `@scalar/types@0.25.0` 那份
-`api-reference-configuration` 的 schema 与装好的 `@scalar/api-reference@1.76.0` 里读它的那一处核过，
+`api-reference-configuration` 的 schema 与装好的 `@scalar/api-reference@1.76.4` 里读它的那一处核过，
 不是照着别的版本的文档抄的。

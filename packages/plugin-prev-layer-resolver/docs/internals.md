@@ -14,7 +14,6 @@
 | `src/layers.mts`              | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位                                          |
 | `src/plugin-slots.mts`        | 认那两份清单的纯判据（`slotIsNamespace` / 四种原始写法）                                           |
 | `src/registered-plugins.mts`  | 「本包注册了没有」与「注册成了几份」两条判据（后者另发一条现成的点名）：原始清单 + preset 两处都认 |
-| `src/resolve-from-core.mts`   | 「怎么定位 core」对包外开的那一格出口（实现住在 `src/layers.mts`）                                 |
 | `src/plugins.mts`             | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表                                          |
 | `src/resolve.mts`             | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配                                            |
 | `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`）                                                          |
@@ -22,7 +21,9 @@
 | `types/theme-specifiers.d.ts` | `@theme*` 三条 specifier 的类型声明，见 README「类型声明」                                         |
 
 源码全在 `src/` 下，`dist/` 是它的编译产物（`rootDir` = `src/`），两者的文件一一对应。
-`types/` 不参与编译，见 README 的「类型声明」。
+三条出口发的是 `src/` 那一份（`./plugin-slots`、`./registered-plugins` 两条整条指过去，
+`.` 那条只把 `types` 指过去），口径与代价记在仓库根 README 的
+「构建包的编译口径」。`types/` 不参与编译，见 README 的「类型声明」。
 
 ## 实现结构
 
@@ -33,8 +34,10 @@
 
 > 源码是 ESM 的 `.mts`，相对 import 写**源码名**（`./layers.mts`），产出时才变成 `./layers.mjs`；
 > 这条口径与差量清单记在仓库根 README 的「构建包的编译口径」，这里不抄第二份。`tsc` 把改写后的
-> import 搬进包内 `dist/`，那份 `dist/index.mjs` 就是包出口 —— 站点按包名拿到的就是它，
-> 所以改完源码要 `pnpm build:core`。
+> import 搬进包内 `dist/`，站点按包名拿到的那一份入口（`.` 的 `default`）就是 `dist/index.mjs`，
+> 所以改完源码要 `pnpm build:core`。另外两条子路径与 `.` 的 `types` 指回 `src/*.mts`：读它们的是
+> 别的包在配置期的源码，而那一步跑在任何构建之前 —— 口径、`files` 那笔闭包账、以及「Node 凭什么
+> 吃得动未编译的 `.mts`」都记在仓库根 README 那张表里，这里不抄第二份。
 
 ## 名字说的是它做的事
 
@@ -88,7 +91,7 @@ Docusaurus 插件在 `configureWebpack` 里给 `config.resolve.plugins` 追加�
 这一个 specifier 是**固定预设名**（`@theme-prev/`），不做成可配置项。
 
 ```js
-// 插件初始化（异步）：拿插件列表（第三个参数是 `context.siteConfigPath`，见「配置文件」一节）
+// 插件初始化（异步）：拿插件列表（第三个参数是站点实际加载的那份配置文件 `context.siteConfigPath`）
 const plugins = await new PluginDiscovery(
   siteDir,
   logger,
@@ -122,15 +125,13 @@ export default {
 
 ## 「谁来编这一族未编译的 TS 源码」不在本包
 
-那条 `.tsx?` 规则、它的认领范围、`babelOptions` 为什么必须与官方同源，以及它以前散在七个包里的
-经过，都搬进了 `@show-docs/docusaurus-plugin-compile-source`
+那条 `.tsx?` 规则、它的认领范围、`babelOptions` 为什么必须与官方同源，都记在
+`@show-docs/docusaurus-plugin-compile-source`
 （[`../../plugin-compile-source/docs/internals.md`](../../plugin-compile-source/docs/internals.md)）。
-本包从它那里收回来的只有「与层栈无关」这一句：`configureWebpack` 现在只交 `resolve.plugins`。
+本包与它只有「与层栈无关」这一句交集：`configureWebpack` 只交 `resolve.plugins`。
 
-本包交出去给那边用的是**「怎么定位 core」那一格**（`./resolve-from-core`）：实现仍住在
-`src/layers.mts`（链底那一层就是从 core 的模块位置推出来的，与它同源），出口只开名字、
-不抄第二份判据 —— 为什么不让那边自己 require `@docusaurus/babel`，见
-`src/resolve-from-core.mts` 的文件头与那边那份维护者文档。
+本包也不向那边交任何东西：「怎么定位 core」那三把 helper 只在包内用（链底那一层就是从 core 的
+模块位置推出来的），包外没有消费者，而「用不到的那一格不许声明」。
 
 ## 认层：`src/plugin-slots.mts` 与 `src/registered-plugins.mts`
 
@@ -172,25 +173,21 @@ preset 函数自己抛，三种都退成「不知道」）；而「官方答了�
 的「「装了」这件事有三处判据」。
 
 **为什么是本包的事**：那一条问的是「这一族的插件在不在站点那两份清单上」，而「哪一份清单、
-按什么名字认」只有本包自己说得住。以前它住在 `@show-docs/docusaurus-theme-iframe` 的 `lib/` 里，
-于是任何想用它的层都得先引那一族层，连带把「装了 `theme-iframe`」变成自己的安装前提 —— 而真正的
-前提只有本包这一个。搬过来之后，交规则给机制层的那几层仍由机制层那份 `prerequisites` 转调（它
-另外那一条「要交规则得装上本层」确实属于那一族层）；「解析器装了没有」那一句**现成的断言删了** ——
-本仓发出去的层写的都是官方别名，真写 `@theme-prev` 的只有站点的 `src/theme` 与 `tools/theme-*`
-那几层，它们不是插件、没有 `loadContent()` 可查，留着那句只是没人接的一格 API。这一格剩下的是
-判据 `pluginIsRegistered`：要查的那一层自己调它、自己写报错（README 那段给的就是这一份写法），
-本仓今天的消费者 `theme-component-page` 用它查的是它自己那一格。同一份文件里的另一道题
-（「注册成了几份」）还在被两家各查自己那一格：`theme-component-page` 与 `themes/theme-git-badge`，
+按什么名字认」只有本包自己说得住。住在任何一层里，想用它的层就得先引那一层，连带把那一层的
+安装前提一起背走 —— 而真正的前提只有本包这一个。这一格交出去的是判据 `pluginIsRegistered`：
+要查的那一层自己调它、自己写报错（README 那段给的就是这一份写法），本仓今天没有哪一层在配置期
+真查它 —— 用例仍从判据那一侧钉着它（`test/registered-plugins.test.mts`）。
+同一份文件里的另一道题（「注册成了几份」）只剩一家查自己那一格：`themes/theme-git-badge`，
 护栏在 `test/infrastructure-rules.test.mts`。
 
-**为什么纯函数那一份单开一条 `./plugin-slots` 出口**：读者都在配置期（Node，jiti 直接吃
-`dist/`）。包根本机会引 `node:*` 与 webpack，配置期读者不该为此多背依赖，所以走一条只含这个
+**为什么纯函数那一份单开一条 `./plugin-slots` 出口**：读者都在配置期（Node）。包根本机会引
+`node:*` 与 webpack，配置期读者不该为此多背依赖，所以走一条只含这个
 文件的子路径；纯函数也让判据本身能在单测里直接钉，不必先建一个站点。
 
 判据本身的用例在 `test/plugin-slots.test.mts`；preset 那一半在
-`test/registered-plugins.test.mts`（走真的 `loadContext` + `loadPresets`，替身掉就什么都没验）；
-`test/prerequisites.test.mts` 再从调用方那一侧跑一遍真实形状（路径写法、`themes` 那份清单）。
-「注册了两份要响」接进各层入口那一面由 `test/package-entries.test.mts` 里那两条
+`test/registered-plugins.test.mts`（走真的 `loadContext` + `loadPresets`，替身掉就什么都没验），
+真实形状（路径写法、`themes` 那份清单、写成 preset 里那一份）也在这一份里从判据那一侧钉；
+「注册了两份要响」接进入口那一面由 `test/package-entries.test.mts` 里徽标那一组那条
 「第二份实例当场点名」钉。
 
 ## 输入处理：`@theme-prev/<rest>` 怎么切、怎么校验
@@ -276,7 +273,7 @@ theme-fallback 的位置以**官方同一基准**推导（core 的 `lib/webpack/
 > | `site > b > a`     | `@theme-init=classic`、`@theme-original=a`、`@theme=site`        |
 >
 > 实测只看别名表，`site > c > b > a` 会退化成 `site > c > a`，`theme-b` 被静默跳过。
-> 因此层栈必须从 plugin 列表推导（别名表在本方案里已不再被读取）。
+> 因此层栈必须从 plugin 列表推导（本方案不读那份别名表）。
 
 ## 实测
 
@@ -352,9 +349,9 @@ build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 | **缓存的上限是构造入参，出厂值照旧**                                        | 那一条判据钉的是「越过上限就不再写入、之后照旧现算出正确答案」这**两条行为**，与那个数具体是多少无关；按出厂的 8192 跑就是八千多次真实 fs 解析（实测 14s，慢机器上顶到 vitest 的 30s 超时就成了假红）。所以交出来的是**上限**，不是那个 Map；生产路径（`index.mts` 造 resolver 那一格）两格都不传，落回出厂值                                                                                                                                        |
 | **组件扩展名固定为官方四种**                                                | 放宽会让 `provides()` 比官方别名体系宽 → 解析落到官方不认的文件上，出现两套可见性。同名多形态时的**赢家顺序**不靠推理（那是 fast-glob 的发射行为、非文档化契约），由与官方 `createAliasesForTheme` 交叉核对的用例钉住；同一口径还排掉**点开头的段**（官方 glob 默认 `dot: false`，`.hidden/Logo` 在它那边根本没有别名），排掉的形状与保留的形态在同一条交叉用例里双向断言                                                                            |
 | **层只认「官方别名指向的那一个」主题目录，不收 `getTypeScriptThemePath()`** | 两个声明**不是同一份实现**：实测 `theme-classic` 的 JS 形态是 `lib/theme`（编译产物），TS 形态是它发布出去的 `src/theme`（**未编译源码**）。把后者也当层，`@theme-prev/X` 就从「紧邻下面那一层」落进了未编译 `.tsx`：`theme-a` 的 `@theme-prev/Logo` 本该到 `lib/theme/Logo/index.js`，结果到 `src/theme/Logo/index.tsx` —— 与官方 `@theme/X` 分叉，且构建直接 `Module parse failed`。「能不能被 `swizzle --typescript`」是 swizzle 的事，不属于层栈 |
-| **`theme-fallback` 位置跟着 core 走，不从别名表反查**                       | 别名表里只有被覆盖 / 冲突过的组件才有落点，全覆盖时一个指向 fallback 的值都没有；语义关键层（落在它上面时要告警的锚点）不能建在别人数据的完整性上。拿不到 core 就明说这一层缺失，不再留第二条「有时灵有时不灵」的路                                                                                                                                                                                                                                  |
+| **`theme-fallback` 位置跟着 core 走，不从别名表反查**                       | 别名表里只有被覆盖 / 冲突过的组件才有落点，全覆盖时一个指向 fallback 的值都没有；语义关键层（落在它上面时要告警的锚点）不能建在别人数据的完整性上。拿不到 core 就明说这一层缺失，不留第二条「有时灵有时不灵」的路                                                                                                                                                                                                                                    |
 | **层属于哪一层按「层」判，不按文件路径判**                                  | 层不等 ⇒ 文件必不等，按层判严格更强；按路径判两个方向都会错（同层多文件漏判、同层同名不同文件误伤）                                                                                                                                                                                                                                                                                                                                                  |
-| **组件名只做一次安全校验，不再加落点校验**                                  | `isSafeComponentName` 已经保证 `path.join` 不会越出层目录；它放行的一切都进不了落点校验，挡不住任何东西的分支只多一个漂移点                                                                                                                                                                                                                                                                                                                          |
+| **组件名只做一次安全校验，不加落点校验**                                    | `isSafeComponentName` 已经保证 `path.join` 不会越出层目录；它放行的一切都进不了落点校验，挡不住任何东西的分支只多一个漂移点                                                                                                                                                                                                                                                                                                                          |
 | **realpath 缓存与层栈推导都挂在实例上**                                     | `configureWebpack` 每次构建都新建 resolver 实例、每次插件初始化都新建插件实例 —— 「实例 = 一次构建 / 一次初始化」就是需要的粒度；跨实例共享状态要额外处理 epoch 切换、窗口淘汰与构建交错，保护的是一个不存在的场景                                                                                                                                                                                                                                   |
 | **解析缓存只存正解，负结论每次现算**                                        | 「这一层还没有 X」在 dev/watch 里会随文件出现而失效，而缓存没有任何失效路径 —— 存过负结论就把「现在有了」永久钉死。负结论的代价只是重算 `computeTarget`（字符串比较 + 有限次 exists），比静默不生效便宜得多                                                                                                                                                                                                                                          |
 | **缓存键的分隔符取 NUL，不用 `\|`**                                         | `\|` 是合法文件名字符（POSIX），出现在组件名或 issuer 里就能让两组不同字段划分的请求拼成同一个键 → 拿到别人的落点，是静默错层。组件名已拒 NUL，真实路径也不含它，所以 NUL 分隔的键是单射的                                                                                                                                                                                                                                                           |
@@ -365,7 +362,7 @@ build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 
 ## 不能碰的做法（留作对照）
 
-试过、看着可行但**不成立**的做法。留下这张表是为了不重复踩坑（源码注释不再复述）。
+试过、看着可行但**不成立**的做法。留下这张表是为了不重复踩坑（源码注释不复述）。
 
 | 不成立的做法                                                   | 为什么                                                                                                                                                                                                                                                           |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -388,7 +385,8 @@ build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 ## 语言与编译约定
 
 核心包用 TypeScript 编写（`.mts`，ESM，源码在 `src/`），由 `tsc` 编译到本包的 `dist/`
-（`.mjs` + `.d.mts`），那份产物就是包出口。改动后记得 `pnpm build:core`
+（`.mjs` + `.d.mts`），站点按包名取的入口（`.` 的 `default`）就是那份产物；三条子路径发的是
+`src/` 里的源码本身（见上方「组成」）。改动后记得 `pnpm build:core`
 （`pnpm build` / `pnpm test` 已内置）。
 
 `@theme-prev/*` 是运行时动态别名，类型声明见本包的

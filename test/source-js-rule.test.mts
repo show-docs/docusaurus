@@ -1,7 +1,8 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   needsShowDocsSourceRule,
@@ -188,84 +189,46 @@ describe('showDocsSourceRule()：规则那几格的形状', () => {
 });
 
 /**
-`siteBabelConfigPath()`：取的是**官方那个函数**，判据不自己抄一遍。
+`siteBabelConfigPath()`：交出去的是**官方那个函数的结果**，判据不自己抄一遍。
 
-夹具站点必须留在仓库树内（临时目录在 `os.tmpdir()` 时上溯不到仓库根的 `node_modules`，
-就碰不到真的 `@docusaurus/babel`）—— 与 `helpers.mts` 里 `makePluginSite` 同一条理由。
+过去这一跳要先「从 core 的位置」require `@docusaurus/babel`（它是 core 的依赖，站点根不声明它），
+夹具因此得造一份假 core、还只能留在仓库树里上溯。现在本包按自己的依赖清单直接引那一个公开 API，
+夹具就只是「有 / 没有 `babel.config.js` 的两个目录」；而官方那个函数是
+`join(siteDir, 'babel.config.js')` 加一次存在性检查，纯按 `siteDir` 算。
 */
 describe('siteBabelConfigPath()：与官方同源的 babel 配置路径', () => {
-  /** 一个「core 定位得到」的最小站点（真 `@docusaurus/babel` 靠上溯仓库根拿到）。 */
-  function makeSite(withBabelConfig: boolean): {
+  function siteWithBabelConfig(withBabelConfig: boolean): {
     siteDir: string;
     cleanup: () => void;
   } {
-    // `mkdtempSync` 只建最后一级，`.temp/` 干净 checkout 里不存在 —— 同 helpers 里那段注释
-    const tempRoot = path.resolve(import.meta.dirname, '..', '.temp');
-    fs.mkdirSync(tempRoot, { recursive: true });
-    const root = mkdtempReal(path.join(tempRoot, 'babel-rule-site-'));
-    const siteDir = path.join(root, 'site');
-    fs.mkdirSync(path.join(siteDir, 'node_modules', '@docusaurus', 'core'), {
-      recursive: true,
-    });
-    fs.writeFileSync(
-      path.join(siteDir, 'node_modules', '@docusaurus', 'core', 'package.json'),
-      JSON.stringify({ name: '@docusaurus/core', version: '3.10.2' }),
-    );
-    const babelConfig = path.join(siteDir, 'babel.config.js');
-    if (withBabelConfig)
-      fs.writeFileSync(babelConfig, 'module.exports = {};\n');
+    const siteDir = mkdtempReal(path.join(os.tmpdir(), 'babel-rule-site-'));
+    if (withBabelConfig) {
+      fs.writeFileSync(
+        path.join(siteDir, 'babel.config.js'),
+        'module.exports = {};\n',
+      );
+    }
     return {
       siteDir,
-      cleanup: () => fs.rmSync(root, { recursive: true, force: true }),
+      cleanup: () => fs.rmSync(siteDir, { recursive: true, force: true }),
     };
   }
 
   it('站点有 babel.config.js 时给出它的路径（走的是官方那个函数）', async () => {
-    const site = makeSite(true);
+    const site = siteWithBabelConfig(true);
     try {
-      const warn = vi.fn();
-      expect(await siteBabelConfigPath(site.siteDir, { warn })).toBe(
+      expect(await siteBabelConfigPath(site.siteDir)).toBe(
         path.join(site.siteDir, 'babel.config.js'),
       );
-      expect(warn, '官方函数取得到时不该告警').not.toHaveBeenCalled();
     } finally {
       site.cleanup();
     }
   });
 
-  it('站点没有时返回 undefined 且不告警', async () => {
-    const site = makeSite(false);
+  it('站点没有时返回 undefined（与官方那条 JS 规则拿到的是同一个值）', async () => {
+    const site = siteWithBabelConfig(false);
     try {
-      const warn = vi.fn();
-      expect(await siteBabelConfigPath(site.siteDir, { warn })).toBeUndefined();
-      expect(warn).not.toHaveBeenCalled();
-    } finally {
-      site.cleanup();
-    }
-  });
-
-  it('取不到官方那个函数时退回 undefined 并告警（静默退回 = 站点配了却没生效也看不出来）', async () => {
-    // shadow 掉上溯到的真 `@docusaurus/babel`：导出形状变了（函数不在）就是这一档。
-    const site = makeSite(true);
-    const babelDir = path.join(
-      site.siteDir,
-      'node_modules',
-      '@docusaurus',
-      'babel',
-    );
-    fs.mkdirSync(babelDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(babelDir, 'package.json'),
-      JSON.stringify({ name: '@docusaurus/babel', main: 'index.js' }),
-    );
-    fs.writeFileSync(
-      path.join(babelDir, 'index.js'),
-      'exports.getCustomBabelConfigFilePath = 42;\n',
-    );
-    try {
-      const warn = vi.fn();
-      expect(await siteBabelConfigPath(site.siteDir, { warn })).toBeUndefined();
-      expect(String(warn.mock.calls[0]![0])).toContain('@docusaurus/babel');
+      expect(await siteBabelConfigPath(site.siteDir)).toBeUndefined();
     } finally {
       site.cleanup();
     }

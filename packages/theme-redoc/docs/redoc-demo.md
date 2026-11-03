@@ -18,7 +18,7 @@ oas3: /openapi-redoc.yaml
 
 - 取的是 `static/openapi-redoc.yaml`（构建产物里的 `/openapi-redoc.yaml`）：frontmatter 的
   `oas3:` 给的就是这个地址，只给这一页用，
-  Stoplight 与 Scalar 的示例页各取自己那份，三页不再共用同一份输入。
+  Stoplight 与 Scalar 的示例页各取自己那份，三页不共用同一份输入。
 - **Redoc 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
   `<iframe class="component-frame" src="/__component-frame/">`。那条地址是 theme-component-page
   自己注册的一条插件路由，**三条 API 层共用同一条**，构建产物里只有一份
@@ -28,8 +28,8 @@ oas3: /openapi-redoc.yaml
   Redoc 的样式由 styled-components 在运行时插进 `<head>`，构建期那份静态样式表不存在、前缀改写
   圈不住它，而它还会往 `<html>` 上写两千多条 CSS 变量、自己用 localStorage 和自己的路由 —— 这些
   都是「打到宿主页面」的东西。iframe 的边界由浏览器给，框里那一层站点的文档页一行都碰不到。
-  **正因为边界已经由浏览器给，本层原先那套运行期圈定（把裸标签与 `:root` 里的真属性收进
-  `.redoc-root`）已经删掉了**：框内那份文档整份就是给 Redoc 的（没有 navbar、没有正文容器），
+  **正因为边界已经由浏览器给，本层没有运行期圈定那套东西（把裸标签与 `:root` 里的真属性收进
+  `.redoc-root` 的那两条规则也不存在了）**：框内那份文档整份就是给 Redoc 的（没有 navbar、没有正文容器），
   它的样式打到的都是它自己那一屏。实测外层那份文档里 styled 表 0 张、`.redoc-root` 0 个；框内
   那份文档里那张表 427 条规则原样生效。运行期那条中间件链上只剩一件事 —— 把它的暗色表改挂到
   框内那份文档自己的 `<html data-redoc-mode>` 上（下一条）。口径与依据记在

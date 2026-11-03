@@ -78,27 +78,17 @@
       "entry": ["src/index.mts!"],
     },
     "packages/plugin-prev-layer-resolver": {
-      // 这个包发了四条出口（`.` + `./plugin-slots` + `./registered-plugins` + `./resolve-from-core`），
-      // 四条都指向 `./dist/*.mjs`，那份产物又不在版本库里 —— 顺 `exports` 走只能走到一堵不存在的墙，
-      // 源码那三份 API 文件于是成了「无人引的孤儿」。这里按源码文件名点名。
-      "entry": [
-        "src/index.mts!",
-        "src/plugin-slots.mts!",
-        "src/registered-plugins.mts!",
-        "src/resolve-from-core.mts!",
-      ],
+      // 三条出口现在都指回 `src/*.mts`（口径见仓库根 README「构建包的编译口径」），入口由 manifest
+      // 自己给出，这里不需要点名任何源码文件 —— 这块的存在只为压掉上面那条 glob：不压住它，
+      // `src/index.mts!` 会被重复点名，knip 报一条「冗余入口」的 Configuration hint。
+      "entry": [],
     },
     "packages/theme-*": {
       "entry": ["src/index.mts!", "theme/**/*.{ts,tsx}!"],
     },
     "packages/theme-component-page": {
-      // `./prerequisites` 那条子路径出口同样指向产物：七个包的入口按包名引它，顺不过去，
-      // 只能在这里点名（与解析器包那一条同一个理由）。
-      "entry": [
-        "src/index.mts!",
-        "src/prerequisites.mts!",
-        "theme/**/*.{ts,tsx}!",
-      ],
+      // 与 `packages/theme-*` 那一条同一份入口，只因下面这条 `ignoreUnresolved` 必须按包点名而单开一块。
+      "entry": ["src/index.mts!", "theme/**/*.{ts,tsx}!"],
       "ignoreUnresolved": [
         // `types/component-page.d.ts` 用 `.ts` 后缀引（TS 认这一格，knip 的解析器不认 `.ts`→`.d.ts`）。
         // 代价：knip 顺着这条边看不见那些类型的消费者，本包由此多报的「unused 类型」要手工核。

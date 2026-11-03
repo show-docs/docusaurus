@@ -42,21 +42,20 @@ export default {
 | -------------------------------- | ------ |
 | `module.rules`（编译这一族源码） | 本包   |
 
-两件事互不依赖：层栈空了这条规则照样在（那只是 `@theme-prev/*` 失效）；摘掉这条规则，解析器照旧
-解析得动，坏的是那些未编译的 `.tsx` 进了 bundle。以前这一格寄在解析器包里，判据本身没问题，
-只是「谁来编译」和「层怎么叠」被写进了同一个 `configureWebpack`，读起来像它们有关系。
+两件事互不依赖，本包也**不引**那个包：层栈空了这条规则照样在（那只是 `@theme-prev/*` 失效）；
+摘掉这条规则，解析器照旧解析得动，坏的是那些未编译的 `.tsx` 进了 bundle。
 
-## 告警
+## 没有降级臂
 
-| 告警                                                       | 后面是什么                        |
-| ---------------------------------------------------------- | --------------------------------- |
-| `拿不到 @docusaurus/babel 的 getCustomBabelConfigFilePath` | 降级：那条规则改用默认 babel 配置 |
+那条规则要用站点那份自定义 babel 配置的产地，取它走官方同一个函数 —— `@docusaurus/babel` 的
+`getCustomBabelConfigFilePath`，本包按自己的依赖清单直接引它。装不到那个包就红在配置加载那一步
+（`ERR_MODULE_NOT_FOUND`），不在代码里 `logger.warn` 之后改用默认 babel 配置：那样「站点配了
+`babel.config.js` 却没生效」看起来像配置写错了，而差异只在产物里、构建照绿。
 
-降级那一档值得盯：站点有自己的 `babel.config.js` 时，这一族的源码会与站点源码走两套编译，
-而构建照绿 —— 差异只在产物里。
+`siteDir` 下本来就没有 `babel.config.js` 时取到的是 `undefined` —— 官方那条 JS 规则在这一轮里
+拿到的也是同一个值，这不算降级。
 
 ## 相关文档
 
-- [`docs/internals.md`](./docs/internals.md)：认领范围为什么是 scope、为什么不重复官方那条、
-  这一格以前散在七个包里。
+- [`docs/internals.md`](./docs/internals.md)：认领范围为什么是 scope、为什么不重复官方那条。
 - 仓库根 README 的「构建包的编译口径」：`build:core` 编什么、主题层与组件为什么不进那份编译。

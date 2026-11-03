@@ -6,15 +6,15 @@
 
 ## 组成
 
-| 文件                            | 编译吗              | 职责                                                                                                                                                                                                                     |
-| ------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：查那一条安装前提（component-page）、在 `loadContent()` 里交出 `diff` 那一页与那条规则（`{ key: 'diff', match: 'any', component: 'diff' }`）、给出层目录、把那条 `enforce: 'post'` loader 挂到 `.md` 上、交出样式表 |
-| `src/loader/diff-decision.mts`  | ✅                  | 纯函数两把：官方解析之后的 frontmatter 里 `diff:` 那一格落成什么形状（一份文件 / 两份对照 / 写坏了）、目标路径怎么解                                                                                                     |
-| `src/loader/git-diff.mts`       | ✅                  | `git` 调用：找仓库根、问仓库相对路径、取「上一个版本 → 此刻这一份」的 diff 与左边那一份内容；另有一次 `diff --no-index`，比磁盘上的两份文件                                                                              |
-| `src/loader/md-diff-loader.mts` | ✅                  | `enforce: 'post'` 那一步：从磁盘上的源文件读判据，按两种来源算出差异，追加成一条 `export const diff`                                                                                                                     |
-| `src/types.mts`                 | ✅（只出类型）      | `DiffData`（追加的那条导出的形状，带 `source` 与 `caption`）与 `LoaderContextExtras`                                                                                                                                     |
-| `theme/DiffPage/index.tsx`      | ❌ 站点编译         | 本层那一页：component-page 判中后把整个 `DocItem` 换成它，它把视图摆在 `DocItem` **前面**，正文交回官方那一份（`@theme-init/DocItem`）                                                                                   |
-| `components/diff-view.tsx`      | ❌ 站点编译         | 浏览器侧：把 `git diff` 原文交给 `@git-diff-view/react`，配色跟站点的亮暗模式，说明行按 `source` 给两种说法                                                                                                              |
+| 文件                            | 编译吗              | 职责                                                                                                                                                                                                                                                                          |
+| ------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                 | ✅ `src/` → `dist/` | 入口：在 `loadContent()` 里交出 `diff` 那一页与那条规则（`{ key: 'diff', match: 'any', component: 'diff' }`）、给出层目录、把那条 `enforce: 'post'` loader 挂到 `.md` 上、交出样式表。配置期不查前提（component-page 在不在归站点那份配置，见仓库根 README 的「基础设施包」） |
+| `src/loader/diff-decision.mts`  | ✅                  | 纯函数两把：官方解析之后的 frontmatter 里 `diff:` 那一格落成什么形状（一份文件 / 两份对照 / 写坏了）、目标路径怎么解                                                                                                                                                          |
+| `src/loader/git-diff.mts`       | ✅                  | `git` 调用：找仓库根、问仓库相对路径、取「上一个版本 → 此刻这一份」的 diff 与左边那一份内容；另有一次 `diff --no-index`，比磁盘上的两份文件                                                                                                                                   |
+| `src/loader/md-diff-loader.mts` | ✅                  | `enforce: 'post'` 那一步：从磁盘上的源文件读判据，按两种来源算出差异，追加成一条 `export const diff`                                                                                                                                                                          |
+| `src/types.mts`                 | ✅（只出类型）      | `DiffData`（追加的那条导出的形状，带 `source` 与 `caption`）与 `LoaderContextExtras`                                                                                                                                                                                          |
+| `theme/DiffPage/index.tsx`      | ❌ 站点编译         | 本层那一页：component-page 判中后把整个 `DocItem` 换成它，它把视图摆在 `DocItem` **前面**，正文交回官方那一份（`@theme-init/DocItem`）                                                                                                                                        |
+| `components/diff-view.tsx`      | ❌ 站点编译         | 浏览器侧：把 `git diff` 原文交给 `@git-diff-view/react`，配色跟站点的亮暗模式，说明行按 `source` 给两种说法                                                                                                                                                                   |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/`，
 本包就不编译第二遍；口径的产地在仓库根 README 的「构建包的编译口径」。
@@ -73,17 +73,17 @@ frontmatter 里的先后不影响产物。
 `md-diff-loader` 判「这一页开没开差异视图」用的是**官方那一条** ——
 `@docusaurus/utils` 的 `DEFAULT_PARSE_FRONT_MATTER`（docs 插件没换 `markdownConfig.parseFrontMatter`
 时用的就是它），读的是磁盘上那份 `.md` 原文，收到的值是 YAML 给的类型：`diff: true` 是布尔、
-`diff: {old: a, new: b}` 是对象。以前这一族自己按行切文本，于是与站点那条规则（读官方解析之后的
+`diff: {old: a, new: b}` 是对象。这一族自己按行切文本就会与站点那条规则（读官方解析之后的
 那一整份）分叉：`"diff": true` 这种带引号的键名只有站点看得见，页面判成差异页、数据却没生成，
-是静默的半块视图；`diff:true` 不带空格反过来只有 loader 看得见。现在两种写法都只剩一种表现。
+是静默的半块视图；`diff:true` 不带空格反过来只有 loader 看得见。读官方那一条解析，两种写法才只剩一种表现。
 
 同一份解析也因此把折行、注释、空行这些事交给了 YAML：`diff:` 那一行空着、把 `{ }` 或
-`old:` / `new:` 各一行写在下面，与写在一行里落成的是同一个对象，这一族不再自己收续行。
+`old:` / `new:` 各一行写在下面，与写在一行里落成的是同一个对象，这一族不自己收续行。
 值里能不能带逗号、冒号也不由这一族定 —— 流式 `{ }` 里带逗号要靠 YAML 的分项规则，写成块式最省事
 （盘符那种 `C:/tmp/a.md` 两种都行，YAML 只在冒号后跟空白时才分键值）。
 
 站点若自己换了 `markdownConfig.parseFrontMatter`，这两处会重新分叉：这一族只与官方默认那一份对齐。
-`theme-markmap` 那条 loader 读的是同一份解析，两包各自都只判一遍（不再在 markmap 解析出的那份
+`theme-markmap` 那条 loader 读的是同一份解析，两包各自都只判一遍（不在 markmap 解析出的那份
 frontmatter 上判第二遍）。
 
 ## 取不到差异时的几种落点

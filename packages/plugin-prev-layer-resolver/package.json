@@ -21,23 +21,14 @@
   "exports": {
     ".": {
       "default": "./dist/index.mjs",
-      "types": "./dist/index.d.mts"
+      "types": "./src/index.mts"
     },
-    "./plugin-slots": {
-      "default": "./dist/plugin-slots.mjs",
-      "types": "./dist/plugin-slots.d.mts"
-    },
-    "./registered-plugins": {
-      "default": "./dist/registered-plugins.mjs",
-      "types": "./dist/registered-plugins.d.mts"
-    },
-    "./resolve-from-core": {
-      "default": "./dist/resolve-from-core.mjs",
-      "types": "./dist/resolve-from-core.d.mts"
-    }
+    "./plugin-slots": "./src/plugin-slots.mts",
+    "./registered-plugins": "./src/registered-plugins.mts"
   },
   "files": [
     "dist",
+    "src",
     "types",
     "!dist/.tsbuildinfo"
   ],

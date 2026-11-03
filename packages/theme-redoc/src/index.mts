@@ -2,9 +2,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
-import type { LoadContext, Plugin } from '@docusaurus/types';
+import type { Plugin } from '@docusaurus/types';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
@@ -21,17 +20,14 @@ Redoc 这一层的入口：本包交出**一份组件与一条规则**（`redoc:
 命中的页由 component-page 那份 `DocItem` 判表后换成一个同源框，框里按登记名 `redoc` 取
 `@theme/RedocView`；`oas3:` / `aas3:` 那两把键怎么挑、亮暗怎么落到 `<html data-redoc-mode>` 上，
 都归 `theme/RedocView` 与 `components/` 里那两份，机制层不认识这些业务键。
+
+本层交出的那一格要由 component-page 判表才挂得上来 —— 那一层得装进站点并注册成插件，缺了它
+那一页安静地不出现；本层**不查**这一条，那一份清单站点自己负责。
 */
-export default function theme(context: LoadContext): Plugin {
+export default function theme(): Plugin {
   return {
     name: NAMESPACE,
-    async loadContent() {
-      // 交出的那一页要由 component-page 判表才挂得上来；缺了它那一页安静地不出现，
-      // 症状离原因隔着一整个构建，所以在配置期就点名。本包那几份未编译的 `.tsx` / `.ts`
-      // 不在这一格：编译它们那条 babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，
-      // 本包只在 `peerDependencies` 里点名它，配置期不查。
-      await assertThemePrerequisites(context, NAMESPACE);
-
+    loadContent() {
       return {
         componentPage: {
           components: [{ id: 'redoc', component: '@theme/RedocView' }],

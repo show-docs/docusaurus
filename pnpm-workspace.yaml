@@ -13,6 +13,7 @@ configDependencies:
 # 那份 preset 把「Pin pnpm workspace」排在 catalog 那几组前面，一个名字同时是工作区包又在 catalog 里时，
 # 它要的是各包 `package.json` 里直接写 `workspace:^`，写 `catalog:` 会被判成 DiffersToPin。
 catalog:
+  '@docusaurus/babel': '^3.9.2'
   '@docusaurus/core': '^3.9.2'
   '@docusaurus/theme-common': '^3.9.2'
   '@docusaurus/types': '^3.9.2'
@@ -69,4 +70,11 @@ shamefullyHoist: true
 # 输出流 —— 静态页里因此夹着 NUL，浏览器把 NUL 显示成 `��`（viewer 的标题就多了这个前缀）。
 # 补丁只把那一行改成 `subarray(0, writtenBytes)`，与上游 React 19 的写法一致；升级到 19 后可整块删掉。
 patchedDependencies:
+  # `@stoplight/elements` 的 `exports` 只写 `require` / `import` 两格，没写 `types`，于是按 exports
+  # 解析的 TypeScript 看不见它包里那份 `index.d.ts` —— `components/stoplight-ui.tsx` 引 `API` 那一句
+  # 报 TS7016。补丁只加 `"types": "./index.d.ts"` 那一格；`types` 既不是 webpack 也不是 Node 的条件名，
+  # 产物取的还是 `index.mjs`，运行时一字不变。删掉它的条件：上游在 `.` 那一格里补上 `types`
+  # （latest 9.0.29 仍没有）。pnpm 12 的 `packageExtensions` 试过两次 —— 它既不肯合并 `exports`、
+  # 也不肯加根上的 `types`，装完 node_modules 里那份清单一个字都没变 —— 所以走补丁。
+  '@stoplight/elements@9.0.29': patches/@stoplight__elements@9.0.29.patch
   react-dom@18.3.1: patches/react-dom@18.3.1.patch

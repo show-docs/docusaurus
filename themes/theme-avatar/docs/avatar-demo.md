@@ -24,7 +24,7 @@ description: '导航栏亮暗切换旁边那颗头像：本站故意不给接口
 | 个人中心 | 站点写了 `menu.profileHref` | `menu.profileLabelPrefix` 接上接口里的名字            |
 | 退出登录 | 站点写了 `menu.logoutHref`  | `menu.logoutText` 那一串，按 `menu.logoutTarget` 打开 |
 
-两行都不出现条件时，那里就只剩一张图，不再有下拉。
+两行都不出现条件时，那里就只剩一张图，没有下拉。
 
 ## 看不到头像的三种情况
 

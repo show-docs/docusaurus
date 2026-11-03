@@ -21,10 +21,11 @@
 看得见的边界，从外到内是 C、B、A。站点层 `src/theme` 是套在这三道外面的第四道（橙色），
 样式在站点的 `src/css/custom.css`，见 [`src/theme/README.md`](../src/theme/README.md)。
 
-另一个不是主题的插件已经搬走：开发期那个 webpack 加速插件（`@show-docs/docusaurus-plugin-lazy-compilation`）
-只导出 `configureWebpack()`，没有主题目录，所以层栈推不出它那一格（判据见
-`packages/plugin-prev-layer-resolver/src/layers.mts` 的「没有主题目录的插件不产生层」）。它现在住在
-[`packages/plugin-lazy-compilation/`](../packages/plugin-lazy-compilation/)，不在这一格了。
+这一格里只有主题 demo 与验证脚本。开发期那个 webpack 加速插件
+（`@show-docs/docusaurus-plugin-lazy-compilation`）在
+[`packages/plugin-lazy-compilation/`](../packages/plugin-lazy-compilation/)：它只导出
+`configureWebpack()`，没有主题目录，所以层栈推不出它那一格（判据见
+`packages/plugin-prev-layer-resolver/src/layers.mts` 的「没有主题目录的插件不产生层」）。
 
 ## 验证链
 

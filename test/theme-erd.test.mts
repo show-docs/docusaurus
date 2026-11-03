@@ -187,31 +187,25 @@ function exportedJson(output: string): DbmlModel {
 /**
 本层在 `loadContent()` 里交回的那一列（`{ componentPage }`）：判表与挂载都在 component-page，
 本层只交「一个组件 + 一条规则」。这里把那份 content 读出来，用的就是站点装本层时同一条路径
-（两份前提都在这句里满足）。
+（本层在配置期不查任何前提，那一份清单只是站点那边的形状）。
 */
-async function contributedColumns() {
+function contributedColumns() {
   const plugin = theme(
     {
       siteDir: '/site',
-      siteConfig: {
-        plugins: [
-          '@show-docs/docusaurus-plugin-prev-layer-resolver',
-          '@show-docs/docusaurus-theme-component-page',
-        ],
-        themes: [],
-      },
+      siteConfig: { baseUrl: '/', plugins: [], themes: [] },
     } as unknown as Parameters<typeof theme>[0],
     {},
   ) as {
-    loadContent?: () => Promise<{
+    loadContent?: () => {
       componentPage: {
         components: { id: string; component: string }[];
         rules: { key: string; match: string; component: string }[];
       };
-    }>;
+    };
   };
 
-  return plugin.loadContent!().then((content) => content.componentPage);
+  return plugin.loadContent!().componentPage;
 }
 
 /**

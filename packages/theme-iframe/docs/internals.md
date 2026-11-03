@@ -1,11 +1,9 @@
 # theme-iframe 维护者文档
 
-这份写的是**改这一层之前要知道的事**：包内组成、编译口径、这一族收缩的来龙去脉，以及本层
+这份写的是**改这一层之前要知道的事**：包内组成、编译口径、这一族与机制层的分工，以及本层
 剩下的那格判据实测到的形状。使用者要看的（`iframe:` 怎么用、判定先后、已知的边界）在
 [`README.md`](../README.md)，同源框那套跨 iframe 约定在
 [`iframe-protocol.md`](../../theme-component-page/docs/iframe-protocol.md)。
-
-源码注释里那些「理由见包 README『…』一节」的指针，落在本节这些章节上的已经改指这份文件。
 
 ## 状态：已接入站点
 
@@ -35,48 +33,35 @@
 
 ## 组成
 
-| 文件                            | 编译吗              | 职责                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                 | ✅ `src/` → `dist/` | 本层入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算，就是 `../theme`）；`loadContent()` 先调 `assertThemePrerequisites()` 查 component-page 那一条安装前提，再交回 `{ componentPage: { components, rules } }` —— 一个组件（`external-frame` → `@theme/ExternalFrame`）与一条规则（`iframe:`，`source: 'frontMatter'` / `match: 'value'`，`render` 缺省即 `page`） |
-| `theme/ExternalFrame/index.tsx` | ❌ 站点编译         | 命中后铺在正文里的那一格：算出框的地址（浏览器那一遍走 `externalFrameURL()`，服务端那一遍走 `httpsOnHttpsSite()`），渲染 `<iframe class="external-frame">`，`title` 优先用页面的 `frontMatter.title`                                                                                                                                                                       |
-| `components/external-frame.css` | ❌ 站点编译         | 本层那一格的版式：框定高占满 navbar 以下那一屏、`display: block`、去边框，正文容器让位，页脚收掉。后两条与机制层那份同源框的 CSS 同文，为什么各留一份写在这份文件头上                                                                                                                                                                                                      |
-| `lib/external-url.ts`           | ❌ 不进 `tsc`       | 本层唯一还剩的公共判据：`externalFrameURL()`（`/` 打头补 origin、`?path=` 再解一层）与 `httpsOnHttpsSite()`（服务端那一遍只动绝对 `http:`）。没有 DOM、没有 React，浏览器与单测引同一份；协议那一格转引机制层的 `lib/frame-url.ts`，不抄第二遍                                                                                                                             |
-| `tsconfig.build.json`           | ——                  | 构建项目：只有 `src/`，所以本包的产物出口是 `dist/index.mjs`；`lib/`、`components/`、`theme/` 都不进 `tsc`                                                                                                                                                                                                                                                                 |
+| 文件                            | 编译吗              | 职责                                                                                                                                                                                                                                                                                                 |
+| ------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                 | ✅ `src/` → `dist/` | 本层入口：`getThemePath()` 指向包根的 `theme/`（按产物位置算，就是 `../theme`）；`loadContent()` 交回 `{ componentPage: { components, rules } }` —— 一个组件（`external-frame` → `@theme/ExternalFrame`）与一条规则（`iframe:`，`source: 'frontMatter'` / `match: 'value'`，`render` 缺省即 `page`） |
+| `theme/ExternalFrame/index.tsx` | ❌ 站点编译         | 命中后铺在正文里的那一格：算出框的地址（浏览器那一遍走 `externalFrameURL()`，服务端那一遍走 `httpsOnHttpsSite()`），渲染 `<iframe class="external-frame">`，`title` 优先用页面的 `frontMatter.title`                                                                                                 |
+| `components/external-frame.css` | ❌ 站点编译         | 本层那一格的版式：框定高占满 navbar 以下那一屏、`display: block`、去边框，正文容器让位，页脚收掉。后两条与机制层那份同源框的 CSS 同文，为什么各留一份写在这份文件头上                                                                                                                                |
+| `lib/external-url.ts`           | ❌ 不进 `tsc`       | 本层唯一还剩的公共判据：`externalFrameURL()`（`/` 打头补 origin、`?path=` 再解一层）与 `httpsOnHttpsSite()`（服务端那一遍只动绝对 `http:`）。没有 DOM、没有 React，浏览器与单测引同一份；协议那一格转引机制层的 `lib/frame-url.ts`，不抄第二遍                                                       |
+| `tsconfig.build.json`           | ——                  | 构建项目：只有 `src/`，所以本包的产物出口是 `dist/index.mjs`；`lib/`、`components/`、`theme/` 都不进 `tsc`                                                                                                                                                                                           |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/` 与 `components/` 里的
 `.tsx`，本包就不编译第二遍；`theme/ExternalFrame` 引的那份 `lib/external-url.ts` 同样是源码，
 由站点按 `@show-docs` 这个 scope 认领（判据在编译插件包的 `src/source-js-rule.mts`）。口径的产地
 在仓库根 README 的「构建包的编译口径」。
 
-## 这一族收缩成了本层，其余搬去了机制层
+## 本层在这一族里的位置
 
-v3 之前，这一族（`scalar` / `redoc` / `stoplight` / `iframe` 四把键）的外层套壳、注册表、跨
-iframe 的消息协议、框内页面工厂都住在 `theme-iframe` 里，三条 API 层经它的配置期工厂
-`lib/api-frame-theme.mts` 交页。现在这一步早已落地：机制层统一分派，本层只剩 `iframe:` 那一条
-URL 框，设计与现状都在
-[`theme-component-page` 的维护者文档](../../theme-component-page/docs/internals.md)里。
+这一族（`scalar` / `redoc` / `stoplight` / `iframe` 四把键）的外层套壳、注册表、跨 iframe
+的消息协议、框内页面工厂全在机制层，设计与现状都在
+[`theme-component-page` 的维护者文档](../../theme-component-page/docs/internals.md)里；本层只剩
+`iframe:` 那一条 URL 框。
 
-当年定下、今天仍然算数的两条口径：
+两条口径：
 
-- **「装了哪几层」不再由中心扫一遍**。没装的包不会跑 `loadContent()`，也就不会交页 ——
-  既不需要名单，也不需要认 `plugins` 那四种声明形状；那份中心扫描与 `themeConfig.apiFrame.order`
-  这第二份清单一起删了。
+- **「装了哪几层」不由中心扫一遍**。没装的包不会跑 `loadContent()`，也就不会交页 ——
+  既不需要名单，也不需要认 `plugins` 那四种声明形状；不许再引入中心扫描，也不许再放第二份
+  顺序清单（`themeConfig.apiFrame.order` 那一格不该长回来）。
 - **判定先后读的是站点 `componentPage` 的 `rules` 那一列**，不是 `plugins` 的声明顺序。本站
   四层都写在 `plugins` 时两者看着一致，换成 `presets` / `plugins` 交错的装法就不成立了。
 
-搬走之后各归其主：
-
-| 原来在本包                                                                                                                                    | 现在                                                                               |
-| --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `src/api-frame-registry.ts`（四条键的中心表）与 `lib/api-frame-registry.ts` 那条浏览器转出                                                    | 删了。机制层不认识「哪把键归哪一层」，各包在自己的 `loadContent()` 里交            |
-| `src/component-pages.mts` 的 `framePageOf()` / `IFRAME_COMPONENT_PAGES`                                                                       | 删了。规则的形状就是 component-page 契约里的那一条，本层直接写                     |
-| `lib/api-frame-theme.mts`（配置期工厂）、`lib/api-frame-view.tsx`（框内页面工厂）                                                             | 删了。三条 API 层不再经工厂，直接交「一个组件 + 一条规则」                         |
-| `theme/ApiFramePage`、`components/api-frame.tsx` / `.css`（四条层共用的外层框）                                                               | 变成机制层的 `theme/ComponentFramePage`、`components/component-frame.tsx` / `.css` |
-| `lib/frame-messages.ts` / `frame-sync.tsx` / `frame-url.ts` / `frame-route.ts` / `frame-view.tsx` / `frontmatter-values.ts`（同源框那套约定） | 机制层的 `lib/`，口径在 `docs/iframe-protocol.md`                                  |
-| `lib/location-mirror.tsx`、`lib/isolate-renderer-css.ts`、`lib/view-layer-*`（三条视图层共用的外壳）                                          | 机制层的 `lib/`                                                                    |
-| `src/prerequisites.mts`（安装前提检查）                                                                                                       | 机制层的 `src/prerequisites.mts`，各层经 `…/prerequisites` 子路径引                |
-
-于是验收成立：**卸载 `theme-iframe` 只影响 `iframe:` 那一把键**，三条 API 层与它们的同源框照常
+验收：**卸载 `theme-iframe` 只影响 `iframe:` 那一把键**，三条 API 层与它们的同源框照常
 可用。磁盘上钉这一头的是 `test/infrastructure-rules.test.mts`（基础设施四格谁都不向上引：
 `theme-component-page` 引不到本包）与 `tools/scripts/verify-chain.mts`（按生成的那张表查三条
 API 键各自引用自己的登记名，`iframe:` 只多出一条、不替谁兜底）；真把本包从站点里卸掉跑一遍
@@ -84,15 +69,15 @@ API 键各自引用自己的登记名，`iframe:` 只多出一条、不替谁兜
 
 ## 落点：机制层判表，本层只交组件
 
-这一族不再自己提供 `DocItem`，本层也没有任何「这一页归谁」的代码：`loadContent()` 交回一条
+这一族里 `DocItem` 由机制层提供，本层没有任何「这一页归谁」的代码：`loadContent()` 交回一条
 规则，机制层那份 `DocItem` 按站点那一列 `rules` 判，命中后因为这条规则没写 `render`（缺省
 `page`），直接把本层的 `@theme/ExternalFrame` 铺在文档里 —— 不走那条 `/__component-frame` 的
 同源框路由，因为框里是**别人的**文档，跨源，没有东西可送。
 
-早期版本落在 `DocItem/Content`，为的是保住文档外壳；那时踩过一个坑 —— 官方 `DocItem` 渲染的是
-`<DocItemLayout><MDXComponent /></DocItemLayout>`，**`props.children` 它一个字都不读**，把 iframe
-当 children 塞给 `DocItem` 会静默丢掉（构建产物里 `iframe` 标签数为 0）。现在替换的是整个
-`DocItem`，那一条不适用；留着它是提醒：别把 `<iframe>` 塞进一个只渲染 `props.content` 的壳里。
+官方 `DocItem` 渲染的是 `<DocItemLayout><MDXComponent /></DocItemLayout>`，**`props.children`
+它一个字都不读** —— 把 iframe 当 children 塞给 `DocItem` 会静默丢掉（构建产物里 `iframe`
+标签数为 0）。本层替换的是整个 `DocItem`，所以这一条不适用；留着它是提醒：别把 `<iframe>`
+塞进一个只渲染 `props.content` 的壳里。
 
 ## 服务端那一遍与浏览器那一遍
 
@@ -102,15 +87,15 @@ API 键各自引用自己的登记名，`iframe:` 只多出一条、不替谁兜
 http 的话线上首屏还会先撞一次混合内容；把相对地址在构建期钉死成某个 origin，则会让本地
 `serve` 与 e2e 上同一个框指向站点配置里的域名。
 
-`?path=` 只在那一个参数上解码，收尾**不再**对整串做二次解码 —— 旧写法那样会把地址里合法的
+`?path=` 只在那一个参数上解码，收尾**不**对整串做二次解码 —— 那样会把地址里合法的
 `%` 序列解坏（`a=%25` 变成 `a=%`、`/a%2Fb` 变成 `/a/b`）。`src` 是相对写法时 `?path=` 展开不了
 （基准就是那条地址本身），这时交回 `src` 而不是抛：任何人都能手工拼一条带 `?path=…` 的链接
 打开这一页，一条拼错的链接不该把整页弄崩。
 
 ## 开发模式与构建产物同一个行为
 
-`iframe:` 曾经在开发模式给的是链接（本地改动会不断重载被嵌的页面，太吵），那条分支已经删掉。
-现在 `pnpm start` 与构建产物都直接嵌 iframe，要看真的 iframe 不用先构建。
+`pnpm start` 与构建产物都直接嵌 iframe，要看真的 iframe 不用先构建。开发模式不给「点开链接」
+的替代形态：那会让开发与构建是两套行为，而且本地改动不断重载被嵌的页面，太吵。
 
 ## 编译口径
 
@@ -118,8 +103,7 @@ http 的话线上首屏还会先撞一次混合内容；把相对地址在构建
 第二份）。本包自己的几格：
 
 - 入口里的 `getThemePath()` 返回 `../theme` —— 相对的是**产物**目录（`dist/`），不是 `src/`。
-- `src/` 只剩入口一份。原来陪它的三份（注册表、交出清单、安装前提）都随上面那张表走了：
-  前两份删掉，第三份搬进机制层。
+- `src/` 只有入口一份。
 - 层、`components/` 与 `lib/` 都不进构建项目，`files` 因此是
   `["components", "dist", "lib", "theme"]` 四格。只发 `dist` 的话，包装上站点会报层目录不存在；
   `lib` 少了，`theme/ExternalFrame` 引的那份地址算法在装好的站点里就断了。

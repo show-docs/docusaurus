@@ -35,7 +35,7 @@ export default {
             props: { label: '组件接管了这一页' }
           },
           // 下面这四条不写内容、只把装着的包交出的默认规则**提到这个位置**，
-          // 于是它们之间的先后由本站说了算（口径见 internals.md 的「优先级」那一节）。
+          // 于是它们之间的先后由本站说了算（口径见 iframe-protocol.md 的「规则表」一节）。
           'scalar',
           'redoc',
           'stoplight',

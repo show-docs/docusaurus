@@ -374,6 +374,109 @@ describe('注入的 resolver：能力自检与失败告警', () => {
   });
 });
 
+/** 一个包的 `package.json` 里这两条判据要读的几格。 */
+type PackageManifest = {
+  exports?: unknown;
+  private?: boolean;
+};
+
+/** 打包器给出的那份「发出去的清单」，连同它所属包的目录与 manifest。 */
+type Packed = { dir: string; files: string[]; manifest: PackageManifest };
+
+/**
+「发布出去的包里没有构建期缓存」与下一条同用这一步：`pnpm pack --dry-run --json` 就是发布那一步
+（不落 tarball），问它「发出去的有哪些」，不自己复刻 `files` 那套 glob 语义。
+一轮测试里算一次 —— 下一条也要这份清单，两条各跑一遍等于把十六个包打包两遍。
+*/
+let packedOnce: Promise<Packed[]> | undefined;
+
+function packedPackages(): Promise<Packed[]> {
+  packedOnce ??= (async () => {
+    const dirs = ['packages', 'themes'].flatMap((group) =>
+      fs
+        .readdirSync(path.join(siteDir, group), { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => path.join(siteDir, group, entry.name))
+        .filter((dir) => fs.existsSync(path.join(dir, 'package.json'))),
+    );
+
+    return Promise.all(
+      dirs.map(async (dir) => {
+        const manifest = JSON.parse(
+          fs.readFileSync(path.join(dir, 'package.json'), 'utf8'),
+        ) as PackageManifest;
+
+        // 私有的包不发出去，也就没有「发出去的清单」这一格
+        if (manifest.private) {
+          return { dir, files: [] as string[], manifest };
+        }
+
+        // Windows 上 `pnpm` 是 `.cmd`，`execFile` 不拼 `PATHEXT`、spawn 不了它 —— 走 shell。
+        // 参数是写死的常量，命令串里没有别的东西进去。
+        const { stdout } = await execAsync('pnpm pack --dry-run --json', {
+          cwd: dir,
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        const raw = stdout.trim();
+        const json = raw.startsWith('{') ? raw : raw.slice(raw.indexOf('{'));
+
+        return {
+          dir,
+          files: (JSON.parse(json) as { files: { path: string }[] }).files.map(
+            (file) => file.path,
+          ),
+          manifest,
+        };
+      }),
+    );
+  })();
+
+  return packedOnce;
+}
+
+/** 一条 `exports` 值里落到底的那些路径（条件对象与数组那几层都展开；`Object.values` 对数组给出元素）。 */
+function exportTargets(value: unknown): string[] {
+  return typeof value === 'string'
+    ? [value]
+    : value && typeof value === 'object'
+      ? Object.values(value).flatMap((nested) => exportTargets(nested))
+      : [];
+}
+
+/**
+`exports` 里指向**未编译源码**的那些格（`./src/x.mts` 这一族）。
+
+只认不含 `*` 的那几格：`./lib/*`、`./types/*` 是通配出口，点名不了具体文件，而它们整个目录本来就被
+`files` 收走 —— 通配的那一族由「目录整体发布」这条口径管，不在这里逐个走。
+*/
+function sourceExportsOf(manifest: PackageManifest): string[] {
+  return exportTargets(manifest.exports)
+    .filter((target) => !target.includes('*'))
+    .map((target) => target.replace(/^\.\//, ''))
+    .filter(
+      (file) => /\.(?:mts|ts|tsx)$/u.test(file) && !file.startsWith('dist/'),
+    );
+}
+
+/**
+一份源码文件相对引到的那些源码（`from './x.mts'` / `export ... from './x.mts'` / 动态 `import()`）。
+
+读的是磁盘上那一份，不解析 AST：这条判据要的是「少点了哪个文件」，写歪的路径由 `lint:type` 挡。
+*/
+function relativeSourceImports(dir: string, file: string): string[] {
+  const text = fs.readFileSync(path.join(dir, file), 'utf8');
+  const from = path.dirname(path.join(dir, file));
+
+  return Array.from(
+    text.matchAll(/(?:from|import)[\s(]+['"](\.[^'"]+\.(?:mts|ts|tsx))['"]/gu),
+    (match) => match[1],
+  )
+    .filter((spec): spec is string => spec !== undefined)
+    .map((spec) =>
+      path.relative(dir, path.resolve(from, spec)).replaceAll('\\', '/'),
+    );
+}
+
 describe('构建脚本与 CI 护栏', () => {
   it('pnpm start 会先编译核心包（否则改源码后 start 用旧产物）', () => {
     const pkg = JSON.parse(
@@ -653,45 +756,9 @@ describe('构建脚本与 CI 护栏', () => {
     // 判据落在**真的会被发出去的那份清单**上：`files` 只写了目录名，里面的东西全都会跟着走 ——
     // 构建期缓存（`.tsbuildinfo`）就是这么混进 tarball 的（一次 92 KB 的陈旧文件）。
     // 走真的打包器问它「发出去的有哪些」，不自己复刻一遍 glob 语义。
-    const dirs = ['packages', 'themes'].flatMap((group) =>
-      fs
-        .readdirSync(path.join(siteDir, group), { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => path.join(siteDir, group, entry.name))
-        .filter((dir) => fs.existsSync(path.join(dir, 'package.json'))),
-    );
+    const packed = await packedPackages();
 
-    expect(dirs.length, '两棵包根下应有若干包').toBeGreaterThan(0);
-
-    const packed = await Promise.all(
-      dirs.map(async (dir) => {
-        const pkg = JSON.parse(
-          fs.readFileSync(path.join(dir, 'package.json'), 'utf8'),
-        ) as { private?: boolean };
-
-        // 私有的包不发出去，也就没有「发出去的清单」这一格
-        if (pkg.private) {
-          return { dir, files: [] as string[] };
-        }
-
-        // `pnpm pack --dry-run --json` 就是发布那一步（不落 tarball）。
-        // Windows 上 `pnpm` 是 `.cmd`，`execFile` 不拼 `PATHEXT`、spawn 不了它 —— 走 shell。
-        // 参数是写死的常量，命令串里没有别的东西进去。
-        const { stdout } = await execAsync('pnpm pack --dry-run --json', {
-          cwd: dir,
-          maxBuffer: 10 * 1024 * 1024,
-        });
-        const raw = stdout.trim();
-        const json = raw.startsWith('{') ? raw : raw.slice(raw.indexOf('{'));
-
-        return {
-          dir,
-          files: (JSON.parse(json) as { files: { path: string }[] }).files.map(
-            (file) => file.path,
-          ),
-        };
-      }),
-    );
+    expect(packed.length, '两棵包根下应有若干包').toBeGreaterThan(0);
 
     for (const { dir, files } of packed) {
       expect(
@@ -699,6 +766,62 @@ describe('构建脚本与 CI 护栏', () => {
         `${path.relative(siteDir, dir)} 发出去的清单里不该有构建期缓存`,
       ).toEqual([]);
     }
+  });
+
+  it('`exports` 指回源码的那几格，那份源码连同它的相对 import 闭包都在发布清单里', async () => {
+    // 跨包在配置期共享的那几判把出口指回 `src/*.mts`（口径见仓库根 README「构建包的编译口径」），
+    // 于是「发出去的清单」第一次成了那些源码的**运行时**依赖：`files` 少点一个文件，装完包就是一条
+    // `ERR_MODULE_NOT_FOUND`，而且只在装包那一侧看得见。这里在打包清单上把闭包走完 —— 红的地方
+    // 就在改 `files` 的那一步。
+    const packed = await packedPackages();
+
+    const violations: string[] = [];
+    const withSourceExports: string[] = [];
+
+    for (const { dir, files, manifest } of packed) {
+      const targets = sourceExportsOf(manifest);
+      if (targets.length === 0) {
+        continue;
+      }
+
+      withSourceExports.push(path.relative(siteDir, dir));
+
+      // 闭包：被点名的那份源码自己相对引的那些源码也得在清单里，一条边都不放。
+      const seen = new Set<string>();
+      const queue = [...targets];
+
+      while (queue.length > 0) {
+        const file = queue.shift()!;
+        if (seen.has(file)) {
+          continue;
+        }
+        seen.add(file);
+
+        if (!files.includes(file)) {
+          violations.push(
+            `${path.relative(siteDir, dir)}：出口引的 ${file} 没发出去`,
+          );
+          continue;
+        }
+
+        for (const imported of relativeSourceImports(dir, file)) {
+          if (!seen.has(imported)) {
+            queue.push(imported);
+          }
+        }
+      }
+    }
+
+    // 前提校验：这条判据确有输入。两棵包根都不再发源码时它等于空转，绿灯不代表任何东西。
+    expect(
+      withSourceExports,
+      '应至少有一个包把 `exports` 的某格指回包内源码',
+    ).not.toHaveLength(0);
+
+    expect(
+      violations,
+      `发布清单没收齐那些源码出口的闭包：\n${violations.join('\n')}`,
+    ).toEqual([]);
   });
 
   it('站点按**包名**加载插件，而不是相对路径', () => {

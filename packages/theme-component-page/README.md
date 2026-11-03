@@ -27,13 +27,13 @@
 | `diff:`      | `any`     | `page`   | `@theme/DiffPage`                                     |
 
 判键、合成那张表、`DocItem` 那个套壳、同源框与握手、框内那条路由因此只有这一份实现。
-`theme-iframe` 收缩成只剩 `iframe:` 那一把键，本层不依赖它 —— **卸载它，三条 API 层与它们的
+`iframe:` 那一把键在 `theme-iframe`，本层不依赖它 —— **卸载它，三条 API 层与它们的
 同源框照常可用**（跨源那一份地址算法留在它自己包里）。
 
 ## 安装
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-component-page
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-theme-component-page
 ```
 
 本包随包发出的是未编译的 `.tsx` / `.ts` 源码（`theme/`、`components/`、`lib/`），「谁来编它们」
@@ -41,23 +41,23 @@ pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugi
 所以它得装上**并注册成插件**：缺了它要到打包才报 `Module parse failed`，报错点隔着一整个构建，
 本层不在 `loadContent()` 里查它 —— 它在 `peerDependencies` 里点名（护栏见
 `test/infrastructure-rules.test.mts` 第六条：谁发未编译源码，谁就声明那个包）。
+需要 Docusaurus `^3.9.2` 与 Node `^24`。
 
-本层在 `loadContent()` 里**当场查**的安装前提只剩下面那一条形状前提。解析器插件不在这一格：本层
-`theme/` 与 `lib/` 里用的都是官方那几把别名（`@theme-init/X`、`@theme-original/X`），一层都不写
-`@theme-prev/*`，所以解析器没注册成插件也不影响这一层交出的那几页。需要 Docusaurus `^3.9.2` 与
-Node `^24`。
+本层在配置期**一条前提都不查**。解析器插件也不在这一格：本层 `theme/` 与 `lib/` 里用的都是官方
+那几把别名（`@theme-init/X`、`@theme-original/X`），一层都不写 `@theme-prev/*`。
 
-本层还有一条**形状**前提：只能有**一份**实例。那张表与框内那条路由都由本层一处生成，注册两份会各写
-一遍同一份产物、各注册一次同一个 `/__component-frame/`，而官方对「给了不同 id 的两份」不设拦 ——
-谁说了算只看插件顺序。所以 `loadContent()` 里查 `assertSinglePluginInstance()`，要交的组件与规则都
-写进同一份实例的 `components` / `rules` 就行。
+那两件事因此**只看站点那份配置，没有人替你兜**：
 
-这两句判据（本层那一条，加上面给别的层用的那一条）都住在解析器包的 `./registered-plugins` 出口里，
-所以那一个包在 `peerDependencies` 里点名 —— **装它的模块**不等于**要求站点把它注册成插件**。
+- **只注册一份**是本层的形状。那张表与框内那条路由都由本层一处生成，注册两份会各写一遍同一份产物、
+  各注册一次同一个 `/__component-frame/`，而官方对「给了不同 id 的两份」不设拦，重复路由也只按
+  logger 报一句 —— 谁说了算只看插件顺序。要交的组件与规则都写进同一份实例的 `components` /
+  `rules` 就行。
+- **装上本层**是交规则的那几层的形状。少了它，各层 `loadContent()` 交回的那一列没有判表的人，
+  命中的那一页安静地退回普通文档页，症状离原因隔着一整个构建。
 
-别的层要检查的那一条前提（「要交规则得装上本层」）在本包的 `./prerequisites` 出口里，本层自己不引它。
-**只有真把规则交给本层的层该引它**：不交规则的层（`themes/` 那一族：头像、复制按钮、侧边栏徽标、
-图片查看器）不查这一格，也不必为了这一份检查多背一条对本层的依赖。
+`themes/` 那一族（头像、复制按钮、侧边栏徽标、图片查看器）不向本层交规则，因此既不引本包也不声明它
+—— 用不到的那一格不许声明（护栏在 `test/infrastructure-rules.test.mts` 第四条）。真把规则交出来的
+那几层引的只有 `./lib/*` 与 `./types/*` 那两格（命中判据与样式表分流），配置期那一条已经没有出口。
 
 ## 使用
 

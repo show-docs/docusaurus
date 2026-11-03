@@ -7,10 +7,8 @@ import { describe, expect, it } from 'vitest';
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import compileSourcePlugin from '../packages/plugin-compile-source/src/index.mts';
-import type { CompileSourceOptions } from '../packages/plugin-compile-source/src/index.mts';
 import lazyCompilationPlugin from '../packages/plugin-lazy-compilation/src/index.mts';
 import componentPageTheme from '../packages/theme-component-page/src/index.mts';
-import { COMPONENT_PAGE_PLUGIN } from '../packages/theme-component-page/src/prerequisites.mts';
 import diffTheme from '../packages/theme-diff/src/index.mts';
 import erdTheme from '../packages/theme-erd/src/index.mts';
 import iframeTheme from '../packages/theme-iframe/src/index.mts';
@@ -30,7 +28,8 @@ import { pkgPath } from './helpers.mts';
 ## 每个包入口交出的那几格
 
 入口（每个包 `src/` 下那一份 `index.mts`）是 Docusaurus 唯一看得见的那一面：层目录、客户端模块、
-webpack 那几格、以及「缺前置插件时当场点名」。这一面全是**配置期**代码，跑在 Node 里 ——
+webpack 那几格、交给机制层的那一列、以及配置期那几条校验（选项写歪、同一层挂了两份）。
+这一面全是**配置期**代码，跑在 Node 里 ——
 `pnpm build` 全绿只说明它没把构建搞崩，证明不了它交出去的东西是对的：层目录指错一层、
 样式表路径写错、loader 写成了源码名（`.mts`）而不是产物名（`.mjs`），构建照样绿，
 坏的是产物里的那一格。
@@ -41,6 +40,11 @@ webpack 那几格、以及「缺前置插件时当场点名」。这一面全是
 各包交出的那一列（`{ componentPage: { components, rules } }`）**合不成一张表**只是这一面的事：
 判表、顺序、覆写那套算法在 `test/component-page-contrib.test.mts`，这里只钉「每一家确实交了自己
 那一条」，包括它交的是登记名而不是模块说明符。
+
+「缺前置插件时当场点名」那一族用例不再由这一面钉了：机制层不依赖解析器包，于是「本层挂了几份」
+和「交规则的层有没有装上机制层」那两条一起删掉了（后果记在机制层入口的文件头）。配置期还查前提
+的只剩两处，各自读本包用得上的那一格 —— `themes/theme-git-badge` 数自己挂了几份（就在本文件
+下面那组），`themes/theme-viewer` 查宿主开没开那个压缩器（在 `test/prerequisites.test.mts`）。
 */
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
@@ -52,19 +56,17 @@ const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
 const pkgDir = (name: string): string => pkgPath(repoRoot, name);
 
 /**
-一份够用的站点上下文：前置检查只读 `siteConfig.plugins` / `themes` / `future`，
-入口工厂只读 `siteConfig.baseUrl`。其余一概不需要。
+一份够用的站点上下文：入口工厂只读 `siteConfig.baseUrl`（erd 那一份还读 `siteDir`），
+`future.faster` 那一格是 `theme-viewer` 那条前提要看的。其余一概不需要。
 
-默认那份把这一族共用那条前提装上（component-page）：绝大多数用例只关心入口交出的形状，
-不需要再重复这一格。
+那两份清单是空的：这一族曾经要在这里放「机制层装上没有」那一条前提，它随解析器依赖一起删了，
+剩下的用例只关心入口交出的形状。
 */
-const contextWith = (
-  plugins: unknown[] = [COMPONENT_PAGE_PLUGIN],
-): LoadContext =>
+const contextWith = (): LoadContext =>
   ({
     siteConfig: {
       baseUrl: '/',
-      plugins,
+      plugins: [],
       themes: [],
       future: { faster: { lightningCssMinimizer: true } },
     },
@@ -139,9 +141,8 @@ const clientModulesOf = (plugin: Plugin): string[] =>
   plugin.getClientModules!() as string[];
 
 /**
-`loadContent`：前置检查那一格，缺什么当场点名；返回贡献方交回的那份 content。
-
-交回的是 `Promise`（component-page 那条前提在原始清单认不出时还要问 preset，见解析器包的
+`loadContent`：交回本层那份 content；`themes/` 那两处配置期校验也在这一步里。
+交回的不一定是 `Promise`（数份数那一条在原始清单认不出时还要问 preset，见解析器包的
 `registered-plugins`），所以这里的断言一律 `await`。
 */
 const loadContentOf = (plugin: Plugin): (() => Promise<unknown>) =>
@@ -241,18 +242,12 @@ type SourceRule = {
 
 describe('plugin-compile-source：交出一条编译这一族未编译 TS 源码的规则', () => {
   /**
-  入口要拿 `siteDir` 去找官方那个 babel 配置的产地（`resolveFromCore` 靠上溯找到真的
-  `@docusaurus/babel`），所以夹具只能是**仓库树里**的目录；`contextWith()` 那份没有
-  `siteDir`，在这一族入口上用不上。
-
-  不给 `options` 那一臂走的是 `console`，所以下面两种调用各来一遍，`options` 的默认值与
-  `?? console` 那两格才算都被踩过。
+  入口要拿 `siteDir` 问官方那份自定义 babel 配置的产地（`@docusaurus/babel` 的
+  `getCustomBabelConfigFilePath`，本包按自己的依赖清单直接引它）。仓库根没有
+  `babel.config.js`，那一步因此回 `undefined` —— 与官方那条 JS 规则在这一轮里拿到的是同一个值。
   */
-  const load = (options?: CompileSourceOptions) =>
-    compileSourcePlugin(
-      { siteDir: repoRoot } as unknown as LoadContext,
-      options,
-    );
+  const load = () =>
+    compileSourcePlugin({ siteDir: repoRoot } as unknown as LoadContext);
 
   it('名字是包名本身', async () => {
     const plugin = await load();
@@ -260,14 +255,7 @@ describe('plugin-compile-source：交出一条编译这一族未编译 TS 源码
   });
 
   it('交出的只有一条 TS 源码规则：官方不编的那一族归它，且不碰 resolve.plugins', async () => {
-    const warned: unknown[] = [];
-    const plugin = await load({
-      logger: {
-        warn: (...args: unknown[]) => {
-          warned.push(...args);
-        },
-      },
-    });
+    const plugin = await load();
 
     const result = webpackOf(plugin);
     const rules = (result.module?.rules ?? []) as unknown as SourceRule[];
@@ -288,11 +276,10 @@ describe('plugin-compile-source：交出一条编译这一族未编译 TS 源码
 
     // 这一格与层栈无关：`resolve.plugins` 归解析器插件，本包碰了就是两件事又缠回一处。
     expect(result.resolve).toBeUndefined();
-    expect(warned, '本仓库能取到官方那个函数，不该告警').toEqual([]);
   });
 
   it('服务端那一轮也用服务端自己的 loader：客户端与服务端各一条', async () => {
-    const plugin = await load({ logger: {} });
+    const plugin = await load();
     expect(webpackOf(plugin, baseWebpackConfig(), true).module?.rules).toEqual([
       expect.objectContaining({ use: [{ loader: 'js-loader:true' }] }),
     ]);
@@ -300,45 +287,25 @@ describe('plugin-compile-source：交出一条编译这一族未编译 TS 源码
 });
 
 /** component-page 的包名：本层交出的那一列由它判表后挂上来。 */
-const COMPONENT_PAGE = COMPONENT_PAGE_PLUGIN;
+const COMPONENT_PAGE = '@show-docs/docusaurus-theme-component-page';
 
 const SCALAR = '@show-docs/docusaurus-theme-scalar';
 const REDOC = '@show-docs/docusaurus-theme-redoc';
 const STOPLIGHT = '@show-docs/docusaurus-theme-stoplight';
 
-/**
-交规则给机制层的那几层共用的那一条安装前提：判据住在机制层的 `prerequisites`（各层引的是同一份）。
-缺它的症状是「页面看着正常，那一格视图 / 框却安静地不出现」，所以各层在 `loadContent()` 里先查一遍。
-解析器那一格不在这一族：各层的层里写的都是官方别名 `@theme-init/X`。
-*/
-const expectPrerequisites = async (
-  theme: (context: LoadContext) => Plugin,
-): Promise<void> => {
-  await expect(loadContentOf(theme(contextWith([])))()).rejects.toThrow(
-    COMPONENT_PAGE,
-  );
-  await expect(
-    loadContentOf(theme(contextWith([COMPONENT_PAGE])))(),
-  ).resolves.not.toThrow();
-};
-
-describe('theme-iframe 入口：层目录、自己那一条 `iframe:`、那一条安装前提', () => {
+describe('theme-iframe 入口：层目录与自己那一条 `iframe:`', () => {
   it('层目录与 TS 主题路径都指向包根那份 theme/', () => {
-    const plugin = iframeTheme(contextWith());
+    const plugin = iframeTheme();
 
     expect(plugin.name).toBe('@show-docs/docusaurus-theme-iframe');
     expectThemePath(plugin, 'theme-iframe');
-  });
-
-  it('loadContent：缺 component-page 当场点名，装了才放行', async () => {
-    await expectPrerequisites(iframeTheme);
   });
 
   it('loadContent：只交自己那把 `iframe:` —— 三条 API 层由各包自己的 loadContent 交', async () => {
     // 这一层收缩成「嵌外部站点那一个框」：组件是本包主题层那份 `ExternalFrame`，跨源的地址算法
     // 留在本包（`lib/external-url.ts`）；同源那份框、握手与框内页面都在机制层里，卸载本包
     // 三条 API 层照常可用（那条验收见 e2e）。
-    expect(await contributedOf(iframeTheme(contextWith()))).toEqual({
+    expect(await contributedOf(iframeTheme())).toEqual({
       components: [{ id: 'external-frame', component: '@theme/ExternalFrame' }],
       rules: [
         {
@@ -353,8 +320,8 @@ describe('theme-iframe 入口：层目录、自己那一条 `iframe:`、那一�
   });
 });
 
-describe('theme-component-page 入口：层目录、一列清单、以及本层那一条安装前提', () => {
-  it('层目录与 TS 主题路径都指向包根那份 theme/', () => {
+describe('theme-component-page 入口：层目录与一列清单的校验', () => {
+  it('层目录与 TS 主题路径都指向包根那份 theme/，且不查任何配置期前提', () => {
     const plugin = componentPageTheme(contextWith(), {
       components: [{ id: 'site/report', component: '@theme/ReportPage' }],
       rules: [{ key: 'report', component: 'site/report', match: 'options' }],
@@ -362,24 +329,9 @@ describe('theme-component-page 入口：层目录、一列清单、以及本层�
 
     expect(plugin.name).toBe(COMPONENT_PAGE);
     expectThemePath(plugin, 'theme-component-page');
-  });
-
-  it('loadContent 只查本层那一条：一份实例就放行', async () => {
-    // 本层不引公共那份 `assertThemePrerequisites()`（那是给**交规则的层**用的，本层自己
-    // 就是被要求的那一个）。它自己那条住在解析器包那个出口里：本层被注册了几份。
-    await expect(
-      loadContentOf(componentPageTheme(contextWith([COMPONENT_PAGE])))(),
-    ).resolves.not.toThrow();
-  });
-
-  it('第二份实例当场点名：过去只是各写一遍同一份产物，谁说了算看插件顺序', async () => {
-    // 官方只拦「同一插件挂两次又不给 id」，这里多查的那一条是「本层吃不下第二份」。
-    const twice = componentPageTheme(
-      contextWith([COMPONENT_PAGE, COMPONENT_PAGE]),
-    );
-    await expect(loadContentOf(twice)()).rejects.toThrow(
-      new RegExp(String.raw`${COMPONENT_PAGE}[\s\S]*__component-frame`),
-    );
+    // 本层不交 content，也不在配置期查「自己挂了几份」：那一条要读站点那份插件清单，判据住在
+    // 解析器包里，而本层不该依赖它 —— 于是这一族两条检查一起删了，「只注册一份」归站点自己。
+    expect(plugin.loadContent).toBeUndefined();
   });
 
   it('选项缺省 = 空清单：装上这一层但不配页面，站点照跑', () => {
@@ -508,7 +460,7 @@ describe('theme-copy-button 入口', () => {
 
 describe('theme-diff 入口', () => {
   it('层目录与客户端模块：官方那份样式表按包名解析', () => {
-    const plugin = diffTheme(contextWith());
+    const plugin = diffTheme();
 
     expect(plugin.name).toBe('@show-docs/docusaurus-theme-diff');
     expectThemePath(plugin, 'theme-diff');
@@ -521,7 +473,7 @@ describe('theme-diff 入口', () => {
 
   it('webpack：一条 post 规则，loader 写的是产物名（`.mjs`）', () => {
     // 写成源码名（`.mts`）构建期就报「找不到 loader」；这里钉住产物名这一格
-    const result = webpackOf(diffTheme(contextWith()));
+    const result = webpackOf(diffTheme());
     const rules = result.module?.rules as Array<{
       enforce?: string;
       test: RegExp;
@@ -536,16 +488,12 @@ describe('theme-diff 入口', () => {
   });
 
   it('loadContent：交出 diff 那一格，组件写的是 @theme/DiffPage', async () => {
-    expect(await contributedOf(diffTheme(contextWith()))).toEqual({
+    expect(await contributedOf(diffTheme())).toEqual({
       components: [{ id: 'diff', component: '@theme/DiffPage' }],
       // `any` 判法：`diff:` 那三种写下的开关形状（`true` / 路径 / `{ old, new }`）都算命中
       // （见 component-page 的判据）。
       rules: [{ key: 'diff', match: 'any', component: 'diff' }],
     });
-  });
-
-  it('缺 component-page 当场点名；装了才放行', async () => {
-    await expectPrerequisites(diffTheme);
   });
 });
 
@@ -563,10 +511,6 @@ describe('theme-erd 入口', () => {
       // `any` 判法：`dbml_json` 是 loader 追加的那条导出，恒是一个对象（见 component-page 的判据）。
       rules: [{ key: 'dbml_json', match: 'any', component: 'erd' }],
     });
-  });
-
-  it('缺 component-page 当场点名', async () => {
-    await expectPrerequisites(erdTheme);
   });
 });
 
@@ -616,7 +560,7 @@ describe('theme-git-badge 入口：层目录、样式表与前置检查', () => 
 
 describe('theme-markmap 入口', () => {
   it('层目录与客户端模块：工具条那份按包名解析，本仓那份在包根', () => {
-    const plugin = markmapTheme(contextWith());
+    const plugin = markmapTheme();
 
     expect(plugin.name).toBe('@show-docs/docusaurus-theme-markmap');
     expectThemePath(plugin, 'theme-markmap');
@@ -633,7 +577,7 @@ describe('theme-markmap 入口', () => {
   });
 
   it('webpack：一条 post 规则，loader 写的是产物名（`.mjs`）', () => {
-    const result = webpackOf(markmapTheme(contextWith()));
+    const result = webpackOf(markmapTheme());
     const rules = result.module?.rules as Array<{
       enforce?: string;
       test: RegExp;
@@ -647,15 +591,11 @@ describe('theme-markmap 入口', () => {
   });
 
   it('loadContent：交出 markmap 那一格，组件写的是 @theme/MarkmapPage', async () => {
-    expect(await contributedOf(markmapTheme(contextWith()))).toEqual({
+    expect(await contributedOf(markmapTheme())).toEqual({
       components: [{ id: 'markmap', component: '@theme/MarkmapPage' }],
       // `options` 判法：`markmap: true` 与选项对象都算命中（见 component-page 的判据）。
       rules: [{ key: 'markmap', match: 'options', component: 'markmap' }],
     });
-  });
-
-  it('缺 component-page 当场点名；装了才放行', async () => {
-    await expectPrerequisites(markmapTheme);
   });
 });
 
@@ -680,20 +620,14 @@ describe('theme-viewer 入口', () => {
 
 describe('theme-redoc 入口：worker_threads 给一个空模块', () => {
   it('层目录挂在自己的包上', () => {
-    const plugin = redocTheme(contextWith());
+    const plugin = redocTheme();
 
     expect(plugin.name).toBe(REDOC);
     expectThemePath(plugin, 'theme-redoc');
   });
 
-  it('loadContent：缺 component-page 当场点名；装了才放行', async () => {
-    // 这一层不再要求 `theme-iframe`：外层框、那条握手循环与框内那份文档都在机制层里，
-    // 卸载 `theme-iframe` 这一层照常可用。缺 component-page 则是交出的那一列永远不会被用到。
-    await expectPrerequisites(redocTheme);
-  });
-
   it('loadContent：交出 `redoc` 那一格，框内取 @theme/RedocView', async () => {
-    expect(await contributedOf(redocTheme(contextWith()))).toEqual({
+    expect(await contributedOf(redocTheme())).toEqual({
       components: [{ id: 'redoc', component: '@theme/RedocView' }],
       rules: [
         {
@@ -709,10 +643,10 @@ describe('theme-redoc 入口：worker_threads 给一个空模块', () => {
   it('客户端：worker_threads 置 false（空模块），服务端那一格不动', () => {
     // `redoc` 那份 ESM 里有一支 Node 分支写着 `require('worker_threads')`：浏览器里跑不到，
     // 但 webpack 的**解析**这一步照样红。置 false 是给它一个空模块，比补 polyfill 诚实。
-    const client = webpackOf(redocTheme(contextWith()), {}, false);
+    const client = webpackOf(redocTheme(), {}, false);
     expect(client.resolve?.fallback).toEqual({ worker_threads: false });
 
-    const server = webpackOf(redocTheme(contextWith()), {}, true);
+    const server = webpackOf(redocTheme(), {}, true);
     expect(server).toEqual({});
   });
 });
@@ -729,18 +663,14 @@ describe('theme-scalar 入口：把 Scalar 那份静态样式表摘出全站 css
   });
 
   it('层目录挂在自己的包上', () => {
-    const plugin = scalarTheme(contextWith());
+    const plugin = scalarTheme();
 
     expect(plugin.name).toBe(SCALAR);
     expectThemePath(plugin, 'theme-scalar');
   });
 
-  it('loadContent：缺 component-page 当场点名；装了才放行', async () => {
-    await expectPrerequisites(scalarTheme);
-  });
-
   it('loadContent：交出 `scalar` 那一格，框内取 @theme/ScalarView', async () => {
-    expect(await contributedOf(scalarTheme(contextWith()))).toEqual({
+    expect(await contributedOf(scalarTheme())).toEqual({
       components: [{ id: 'scalar', component: '@theme/ScalarView' }],
       rules: [
         {
@@ -754,7 +684,7 @@ describe('theme-scalar 入口：把 Scalar 那份静态样式表摘出全站 css
   });
 
   it('那条动态 import 的告警被按住：模块判据只认 `@scalar/api-reference` 里那一份', () => {
-    const result = webpackOf(scalarTheme(contextWith()));
+    const result = webpackOf(scalarTheme());
 
     expect(result.ignoreWarnings).toHaveLength(1);
     const warning = result.ignoreWarnings![0]!.module!;
@@ -773,7 +703,7 @@ describe('theme-scalar 入口：把 Scalar 那份静态样式表摘出全站 css
     const rule = officialCssRule();
     const config = { module: { rules: [rule] } };
 
-    webpackOf(scalarTheme(contextWith()), config, false);
+    webpackOf(scalarTheme(), config, false);
 
     const { rules } = config.module;
     // 资源规则**追加**在末尾（排在项目规则之后才是它命中的位置）
@@ -806,18 +736,14 @@ describe('theme-scalar 入口：把 Scalar 那份静态样式表摘出全站 css
 
 describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node 侧依赖', () => {
   it('层目录挂在自己的包上', () => {
-    const plugin = stoplightTheme(contextWith());
+    const plugin = stoplightTheme();
 
     expect(plugin.name).toBe(STOPLIGHT);
     expectThemePath(plugin, 'theme-stoplight');
   });
 
-  it('loadContent：缺 component-page 当场点名；装了才放行', async () => {
-    await expectPrerequisites(stoplightTheme);
-  });
-
   it('loadContent：交出 `stoplight` 那一格，框内取 @theme/StoplightView', async () => {
-    expect(await contributedOf(stoplightTheme(contextWith()))).toEqual({
+    expect(await contributedOf(stoplightTheme())).toEqual({
       components: [{ id: 'stoplight', component: '@theme/StoplightView' }],
       rules: [
         {
@@ -833,7 +759,7 @@ describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node �
   it('客户端：ProvidePlugin 补 `process`，fallback 补 buffer 与 url', () => {
     // 裸标识符 `process` 只由 ProvidePlugin 补（`resolve.fallback` 只管按模块 id 筛的
     // require）；`buffer` / `url` 走在「按 URL 取 schema」那条路上，置 false 会在运行时抛。
-    const result = webpackOf(stoplightTheme(contextWith()));
+    const result = webpackOf(stoplightTheme());
 
     expect(result.plugins).toHaveLength(1);
     const provide = result.plugins![0] as FakeProvidePlugin;
@@ -854,7 +780,7 @@ describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node �
     const rule = { test: /\.css$/i, use: ['css-loader'] };
     const config = { module: { rules: [rule] } };
 
-    const result = webpackOf(stoplightTheme(contextWith()), config, true);
+    const result = webpackOf(stoplightTheme(), config, true);
 
     expect(result).toEqual({});
     // 样式表的边界两侧都要改，服务端也不例外

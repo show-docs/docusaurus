@@ -1,13 +1,6 @@
-import type { LoggerLike } from '@show-docs/docusaurus-plugin-prev-layer-resolver';
-
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import { showDocsSourceRule, siteBabelConfigPath } from './source-js-rule.mts';
-
-export interface CompileSourceOptions {
-  /** 注入 logger（测试用） */
-  logger?: LoggerLike;
-}
 
 /**
 补上官方那条 babel 规则漏掉的一格：编译 `@show-docs` 家族**随包发布、尚未编译**的 TS 源码。
@@ -24,13 +17,10 @@ Docusaurus 官方那条规则把整个 `node_modules` 排除在外，所以这�
 */
 export default async function compileSourcePlugin(
   context: LoadContext,
-  options: CompileSourceOptions = {},
 ): Promise<Plugin> {
-  const logger = options.logger ?? console;
-
   // `configureWebpack` 是同步的，而官方那格 `babelOptions` 只能 await 取；取一次，
   // client / server 两轮共用。
-  const babelOptions = await siteBabelConfigPath(context.siteDir, logger);
+  const babelOptions = await siteBabelConfigPath(context.siteDir);
 
   return {
     name: '@show-docs/docusaurus-plugin-compile-source',

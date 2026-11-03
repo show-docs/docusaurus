@@ -38,7 +38,8 @@ import { pkgPath } from './helpers.mts';
 读的是磁盘上的 `package.json` 与源码文本，不是某份手抄清单：新增一个包不必回来改这里。
 包住在两棵包根下（`packages/` 与 `themes/`），第三条按目录名扫**两边**，漏一棵就是静默失覆盖；
 第四条反过来，扫的正是 `themes/` 那一棵 —— 那一族四个包当初从 `packages/` 搬出来，带来的
-一条依赖边（机制层那份 `./prerequisites`）就跟着搬过来了，谁也没回来问它还用不用得上。
+一条依赖边（指向机制层那份 `./prerequisites`，那条出口如今随机制层的解析器依赖一起删了）就跟着
+搬过来了，谁也没回来问它还用不用得上。
 */
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');

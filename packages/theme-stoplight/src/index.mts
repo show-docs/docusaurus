@@ -4,9 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
 import { isolateRendererCss } from '@show-docs/docusaurus-theme-component-page/lib/isolate-renderer-css.ts';
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
-import type { LoadContext, Plugin } from '@docusaurus/types';
+import type { Plugin } from '@docusaurus/types';
 
 const require = createRequire(import.meta.url);
 
@@ -48,17 +47,14 @@ Stoplight 这一层的入口：本包交出**一份组件与一条规则**（`st
 
 本包的 webpack 差异有两格：把 Elements 那份静态样式表摘出全站 css（见上面那一节），以及给它的
 依赖补上浏览器 bundle 里缺的那几样 Node 侧模块。
+
+本层交出的那一格要由 component-page 判表才挂得上来 —— 那一层得装进站点并注册成插件，缺了它
+那一页安静地不出现；本层**不查**这一条，那一份清单站点自己负责。
 */
-export default function theme(context: LoadContext): Plugin {
+export default function theme(): Plugin {
   return {
     name: NAMESPACE,
-    async loadContent() {
-      // 交出的那一页要由 component-page 判表才挂得上来；缺了它那一页安静地不出现，
-      // 症状离原因隔着一整个构建，所以在配置期就点名。本包那几份未编译的 `.tsx` / `.ts`
-      // 不在这一格：编译它们那条 babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，
-      // 本包只在 `peerDependencies` 里点名它，配置期不查。
-      await assertThemePrerequisites(context, NAMESPACE);
-
+    loadContent() {
       return {
         componentPage: {
           components: [{ id: 'stoplight', component: '@theme/StoplightView' }],

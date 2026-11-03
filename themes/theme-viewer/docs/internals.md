@@ -39,9 +39,9 @@
    原生支持嵌套，这一步整个跳过，嵌套原样交给压缩器。Docusaurus 默认的 cssnano + clean-css
    里，clean-css 不认嵌套：同一份 CSS 过完 cssnano 括号仍平衡，再过 clean-css 括号总账变成
    **-7**，`> li` 子规则被并进父选择器、边界多吐一个 `}`。lightningcss 则按 browserslist
-   处理：现代目标原样保留合法的 `&>li`，老目标自动摊平成后代选择器。所以本包不再替站点
-   全站摊平（原来那句 `configurePostCss()` + `postcss-nesting` 已删），改为在
-   `loadContent()` 里要求 `future.faster.lightningCssMinimizer: true`，没开就当场报错。
+   处理：现代目标原样保留合法的 `&>li`，老目标自动摊平成后代选择器。所以替全站摊平这一步
+   不在本包做：本包在 `loadContent()` 里要求 `future.faster.lightningCssMinimizer: true`，
+   没开就当场报错。
 2. **先后顺序被合并改掉**。第三方靠 `.viewer-fade`（`opacity: 0`）与 `.viewer-in`（`opacity: 1`）
    的**先后**分出展开态，而压缩器会把声明相同的选择器并到一处 —— 并完 `.viewer-in` 就跑到了
    `.viewer-fade` 前面，容器上两个类同时在场时读回 0：查看器打开了但整层是透明的。
@@ -61,12 +61,10 @@
 - `test/prerequisites.test.mts`：本包那一条前提 —— 宿主没开 lightningcss 当场点名，
   老写法 `future.experimental_faster` 也认；连同本包入口有没有把它接进 `loadContent()` 一起钉。
   解析器插件不在本包的题目里：层里那句 `@theme-init/DocItem/Content` 用的是官方别名。
-  机制层那份 `./prerequisites` 只剩「要交规则得装上本层」一条，本包也不引它。
 - `test/package-entries.test.mts`：本包入口交出的那几格 —— 层目录指哪一份、客户端模块那两个
   文件真的在磁盘上。
 - `test/plugin.test.mts` 的分包三件套：层目录、样式表与本包清单。
 - `test/infrastructure-rules.test.mts`：`themes/` 那一族既不声明也不 import `theme-component-page`
-  （本包引不到它才成立；那句「宿主必须用 lightningcss」从前挂在它上面，只有一个消费者，按
-  仓库规则 6 收回本包）。
+  （本包引不到它才成立；本包不向它交规则）。
 - `test/view-layer-copies.test.mts`：那条编译未编译 TS 源码的 babel 规则只在
-  `@show-docs/docusaurus-plugin-compile-source` 里有一份（本包不再自己补）。
+  `@show-docs/docusaurus-plugin-compile-source` 里有一份（本包不自己补第二份）。

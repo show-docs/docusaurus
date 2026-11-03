@@ -1,6 +1,3 @@
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import config from '@nice-move/all-in-react/eslint';
 import { createNodeResolver } from 'eslint-plugin-import-x';
 
@@ -28,15 +25,7 @@ const ignores = [
 const VIRTUAL =
   /^@(?:theme(?:-(?:original|init|prev(?:-init|-root)?))?|generated|docusaurus)\//;
 
-const thisDir = dirname(fileURLToPath(import.meta.url));
-
-// 「跨包 specifier 指回源码」那一张表住在 `tsconfig.json` 的 `compilerOptions.paths`（为什么
-// 要指回源码、后果各是什么，都写在那里）。这里把同一份文件交给解析器，不起第二张表：
-// 干净检出里各包的 `dist/` 还不存在，只按 `exports` 解析的话 `import-x/no-unresolved` 会在
-// 类型闸门刚放行的那批 specifier 上红 —— 两道闸门读的是同一处，才不会一边绿一边红。
-const nodeResolver = createNodeResolver({
-  tsconfig: { configFile: join(thisDir, 'tsconfig.json') },
-});
+const nodeResolver = createNodeResolver();
 
 const resolver = {
   interfaceVersion: 3,

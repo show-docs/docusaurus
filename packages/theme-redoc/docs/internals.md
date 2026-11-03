@@ -4,7 +4,7 @@
 Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者要看的（怎么触发、能分享的地址长什么样、
 有哪些局限）在 [`README.md`](../README.md)，这里不重复。
 
-源码注释里那些「理由见包 README『…』一节」的指针，落在本节这些章节上的已经改指这份文件。
+源码注释里那些「理由见包 README『…』一节」的指针，凡落在这些章节上的，指向的都是这份文件。
 
 ## 组成
 
@@ -46,7 +46,7 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 
 `/__component-frame/` 是 `theme-component-page` 用 `actions.addRoute()` 注册的一条插件路由
 （`exact: true`，组件 `@theme/ComponentFramePage`），**三条 `render: 'iframe'` 的层共用这一条**：
-本包不注册路由，也没有属于自己的那份框内页面（旧的 `/redoc-view` 随组件自注册那一步一起删了）。
+本包不注册路由，也没有属于自己的那份框内页面。
 框里渲染哪一个组件由外层那条 `init` 消息里的**登记名**决定，那张表在配置期按 `render` 铺成
 `@generated/theme-component-page/frame-registry`。
 
@@ -57,15 +57,15 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 
 ## 为什么要换一份文档
 
-上一版是 Redoc 直接渲染在文档页里，靠运行期圈定把它的第三方样式收进 `.redoc-root`。圈定能收的
-只有「一条规则打到哪些元素」这一层，收不到的有两处：Redoc 那 2884 条 CSS 变量仍然定义在
-`<html>` 上（它的浮层要靠继承取值），`document.querySelector` 与 localStorage 也仍然由它按
+Redoc 与站点的文档页共处一份文档时，圈定能收的
+只有「一条规则打到哪些元素」这一层，收不到的有两处：Redoc 那 2884 条 CSS 变量定义在
+`<html>` 上（它的浮层要靠继承取值），`document.querySelector` 与 localStorage 也由它按
 整份文档来用。
 
 iframe 的边界是浏览器给的，不是靠枚举规则拼出来的：框里那份文档里的样式、变量、localStorage、
 路由，站点的文档页一行都碰不到。**边界立起来之后，圈定就没有对象可圈了**：框内那份文档整份就是
 给 Redoc 的（没有 navbar、没有 footer、没有正文容器），它那些裸标签与 `:root` 上的真属性打到的
-都是它自己的元素，站点这一侧一行都收不到。所以那两条圈定规则随改造一起删了，见「样式」一节。
+都是它自己的元素，站点这一侧一行都收不到。所以本层没有那两条圈定规则，见「样式」一节。
 
 ## 首屏不下载渲染器
 
@@ -80,9 +80,8 @@ iframe 的边界是浏览器给的，不是靠枚举规则拼出来的：框里�
 - 单独打开 `/__component-frame/`（没有外层，于是收不到 `init`，一直停在占位那一格）只要 **588 KB**
   ：一个框内文档自带的那份站点 CSS 与主 chunk，**一份渲染器都不下载**
 
-`redoc-ui.css` 随 `redoc-ui.tsx` 一起进按需那一路。本层此前就不在首屏上带 Redoc（`redoc` 的入口在
-Docusaurus 那条路由里本来就是异步的），这一格管的是**什么时候开始下**：从「路由一进就下」变成
-「框里真渲染时再下」。
+`redoc-ui.css` 随 `redoc-ui.tsx` 一起进按需那一路。本层不在首屏上带 Redoc（`redoc` 的入口在
+Docusaurus 那条路由里本来就是异步的），这一格管的是**什么时候开始下**：框里真渲染时再下。
 
 框里那一下会先空着：那条 `import()` 在 effect 里，不是 `React.lazy`，所以没有 `Suspense` 兜底
 （`LazyView` 自己在取到之前只摆 `pending` 那句话）。共同口径记在机制层的
@@ -124,10 +123,10 @@ SSG 跑在 Node 里，那模块本来就有。现在这一格直接写在 `src/i
 `<style data-styled-version>`，构建期产物里根本没有这份东西，站点那一份 css 里一条都没有。
 所以渲染挪进框内那份文档之后，本层在样式这一格一行代码都不剩 —— 边界就是文档边界。
 
-本层曾经补的是**运行期圈定**：在 `StyleSheetManager` 的 `stylisPlugins`（styled-components
-编译每条规则时经过的中间件链）上，给裸标签选择器加 `:where(.redoc-root)` 前缀、把 `:root` 里
-那三条真属性（底色、字色、字体）挪进 `.redoc-root`。**这两条已经删了**，因为渲染在框内那份文档
-里之后它们没有对象可圈：
+本层**不做运行期圈定**：`StyleSheetManager` 的 `stylisPlugins`（styled-components
+编译每条规则时经过的中间件链）上那两条 —— 给裸标签选择器加 `:where(.redoc-root)` 前缀、把
+`:root` 里那三条真属性（底色、字色、字体）挪进 `.redoc-root` —— 都不存在，也不许再长回来：
+渲染在框内那份文档里之后，它们没有对象可圈——下面两句就是现状：
 
 - 外层那份文档（站点的 `/theme-redoc/docs/redoc-demo`）里根本没有这张表 —— 实测 styled 表 0 张、`.redoc-root`
   0 个、Redoc 渲染出来的文字也不在这份文档里。Redoc 的运行时压根不在这页上加载。
@@ -135,11 +134,10 @@ SSG 跑在 Node 里，那模块本来就有。现在这一格直接写在 `src/i
   没有 navbar、没有 footer、没有正文容器。Redoc 那些裸 `button` 与 `:root` 上的真属性打到的
   都是它自己那一屏，「不外溢」在这份文档里不是一个需要防的事。
 
-删掉之后实测（框内那份文档，站点亮色）：那张表 427 条样式规则、裸 `button` 那条原样是
+实测（框内那份文档，站点亮色）：那张表 427 条样式规则、裸 `button` 那条原样是
 `button`（不再是 `:where(.redoc-root) button`）、`:root` 的底色/字色/字体就落在那份文档的
 `<html>` 上（`--bg-color` 实测 `#ffffff`，切暗色后翻成 `#22242b`）。Redoc 自己那颗 `Copy`
-按钮的边框仍是 `solid 1px` —— 这一格以前要靠「前缀必须写成 `:where()`」才不被动坏，现在
-本层不碰它的选择器，这条判据也就没有对象了。
+按钮的边框仍是 `solid 1px` —— 本层不碰它的选择器。
 
 那条中间件链上**只剩一件事**：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到框内那份文档自己的
 `<html data-redoc-mode="dark">`（值由外层送来）。它防的不是外溢，而是「同一页上两个亮暗开关打架」，
@@ -148,12 +146,11 @@ SSG 跑在 Node 里，那模块本来就有。现在这一格直接写在 `src/i
 判据两句，都在 `test/e2e/features/redoc.feature` 第一条用例里：「外层文档里没有 Redoc 的
 痕迹」（按 styled 表张数、`.redoc-root` 个数、有没有 Redoc 的文字三项钉）与「站点自己的那几处
 样式不被 Redoc 改写」（同一批元素在 redoc 页与主页各算一遍 computed style 比相等，不抄站点该有
-的值）。曾经那两句「框内那份文档外溢到站点元素的只剩那一条」与「圈定没有把 Redoc 自己的样式压掉」
-随圈定一起删了 —— 它们钉的是圈定的效果，效果没了，判据留着就只是在钉一个不存在的机制。
+的值）。
 
 Redoc 自己也不能把样式作用域化：`styled-components` 有一个把样式表插进 Shadow Root 的 `target`
 选项，但 Redoc 上面那些 `createPortal` 与 9 处 `document.querySelector` 都按整份文档找元素，
-上游从 2021 年起挂着同一个问题（Redocly/redoc#1548）。本层不再需要这个能力 —— 需要的是
+上游从 2021 年起挂着同一个问题（Redocly/redoc#1548）。本层不需要这个能力 —— 需要的是
 「换一个宿主文档」，那就是那条通用框内路由。
 
 ## 亮暗模式：配色跟站点的开关走，不跟操作系统走
@@ -169,7 +166,7 @@ Redoc 自带一套亮暗，判据是它自己的：读 `matchMedia('(prefers-col
 
 改法就一条：运行期那条中间件链（`StyleSheetManager` 的 `stylisPlugins`）看见 `:root.dark` 打头的
 选择器，把它换成 `:root[data-redoc-mode="dark"]`（`components/redoc-color-mode.ts` 的
-`DARK_PALETTE_PREFIX`）。圈定删掉之后，这条链上只剩这一件事 —— 它改的是「什么条件下生效」，
+`DARK_PALETTE_PREFIX`）。这条链上只剩这一件事 —— 它改的是「什么条件下生效」，
 不是「打到哪些元素」。三个理由：
 
 - **优先级不动。** 类选择器与属性选择器在优先级里同档（各算 (0,1,0)），`:root.dark` 和
@@ -192,7 +189,7 @@ navbar 那颗按钮点的是**外层**文档的 `<html data-theme>`，而配色�
 推 `mode`，框内 `useFrameBridge` 收到先存进状态，再由本层的 `useFrameMode(applyRedocColorMode)`
 落到这一份文档的 `<html>` 上（源码在 `@show-docs/docusaurus-theme-component-page/lib/`，口径见
 [`iframe-protocol.md`](../../theme-component-page/docs/iframe-protocol.md)）。**四条消息的名字全站只有一套**
-（`theme-component-page/ready|init|mode|hash`）：框里靠 `init` 带的登记名分谁，不再按包命名空间各造一份。
+（`theme-component-page/ready|init|mode|hash`）：框里靠 `init` 带的登记名分谁，不按包命名空间各造一份。
 为什么这条属性不直接叫 `data-theme` ——
 `theme-stoplight` 那边就叫这个，因为 Elements 的暗色表本来就挂在这条属性上，搬过去就地生效；
 Redoc 的暗色表挂在它自己按操作系统写的 `:root.dark` 上，本层要改的是它的生效条件（上面那一节），
@@ -208,12 +205,11 @@ Redoc 的暗色表挂在它自己按操作系统写的 `:root.dark` 上，本层
   [`iframe-protocol.md`](../../theme-component-page/docs/iframe-protocol.md)「四个方向各走一条路」里 `src` 不带 query 与 hash 那一条的
   理由），而它会跟着开关变。
 
-曾经这一格是靠框架接的：框内那份页面套 `@theme/Layout/Provider`，用它底下的 `ColorModeProvider`
-维护 `<html data-theme>` 并监听 `storage` 事件（站点的开关写的就是同源的 localStorage，键名
-`theme`）。改成本层送值之后那一层整个删了：那六个 provider 里这一页一个都用不上，而
-`ColorModeProvider` 依赖站点配置、还会往同一份 localStorage 上写；只留一个「现在是亮还是暗」的
-值，比维持两份文档的那条记录同步简单得多。少了那一层之后框内 `<html>` 上那条 `data-theme`
-就只是加载时写死的一份，本层不读它，所以也不会出现「颜色对、但两份文档各自记了一份模式」。
+本层不套 `@theme/Layout/Provider` 那类框架接线，这种接法不许再长回来：它底下的那六个
+provider 这一页一个都用不上，而 `ColorModeProvider` 依赖站点配置、还会往同一份同源
+localStorage（站点的开关写的就是它，键名 `theme`）上写；只留一个「现在是亮还是暗」的值，
+比维持两份文档的记录同步简单得多。框内 `<html>` 上那条 `data-theme` 因此只是加载时写死的
+一份，本层不读它，所以也不会出现「颜色对、但两份文档各自记了一份模式」。
 
 Redoc 左栏底部那颗它自己的切换按钮收掉了（`redoc-ui.css` 里
 `.redoc-root [data-testid='color-mode-switcher'] { display: none }`）：配色改由外层的模式驱动之后，
@@ -291,8 +287,8 @@ AsyncAPI 那一版是同一个机制、另一个 testid：用默认配置渲染�
 **外层**：本包**没有**外层那份 CSS —— 框的尺寸、正文容器让位与页脚那三条由 `render: 'iframe'`
 那一族共用，住在 `theme-component-page` 的 `components/component-frame.css`（`.component-frame` 定高
 `calc(100vh - var(--ifm-navbar-height))` + `.container:has(iframe)` 去内边距与最大宽度 +
-`.main-wrapper:has(.component-frame) + .footer` 收页脚）。那条 `<iframe>` 上**没有按层分的类名**了：
-它是全站共用的一个框，「这一格是哪一层赢的」改由框里那个渲染根认（e2e 的那句判据按 `.redoc-root`
+`.main-wrapper:has(.component-frame) + .footer` 收页脚）。那条 `<iframe>` 上**没有按层分的类名**：
+它是全站共用的一个框，「这一格是哪一层赢的」由框里那个渲染根认（e2e 的那句判据按 `.redoc-root`
 在不在框内文档里量）。
 为什么这里**要**给框定高，而框内那一份不给 Redoc 定高，见下面「框内」那段与
 [`iframe-protocol.md` 的「尺寸与样式表」一节](../../theme-component-page/docs/iframe-protocol.md)。
@@ -308,7 +304,7 @@ AsyncAPI 那一版是同一个机制、另一个 testid：用默认配置渲染�
 （类型上就是 `() => number`，「上面被占掉多高」），把返回值同时写成容器上的 `--navbar-height` 与
 `--navbar-stack-height`；**不给这个函数就按 0 算**（`redoc` 里那一格写的是
 `Math.max(fn?.() ?? 0, 0)`）。本层就不给：这一格只跑在框内那份文档上，那里根本没有 navbar，
-曾经那句量 `.navbar` 高度的写法恒量到 0（实测那两条行内变量就是 `0px`），左栏于是正好铺满
+算出来恒量到 0（实测那两条行内变量就是 `0px`），左栏于是正好铺满
 框内那一份文档的整屏 —— 也就是外层那一格的高度。
 
 判据两句，各在一份文档上量：外层「框占满 navbar 以下那一屏」（上沿差、下沿差各留 1px 容差），
@@ -338,7 +334,7 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 换成 hash 之后 `basePath` 也不用传了：hash 段自己就是一份完整地址（`#/orders/createorder`），
 与这一页挂在站点哪一处无关，`RedocStandalone` 默认的 `/` 就对。
 
-有一条老教训跟着换了对象但依然成立：**Redoc 认不出当前地址时一个字都不报**，而是把**它自己那份
+有一条依然成立的教训：**Redoc 认不出当前地址时一个字都不报**，而是把**它自己那份
 404** 摆在正文区 —— 左栏、搜索框、样式全在，页面看着完全正常，中间写着 `No page at this address`。
 判据钉在 e2e 的那句「Redoc 自己的 404 没有出现」。
 
@@ -357,8 +353,7 @@ webpack 在客户端和服务端两遍都报 `Critical dependency: the request o
 框内 → 外层那一条由 `redoc-ui.tsx` 里那个 `LocationMirror` 站在 `HashRouter` 里面用
 `useLocation()` 报出去（机制层那份 `createLocationMirror()` 造的函数）；「刚挂载那一次不报」的理由见
 iframe-protocol 的「四个方向各走一条路」一节。**那条框内路由不该当分享地址**：它全站共用一条，
-单独打开时收不到 `init`，只会停在「正在从这一页的文档里取数据…」那一格（旧的
-`/redoc-view/?src=…` 那一种「直接打开也渲染」的形状随各包自带的框页一起没了）。
+单独打开时收不到 `init`，只会停在「正在从这一页的文档里取数据…」那一格。
 
 ## AsyncAPI 3：换一把 spec 键，同一份渲染路径
 
@@ -389,8 +384,7 @@ iframe-protocol 的「四个方向各走一条路」一节。**那条框内路�
 
 ## 框内那份文档的 `<html>` 上落了什么（实测）
 
-Redoc 往那里写 2884 条 CSS 变量，另有底色、字色、字体三条真属性（改造前那三条是被运行期圈定挪进
-`.redoc-root` 的，现在原样落在 `<html>` 上）。那批变量与站点自己用到的 `var(…)` 实测零重名。
+Redoc 往那里写 2884 条 CSS 变量，另有底色、字色、字体三条真属性原样落在 `<html>` 上。那批变量与站点自己用到的 `var(…)` 实测零重名。
 
 改挂过去的那 54 条暗色规则命中的也是这份文档的 `<html>` 本身，里面除变量外有两条真属性：实测暗色下
 `color-scheme` 是 `dark`、底色翻成 `#22242b`（亮色那一份底色是 `#ffffff`）。
@@ -412,7 +406,7 @@ Redoc 往那里写 2884 条 CSS 变量，另有底色、字色、字体三条真
   框的上沿贴着 navbar 下沿、下沿贴着视口（navbar 60px），站点的 docs 侧栏仍在（框左偏移 300px）。
 - 框内：`.redoc-root` 那一格在、左栏三个接口点开就在导航里、点新建订单时详情换成它**并且外层地址栏
   那一段跟着换**（这一句同时钉住框内 → 外层那条 postMessage）；那张运行期样式表在框里（实测 427 条
-  样式规则，本层不再改写它的选择器：裸 `button` 还是 `button`、`:where(.redoc-root)` 前缀 0 条）；
+  样式规则，本层不改写它的选择器：裸 `button` 还是 `button`、`:where(.redoc-root)` 前缀 0 条）；
   左栏占满框内那份文档的整屏、`.redoc-root` 不是滚动容器；
   它那颗自己的亮暗按钮、Redocly 那条署名、章节标题旁那一整格操作按钮都看不见（CSS 收的，元素还在
   DOM 里），而同一格里的「收起侧栏」与代码块里那几颗复制按钮都还在；正文最前面那一格下载在 DOM 里
@@ -432,17 +426,14 @@ Redoc 往那里写 2884 条 CSS 变量，另有底色、字色、字体三条真
 （实测那块 `assets/js/1486.*.js`，2.05 MB 上下；主页那份 html 里既没有它也没有 Elements 与 Scalar
 那两块，也就是没命中的页面不下载它），框内那一页与本层那两个组件各自另成小 chunk。
 
-清过缓存重新构建实测：整个构建一句告警都不冒。原先预渲染各包自带的框内页面时冒过的那一句
-（`[zustand persist middleware] … 'mosaic-theme' …`）是 `theme-stoplight` 那一层带出来的，
-来龙去脉记在它的维护者文档「状态」一节，这里不抄第二遍。
+清过缓存重新构建实测：整个构建一句告警都不冒。
 
 没实测到的：GraphQL 那一种 `specType`（AsyncAPI 3 那一版见上面「AsyncAPI 3」一节）。
 
-`RedocUI` 原先还留着「给内联文档」那一支（`spec` 收解析好的对象或 YAML/JSON 文本），和
-`theme-stoplight` 的组件是同一形状的 `Props`。
-两支在两条层里都没有调用方（frontmatter 取的就是一个地址），所以两条一起删了，理由记在
-stoplight 那份 README 的「使用」一节。删剩的那两格入参（`url` 与 `onRouteChange`）是各层自己那份
-`Props`：机制层只把本页那三份数据并成一个对象交给组件，不规定渲染器要多几格。
+`RedocUI` 的入参只有 `url` 与 `onRouteChange` 两格（`type RedocUIProps`），是各层自己那份
+`Props`：机制层只把本页那三份数据并成一个对象交给组件，不规定渲染器要多几格。「给内联文档」
+那一支（`spec` 收解析好的对象或 YAML/JSON 文本）本层没有，也不许再长回来 —— frontmatter 取的
+就是一个地址，框里只接**文档地址**这一种入参。
 
 ## 顺带记一条查证过的 Docusaurus 形状
 

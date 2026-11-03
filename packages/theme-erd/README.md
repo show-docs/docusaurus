@@ -76,7 +76,7 @@ loader 会先摘掉它再把剩下的部分交给 DBML 解析器。
 
 ## 层栈
 
-本层不再提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `dbml_json` 条目（判法 `any`，
+本层不提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `dbml_json` 条目（判法 `any`，
 组件指回 `@theme/ErdPage`），由 theme-component-page 在最外那一格命中后把整页换掉。这一把键
 不是作者写在 frontmatter 里的 —— 判据读 MDX 模块上的同名命名导出，而 `dbml_json` 正是 loader
 给 `.dbml` 页追加的那条 `export const`；`.md` / `.mdx` 页没有它，这一层等于透明。

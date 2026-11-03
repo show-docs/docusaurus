@@ -148,8 +148,8 @@ export async function pluginInstanceCount(
 /**
 「这一层只能有一份实例」那条前提：注册了两份以上就当场点名。
 
-**为什么两份不行不是这一层的事**，各调用方在 `why` 里自己说（徽标那层的护栏会吞掉第二份，
-机制层那一份会被后写的盖掉）；这里只负责把「注册了几份」数出来并给一句能照着改的话。
+**为什么两份不行不是这一层的事**，各调用方在 `why` 里自己说（徽标那层多挂一份会吞掉一棵根）；
+这里只负责把「注册了几份」数出来并给一句能照着改的话。
 */
 export async function assertSinglePluginInstance(
   context: LoadContext,

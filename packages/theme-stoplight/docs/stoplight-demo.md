@@ -17,8 +17,7 @@ oas3: /openapi-stoplight.yaml
 所以也没有文档外壳、不会再有导图。这一段是给读仓库源文件的人看的。
 
 - 取的是 `static/openapi-stoplight.yaml`（构建产物里的 `/openapi-stoplight.yaml`）：frontmatter 的
-  `oas3:` 给的就是这个地址，只给这一页用，
-  Redoc 与 Scalar 的示例页各取自己那份，三页不再共用同一份输入。
+  `oas3:` 给的就是这个地址，只给这一页用，Redoc 与 Scalar 的示例页各取自己那一份。
 - **Elements 不在这一页里渲染，而在另一份文档里**：这一页放的是一个
   `<iframe class="component-frame" src="/__component-frame/">`。那条地址是 theme-component-page
   自己注册的一条插件路由，**三条 API 层共用同一条**，构建产物里只有一份

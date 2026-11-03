@@ -3,9 +3,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
-import { assertThemePrerequisites } from '@show-docs/docusaurus-theme-component-page/prerequisites';
 
-import type { LoadContext, Plugin } from '@docusaurus/types';
+import type { Plugin } from '@docusaurus/types';
 
 const require = createRequire(import.meta.url);
 
@@ -18,8 +17,9 @@ const NAMESPACE = '@show-docs/docusaurus-theme-diff';
 /**
 本层的入口：`getThemePath()` 挂本包那一层（里面只有 `DiffPage` 与它依赖的差异视图），
 `loadContent()` 交出**一份组件与一条规则**（`diff` 那一把键、`@theme/DiffPage`），判表与挂载
-都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：那一层；
-缺了它，页面看着正常但差异视图不出现。
+都在 `@show-docs/docusaurus-theme-component-page` 里。于是本层只有一个前提：那一层要装进站点、
+并注册成插件 —— 本层**不查**这一条（缺了它的症状是「页面看着正常但差异视图不出现」，
+由站点那份 `plugins` 清单自己负责）。
 
 `diff` 那把键的判法是 `any`：本层自己的读法（`src/loader/diff-decision.mts`）把 `true`、
 一串路径与 `{old, new}` 都认成「开了」，`false` / `null` / 空值都算没开 —— `any` 是同一口径的
@@ -28,17 +28,10 @@ const NAMESPACE = '@show-docs/docusaurus-theme-diff';
 组件写的是 `@theme/DiffPage` 而不是硬路径：站点在 `src/theme/DiffPage` 放一份就覆写掉它，
 与站点自己那一列同一条口径。
 */
-export default function theme(context: LoadContext): Plugin {
+export default function theme(): Plugin {
   return {
     name: NAMESPACE,
-    async loadContent() {
-      // 交出的那一页要由 component-page 判表才挂得上来（共享外壳 `ViewLayerDocItem` 也在那里）；
-      // 缺了它那一页安静地不出现，症状离原因隔着一整个构建，所以在配置期就点名。
-      // 本包那几份未编译的 `.tsx` / `.ts` 不在这一格：编译它们那条
-      // babel 规则归 `@show-docs/docusaurus-plugin-compile-source`，本包只在 `peerDependencies`
-      // 里点名它，配置期不查。
-      await assertThemePrerequisites(context, NAMESPACE);
-
+    loadContent() {
       return {
         componentPage: {
           components: [{ id: 'diff', component: '@theme/DiffPage' }],

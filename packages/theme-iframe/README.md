@@ -1,18 +1,19 @@
 # @show-docs/docusaurus-theme-iframe
 
 把文档页整页替换成一个指向**外部页面**的 iframe。frontmatter 写 `iframe: <地址>` 时，命中的页面
-保留站点 navbar 与页脚位置，正文区换成一个 iframe。
+保留站点 navbar，正文区换成一个 iframe，站点页脚收掉。
 
 判定与挂载都不在本包：本包在自己的 `loadContent()` 里交回**一个组件 + 一条规则**给
 [`@show-docs/docusaurus-theme-component-page`](../theme-component-page/README.md)（组件是
 `@theme/ExternalFrame`，规则是 `iframe:` 那把键），由机制层那份 `DocItem` 判表、命中后把整个
-`DocItem` 换成这个组件。所以 component-page 是本包的安装前提，`loadContent()`
-里当场点名。
+`DocItem` 换成这个组件。所以 component-page 是本包的安装前提，**要装上并注册成插件、而且写在本层
+之后**；本层不在 `loadContent()` 里查它 —— 缺了它这一列没人判表，页面安静地退回普通文档页（那条
+代价与判据归[机制层的 README](../theme-component-page/README.md)）。
 
 这一层只管「嵌别人的页面」：跨源，没有握手、没有消息通道，地址只能在父文档这一侧算完
 （`lib/external-url.ts`）。**三条 API 层（`scalar:` / `redoc:` / `stoplight:`）与本包无关** ——
 它们各自向 component-page 交自己的组件与规则，那份同源框、`postMessage` 协议与框内页面都在
-机制层里；卸载本包，它们和它们的框照常可用，只是 `iframe:` 那一把键不再有人认领。
+机制层里；卸载本包，它们和它们的框照常可用，只是 `iframe:` 那一把键没人认领。
 
 ## 安装
 
@@ -98,7 +99,7 @@ iframe: https://example.com/handbook/
 - 本包是基础设施链最上面的一格（依赖下一格 `theme-component-page` 把规则挂上去）；再往下是
   编译插件 `plugin-compile-source`，最下面是解析器包。四格的规矩写在仓库根 `README.md` 的
   「基础设施包」一节。
-- [维护者文档](./docs/internals.md)：包内组成、编译方式、这一族收缩的来龙去脉。
+- [维护者文档](./docs/internals.md)：包内组成、编译方式、这一族与机制层的分工。
 - [跨 iframe 协议](../theme-component-page/docs/iframe-protocol.md)：机制层那条同源框的消息形状
   （本层的跨源框不走它）。
 - [iframe 示例](./docs/iframe-demo.md)。

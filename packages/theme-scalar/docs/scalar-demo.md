@@ -18,7 +18,7 @@ oas3: /openapi-scalar.yaml
 
 - 取的是 `static/openapi-scalar.yaml`（构建产物里的 `/openapi-scalar.yaml`）：frontmatter 的
   `oas3:` 给的就是这个地址，只给这一页用，
-  Stoplight 与 Redoc 的示例页各取自己那份，三页不再共用同一份输入。
+  Stoplight 与 Redoc 的示例页各取自己那份，三页不共用同一份输入。
 - **形状与 `theme-redoc` 一对一**：这一页放的是一个 `<iframe class="component-frame"
 src="/__component-frame/">`。那条地址是 theme-component-page 自己注册的一条插件路由，**三条 API 层
   共用同一条**，构建产物里只有一份 `build/__component-frame/index.html`；框里渲染哪个组件由握手时

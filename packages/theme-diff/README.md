@@ -52,7 +52,7 @@ diff: true
 
 ## 层栈
 
-本层不再提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `diff` 条目（判法 `any` ——
+本层不提供 `theme/DocItem`：它在 `loadContent()` 里交出一把 `diff` 条目（判法 `any` ——
 `true`、一串路径或 `{ old, new }` 都算命中，组件指回 `@theme/DiffPage`），由 theme-component-page
 在最外那一格命中后把整页换掉。`DiffPage` 自己也不拼外壳 —— 它向官方要 `DocItem`
 （`@theme-init/DocItem`；仓库里只有 component-page 这一层提供 `DocItem`，没有要串的链），把差异
@@ -91,7 +91,7 @@ git 仓库里，也可以只是站点里的静态资源；两份内容一模一�
   就不会进来。两份时直接让 `git` 比这两份文件本身。结果都追加到 md 模块的导出上，`DiffPage`
   拿到本层数据后把差异视图摆在 `DocItem` 前面。
 - 差异视图按站点亮暗模式取色；展开与并排视图（GitHub 的分栏样式）在组件里写死。
-- 差异数据在构建时就算好了，成品站点里的这一页不再需要 `git`。
+- 差异数据在构建时就算好了，成品站点里的这一页不需要 `git`。
 - 视图初始化失败时显示一条提示，正文继续渲染。
 
 ## 已知限制

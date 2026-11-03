@@ -138,12 +138,21 @@ export default function myTheme(context, options) {
 }
 ```
 
-那条判据查的是**任一**包名，不只本包：本仓现在唯一的消费者 `theme-component-page` 用它查的是
-自己那一格（`assertThemePrerequisites`），要查解析器注册了没有的那一层照上面的写法自己查。
+那条判据查的是**任一**包名，不只本包。本仓真调它的只有一处：`themes/theme-git-badge` 用同
+一份文件里那条「数几份」的判据查自己那一格（`assertSinglePluginInstance`）。要查解析器注册了
+没有的那一层照上面的写法自己查。
 判错的两侧不对称 —— 误报判死一个本来能成的构建，漏报只是把构建期注定会炸的那一步留到构建期，
 所以「问不到官方那一份」（core 结构变了、配置文件读不了、preset 函数自己抛）一律放行。
 `./plugin-slots` 那条纯函数出口仍然单独发了给只读清单的读者用，理由与内部契约见
 [`docs/internals.md`](./docs/internals.md) 的「认层」一节。
+
+这两条子路径、加上 `.` 那条的 `types`，发的是 `src/` 里那份未编译的 `.mts`：读它们的时刻在配置期，
+早于任何人跑 `build`，而 Node 24 默认剥类型（本包 `engines.node` 因此写的是 `^24.0.0`）。走通这一步的是
+官方加载插件入口与配置那份 jiti（`@docusaurus/utils/lib/moduleUtils.js` 的 `loadFreshModule`）—— 站点自己
+拿 plain `import()` 去引一把子路径不在这条承诺里：文件真落在 `node_modules` 里时，Node 有
+`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` 这一格限制。`.` 那条的 `default` 仍是 `dist/index.mjs` ——
+站点把本包注册成插件时拿到的还是产物，改完源码照旧要 `pnpm build:core`。口径与代价记在仓库根
+README 的「构建包的编译口径」。
 
 ## 「这一层只能有一份实例」那条检查（同一个出口）
 
