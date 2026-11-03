@@ -4,6 +4,15 @@
 resolve 阶段按「导入者属于哪一层」改写 `@theme-prev/X`；层栈由站点 `plugins` 自动推导，不需要
 配置清单，也不需要给 Docusaurus 打补丁。
 
+它回答三个问题（依据都在[维护者文档](./docs/internals.md)）：
+
+1. **多个主题覆盖同一个组件会发生什么？** → 后声明的主题完全覆盖前者，前者被静默丢弃 —— 既不叠加，
+   也不链式（实测见「背景：一个全局别名喂不饱一条链」）。
+2. **`@theme-original` 能不能实现链式包裹？** → 不能：它是每个组件一个全局值，只能等于层栈里的
+   某一层（见「为什么另起 specifier，而不改写 `@theme-original`」）。
+3. **怎么让链式覆盖成立、又不改官方别名语义？** → 另起一条 `@theme-prev/X`，在 webpack resolve
+   阶段按「导入者属于哪一层」改写（见「插件如何注入 resolver」）。
+
 ## 安装
 
 ```bash
@@ -55,7 +64,7 @@ export default function MyLogo(props) {
 ### 站点层
 
 `src/theme` 里原有代码不用改，继续用官方 `@theme-original/X` 即可（它本来就只在最外层安全，
-语义不变）。想统一写法也可以用 `@theme-prev/X`（本仓库的 `src/theme/DocCardList` 就是这么写的）。
+语义不变）。想统一写法也可以用 `@theme-prev/X`（本仓库的 `src/theme/ChainDemo` 就是这么写的）。
 
 ## 配置
 
@@ -307,7 +316,7 @@ export default function myTheme(context, options) {
 
 - **`@theme-original` 语义零改动**：仍等于 `@theme/X`（全局赢家），内置组件 / 既有 swizzle 不受影响。
 - **只在「导入者属于某个已知主题层」时生效**；最内层、以及不在任何主题层内的导入者保持官方行为。
-- **链底必须有实现**：`theme-a` 能包裹是因为 preset 的 `theme-classic` 提供了 `DocCardList`；
+- **链底必须有实现**：`theme-a` 能包裹是因为下面那一层（`tools/theme-base`）提供了 `ChainDemo`；
   某组件在所有主题里都没实现时，最内层包裹者无东西可包（回落官方别名 → 真实的 Module not found）。
 - **无需配置清单、无需补丁**：层栈顺序 = `plugins` 数组顺序，插件自己读取。
 - **`NODE_ENV` 相关的层栈漂移**：`docusaurus start` 下 `plugin-debug` 会进层栈（成因与两种环境的层栈对照见 `docs/internals.md`）；
@@ -324,6 +333,8 @@ export default function myTheme(context, options) {
 
 ## 相关文档
 
+- [链式覆盖示例](./docs/chain-demo.md)：四个主题层层包裹 `ChainDemo` 的那一格 —— 外面数下来是
+  `[SITE] [C] [B] [A]`，最里面是链底那份组件本体。
 - [维护者文档](./docs/internals.md)：机制为什么这样设计、输入怎么校验、层归属怎么判、内部契约与实测记录。
 - 本包是基础设施链最下面的一格：上面依次是 `plugin-compile-source`、`theme-component-page`
   与 `theme-iframe`。四格的规矩写在[维护者文档](./docs/internals.md) 的「基础设施链的规矩」一节。

@@ -4,7 +4,7 @@ Feature: theme-markmap
 
   Scenario: 命中页的导图渲染在正文上方，原文照常
     Given 我打开 markmap 示例页
-    Then 这一页不渲染卡片列表，整页没有主题包裹标记
+    Then 这一页没有主题包裹标记
     And 导图已经画出来，节点和工具条都在
     And 导图落在正文标题的上方
     And 原文那几行照常在场

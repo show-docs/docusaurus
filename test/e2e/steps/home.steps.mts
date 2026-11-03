@@ -20,8 +20,7 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 一顶层格。`packages/` 那一份实例的 `routeBasePath` 是 `'/'`，所以地址就是 `/<目录名>/`；
 `themes/` 那一份的是 `'/themes'`，地址多一段。手抄那版漏了 `theme-git-badge`，少一张卡照样绿 ——
 这一格本来就是为「别忘了某个包」而存在的。
-*/
-const packageHrefs = fs
+*/ const packageHrefs = fs
   .readdirSync(path.join(repoRoot, 'packages'), { withFileTypes: true })
   .filter(
     (entry) =>
@@ -41,42 +40,31 @@ const themesHrefs = fs
   .map((entry) => `/themes/${entry.name}/`);
 
 /**
-主页正文里那条链：站点层加 `tools/` 那三层主题，从外到内 `src/theme > theme-c > theme-b > theme-a`，
-最里面才是官方那张卡片列表。选择器按「直接子元素」串起来，所以嵌套关系本身是被验的一环。
+主页正文里那张卡片列表：官方 `@theme/DocCardList` 自己渲染的那些卡片（`theme-doc-card-container`）。
+那条四层链（`ChainDemo`）不在这一页上，所以这里按卡片本身取，不按链的外壳取。
+给 `href` 时取的是**那张卡自己**（卡片就是那个 `<a>`），不是它里面的东西。
 */
-const cardChain = (page: Page): Locator =>
-  page.locator(
-    'div[data-site-wrapper="src/theme"] >' +
-      ' div[data-theme-wrapper="theme-c"] >' +
-      ' div[data-theme-wrapper="theme-b"] >' +
-      ' div[data-theme-wrapper="theme-a"]',
-  );
+const cards = (page: Page, href?: string): Locator =>
+  href === undefined
+    ? page.locator('a.theme-doc-card-container')
+    : page.locator(`a.theme-doc-card-container[href="${href}"]`);
 
 Given('我打开主页', async ({ page }) => {
   watchPageErrors(page);
   await page.goto('/');
 });
 
-Then('卡片列表被套进四层主题的链里', async ({ page }) => {
-  const chain = cardChain(page);
-  await expect(chain, '卡片列表没被套进四层主题的链里').toHaveCount(1);
-  await expect(
-    chain.locator('a.theme-doc-card-container').first(),
-    '链的最里面没有卡片',
-  ).toBeVisible();
-});
-
-Then('链里一格一个包都有卡片，指向各包自己的顶层页', async ({ page }) => {
+Then('卡片列表一格一个包都有卡片，指向各包自己的顶层页', async ({ page }) => {
   for (const href of packageHrefs) {
     await expect(
-      cardChain(page).locator(`a.theme-doc-card-container[href="${href}"]`),
+      cards(page, href),
       `主页该有一张指向 ${href} 的卡片`,
     ).toBeVisible();
   }
   // 总数也钉住：多一张少一张都红。头那一张是主页自己 —— 内容根的 `README` 就排在这份根级
   // 清单的头一格，`sidebars.mts` 里写得很明白。
   await expect(
-    cardChain(page).locator('a.theme-doc-card-container'),
+    cards(page),
     `卡片应是「${packageHrefs.length} 个包 + 主页那一张」`,
   ).toHaveCount(packageHrefs.length + 1);
 });
@@ -135,7 +123,7 @@ Then(
   async ({ page }) => {
     for (const href of themesHrefs) {
       await expect(
-        page.locator(`a.theme-doc-card-container[href="${href}"]`),
+        cards(page, href),
         `/themes/ 该有一张指向 ${href} 的卡片`,
       ).toBeVisible();
     }

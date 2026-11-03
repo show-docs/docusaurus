@@ -69,7 +69,7 @@ describe('discoverPlugins：用官方函数拿回官方顺序的插件列表', (
     }
   }, 60_000);
 
-  it('推出来的层栈是本仓库的 4 层链，含被官方别名表吞掉的 theme-b', async () => {
+  it('推出来的层栈是本仓库那 4 层工具主题，含被官方别名表吞掉的 theme-b', async () => {
     // 层栈不能建在 `context.plugins` 上（不存在，写反过一次 —— 见 ../packages/plugin-prev-layer-resolver/README.md）：
     // 判据走**真实推导**，拿真实 `loadContext` 的**原样返回值**喂进去也必须推出同一个结果。
     // 改回 `context.plugins` 时 theme-b 会丢（构建即 Module not found）。
@@ -82,8 +82,10 @@ describe('discoverPlugins：用官方函数拿回官方顺序的插件列表', (
       plugins: await discoverPlugins(siteDir),
     }).map((l) => path.relative(siteDir, l.owner));
     expect(owners.at(-1)).toBe(path.join('src', 'theme'));
-    // 用户插件主题：顺序 = plugins 数组顺序，且 theme-b 不能被跳过
+    // 用户插件主题：顺序 = plugins 数组顺序，且 theme-b 不能被跳过；
+    // 最里那一格是链底（theme-base），它必须排在被包的那三层下面。
     expect(owners.filter((o) => o.startsWith('tools'))).toEqual([
+      path.join('tools', 'theme-base', 'theme'),
       path.join('tools', 'theme-a', 'theme'),
       path.join('tools', 'theme-b', 'theme'),
       path.join('tools', 'theme-c', 'theme'),

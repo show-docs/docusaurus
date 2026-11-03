@@ -55,6 +55,7 @@
     "@show-docs/docusaurus-theme-viewer": "workspace:^",
     "@show-docs/theme-a": "workspace:^",
     "@show-docs/theme-b": "workspace:^",
+    "@show-docs/theme-base": "workspace:^",
     "@show-docs/theme-c": "workspace:^",
     "react": "catalog:",
     "react-dom": "~18.3.1"

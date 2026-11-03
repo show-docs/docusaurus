@@ -22,7 +22,7 @@ pnpm lint:knip:strict # 同一套判据的生产口径（--strict 隐含 --produ
 pnpm test           # vitest 单元测试（解析语义 + 不变量 + 输入校验 + 真实 resolver 端到端）
 pnpm test:coverage  # 同上 + 覆盖率（红线 100% 只挂在这里：pnpm test 全绿 ≠ CI 全绿）
 pnpm test:e2e       # 构建产物起服务，Playwright 在真浏览器里点开每个主题的示例页（CI 单独的 e2e 作业跑它）
-pnpm verify:chain   # 读真实 build 产物，回读主页那条四层渲染链（src/theme > theme-c > theme-b > theme-a）
+pnpm verify:chain   # 读真实 build 产物，回读示例页上那条四层渲染链（src/theme > theme-c > theme-b > theme-a）
 pnpm verify         # 一键全链路（组成见 package.json 的 verify；本表不复述，避免两处说法漂移）
 ```
 
@@ -34,7 +34,7 @@ pnpm verify         # 一键全链路（组成见 package.json 的 verify；本�
 
 | 目录                                   | 是什么                                                                                     | 细节                                                                                                                                                                                                                                   |
 | -------------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                              | [README](./packages/plugin-prev-layer-resolver/README.md) · [internals](./packages/plugin-prev-layer-resolver/docs/internals.md)                                                                                                       |
+| `packages/plugin-prev-layer-resolver/` | 核心包：`@theme-prev/X` 解析器 + 层栈自动发现                                              | [README](./packages/plugin-prev-layer-resolver/README.md) · [internals](./packages/plugin-prev-layer-resolver/docs/internals.md) · [示例页](./packages/plugin-prev-layer-resolver/docs/chain-demo.md)                                  |
 | `packages/plugin-compile-source/`      | 插件包：编译 `@show-docs` 家族随包发布、尚未编译的 `.ts` / `.tsx`                          | [README](./packages/plugin-compile-source/README.md) · [internals](./packages/plugin-compile-source/docs/internals.md)                                                                                                                 |
 | `packages/plugin-lazy-compilation/`    | 开发期插件：客户端编译按需编译，首屏只编用到的那部分                                       | [README](./packages/plugin-lazy-compilation/README.md)                                                                                                                                                                                 |
 | `themes/theme-git-badge/`              | 主题包：侧边栏里给「新建」与「更新过」的页面挂一枚纯色点（判据是 git）                     | [README](./themes/theme-git-badge/README.md) · [internals](./themes/theme-git-badge/docs/internals.md)                                                                                                                                 |
@@ -49,7 +49,7 @@ pnpm verify         # 一键全链路（组成见 package.json 的 verify；本�
 | `themes/theme-viewer/`                 | 主题包：正文里的图片交给查看器（点开放大、原尺寸、重置、前后切换）                         | [README](./themes/theme-viewer/README.md) · [internals](./themes/theme-viewer/docs/internals.md) · [示例页](./themes/theme-viewer/docs/viewer-demo.md)                                                                                 |
 | `themes/theme-copy-button/`            | 主题包：页脚加一颗按钮，点一下把当前页地址写进剪贴板                                       | [README](./themes/theme-copy-button/README.md) · [示例页](./themes/theme-copy-button/docs/copy-button-demo.md)                                                                                                                         |
 | `themes/theme-avatar/`                 | 主题包：导航栏挂一颗当前用户头像（站点写 `userApi` 才启用）                                | [README](./themes/theme-avatar/README.md) · [internals](./themes/theme-avatar/docs/internals.md) · [示例页](./themes/theme-avatar/docs/avatar-demo.md)                                                                                 |
-| `tools/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包）                                                      | [README](./tools/README.md)                                                                                                                                                                                                            |
+| `tools/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包；`theme-base` 是链底那一层）                           | [README](./tools/README.md)                                                                                                                                                                                                            |
 
 十五个构建包都是 `tsc` 编译包（`src/` → `dist/`），站点按包名拿到的入口（`exports` 里 `.` 的
 `default`）就是那份 `dist/index.mjs` —— 所以改完 `src/` 要 `pnpm build:core`（`pnpm start` /

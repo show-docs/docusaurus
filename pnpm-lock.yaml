@@ -270,6 +270,9 @@ importers:
       '@show-docs/theme-b':
         specifier: workspace:^
         version: link:tools/theme-b
+      '@show-docs/theme-base':
+        specifier: workspace:^
+        version: link:tools/theme-base
       '@show-docs/theme-c':
         specifier: workspace:^
         version: link:tools/theme-c
@@ -659,6 +662,8 @@ importers:
   tools/theme-a: {}
 
   tools/theme-b: {}
+
+  tools/theme-base: {}
 
   tools/theme-c: {}
 

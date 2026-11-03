@@ -1,5 +1,5 @@
 /**
-验证「多主题链式覆盖同一组件」在**真实 build 产物**里成立（同一条链在两个页面上的样子）。
+验证「多主题链式覆盖同一组件」在**真实 build 产物**里成立（示例页上有那条链，别处没有）。
 运行：pnpm build && pnpm verify:chain（读的是 `pnpm build:core` 产出的包内 `dist/`，
 也就是包出口真正指向的那份产物）。
 
@@ -52,11 +52,11 @@ console.log('\n自动推导的主题层栈（内 → 外，无配置清单、无
 for (const l of layers) console.log(' '.repeat(3) + rel(l.owner));
 
 // ---- 2. 从真实 build 产物回读包裹链 ----
-// 主页就是 `packages/README.md`（`routeBasePath: '/'` + `slug: /`），所以第一格是 `build/index.html`；
-// `/themes/` 那一格是另一棵内容根的落地页（`themes/README.md` 默认 slug `/`，落在实例自己的
-// `routeBasePath` 上），它渲染的是同一个 `DocCardList`，所以那条链应当**与内容根无关**。
-// 判据三头钉住这条链：两格正文里那四层必须**连续**出现；再取一个普通文档页，那一页整页都不该有
-// 包裹标记 —— 三条一起才钉住「只在渲染卡片列表的那两格发生，且哪一棵内容根都一样」。
+// 那条链走的是 `ChainDemo`：解析器包那份示例页（`packages/plugin-prev-layer-resolver/docs/chain-demo.md`）
+// 在正文里渲染 `ChainDemo`，站点层 `src/theme` 加 `tools/` 那三层主题各包一层，所以这一页是
+// 唯一渲染那条链的地方 —— 别的页（含两棵内容根的落地页）一个包裹标记都不该有。
+// 判据两头钉住这条链：示例页正文里那四层必须**连续**出现；再取两格（主页与一个普通文档页），
+// 那一整页一个包裹标记都不该有 —— 三条一起才钉住「链只发生在示例页，且哪一格都不多不少」。
 if (!fs.existsSync(path.join(root, 'build'))) {
   // 判红而不是「跳过并说明」：退出码 0 会让什么都没验的一次运行看起来和全过一样
   // （`pnpm verify` 里 build 先跑，所以那条链路不受影响；单独跑本脚本才会走到这里）。
@@ -66,8 +66,11 @@ if (!fs.existsSync(path.join(root, 'build'))) {
 
 const CHAIN = ['src/theme', 'theme-c', 'theme-b', 'theme-a'];
 const pages = [
-  { chain: true, file: 'build/index.html' },
-  { chain: true, file: 'build/themes/index.html' },
+  {
+    chain: true,
+    file: 'build/plugin-prev-layer-resolver/docs/chain-demo/index.html',
+  },
+  { chain: false, file: 'build/index.html' },
   {
     chain: false,
     file: 'build/theme-markmap/docs/markmap-demo/index.html',
@@ -127,8 +130,8 @@ for (const { chain, file } of pages) {
   const rendered = markersOf(html);
   const inArticle = markersOf(outerArticle(html));
 
-  // 期望有链的那一格只认「四层连续出现在正文里」；期望没有的那一格反过来，
-  // 整页一个标记都不该有（这条链不在别处渲染，页面上也没有别的 swizzle）。
+  // 期望有链的那一格只认「四层连续出现在正文里」；期望没有的那几格反过来，
+  // 整页一个标记都不该有（那条链只在示例页渲染，页面上也没有别的 swizzle）。
   const verdict = chain
     ? containsChain(inArticle, CHAIN)
     : rendered.length === 0;
@@ -143,19 +146,19 @@ for (const { chain, file } of pages) {
     ' '.repeat(3) +
       (verdict
         ? chain
-          ? '✅ DocCardList 链成立（4 层全部保留）'
-          : '✅ 这一页不渲染卡片列表，整页也确实没有包裹标记'
+          ? '✅ ChainDemo 链成立（4 层全部保留）'
+          : '✅ 这一页不渲染 ChainDemo，整页也确实没有包裹标记'
         : `❌ 与预期不符：这一页${chain ? '该有那条四层链' : '不该有任何包裹标记'}`),
   );
   isOk &&= verdict;
 }
 
 console.log(`
-期望渲染链（主页正文）：
-  src/theme > theme-c > theme-b > theme-a > (theme-classic 的真实卡片列表)
+期望渲染链（示例页正文）：
+  src/theme > theme-c > theme-b > theme-a > (theme-base 那份组件本体)
 说明：
 - 每一层的 @theme-prev/X 都解析为「紧邻下一层实现」，所以站点层加三层插件主题都被保留；
-- theme-a 的下一层是 preset 的 theme-classic，它不渲染 data-*-wrapper 标记，故链尾不可见；
+- theme-a 的下一层是 theme-base —— 组件本体就在那里，它不套 data-*-wrapper 标记，故链尾不可见；
 - @theme-original/X 保持官方语义（全局赢家），本机制没有改动它（test/layers.test.mts 钉住）。
 `);
 

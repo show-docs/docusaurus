@@ -2,19 +2,19 @@
 
 站点 swizzle（`.tsx`），用 `@theme-prev` 链在插件主题之上。
 
-`src/theme` 是层栈最外层的**哨兵槽位**，所以这里的 `@theme-prev/DocCardList` = `theme-c`；
+`src/theme` 是层栈最外层的**哨兵槽位**，所以这里的 `@theme-prev/ChainDemo` = `theme-c`；
 `theme-c` 里的 `@theme-prev` 又指向 `theme-b`…… 链路由此成立，整条链一共四层。
 
-| 文件                    | 内容                                                                     |
-| ----------------------- | ------------------------------------------------------------------------ |
-| `DocCardList/index.tsx` | 链式覆盖的最外层：包裹 `@theme-prev/DocCardList`（= theme-c 的卡片列表） |
-| `ComponentPageDemo/…`   | 不是 swizzle：站点自己那份「整页替换」组件，由配置里那条规则按登记名引用 |
+| 文件                  | 内容                                                                     |
+| --------------------- | ------------------------------------------------------------------------ |
+| `ChainDemo/index.tsx` | 链式覆盖的最外层：包裹 `@theme-prev/ChainDemo`（= theme-c 那份演示组件） |
+| `ComponentPageDemo/…` | 不是 swizzle：站点自己那份「整页替换」组件，由配置里那条规则按登记名引用 |
 
-这一格挂在 `DocCardList` 上而不是另开一根 `Logo` 链，是因为「同一个组件被多层同时保留」只需要
-一处真渲染：卡片列表在主页的正文区，套在它外面的标记肉眼可见（`[SITE] [C] [B] [A]`，四层各有一道
-彩色虚线），浏览器与构建产物两头都取得到证据（`pnpm verify:chain` / `pnpm test:e2e`）。
+这一格挂在 `ChainDemo` 上而不是另开一根 `Logo` 链，是因为「同一个组件被多层同时保留」只需要
+一处真渲染：那个演示组件在解析器包那份示例页的正文区，套在它外面的标记肉眼可见（`[SITE] [C] [B] [A]`，
+四层各有一道彩色虚线），浏览器与构建产物两头都取得到证据（`pnpm verify:chain` / `pnpm test:e2e`）。
 站点层那道边框的样式在站点的 `src/css/custom.css`（由 `docusaurus.config.mjs` 里 preset-classic
-的 `theme.customCss` 点名收进样式表管线）；里面那三层各自带着自己的样式表，
+的 `theme.customCss` 点名收进样式表管线）；里面那三层（theme-a/b/c）各自带着自己的样式表，
 见 [`tools/README.md`](../../tools/README.md)。
 
 ## 这一层为什么不管侧边栏徽标

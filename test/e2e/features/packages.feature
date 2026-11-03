@@ -8,7 +8,7 @@ Feature: 站点按包组织
     Given 我打开 theme-scalar 那一格的顶层页
     Then 这一页的正文就是这个包的 README
     And scalar 那一格的子页就是本包 docs 目录里那几页
-    And 这一格里没有 tools 那三层假主题
+    And 这一格里没有 tools 那几层假主题
     And 浏览器里没有运行期错误
 
   Scenario: 子页的地址等于它自己那份文件相对所属内容根的路径

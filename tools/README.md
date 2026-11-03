@@ -2,24 +2,28 @@
 
 `tools/` 装的是验证 / 调研用的 demo，**不属于核心包**。核心包见 [`packages/plugin-prev-layer-resolver`](../packages/plugin-prev-layer-resolver/README.md)。
 
-用三层本地主题插件（写法与站点层完全一致、每层都用 `@theme-prev/X` 包住上一层的同一个组件）验证
-「链可任意加长、每层写法相同」。它们包的是同一个组件 —— 两棵内容根落地页正文区那张卡片列表
-（`DocCardList`），站点层 `src/theme` 再往最外面包一层，所以渲染出来是四层。
+用本地主题插件（写法与站点层完全一致、每层都用 `@theme-prev/X` 包住上一层的同一个组件）验证
+「链可任意加长、每层写法相同」。它们包的是同一个组件 —— 演示组件（`ChainDemo`），站点层
+`src/theme` 再往最外面包一层，所以渲染出来是四层。
 
-| 目录       | 内容                                                               |
-| ---------- | ------------------------------------------------------------------ |
-| `theme-a/` | 主题插件 A（`@show-docs/theme-a`，覆盖 DocCardList）               |
-| `theme-b/` | 主题插件 B（`@show-docs/theme-b`，覆盖 DocCardList）               |
-| `theme-c/` | 主题插件 C（`@show-docs/theme-c`，覆盖 DocCardList，验证链可加长） |
-| `scripts/` | 验证脚本（`verify-chain.mts`，不是包）                             |
+| 目录          | 内容                                                                 |
+| ------------- | -------------------------------------------------------------------- |
+| `theme-base/` | 主题插件 BASE（`@show-docs/theme-base`）：链底 —— 组件本体就在这一层 |
+| `theme-a/`    | 主题插件 A（`@show-docs/theme-a`，覆盖 ChainDemo）                   |
+| `theme-b/`    | 主题插件 B（`@show-docs/theme-b`，覆盖 ChainDemo）                   |
+| `theme-c/`    | 主题插件 C（`@show-docs/theme-c`，覆盖 ChainDemo，验证链可加长）     |
+| `scripts/`    | 验证脚本（`verify-chain.mts`，不是包）                               |
 
-三个包各有 `package.json`（见 `pnpm-workspace.yaml`），站点按**包名**加载。
+四个包各有 `package.json`（见 `pnpm-workspace.yaml`），站点按**包名**加载。`theme-base` 必须排在
+`theme-a` 之前注册 —— 层栈按声明顺序，链底要在被包的那几层下面。
 
-每个主题插件只导出 `getThemePath()` 与 `getClientModules()` 这两个标准钩子，Docusaurus 的 babel
+每个主题插件只导出 `getThemePath()` 与 `getClientModules()` 这两个标准钩子（链底那一层
+`theme-base` 只导出前者），Docusaurus 的 babel
 直接编译 `.mts` / `.tsx`，不需要自己的构建产物。`getClientModules()` 交出去的是本包
-`styles/` 里那一道彩色虚线（A 红、B 绿、C 蓝，角标同色）：主页那张卡片列表外面因此套着三道
-看得见的边界，从外到内是 C、B、A。站点层 `src/theme` 是套在这三道外面的第四道（橙色），
+`styles/` 里那一道彩色虚线（A 红、B 绿、C 蓝，角标同色）：解析器包那份示例页的那一格外面因此套着
+三道看得见的边界，从外到内是 C、B、A。站点层 `src/theme` 是套在这三道外面的第四道（橙色），
 样式在站点的 `src/css/custom.css`，见 [`src/theme/README.md`](../src/theme/README.md)。
+链底那一层（`theme-base`）没有样式表 —— 它就是组件本体，不套标记。
 
 这一格里只有主题 demo 与验证脚本。开发期那个 webpack 加速插件
 （`@show-docs/docusaurus-plugin-lazy-compilation`）在
@@ -31,23 +35,23 @@
 
 ```bash
 pnpm build          # 先构建（含 build:core 与静态站点）
-pnpm verify:chain   # 读真实 build 产物（主页 `build/index.html` 与示例页 `build/theme-markmap/docs/markmap-demo/index.html`），验证每一层都被保留
+pnpm verify:chain   # 读真实 build 产物（示例页 `build/plugin-prev-layer-resolver/docs/chain-demo/index.html`、主页 `build/index.html` 与示例页 `build/theme-markmap/docs/markmap-demo/index.html`），验证每一层都被保留
 ```
 
-从上面那两份真实渲染产物里回读那条链：
+从上面那几份真实渲染产物里回读那条链：
 
 ```
-src/theme > theme-c > theme-b > theme-a > (theme-classic 的真实卡片列表)
+src/theme > theme-c > theme-b > theme-a > (theme-base 那份组件本体)
 ```
 
-它**只在渲染卡片列表的那两页**：站点里写 `<DocCardList />` 的是 `packages/README.md`（主页）与
-`themes/README.md`（`/themes` 那棵内容根的落地页），别的页面根本不渲染这个组件 —— 所以不需要
-「按页面 id 分支」的代码。正因为这样，脚本在两格都断言那条链（与内容根无关），再取一个普通文档页
+它**只在渲染那个组件的那一页**：站点里写 `<ChainDemo />` 的是解析器包那份示例页
+（`packages/plugin-prev-layer-resolver/docs/chain-demo.md`），别的页面根本不渲染这个组件 ——
+所以不需要「按页面 id 分支」的代码。正因为这样，脚本在那一格断言那条链，再取一个普通文档页
 反过来断言整页一个包裹标记都没有。
 
-浏览器里同样钉一次嵌套：`test/e2e/features/home.feature` 的那条用例要求
+浏览器里同样钉一次嵌套：`test/e2e/features/chain-demo.feature` 的用例要求
 `div[data-site-wrapper="src/theme"] > div[data-theme-wrapper="theme-c"] > … > div[data-theme-wrapper="theme-a"]`
-里就装着那些卡片，`markmap.feature` 则钉住文档页上一个包裹标记都没有
+里就装着链底那份组件，`markmap.feature` 则钉住文档页上一个包裹标记都没有
 （步骤实现同在 `test/e2e/`，跑法见 `test/README.md`）。
 
 每一层都被保留，每层写法相同，且 `@theme-original` 语义零改动。

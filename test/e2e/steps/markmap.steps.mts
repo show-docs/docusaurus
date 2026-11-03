@@ -3,14 +3,8 @@ import { createBdd } from 'playwright-bdd';
 
 const { Then } = createBdd();
 
-// 那条四层链只属于主页：站点里只有 `packages/README.md` 写了 `<DocCardList />`。
-// 「只在主页」在浏览器里也要成立，不只在看构建产物。
-Then('这一页不渲染卡片列表，整页没有主题包裹标记', async ({ page }) => {
-  await expect(
-    page.locator('[data-site-wrapper], [data-theme-wrapper]'),
-    '文档页上冒出了主题包裹标记',
-  ).toHaveCount(0);
-});
+// 「这一页没有主题包裹标记」那句是共用的（见 common.steps.mts）：那条四层链只该在解析器包
+// 那份示例页上出现，别处一个标记都不该有。
 
 // 只建好 SVG 不算工作：节点画出来了才算。
 Then('导图已经画出来，节点和工具条都在', async ({ page }) => {

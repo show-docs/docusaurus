@@ -114,6 +114,9 @@ const config = {
     // 上面两项不是层（都没有 `getThemePath()`），其余各项是层。
     // eslint-disable-next-line unicorn/prefer-module -- 本文件由 Docusaurus 的配置加载器执行，`require` 在那儿真实存在（`pnpm build` 绿即为证）
     require.resolve('@show-docs/docusaurus-plugin-prev-layer-resolver'),
+    // 链底那一层：组件本体就在它那里（`theme/ChainDemo`），所以上面三层包得到东西。
+    // 它必须排在 theme-a 之前 —— 层栈按声明顺序，链底要在被包的那几层下面。
+    '@show-docs/theme-base',
     // 三层假主题：只用来钉「多个主题包裹同一个组件」这条链，各自不提供渲染器
     '@show-docs/theme-a',
     '@show-docs/theme-b',
@@ -242,7 +245,7 @@ const config = {
           ...docsScope('packages'),
         },
         blog: false,
-        // 站点自己那份样式表：眼下只有主页那条四层链最外层 `[SITE]` 那道彩色虚线
+        // 站点自己那份样式表：眼下只有那条四层链最外层 `[SITE]` 那道彩色虚线
         //（`src/css/custom.css` 没有自动生效的约定，必须由这里点名，路径按站点根算）。
         theme: {
           customCss: './src/css/custom.css',

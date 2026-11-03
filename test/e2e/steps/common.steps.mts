@@ -221,6 +221,18 @@ Then('正文容器在这一页让位', async ({ page }) => {
 });
 
 /**
+那条四层链（`ChainDemo`）只在解析器包那份示例页上渲染：站点层加 `tools/` 那三层主题各包一层，
+标记是 `data-site-wrapper` / `data-theme-wrapper` 两个属性。所以「链不在别处」在浏览器里也成立 ——
+不只看构建产物。
+*/
+Then('这一页没有主题包裹标记', async ({ page }) => {
+  await expect(
+    page.locator('[data-site-wrapper], [data-theme-wrapper]'),
+    '这一页上冒出了主题包裹标记：那条链只该在解析器包的示例页上',
+  ).toHaveCount(0);
+});
+
+/**
 命中页把站点页脚收掉：那条 `.main-wrapper:has(.component-frame) + .footer` 在 component-page
 那份共用版式里，同源框那几条规则都吃它。判的是**计算后的 display**而不是元素在不在 DOM 里 ——
 页脚由 SSR 一并渲染，DOM 里一直在场，

@@ -184,12 +184,14 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
 
   it('真实站点 + 默认推导：插件初始化阶段就拿回按声明顺序的插件列表', async () => {
     // 走**生产入口**（不传 `plugins`）：默认推导那一支只有这条路能走到，注入桩的用例都绕过了它。
-    // 断言真实站点推出来的层栈含 `tools/` 那三层（`configureWebpack` 第二参数是 isServer 那个坑见 docs）。
+    // 断言真实站点推出来的层栈含 `tools/` 那四层（链底 theme-base 在最里，
+    // `configureWebpack` 第二参数是 isServer 那个坑见 docs）。
     const plugin = await createPlugin({ siteDir });
     const rel = captureResolver(plugin).layers.map((l) =>
       path.relative(siteDir, l.owner),
     );
     expect(rel.filter((o) => o.startsWith('tools'))).toEqual([
+      path.join('tools', 'theme-base', 'theme'),
       path.join('tools', 'theme-a', 'theme'),
       path.join('tools', 'theme-b', 'theme'),
       path.join('tools', 'theme-c', 'theme'),

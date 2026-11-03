@@ -1,6 +1,6 @@
 /* 站点自己的样式表：由 `docusaurus.config.mjs` 里 preset-classic 的 `theme.customCss` 点名收进
    站点的样式表管线（这一版 Docusaurus 没有「见到 `src/css/custom.css` 就自动加载」的约定）。
-   眼下这一格里只有一样东西：主页那条链最外层的一道边界（里面三层各自带着自己的样式表，
+   眼下这一格里只有一样东西：那条链最外层的一道边界（里面三层各自带着自己的样式表，
    见 `tools/README.md`）。侧边栏那枚「新建 / 更新」徽标的样式归
    `themes/theme-git-badge/styles/git-badge.css`（由那一层自己交出来）。 */
 

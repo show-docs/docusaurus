@@ -6,7 +6,7 @@ import type { Plugin } from '@docusaurus/types';
 const thisDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
-本地主题插件 A：覆盖 DocCardList，是那条链的第一层插件主题
+本地主题插件 A：覆盖 ChainDemo，是那条链的第一层插件主题
 */
 export default function themeA(): Plugin {
   return {
@@ -18,7 +18,7 @@ export default function themeA(): Plugin {
     getTypeScriptThemePath() {
       return path.resolve(thisDir, './theme');
     },
-    // 本层那道彩色虚线：样式表交给站点的样式表管线，只在主页那张卡片列表外面出现
+    // 本层那道彩色虚线：样式表交给站点的样式表管线，只在解析器包那份示例页的那一格外面出现
     getClientModules() {
       return [path.resolve(thisDir, './styles/layer-a.css')];
     },

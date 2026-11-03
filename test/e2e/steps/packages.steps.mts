@@ -73,14 +73,14 @@ Then('scalar 那一格的子页就是本包 docs 目录里那几页', async ({ p
 });
 
 /**
-`tools/` 下那三层假主题（theme-a/b/c）只服务于链式覆盖的夹具，不占站点的一格 ——
+`tools/` 下那几层假主题（链底 theme-base 与 theme-a/b/c）只服务于链式覆盖的夹具，不占站点的一格 ——
 `sidebars.mts` 扫的是 `packages/`，压根没有 `tools/`。这一句钉「别忘了排除它」，
 哪天有人往清单里加上 `tools`，这里立刻红。
 */
-Then('这一格里没有 tools 那三层假主题', async ({ page }) => {
+Then('这一格里没有 tools 那几层假主题', async ({ page }) => {
   await expect(
     page.locator('nav a[href^="/tools"]'),
-    'tools/ 那三层不该进侧边栏',
+    'tools/ 那几层不该进侧边栏',
   ).toHaveCount(0);
 });
 

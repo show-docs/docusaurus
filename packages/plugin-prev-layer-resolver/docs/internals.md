@@ -279,8 +279,8 @@ preset 函数自己抛，三种都退成「不知道」）；而「官方答了�
 `docusaurus start` 不设。所以：
 
 ```
-docusaurus build  → theme-classic, theme-a, theme-b, theme-c
-docusaurus start  → plugin-debug, theme-classic, theme-a, theme-b, theme-c   ← 多一层
+docusaurus build  → theme-classic, theme-base, theme-a, theme-b, theme-c
+docusaurus start  → plugin-debug, theme-classic, theme-base, theme-a, theme-b, theme-c   ← 多一层
 ```
 
 `plugin-debug` 只提供 `Debug*` 组件，与 `theme-classic` 无重叠，因此碰巧不影响已有落点。
@@ -291,6 +291,7 @@ docusaurus start  → plugin-debug, theme-classic, theme-a, theme-b, theme-c   �
 ```
 @docusaurus/core/lib/client/theme-fallback
 @docusaurus/theme-classic/lib/theme        ← preset 主题
+tools/theme-base/theme                     ← 链底：组件本体在这一层
 tools/theme-a/theme                        ← 用户 plugin 主题（按 plugins 顺序）
 tools/theme-b/theme
 tools/theme-c/theme
@@ -326,21 +327,18 @@ theme-fallback 的位置以**官方同一基准**推导（core 的 `lib/webpack/
 （读真实 build 产物）断言，判据清单以脚本输出为准（本文件不抄第二份）：
 
 ```
-build/index.html               正文里：src/theme > theme-c > theme-b > theme-a
-build/themes/index.html        同一串四层链
+build/plugin-prev-layer-resolver/docs/chain-demo/index.html  正文里：src/theme > theme-c > theme-b > theme-a
+build/index.html                整页没有任何包裹标记
 build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 ```
 
-`build/index.html` 就是主页：站点没有单独的首页组件，`packages/README.md` 以 `slug: /` 落在根。
-`build/themes/index.html` 是另一棵内容根（`themes/`）的落地页，同一形状 —— 它不写 `slug:`，
-`README.md` 默认就落在自己那一份实例的 `routeBasePath`（`/themes/`）上。
+那条链走的是 `ChainDemo`：站点层 `src/theme` 加 `tools/` 那三层主题各包一层，最里面才是链底那份
+组件本体（`tools/theme-base` 那一层提供的）。它只出现在**渲染了这个组件的那一格**（解析器包那份
+示例页 `docs/chain-demo.md`），而组件别名是全局解析的，所以链跟内容根无关；别的页面根本不渲染
+这个组件，于是那些页面的判据反过来，断言整页一个包裹标记都没有。
 
-这条链走的是 `DocCardList`：站点层 `src/theme` 加 `tools/` 那三层主题各包一层，最里面才是 theme-classic
-真实的卡片列表。它只出现在**渲染卡片列表的那两格**（两棵内容根的落地页），而组件别名是全局解析的，
-所以链跟内容根无关；别的页面根本不渲染这个组件，于是文档页那一格判据反过来，断言整页一个包裹标记都没有。
-
-四层每层都被保留（站点层 → `theme-c` → `theme-b` → `theme-a` → theme-classic 的真实卡片列表）。
-链尾的 theme-classic 不渲染 `data-*-wrapper` 标记，故在断言里不可见。
+四层每层都被保留（站点层 → `theme-c` → `theme-b` → `theme-a` → 链底那份组件本体）。
+链尾那一层不渲染 `data-*-wrapper` 标记，故在断言里不可见。
 
 > **💡 对照实验**
 > 插件主题里用官方的 `@theme-original` 包裹会 💥 **OOM**（`heap out of memory`）；
@@ -473,7 +471,7 @@ build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
    `lib/` 在覆盖率红线上，`theme/` 与 `components/` 由 e2e 钉。加一条复用契约，两边的用例一起加。
 10. **没有第二层覆盖就别走链。** 仓库里只有一个层提供某个组件时，那个层用官方别名
     `@theme-init/X`（最初那一份）—— `@theme-prev/X` 留给真有两层以上覆盖的组件
-    （`DocCardList` 那种）。多一层链没换来任何东西，只多一次按导入者算落点；
+    （`ChainDemo` 那种）。多一层链没换来任何东西，只多一次按导入者算落点；
     反过来，有多个提供者却用 `@theme-init` 会跳过下面那几层。
 
 ### 新增一层之前先问
