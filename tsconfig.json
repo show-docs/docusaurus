@@ -12,6 +12,27 @@
     // 行为一个字都不变。（pnpm 的 `packageExtensions` 试过，装两次都没把这格落进 node_modules。）
     "paths": {
       "@stoplight/elements": ["./node_modules/@stoplight/elements/index.d.ts"],
+      // 跨包按包名引**配置期**那几份源码时，TS 走被引包的 `exports` 会落到它的 `dist/`，而
+      // `dist/` 是构建产物：干净检出里它不存在，`pnpm lint:type`（`verify` 的第一道闸门）当场
+      // 报 TS2307。类型检查不该吃构建产物（口径同 `tsconfig.tools.json` 的 `//include`），
+      // 所以这里把这几把 specifier 指回被引包的 `src/`。
+      // 只改**类型检查**这一侧的指向：运行时仍按 `exports` 取 `dist/`（`test:coverage`、`build`
+      // 都先跑 `pnpm build:core`），一个字都不变。顺带一处好处是类型检查读的是当前源码，
+      // 不再是本地那份可能过期的 `.d.mts`。
+      // 新增一把由 `dist/` 背书的跨包 specifier 就在这个表里补一行。上限说清楚：本地留着
+      // `dist/` 时漏补也绿（TS 从 `exports` 落到产物），红只发生在干净检出那道闸门上。
+      "@show-docs/docusaurus-plugin-prev-layer-resolver": [
+        "./packages/plugin-prev-layer-resolver/src/index.mts",
+      ],
+      // 通配给的是这一个包：它 `exports` 里那三格子路径（`./plugin-slots`、
+      // `./registered-plugins`、`./resolve-from-core`）在 `src/` 里同名同扩展，所以一条就够。
+      // 别照抄到别的包上 —— 子路径与源码文件名不是一对一，指错了 TS2307 会红。
+      "@show-docs/docusaurus-plugin-prev-layer-resolver/*": [
+        "./packages/plugin-prev-layer-resolver/src/*.mts",
+      ],
+      "@show-docs/docusaurus-theme-component-page/prerequisites": [
+        "./packages/theme-component-page/src/prerequisites.mts",
+      ],
     },
   },
   // 默认 include 是 `**/*`，而 base 开了 `allowJs` —— 不排掉构建产物，第二次跑
