@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-erd",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Dbml 文件按关系图渲染，并在正文里附上各格式的导出",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-erd",
@@ -52,7 +52,7 @@
     }
   },
   "engines": {
-    "node": "^24.0.0"
+    "node": "^24.0.0 || ^26.0.0"
   },
   "publishConfig": {
     "access": "public",

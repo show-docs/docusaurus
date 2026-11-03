@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-component-page",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "在站点配置里给一列「frontmatter 键 → React 组件」的清单，命中那条键的页就把整个 DocItem 换成那个组件",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-component-page",
@@ -51,7 +51,7 @@
     }
   },
   "engines": {
-    "node": "^24.0.0"
+    "node": "^24.0.0 || ^26.0.0"
   },
   "publishConfig": {
     "access": "public",

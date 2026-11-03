@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-viewer",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "文档正文里的图片点开后交给查看器：放大、原尺寸、重置与前后切换",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/themes/theme-viewer",
@@ -45,7 +45,7 @@
     }
   },
   "engines": {
-    "node": "^24.0.0"
+    "node": "^24.0.0 || ^26.0.0"
   },
   "publishConfig": {
     "access": "public",

@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-diff",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Md 的 frontmatter 写 diff 就在正文上方渲染这份文件上一次改动的差异视图",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-diff",
@@ -51,7 +51,7 @@
     }
   },
   "engines": {
-    "node": "^24.0.0"
+    "node": "^24.0.0 || ^26.0.0"
   },
   "publishConfig": {
     "access": "public",

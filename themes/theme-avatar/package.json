@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "@show-docs/docusaurus-theme-avatar",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "导航栏亮暗切换旁边挂一颗当前用户头像：站点给一个用户信息接口，取到用户才出现，下拉里两条菜单地址各自可配",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/themes/theme-avatar",
@@ -46,7 +46,7 @@
     }
   },
   "engines": {
-    "node": "^24.0.0"
+    "node": "^24.0.0 || ^26.0.0"
   },
   "publishConfig": {
     "access": "public",
