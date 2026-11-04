@@ -341,8 +341,8 @@ importers:
         specifier: ^30.1.3
         version: 30.1.3(@noble/hashes@1.8.0)
       knip:
-        specifier: ^6.44.0
-        version: 6.44.0
+        specifier: ^6.44.1
+        version: 6.44.1
       playwright-bdd:
         specifier: ~9.2.1
         version: 9.2.1(@playwright/test@1.64.1)
@@ -446,8 +446,8 @@ importers:
   packages/theme-erd:
     dependencies:
       '@dbml/core':
-        specifier: ^11.0.0
-        version: 11.0.0
+        specifier: ^11.0.1
+        version: 11.0.1
       '@docusaurus/types':
         specifier: 'catalog:'
         version: 3.10.2(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.29))(csso@5.0.5)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.29)(react-dom@18.3.1(patch_hash=7c462993a9d2bdd31c428660caf175dad4737a5ac7ddf4d4741e12b816c6a6c5)(react@18.3.1))(react@18.3.1)(supports-color@10.2.2)(svgo@3.3.5)
@@ -1921,12 +1921,12 @@ packages:
   '@cucumber/tag-expressions@9.1.0':
     resolution: {integrity: sha512-bvHjcRFZ+J1TqIa9eFNO1wGHqwx4V9ZKV3hYgkuK/VahHx73uiP4rKV3JVrvWSMrwrFvJG6C8aEwnCWSvbyFdQ==}
 
-  '@dbml/core@11.0.0':
-    resolution: {integrity: sha512-4KkWdakmvZgPyDJmDomzm1z4GaN4sCUZR2ezDjs435C8FbQxUQeHDUpMVZqJlnfSFVPz4l50PonDrb9hh1+YQA==}
+  '@dbml/core@11.0.1':
+    resolution: {integrity: sha512-+dCuTh6OPEPIg4Wr+Ti0hbT27XQA81wzFC5q9nu+WpjEFeiVu9VBh+rRV+maTlo2jqya/lWcfUJv712nBxK04g==}
     engines: {node: '>=16'}
 
-  '@dbml/parse@11.0.0':
-    resolution: {integrity: sha512-vmPZqzAJPAOf+zRy0lgnTtUzllmrG6peOHBdgY3k2vUe3B84lw3G/kEZHE6r+xq6rIZPviGYKc0AdlgDXj7szg==}
+  '@dbml/parse@11.0.1':
+    resolution: {integrity: sha512-29ppWAC3jWnwegm2ZfLLmfDcnpsVHpPa4EnKOJ118O/sEc+GlOuyl0cDXSTKKAuhF2dQYgADzutZ8jZdlXe0Uw==}
     engines: {node: '>=18'}
 
   '@discoveryjs/json-ext@0.5.7':
@@ -7398,8 +7398,8 @@ packages:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
     engines: {node: '>=6'}
 
-  knip@6.44.0:
-    resolution: {integrity: sha512-mT0fl71Mqrko91azUO2Jw/uhYKwldORKT4liRq6yV0ZAtt6G2eYusdnvx8eBSQJDjvhRGKkpKUUx+vUG6syV4w==}
+  knip@6.44.1:
+    resolution: {integrity: sha512-Hbd8nvkIsNgFfXgC7Jsb5LHv7jj6VwA3tmfHd53XPX2z9Vc9RnAZqV0BIiP4OrtYqKwCoLseFHQZerb1bNlbSw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
@@ -12636,9 +12636,9 @@ snapshots:
 
   '@cucumber/tag-expressions@9.1.0': {}
 
-  '@dbml/core@11.0.0':
+  '@dbml/core@11.0.1':
     dependencies:
-      '@dbml/parse': 11.0.0
+      '@dbml/parse': 11.0.1
       antlr4: 4.13.2
       lodash: 4.18.1
       lodash-es: 4.18.1
@@ -12646,7 +12646,7 @@ snapshots:
       parsimmon: 1.18.1
       pluralize: 8.0.0
 
-  '@dbml/parse@11.0.0':
+  '@dbml/parse@11.0.1':
     dependencies:
       lodash-es: 4.18.1
       luxon: 3.7.2
@@ -19982,7 +19982,7 @@ snapshots:
 
   kleur@3.0.3: {}
 
-  knip@6.44.0:
+  knip@6.44.1:
     dependencies:
       formatly: 0.11.4
       get-tsconfig: 4.14.3

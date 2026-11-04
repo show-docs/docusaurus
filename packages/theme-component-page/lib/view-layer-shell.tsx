@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { Component, Suspense } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 
 import Admonition from '@theme/Admonition';
@@ -33,8 +33,9 @@ interface BoundaryProps extends Props {
 }
 
 /**
-整棵子树（含懒加载 chunk）的兜底。每条层把 `labels` 当 prop 交进来，而不是在渲染期按它现造
+整棵子树的兜底。每条层把 `labels` 当 prop 交进来，而不是在渲染期按它现造
 一个类 —— 类身份必须稳定，否则父级每次 re-render 都会让 React 卸载重挂视图，错误状态也跟着丢。
+懒加载那份「还在路上」不归这里，由视图自己那一层的 `Suspense` 接住（见 `ViewLayerDocItem`）。
 */
 export class ViewErrorBoundary extends Component<BoundaryProps, State> {
   static getDerivedStateFromError(): State {
@@ -104,6 +105,14 @@ export function ViewLayer({ view, children }: ViewLayerProps): ReactNode {
 
 `data` 是本层（已经判过命中）的那份数据；`view` 是包过兜底与懒加载的那块视图。
 两条视图层因此各只剩一句：交哪把键、交哪个组件。
+
+**视图外面那层 `Suspense` 是给懒加载接住的**：三条层交来的 `view` 都是 `lazy(() => import(…))`，
+第一次用到要现下载。重新渲染这一页的不只是首屏 —— 点链接换页那一档更新是同步的，chunk 还在路上时
+正好赶上一次这种更新，React 往上找不着可以挂起的边界，就把这次挂起当错误抛出，被这里的
+`ViewErrorBoundary` 接住：那一格就此停在「渲染失败」那条提示上，chunk 到了也不回来
+（dev 冷启动那份 chunk 还要编译，这段窗口最长，最容易撞上）。
+`fallback` 交 `null`：这一页要么整页等首屏，要么连同新页一起不提交，这条挂起几乎看不见，
+摆一句「正在装载…」只会让正文多跳一下。
 */
 export function ViewLayerDocItem<TData>(options: {
   labels: ViewLayerLabels;
@@ -122,7 +131,9 @@ export function ViewLayerDocItem<TData>(options: {
     <ViewLayer
       view={
         <ViewErrorBoundary labels={labels}>
-          <View data={data} />
+          <Suspense fallback={null}>
+            <View data={data} />
+          </Suspense>
         </ViewErrorBoundary>
       }
     >

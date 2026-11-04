@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { act, createElement, useEffect } from 'react';
-import type { ReactNode } from 'react';
+import { act, createElement, lazy, useEffect } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 
 import {
@@ -16,7 +17,8 @@ import {
 
 量的是共享实现自己的几格：兜底在成功时放行、失败时退回那一条提示（文案跟着调用方给的说法走）、
 `ViewLayer` 那三层结构（视图 + 分隔线 + 容器）与正文的顺序、宽度补丁跟着这一格渲染并随卸载
-消失、`ViewLayerDocItem` 在有没有本层数据时的两条分支。各包那句说法交了什么文案，归
+消失、`ViewLayerDocItem` 在有没有本层数据时的两条分支、懒加载那份 chunk 还在路上时来了同步更新
+由这一格接住而不是当失败。各包那句说法交了什么文案，归
 `view-layer-copies.test.mts` 的源码文本护栏。
 
 `act` 的环境标记与另两份 jsdom 用例同一口径（只认 globalThis，是那条 unicorn 规则的唯一例外）。
@@ -303,5 +305,67 @@ describe('ViewLayerDocItem：命中才插那块视图，不命中原样交给下
     expect(page.textContent).toContain(labels.title);
     // 兜底只罩住视图那一格，正文不跟着一起没
     expect(page.querySelector('#doc')?.textContent).toBe('正文');
+  });
+
+  /**
+  三条层的 `view` 都是 `lazy(() => import(…))`，第一次用到要现下载。换页那一档更新是同步的：
+  chunk 还在路上时正好赶上它，React 往上找不着可以挂起的边界，就把这次挂起当错误抛出 —— 外壳里
+  那层 `Suspense` 摘掉时这一条红（视图停在失败提示上，chunk 到了也不回来；dev 冷启动那份 chunk
+  还要编译，那段窗口最长）。口径记在 `lib/view-layer-shell.tsx` 里 `ViewLayerDocItem` 头上那句。
+  */
+  it('视图那份 chunk 还在路上时来了同步更新：不算失败，到了再渲染', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockReturnValue();
+
+    function Chunked({ data }: { data: string }): ReactNode {
+      return createElement('span', { id: 'inner' }, data);
+    }
+
+    const pending = Promise.withResolvers<{
+      default: ComponentType<{ data: string }>;
+    }>();
+    const ChunkView = lazy(() => pending.promise);
+
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mounted.push(() => {
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    });
+
+    const thisPage = () =>
+      createElement(
+        ViewLayerDocItem<string>,
+        { labels, data: '视图', view: ChunkView },
+        createElement('article', { id: 'doc' }, '正文'),
+      );
+
+    act(() => {
+      root.render(thisPage());
+    });
+    // `flushSync` 就是换页那一档同步更新，这一轮那份 chunk 仍未到
+    act(() => {
+      flushSync(() => {
+        root.render(thisPage());
+      });
+    });
+
+    expect(
+      container.querySelector('.alert'),
+      '挂起被当成了渲染失败',
+    ).toBeNull();
+    expect(container.querySelector('#doc')?.textContent).toBe('正文');
+    expect(consoleError.mock.calls.map((call) => call[0])).not.toContain(
+      `[${labels.name}] ${labels.title}：`,
+    );
+
+    await act(async () => {
+      pending.resolve({ default: Chunked });
+      await pending.promise;
+    });
+
+    expect(container.querySelector('#inner')?.textContent).toBe('视图');
   });
 });

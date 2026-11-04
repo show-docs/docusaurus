@@ -36,7 +36,7 @@ flowchart TD
 | `lib/frame-view.tsx`                         | 用它的站点编（不编译） | 框内那一页按需取渲染器那层壳（`useLazyView` / `LazyView`）：取之前只有一句话、取不到在框里摆一条看得见的说明                     |
 | `lib/frontmatter-values.ts`                  | 用它的站点编（不编译） | 「一组键里这一页写了哪几把」那一份读法（各条 API 层自己传入 `oas3` / `aas3` 那一串，机制层不认得它们）                           |
 | `lib/location-mirror.tsx`                    | 用它的站点编（不编译） | 把框内那份文档地址里 `#` 那一段报给外层那一格（Redoc / Elements 共用，`useLocation` 由各层自己交进来，不在这里选路由包）         |
-| `lib/view-layer-shell.tsx`                   | 用它的站点编（不编译） | 「在正文上方多插一块视图」那三条层共用的外壳（错误边界 + 视图 → 分隔线 → 容器 + 宽度补丁）                                       |
+| `lib/view-layer-shell.tsx`                   | 用它的站点编（不编译） | 「在正文上方多插一块视图」那三条层共用的外壳（错误边界 + 挂起边界 + 视图 → 分隔线 → 容器 + 宽度补丁）                            |
 | `lib/view-layer.ts` / `view-layer-labels.ts` | 用它的站点编（不编译） | 那句宽度补丁的文本与那一族提示文案的形状                                                                                         |
 | `lib/isolate-renderer-css.ts`                | 用它的站点编（不编译） | 把某一份第三方静态样式表从「并进全站那一份 css」改成「单独一个产物」的那条 webpack 接线（`theme-scalar` / `theme-stoplight` 用） |
 | `types/component-page.d.ts`                  | 不产出（只有类型）     | 那两张表的形状：配置期校验它、浏览器期读它，两侧引同一份                                                                         |
