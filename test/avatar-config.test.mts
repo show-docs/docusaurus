@@ -9,7 +9,7 @@ import {
 `themes/theme-avatar/src/config.mts`：站点那格插件选项判成浏览器要用的那一份。
 
 这一份落在覆盖率红线上（各包 `src` 目录下那批 `.mts`），所以每一条报错、每一个缺省都得有用例走到。
-它只管三件事：认得的格才读（写歪的格红在配置加载那一句）、形状判到底（串/布尔/数各有名字，
+它只管三件事：认得的格才读（写歪的格红在配置加载那一句）、形状判到底（文本格点名拿到的是哪一种，
 `null` 与数组不混称 object）、没写的格补上 `OPTION_SPEC` 里那一份缺省。
 
 三格的缺省是空串而空串就是关闭：`userApi`（整层不开）、`menu.profileHref` 与 `menu.logoutHref`
@@ -29,9 +29,6 @@ describe('normalizeConfig：没写时补什么', () => {
       anonymousName: '未命名',
       defaultAvatar: '',
       request: {
-        debounceLeading: true,
-        debounceWait: 300,
-        throttleWait: 300,
         cacheKey: 'avatar-user',
       },
       fields: {
@@ -83,7 +80,7 @@ describe('normalizeConfig：没写时补什么', () => {
         userApi: '/api/me',
         enableHostname: 'intranet.example',
         defaultAvatar: '/img/anon.png',
-        request: { debounceWait: 0, throttleWait: 0, debounceLeading: false },
+        request: { cacheKey: 'staff-user' },
         menu: {
           profileHref: '/me',
           logoutHref: '/logout',
@@ -94,7 +91,7 @@ describe('normalizeConfig：没写时补什么', () => {
       userApi: '/api/me',
       enableHostname: 'intranet.example',
       defaultAvatar: '/img/anon.png',
-      request: { debounceWait: 0, throttleWait: 0, debounceLeading: false },
+      request: { cacheKey: 'staff-user' },
       menu: {
         profileHref: '/me',
         logoutHref: '/logout',
@@ -127,6 +124,19 @@ describe('normalizeConfig：不认得的格', () => {
     expect(() => normalizeConfig({ menu: { logoutURL: '/logout' } })).toThrow(
       /选项\.menu 里没有 `logoutURL`.*只有 `profileLabelPrefix`/,
     );
+  });
+
+  it('防抖与节流那三格已经不收了：点名那一格，名单只剩 `cacheKey`', () => {
+    // `swr` 没有防抖与节流入参，这三格随依赖一起退掉；旧站点写了它们会在加载配置这一步红。
+    expect(() => normalizeConfig({ request: { debounceWait: 300 } })).toThrow(
+      /选项\.request 里没有 `debounceWait` 这一格；它只有 `cacheKey`/,
+    );
+    expect(() => normalizeConfig({ request: { throttleWait: 300 } })).toThrow(
+      /选项\.request 里没有 `throttleWait` 这一格/,
+    );
+    expect(() =>
+      normalizeConfig({ request: { debounceLeading: true } }),
+    ).toThrow(/选项\.request 里没有 `debounceLeading` 这一格/);
   });
 
   it('不认得的键写了 undefined：等于没写，不红', () => {
@@ -177,35 +187,5 @@ describe('normalizeConfig：形状判到底', () => {
     expect(() => normalizeConfig({ request: { cacheKey: '' } })).toThrow(
       /选项\.request\.cacheKey 不能是空串/,
     );
-  });
-
-  it('布尔那一格只认真布尔值', () => {
-    expect(() =>
-      normalizeConfig({ request: { debounceLeading: 'true' } }),
-    ).toThrow(/选项\.request\.debounceLeading 要一个布尔值，拿到的是 string/);
-  });
-
-  it('数字那一格不认串、NaN 与 Infinity（三种都算「不是一个数」）', () => {
-    expect(() => normalizeConfig({ request: { debounceWait: '300' } })).toThrow(
-      /选项\.request\.debounceWait 要一个数字，拿到的是 string/,
-    );
-    expect(() => normalizeConfig({ request: { throttleWait: NaN } })).toThrow(
-      /选项\.request\.throttleWait 要一个数字/,
-    );
-    expect(() =>
-      normalizeConfig({ request: { debounceWait: Infinity } }),
-    ).toThrow(/要一个数字/);
-  });
-
-  it('毫秒数不接受负数', () => {
-    expect(() => normalizeConfig({ request: { debounceWait: -1 } })).toThrow(
-      /选项\.request\.debounceWait 要一个非负的数（毫秒数），拿到的是 -1/,
-    );
-  });
-
-  it('零是合法的毫秒数（关掉防抖与节流）', () => {
-    expect(normalizeConfig({ request: { debounceWait: 0 } })).toMatchObject({
-      request: { debounceWait: 0 },
-    });
   });
 });

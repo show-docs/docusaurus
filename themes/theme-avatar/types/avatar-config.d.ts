@@ -9,15 +9,9 @@
 不必各写一遍。
 */
 
-/** 请求那几格：原样交给 `ahooks` 的 `useRequest`（节流、防抖与缓存键）。 */
+/** 请求那一格：交给 `swr` 的那一份缓存键。 */
 export type AvatarRequestConfig = {
-  /** 防抖的第一次要不要立刻发（`ahooks` 的 `debounceLeading`）。 */
-  debounceLeading: boolean
-  /** 防抖等多久（毫秒）。 */
-  debounceWait: number
-  /** 节流等多久（毫秒）。 */
-  throttleWait: number
-  /** 浏览器里那份请求缓存的键。 */
+  /** 浏览器里那份请求缓存的键：`swr` 按它存接口返回的那一份，也按它判要不要合并两次触发。 */
   cacheKey: string
 }
 
@@ -57,7 +51,7 @@ export type AvatarConfig = {
   anonymousName: string
   /** 接口没给头像地址时的替代图；空串 = 不给 `src`。 */
   defaultAvatar: string
-  /** 请求那几格。 */
+  /** 请求那一格。 */
   request: AvatarRequestConfig
   /** 字段名映射。 */
   fields: AvatarFields
@@ -68,7 +62,7 @@ export type AvatarConfig = {
 /**
 站点在 `docusaurus.config.mjs` 里写下的那一格（还没校验）。
 
-每一格都可以不写：文本、布尔、数字各按自己的缺省补上。`userApi` / `menu.profileHref` /
+每一格都可以不写：文本格各按自己的缺省补上。`userApi` / `menu.profileHref` /
 `menu.logoutHref` 这三格的缺省是空串，而空串在这两层语义里都是「关闭」——
 所以「装了这一层但还没接自己的接口」是合法状态，那时头像不出现。
 */

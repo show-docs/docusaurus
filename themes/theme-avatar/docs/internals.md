@@ -64,18 +64,43 @@
 不走链（链式覆盖才走 `@theme-prev`）。规则与判据在
 [解析器包的维护者文档](/plugin-prev-layer-resolver/docs/internals) 的「基础设施链的规矩」一节。
 
-`ahooks` 这一条依赖是本层要用的：`useRequest` 给的是防抖、节流与浏览器端那份请求缓存，本层只是
-用它，不是重写它。
+## 请求那一层：`swr` 顶上 `ahooks`，选项面跟着缩了一格
+
+`components/avatar.tsx` 只需要「发一次，把返回存住」，所以这一层的依赖也只为一件事：按
+`request.cacheKey` 在浏览器内存里存住接口返回那一份，重挂载时先画旧的那一份。
+
+`ahooks` 的 `useRequest` 给的是同一件事再加上防抖与节流。那三格（`debounceLeading` /
+`debounceWait` / `throttleWait`）在本层从来没有可观察的效果：一次挂载只有一个触发点（不 `manual`、
+没有 `refreshDeps`），防抖与节流只经过首帧那一下，而两边的缺省都是立刻发。`swr` 没有防抖与节流入参
+（数过它 `dist/types-*.d.ts` 里 `PublicConfiguration` 那一整张名单），这三格就随依赖一起退掉了 ——
+老站点写过它们会红在加载配置那一句，报错点名那一格并列出还能收的名单；`test/avatar-config.test.mts`
+里有一条用例钉住这三格的报错。
+
+`swr` 的三条缺省会做出本层没有的界面，都在调用处关掉：
+
+| 关掉的那一格            | 不关会怎样                                                                       |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| `shouldRetryOnError`    | 接口失败按 `errorRetryInterval`（缺省 5000ms）重试，`errorRetryCount` 还不限次数 |
+| `revalidateOnFocus`     | 切回标签页就重发一次：那边已经退登录时，头像会在用户没做任何动作的时候消失       |
+| `revalidateOnReconnect` | 断网恢复同样重发一次                                                             |
+
+这四条行为都在 `swr@2.5.1` 上实测过（jsdom + `createRoot`，看渲染出来的文本，不是看 hook 的返回值）：
+`null` 键一次都不发；键落定发一次并把返回送上界面；关掉重试后接口失败始终只有那一次；`focus` 与
+`online` 两个事件都不再触发请求。这三格的名字与缺省读自那一版的类型定义，升版后回读一遍。
+
+留着的一条差别：`swr` 在 `dedupingInterval`（缺省 2000ms）之内合并同键请求，所以 2 秒内的重挂载只
+读到缓存、不再发一次，而 `ahooks` 那份是无条件再验一次。导航栏在整个会话里只挂载一次，本层碰不到
+这一条的现场，也就没为它加判据。另一条：`ahooks` 那份缓存另有 5 分钟过期时间，`swr` 的没有。
 
 ## 已知限制
 
 - 覆盖率红线只算 `src/*.mts`（`vitest.config.mts` 的 include）：`theme/` 与 `components/` 是
   站点编译的源码，不在红线里，由真实构建与 e2e 钉。本站这一层故意不出现头像，所以 e2e 能钉的
   只有「导航栏还在、没有多余的那颗图」，接口通的那一条路径在本仓没有现场。
-- 接口失败没有任何界面：`useRequest` 抛错时 `data` 是 `undefined`，判据走到「不画」。这是刻意的
+- 接口失败没有任何界面：`swr` 拿到 rejection 时 `data` 仍是 `undefined`，判据走到「不画」。这是刻意的
   （导航栏不该把一次请求失败显成一个错误），代价是排查得开控制台。
-- `request` 那一格原样摊进 `useRequest` 的入参，`ready` 由本层写在其后 —— 站点写了 `ready`
-  也会被覆盖，这一格不在选项名单里。
+- 「发不发」那一格不给站点碰：本层把 `request.cacheKey` 用作 `swr` 的键，没启用时交 `null` 键。
+  站点没有 `ready` 这类入参可写，写了也不在这一层的名单里。
 
 ## 升级检查单
 

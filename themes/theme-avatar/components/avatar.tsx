@@ -10,10 +10,10 @@
 两条都空就只剩图片、不再有下拉。
 */
 
+import useSWR from 'swr';
+
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
-
-import useRequest from 'ahooks/es/useRequest';
 
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import NavbarItem from '@theme/NavbarItem';
@@ -50,9 +50,16 @@ export function Avatar({ config }: Props): ReactNode {
     !enableHostname || globalThis.location?.hostname === enableHostname;
   const enabled = isBrowser && Boolean(userApi) && hostnameMatches;
 
-  const { data } = useRequest<UserPayload | undefined, never[]>(
+  // 键那一条同时充当开关：`swr` 见到 `null` 键一次都不发（实测见 `../docs/internals.md`）。
+  // 下面三格是 `swr` 的缺省，都会多出「本层没有的界面」：失败重试、切回标签页重发、断网恢复重发。
+  const { data } = useSWR<UserPayload, Error, string | null>(
+    enabled ? request.cacheKey : null,
     () => fetch(userApi).then((response) => response.json()),
-    { ...request, ready: enabled },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    },
   );
 
   const displayName =

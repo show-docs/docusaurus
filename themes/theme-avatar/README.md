@@ -55,7 +55,7 @@ export default {
 | `fields`                  | `id` / `name` / `displayName` / `avatar` | 接口返回里那四样各叫什么名字                                                                                           |
 | `anonymousName`           | `'未命名'`                               | 接口没给名字时菜单里用这一串                                                                                           |
 | `defaultAvatar`           | `''`                                     | 接口没给头像地址时的替代图；空串时接口没头像就不画                                                                     |
-| `request`                 | 300 / 300 / `true` / `'avatar-user'`     | 交给 `ahooks` 的 `useRequest`：防抖、节流、首次是否立刻发、缓存键                                                      |
+| `request.cacheKey`        | `'avatar-user'`                          | 交给 `swr` 的那一份浏览器内缓存的键；键同时也是「发不发」的开关                                                        |
 | `menu.profileLabelPrefix` | `'用户：'`                               | 个人中心那一行接在名字前面的前缀                                                                                       |
 | `menu.profileHref`        | 空串 = 不出这一行                        | 个人中心地址                                                                                                           |
 | `menu.logoutText`         | `'退出登录'`                             | 退出登录那一行的文字                                                                                                   |
@@ -63,7 +63,9 @@ export default {
 | `menu.logoutTarget`       | `'_self'`                                | 退出登录那一条的开法                                                                                                   |
 
 写了不认得的格（例如把 `userApi` 打成 `userAPI`）红在加载配置那一句，报错点名到那一格与它
-能收的名单；类型写歪（`debounceWait` 给了串、`request` 给了数组）同样红在这里。
+能收的名单；类型写歪（`cacheKey` 给了数字、`request` 给了数组）同样红在这里。防抖与节流那三格
+（`debounceLeading` / `debounceWait` / `throttleWait`）随 `ahooks` 一起退掉了，写了它们的老站点
+红在同一句报错上，报错会点名那一格并列出还能收的名单。
 
 ## 层栈
 
@@ -80,8 +82,10 @@ swizzle 了同一格，站点那一份压过本层（官方别名「全局赢家
   浏览器侧那一层用官方的 `usePluginData(包名)` 取回它。
 - 头像与菜单是 `components/avatar.tsx`：接口取回的那一份按 `fields` 那格的字段名读，
   `id` 那格有值才画（它是数字也认），名字与头像只认字符串。
-- 请求走 [`ahooks`](https://ahooks.js.org/) 的 `useRequest`，节流与缓存参数由站点的 `request`
-  那格给；服务端渲染那一次不发请求（那时没有 `location`，`enableHostname` 按不命中处理）。
+- 请求走 [`swr`](https://swr.vercel.app/) 的 `useSWR`：缓存键由站点的 `request.cacheKey` 给，
+  没启用时那一格交 `null`（`null` 键一次请求都不发）；失败重试、切回标签页与断网恢复的重新验证
+  都在本层关掉，接口没通就一直当「没有这个用户」。服务端渲染那一次不发请求（那时没有 `location`，
+  `enableHostname` 按不命中处理）。
 - 样式一行都不写：用的全是 Infima 已有的类名（`avatar__photo`、`dropdown`），
   所以本层没有 `getClientModules()`，也没有自己的样式表。
 - 主题层与 `components/` 是未编译的 `.tsx`，随包发布、由用它们的站点编译；
@@ -100,4 +104,4 @@ swizzle 了同一格，站点那一份压过本层（官方别名「全局赢家
 
 - [`plugin-prev-layer-resolver` 的 README](/plugin-prev-layer-resolver/)：`@theme-prev/*` 的语义与层栈。
 - [示例页](./docs/avatar-demo.md)：本站这一层的实际状态，以及看不到头像的三种情况。
-- [`ahooks` 的 `useRequest`](https://ahooks.js.org/zh-CN/hooks/use-request/index)：`request` 那一格能写的参数。
+- [`swr` 的 API 参考](https://swr.vercel.app/zh-CN/docs/api)：`request.cacheKey` 那一格落在它的缓存键上。

@@ -388,7 +388,7 @@ describe('theme-avatar 入口', () => {
   it('contentLoaded 交出的是配置期校验并补齐过的那一份', () => {
     const plugin = avatarTheme(contextWith(), {
       userApi: '/api/me',
-      request: { debounceWait: 0 },
+      request: { cacheKey: 'staff-user' },
     });
 
     expect(globalDataOf(plugin)).toEqual({
@@ -397,10 +397,7 @@ describe('theme-avatar 入口', () => {
       anonymousName: '未命名',
       defaultAvatar: '',
       request: {
-        debounceLeading: true,
-        debounceWait: 0,
-        throttleWait: 300,
-        cacheKey: 'avatar-user',
+        cacheKey: 'staff-user',
       },
       fields: {
         id: 'id',

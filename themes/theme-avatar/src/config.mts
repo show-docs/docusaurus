@@ -28,8 +28,6 @@ const ROOT = 'theme-avatar 的选项';
 /** 一棵树里的一格：叶子说自己收什么、缺省是什么；组说自己有哪几格。 */
 type FieldSpec =
   | { kind: 'text'; default?: string; nonEmpty?: boolean; omit?: boolean }
-  | { kind: 'boolean'; default?: boolean }
-  | { kind: 'number'; default?: number; nonNegative?: boolean }
   | { kind: 'group'; of: Record<string, FieldSpec> };
 
 type LeafSpec = Exclude<FieldSpec, { kind: 'group' }>;
@@ -46,9 +44,6 @@ const OPTION_SPEC: Record<string, FieldSpec> = {
   request: {
     kind: 'group',
     of: {
-      debounceLeading: { kind: 'boolean', default: true },
-      debounceWait: { kind: 'number', default: 300, nonNegative: true },
-      throttleWait: { kind: 'number', default: 300, nonNegative: true },
       cacheKey: { kind: 'text', default: 'avatar-user', nonEmpty: true },
     },
   },
@@ -104,32 +99,12 @@ function namesOf(spec: Record<string, FieldSpec>): string {
 
 /** 叶子那一格判到底，顺带把值原样交回。 */
 function checkLeaf(value: unknown, spec: LeafSpec, at: string): unknown {
-  if (spec.kind === 'text') {
-    if (typeof value !== 'string') {
-      throw new TypeError(`${at} 要一个字符串，拿到的是 ${kindOf(value)}`);
-    }
-
-    if (spec.nonEmpty && value === '') {
-      throw new Error(`${at} 不能是空串；要这一格不生效就别写它`);
-    }
-
-    return value;
+  if (typeof value !== 'string') {
+    throw new TypeError(`${at} 要一个字符串，拿到的是 ${kindOf(value)}`);
   }
 
-  if (spec.kind === 'boolean') {
-    if (typeof value !== 'boolean') {
-      throw new TypeError(`${at} 要一个布尔值，拿到的是 ${kindOf(value)}`);
-    }
-
-    return value;
-  }
-
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new TypeError(`${at} 要一个数字，拿到的是 ${kindOf(value)}`);
-  }
-
-  if (spec.nonNegative && value < 0) {
-    throw new Error(`${at} 要一个非负的数（毫秒数），拿到的是 ${value}`);
+  if (spec.nonEmpty && value === '') {
+    throw new Error(`${at} 不能是空串；要这一格不生效就别写它`);
   }
 
   return value;
