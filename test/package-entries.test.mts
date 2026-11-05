@@ -73,8 +73,10 @@ const contextWith = (): LoadContext =>
   }) as unknown as LoadContext;
 
 /**
-webpack 的 `utils`：本仓这几条入口只用到 `getJSLoader`（erd）与
-`utils.currentBundler.instance.ProvidePlugin`（stoplight 补 `process`）。
+webpack 的 `utils`：本仓这几条入口只用到 `getJSLoader`（erd）、
+`utils.currentBundler.instance.ProvidePlugin`（stoplight 补 `process`），以及
+`utils.currentBundler.name` 与 `instance.lazyCompilationMiddleware`（lazy-compilation 那两条分支）。
+bundler 默认摆成 webpack，除那几条用例外的调用不必跟着改。
 */
 class FakeProvidePlugin {
   readonly definitions: Record<string, string>;
@@ -84,10 +86,28 @@ class FakeProvidePlugin {
   }
 }
 
-const utilsWith = (isServer: boolean) =>
+/**
+假的 `rspack.lazyCompilationMiddleware`：交回一个记下「见到的是哪一份 compiler」的处理者，
+让测试能钉住挂进中间件表那一步确实把 compiler 交给了它。
+*/
+const fakeLazyCompilationMiddleware = (
+  compiler: unknown,
+): (() => void) & { seen: unknown } =>
+  Object.assign(() => {}, { seen: compiler });
+
+const utilsWith = (
+  isServer: boolean,
+  bundler: 'webpack' | 'rspack' = 'webpack',
+) =>
   ({
     getJSLoader: () => ({ loader: `js-loader:${isServer}` }),
-    currentBundler: { instance: { ProvidePlugin: FakeProvidePlugin } },
+    currentBundler: {
+      name: bundler,
+      instance: {
+        ProvidePlugin: FakeProvidePlugin,
+        lazyCompilationMiddleware: fakeLazyCompilationMiddleware,
+      },
+    },
   }) as never;
 
 /** `configureWebpack` 交回来的那一格（只列本仓用到的几处）。 */
@@ -112,11 +132,12 @@ const webpackOf = (
   plugin: Plugin,
   config: unknown = baseWebpackConfig(),
   isServer = false,
+  bundler: 'webpack' | 'rspack' = 'webpack',
 ): WebpackResult =>
   plugin.configureWebpack!(
     config as never,
     isServer,
-    utilsWith(isServer),
+    utilsWith(isServer, bundler),
     {} as never,
   ) as WebpackResult;
 
@@ -153,7 +174,7 @@ const contributedOf = async (plugin: Plugin): Promise<unknown> =>
   ((await loadContentOf(plugin)()) as { componentPage?: unknown })
     .componentPage;
 
-describe('plugin-lazy-compilation：开发期给客户端 webpack 开 lazyCompilation', () => {
+describe('plugin-lazy-compilation：开发期给客户端编译开 lazyCompilation', () => {
   /** 把 `NODE_ENV` 摆成用例要的那一格，跑完恢复。 */
   function withNodeEnv(value: string | undefined, run: () => void): void {
     const previous = process.env.NODE_ENV;
@@ -173,8 +194,49 @@ describe('plugin-lazy-compilation：开发期给客户端 webpack 开 lazyCompil
     }
   }
 
-  type ExperimentsConfig = {
+  /**
+  `configureWebpack` 交回来的那一格（本包只点名自己要的那几格，其余一概不写）。
+  官方那一步把它用 webpack-merge 并进传进来的 config，所以这里断言的是「交出去的那几格」。
+  */
+  type LazyPatch = {
     experiments?: { lazyCompilation?: unknown; [key: string]: unknown };
+    lazyCompilation?: unknown;
+    devServer?: {
+      setupMiddlewares?: (
+        middlewares: unknown[],
+        devServer: { compiler: unknown },
+      ) => unknown[];
+      [key: string]: unknown;
+    };
+  };
+
+  /** 装上时装的那两格 —— 两个 bundler 收的是同一份形状，只是住的地方不同。 */
+  const LAZY = { entries: true, imports: true };
+
+  /** 中间件表的那一项：本仓只用到 `name` 与 `middleware` 两格。 */
+  type MiddlewareEntry = {
+    name?: string;
+    middleware?: (() => void) & { seen?: unknown };
+  };
+
+  /** 跑一遍并交回本包点名那一格；`undefined` = 这一支什么都不改。 */
+  const patchOf = (
+    isServer: boolean,
+    bundler: 'webpack' | 'rspack' = 'webpack',
+  ): LazyPatch | undefined => {
+    const config = {};
+    let patch: LazyPatch | undefined;
+    withNodeEnv('development', () => {
+      patch = webpackOf(
+        lazyCompilationPlugin(),
+        config,
+        isServer,
+        bundler,
+      ) as unknown as LazyPatch | undefined;
+    });
+    // 本包不改动传进来的那份 config：要改的都从返回值交出去
+    expect(config).toEqual({});
+    return patch;
   };
 
   it('名字是包名本身', () => {
@@ -183,49 +245,69 @@ describe('plugin-lazy-compilation：开发期给客户端 webpack 开 lazyCompil
     );
   });
 
-  it('客户端且不是 production：给 experiments 装上 lazyCompilation', () => {
-    const config: ExperimentsConfig = {};
-    withNodeEnv('development', () => {
-      webpackOf(lazyCompilationPlugin(), config, false);
-    });
+  it('webpack：客户端且不是 production，给 experiments 装上 lazyCompilation', () => {
+    const patch = patchOf(false);
 
-    expect(config.experiments?.lazyCompilation).toEqual({
-      entries: true,
-      imports: true,
-    });
+    expect(patch?.experiments?.lazyCompilation).toEqual(LAZY);
+    // 顶层那一格与 devServer 都不交：webpack 自己起那份按需编译的后端
+    expect(patch?.lazyCompilation).toBeUndefined();
+    expect(patch?.devServer).toBeUndefined();
   });
 
-  it('服务端编译：不动 experiments', () => {
-    const config: ExperimentsConfig = {};
-    withNodeEnv('development', () => {
-      webpackOf(lazyCompilationPlugin(), config, true);
-    });
+  it('rspack：同一格装在顶层，不写 experiments（那一格在 rspack 里是废弃写法）', () => {
+    const patch = patchOf(false, 'rspack');
 
-    expect(config.experiments).toBeUndefined();
+    expect(patch?.lazyCompilation).toEqual(LAZY);
+    expect(patch?.experiments).toBeUndefined();
   });
 
-  it('production（`docusaurus build` 那一档）：不动 experiments', () => {
-    const config: ExperimentsConfig = {};
-    withNodeEnv('production', () => {
-      webpackOf(lazyCompilationPlugin(), config, false);
-    });
+  it('rspack：那份中间件挂到中间件表表头，compiler 交给它，devServer 只交这一格', () => {
+    const patch = patchOf(false, 'rspack');
+    const compiler = { tag: 'fake-client-compiler' };
+    const registered = patch?.devServer?.setupMiddlewares?.(
+      [{ name: 'webpack-dev-middleware' }],
+      { compiler },
+    ) as MiddlewareEntry[];
 
-    expect(config.experiments).toBeUndefined();
+    expect(Object.keys(patch?.devServer ?? {})).toEqual(['setupMiddlewares']);
+    expect(registered.map((entry) => entry.name)).toEqual([
+      'rspack-lazy-compilation',
+      'webpack-dev-middleware',
+    ]);
+    expect(registered[0]?.middleware?.seen).toBe(compiler);
   });
 
-  it('experiments 已经有别的键时：只补自己那一格，不整块换掉', () => {
-    const config: ExperimentsConfig = {
-      experiments: { asyncWebAssembly: true },
-    };
-    withNodeEnv('development', () => {
-      webpackOf(lazyCompilationPlugin(), config, false);
-    });
+  it('服务端编译：两处都不动', () => {
+    for (const bundler of ['webpack', 'rspack'] as const) {
+      expect(patchOf(true, bundler)).toBeUndefined();
+    }
+  });
 
-    expect(config.experiments?.asyncWebAssembly).toBe(true);
-    expect(config.experiments?.lazyCompilation).toEqual({
-      entries: true,
-      imports: true,
-    });
+  it('production（`docusaurus build` 那一档）：两处都不动', () => {
+    for (const bundler of ['webpack', 'rspack'] as const) {
+      const config = { experiments: { asyncWebAssembly: true } };
+      withNodeEnv('production', () => {
+        expect(
+          webpackOf(lazyCompilationPlugin(), config, false, bundler),
+        ).toBeUndefined();
+      });
+      expect(config).toEqual({ experiments: { asyncWebAssembly: true } });
+    }
+  });
+
+  it('交出的那一格只有本包自己那几格，不带同级别的键', () => {
+    const webpackPatch = patchOf(false);
+    const rspackPatch = patchOf(false, 'rspack');
+
+    // 并进站点已有的 `experiments` / `devServer` 时不会被整块换掉：交出去的形状里只有这一格
+    expect(webpackPatch && Object.keys(webpackPatch)).toEqual(['experiments']);
+    expect(Object.keys(webpackPatch?.experiments ?? {})).toEqual([
+      'lazyCompilation',
+    ]);
+    expect(Object.keys(rspackPatch ?? {})).toEqual([
+      'lazyCompilation',
+      'devServer',
+    ]);
   });
 });
 

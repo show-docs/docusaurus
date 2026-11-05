@@ -25,7 +25,7 @@
 样式在站点的 `src/css/custom.css`，见 [`src/theme/README.md`](../src/theme/README.md)。
 链底那一层（`theme-base`）没有样式表 —— 它就是组件本体，不套标记。
 
-这一格里只有主题 demo 与验证脚本。开发期那个 webpack 加速插件
+这一格里只有主题 demo 与验证脚本。开发期那个按需编译插件
 （`@show-docs/docusaurus-plugin-lazy-compilation`）在
 [`packages/plugin-lazy-compilation/`](../packages/plugin-lazy-compilation/)：它只导出
 `configureWebpack()`，没有主题目录，所以层栈推不出它那一格（判据见
