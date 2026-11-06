@@ -12,6 +12,7 @@ import type { Plugin } from '@docusaurus/types';
 import prevLayerResolverPlugin, {
   type PrevLayerResolverOptions,
 } from '../packages/plugin-prev-layer-resolver/src/index.mts';
+import { PrevLayerResolveTapPlugin } from '../packages/plugin-prev-layer-resolver/src/resolve-tap.mts';
 import { PrevLayerResolverPlugin } from '../packages/plugin-prev-layer-resolver/src/resolver.mts';
 
 import { mkdtempReal } from './helpers.mts';
@@ -55,11 +56,17 @@ function loadPlugin(): Promise<Plugin> {
 }
 
 /**
-`configureWebpack` 的第三个参数（`utils`）：插件用它取官方那条 babel loader（`getJSLoader`）。
-测试里只需要这一格，给个哨兵。
+`configureWebpack` 的第三个参数（`utils`）：本包只读 `currentBundler.name` —— 官方由
+`getCurrentBundler()` 算好的那一格（两支接线的分支判据，本包不另判一套）。
+bundler 默认摆成 webpack，rspack 那一支的用例自己换。
 */
 const utilsStub = {
-  getJSLoader: () => ({ loader: 'js-loader' }),
+  currentBundler: { instance: {}, name: 'webpack' },
+} as never;
+
+/** rspack 那一支：同一份 `utils`，只换官方算出来的那个名字。 */
+const rspackUtilsStub = {
+  currentBundler: { instance: {}, name: 'rspack' },
 } as never;
 
 describe('plugin-prev-layer-resolver 插件接线', () => {
@@ -138,12 +145,15 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
   });
 
   /**
-  这一格不在本包：编译这一族**未编译** TS 源码那条规则归
-  `@show-docs/docusaurus-plugin-compile-source`（判据在 `test/source-js-rule.test.mts`，
-  入口交出的形状钉在 `test/package-entries.test.mts`）。这里钉的是「本包不再交它」：
-  第二处 `module.rules` 长回来 = 同一份文件跑两遍 babel，而两条规则的判据从此各改各的。
+  本包在 `module.rules` 里只交一条：登记层目录上下文依赖那份（判据在 `src/layer-watch.mts`，
+  它的形状钉在 `test/layer-watch.test.mts`）。
+
+  编译那一族**未编译** TS 源码那条规则仍归 `@show-docs/docusaurus-plugin-compile-source`
+  （判据在 `test/source-js-rule.test.mts`，入口交出的形状钉在 `test/package-entries.test.mts`）。
+  这里钉的是「本包交出的那一条不碰编译」：它没有 babel / swc 的任何入参，只是把源码原样返回。
+  第二处编译规则长回来 = 同一份文件跑两遍 babel，而两条规则的判据从此各改各的。
   */
-  it('不再交那条 TS 源码规则：`module.rules` 那一格归 plugin-compile-source', async () => {
+  it('`module.rules` 里只有登记层目录那一条，它不碰编译', async () => {
     const plugin = await loadPlugin();
     const result = plugin.configureWebpack!(
       {} as never,
@@ -152,7 +162,72 @@ describe('plugin-prev-layer-resolver 插件接线', () => {
       undefined,
     );
 
-    expect(result?.module).toBeUndefined();
+    const rules = (result?.module?.rules ?? []) as Array<
+      Record<string, unknown>
+    >;
+    expect(rules).toHaveLength(1);
+
+    const use = rules[0]!.use as Array<{
+      loader: string;
+      options: Record<string, unknown>;
+    }>;
+    expect(use).toHaveLength(1);
+    const rule = use[0]!;
+    expect(path.basename(rule.loader)).toBe('layer-watch-loader.cjs');
+    // 编译那一条的形状是「官方 babelOptions + js-loader」；这里两样都不该有
+    expect(rule.loader).not.toMatch(/babel|swc/iu);
+    expect(Object.keys(rule.options)).toEqual(['dirs']);
+  });
+
+  /**
+  rspack 那一支：`resolve.plugins` 不被消费（塞进去的 resolver 的 `apply()` 一次都不会被调用），
+  所以改交一个挂在模块工厂解析前那一格的插件。判据仍是同一个 `resolveTarget`，
+  两支共用一份 —— 这里钉的是「换了一支，另一支就整体退场」。
+  */
+  it('rspack 那一支：交 `plugins` 那一格，不交 `resolve.plugins`', async () => {
+    const plugin = await loadPlugin();
+    const result = plugin.configureWebpack!(
+      {} as never,
+      false,
+      rspackUtilsStub,
+      undefined,
+    );
+
+    const plugins = (result?.plugins ?? []) as unknown[];
+    expect(plugins).toHaveLength(1);
+    expect(plugins[0]).toBeInstanceOf(PrevLayerResolveTapPlugin);
+    // 上一支的 resolver 不该同时出现：两支各挂一处，同时挂 = 同一请求改写两次
+    expect(result?.resolve).toBeUndefined();
+    // 层目录的上下文依赖那一格两支都要（与 bundler 无关），所以这一支也交规则
+    expect((result?.module?.rules ?? []) as unknown[]).toHaveLength(1);
+  });
+
+  /**
+  官方只发过 webpack / rspack 两个名字。第三个名字出现（或那一格改名）时**不许**顺手按 webpack
+  那套接线：这次的根因正是「我们 tap 的东西在这个 bundler 里不存在，而全程没人说话」，
+  静默交回 `resolve.plugins` 就是把那次故障的形状重新埋回去。这里钉的是「未知 ⇒ 响 + 整体禁用」，
+  而不是「未知 ⇒ 猜一个」。
+  */
+  it('未知 bundler 名：告警并整体禁用，不交任何一支持线', async () => {
+    const warn = vi.fn();
+    const plugin = await createPlugin(
+      { siteDir: '/nonexistent-site-xyz' },
+      { logger: { warn }, plugins: [] },
+    );
+
+    const result = plugin.configureWebpack!(
+      {} as never,
+      false,
+      { currentBundler: { instance: {}, name: 'bun' } } as never,
+      undefined,
+    );
+
+    expect(result).toBeUndefined();
+    const message = warn.mock.calls
+      .map((c) => String(c[0]))
+      .find((m) => m.includes('未知 bundler'));
+    expect(message).toContain('`bun`');
+    expect(message).toContain('已整体禁用');
   });
 
   it('层栈为空时告警一次，且不改写任何 request', async () => {

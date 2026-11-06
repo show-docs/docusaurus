@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-plugin-compile-source",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "补上那条官方没有的 babel 规则：编译 @show-docs 家族随包发布、尚未编译的 .ts / .tsx 源码",
   "license": "UNLICENSED",
   "author": {

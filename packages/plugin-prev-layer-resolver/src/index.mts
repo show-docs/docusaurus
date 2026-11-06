@@ -1,10 +1,18 @@
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
+import { layerWatchRule } from './layer-watch.mts';
 import { layersFromPlugins } from './layers.mts';
 import { PLUGIN_NAME } from './plugin-slots.mts';
 import { PluginDiscovery } from './plugins.mts';
+import { PrevLayerResolveTapPlugin } from './resolve-tap.mts';
 import { PrevLayerResolverPlugin } from './resolver.mts';
 import type { LoggerLike } from './types.mts';
+
+/** `configureWebpack` 交回来的那一格的官方形状。 */
+type WebpackResult = Exclude<
+  ReturnType<NonNullable<Plugin['configureWebpack']>>,
+  void
+>;
 
 // 「装了哪些主题插件、它们的实例长什么样」这一次推导在包外也有用处（集成测试按真站点骨架
 // 把插件实例取出来）。所以随包公开，而不是只留内部（实例仍随插件回收，进程级状态一条都不持
@@ -47,7 +55,7 @@ export default async function prevLayerResolverPlugin(
     // 「名字说的是它做的事」。名字与「这一族在 `plugins` 里叫什么」取同一处。
     name: PLUGIN_NAME,
 
-    configureWebpack(_config, _isServer, _utils) {
+    configureWebpack(_config, _isServer, utils) {
       // `plugins` 为 null（拿不到插件列表）时的降级由 `layersFromPlugins` 自己兜；
       // 此时层栈**不一定为空**：只要 core 与 `src/theme` 定位得到，缺席的是全部主题层。
       const layers = layersFromPlugins({ siteDir, plugins, logger });
@@ -64,18 +72,57 @@ export default async function prevLayerResolverPlugin(
       // 「层栈推导错了」的唯一信号。
       const resolverPlugin = new PrevLayerResolverPlugin({ layers, logger });
 
+      // 两支都要这一条（与 bundler 无关）：落点是「那一层目录里现在有没有这个文件」现算的，
+      // bundler 记的却是上一次的解析结果 —— 不把层目录登记成引用方的依赖，「层里多了个组件」
+      // 就永远判不旧，链停在上一层上（判据与实测见 `./layer-watch.mts`）。
+      const watchRule = layerWatchRule(layers);
+      const watch = watchRule ? { module: { rules: [watchRule] } } : {};
+
+      // 当前是哪一个 bundler，读 `configureWebpack` 第三份参数里官方算好的那一格
+      //（`utils.currentBundler.name`，来自 `@docusaurus/bundler` 的 `getCurrentBundler()`），
+      // 本包不另判一套。
+      //
+      // 名字在这里只能是两种：官方若加第三种（或改名），**不许**顺手按 webpack 那套接线 ——
+      // 这次的根因正是「我们 tap 的东西在这个 bundler 里不存在，而全程没人说话」。
+      // 未知名字只能整体禁用并说清楚为什么：静默交回 `resolve.plugins` 就是把那次故障的形状
+      // 重新埋回去，而下一次未必有人来查。
+      //
+      // rspack 不消费 `resolve.plugins`（塞进去的那把 resolver 的 `apply()` 一次都不会被调用），
+      // 所以这一支改挂模块工厂的解析前那一格，判据仍是同一个 `resolveTarget`。
+      const bundlerName: string = utils.currentBundler.name;
+      if (bundlerName === 'rspack') {
+        return asWebpackResult({
+          ...watch,
+          plugins: [new PrevLayerResolveTapPlugin(resolverPlugin)],
+        });
+      }
+      if (bundlerName !== 'webpack') {
+        logger.warn?.(
+          `[plugin-prev-layer-resolver] 未知 bundler \`${bundlerName}\`：本包只验证过 webpack / rspack 两种接线，` +
+            '`@theme-prev/*` 已整体禁用（保持官方解析，表现为真实的 Module not found）。' +
+            '这通常意味着 Docusaurus 换了 bundler 或改了那一格的名字，请升级 plugin-prev-layer-resolver。',
+        );
+        return undefined;
+      }
+
       // 只返回**自己新增的那一个** resolver（webpack-merge 对数组是 concat，
       // 写成 `[resolver, ...已有]` 会让已有 resolver 实例化两次）：docs/internals.md
       // 「插件如何注入 resolver」。
       //
-      // 这一格不碰 `module.rules`：编译这一族未编译 TS 源码那条规则归
-      // `@show-docs/docusaurus-plugin-compile-source`，判据与理由都在那个包（它和本包的分工
-      // 见那边 README「与解析器插件的分工」：层栈空了那条规则照样在，反之也一样）。
-      return {
+      // `module.rules` 这一格里本包只有上面那条登记层目录的规则；编译这一族未编译 TS 源码那条
+      // 仍归 `@show-docs/docusaurus-plugin-compile-source`，两条互不相干（分工见那边
+      // README「与解析器插件的分工」：层栈空了那条规则照样在，反之也一样）。
+      return asWebpackResult({
+        ...watch,
         resolve: {
           plugins: [resolverPlugin],
         },
-      };
+      });
     },
   };
+}
+
+/** 交出去的插件实例收的是本包的形状（不引 webpack / rspack 的类型），所以只在出口处按官方形状改一次。 */
+function asWebpackResult(patch: object): WebpackResult {
+  return patch as WebpackResult;
 }

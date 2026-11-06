@@ -1,8 +1,9 @@
 # @show-docs/docusaurus-plugin-prev-layer-resolver
 
-让多个主题层层包裹同一个组件成立，且 `@theme-original` 的官方语义零改动。插件在 webpack
-resolve 阶段按「导入者属于哪一层」改写 `@theme-prev/X`；层栈由站点 `plugins` 自动推导，不需要
-配置清单，也不需要给 Docusaurus 打补丁。
+让多个主题层层包裹同一个组件成立，且 `@theme-original` 的官方语义零改动。插件在打包器的解析
+阶段按「导入者属于哪一层」改写 `@theme-prev/X`；层栈由站点 `plugins` 自动推导，不需要
+配置清单，也不需要给 Docusaurus 打补丁。webpack 与 rspack 两支都接（各挂各的格，见
+「工作方式」）。
 
 它回答三个问题（依据都在[维护者文档](./docs/internals.md)）：
 
@@ -10,8 +11,9 @@ resolve 阶段按「导入者属于哪一层」改写 `@theme-prev/X`；层栈�
    也不链式（实测见「背景：一个全局别名喂不饱一条链」）。
 2. **`@theme-original` 能不能实现链式包裹？** → 不能：它是每个组件一个全局值，只能等于层栈里的
    某一层（见「为什么另起 specifier，而不改写 `@theme-original`」）。
-3. **怎么让链式覆盖成立、又不改官方别名语义？** → 另起一条 `@theme-prev/X`，在 webpack resolve
-   阶段按「导入者属于哪一层」改写（见「插件如何注入 resolver」）。
+3. **怎么让链式覆盖成立、又不改官方别名语义？** → 另起一条 `@theme-prev/X`，在打包器的解析
+   阶段按「导入者属于哪一层」改写（见「工作方式」与
+   [维护者文档](./docs/internals.md) 的「插件如何注入 resolver」）。
 
 ## 安装
 
@@ -73,8 +75,13 @@ export default function MyLogo(props) {
 ## 工作方式
 
 官方 `@theme-original/X` 是**每个组件一个全局值**，只能等于层栈里的某一层；本包不碰它，另开一个
-specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改写。层栈（哪些层、什么顺序）
+specifier，在打包器的解析阶段按「导入者属于哪一层」逐次改写。层栈（哪些层、什么顺序）
 **全部自动推导**。
+
+改写挂在哪个格跟着当前 bundler 走（判据是官方算好的 `utils.currentBundler.name`，本包不另判
+一套）：webpack 交一把 `resolve.plugins` 里的 resolver；rspack 不读 `resolve.plugins`（塞进去的
+`apply()` 一次都不会被调用），所以那一支改挂模块工厂的解析前那一格。两支用的是**同一个判据**
+（`resolveTarget`），差别只在接线，所以同一份 `@theme-prev/X` 在两个 bundler 下落到同一个文件。
 
 设层栈（内 → 外）为 `L0..Ln`，导入者在 `Li`：
 
@@ -97,15 +104,22 @@ specifier，在 webpack resolve 阶段按「导入者属于哪一层」逐次改
 不回落官方别名：能用的落点里没有语义对的（理由见
 [`docs/internals.md`](./docs/internals.md) 的「设计取舍」一节），宁可让人看到官方报错。
 
-## 与那条「编译这一族未编译 TS 源码」的规则的分工
+## `module.rules` 那一格：两条规则、两个包
 
-本插件只往 `resolve.plugins` 里放 resolver，**不碰 `module.rules`**。编译 `@show-docs` 家族那些
-随包发布的 `.ts` / `.tsx` 是另一格，归
-[`@show-docs/docusaurus-plugin-compile-source`](../plugin-compile-source/README.md)：
-判据、认领范围、`babelOptions` 为什么必须与官方同源都写在那边，这里不抄第二遍。
+`module.rules` 里和这一族相关的规则有两条，各管一件事，互不依赖：
 
-两格互不依赖：层栈空了那条规则照样在（那只是 `@theme-prev/*` 失效）；摘掉那条规则，本插件照旧
-解析得动，坏的是那些 `.tsx` 进了 bundle 报 `Module parse failed`。
+- **编译 `@show-docs` 家族那些随包发布的 `.ts` / `.tsx`** —— 归
+  [`@show-docs/docusaurus-plugin-compile-source`](../plugin-compile-source/README.md)。判据、认领
+  范围、`babelOptions` 为什么必须与官方同源都写在那边，这里不抄第二遍。
+- **把层目录登记成引用方模块的上下文依赖** —— 归本包，是一个不改内容的 loader。落点是「那一层
+  目录里**现在**有没有这个文件」现算的，而打包器记的是上一次的解析结果；不登记层目录，「层里
+  新增了同名组件」就永远判不旧，链会停在上一层上。两支（webpack / rspack）都注册这一条，
+  因为它跟 bundler 无关。机制与实测见 [`docs/internals.md`](./docs/internals.md)
+  的「层目录的上下文依赖」一节。
+
+所以本包**只做解析期的 request 改写 + 上面那一条 loader**，不参与编译：摘掉 compile-source 那条
+规则，本插件照旧解析得动，坏的是那些 `.tsx` 进了 bundle 报 `Module parse failed`；层栈为空时
+本包这一条不注册（没有目录可登记），那条编译规则照样在。
 
 ## 「本插件注册了没有」那一条判据（只有真写 `@theme-prev/*` 的层用得上）
 
@@ -235,7 +249,7 @@ export default function myTheme(context, options) {
 | 档         | 行为                        | 落到构建上的结果                                            | 下面哪些条          |
 | ---------- | --------------------------- | ----------------------------------------------------------- | ------------------- |
 | **降级**   | 交回官方解析，本次改写不做  | **不一定红**（官方能解析就成功，不能就 `Module not found`） | 1、4、5、6、7、8、9 |
-| **硬失败** | 不改写、把 request 交回官方 | **必定红**（官方不认识 `@theme-prev/*`）                    | 1b、2、3、4b        |
+| **硬失败** | 不改写、把 request 交回官方 | **必定红**（官方不认识 `@theme-prev/*`）                    | 1b、2、3、4b、4c    |
 
 所以**看到告警不等于构建会过**：「把 `@theme-prev/*` 写在层外文件里」属硬失败档，
 它出现在列表里只是因为告警是让你知道是哪一格。硬失败档的四条都标了「硬失败」。
@@ -249,15 +263,22 @@ export default function myTheme(context, options) {
 3. **导入者不属于任何已知层**（`issuerIndex < 0`）：必定 `Module not found`，**硬失败**。
    三种成因（写在层外文件里 / issuer 是软链路径 / 层栈漏层）表现相同，告警把它们列全。
    这条**按类别限流**：消息里带 issuer 路径，按消息去重等于「同一个问题报 2000 次」。
-4. **resolver 没有 `internal-resolve` hook**：`apply()` 启动时向 resolver **要**这个 hook
-   （enhanced-resolve 的 `getHook` 在 hook 不存在时抛；同名的 `ensureHook` 会自己造一个，
-   拿它自检永远不会红 —— 所以自检只能用 `getHook`）。失败即告警并整体禁用改写，
-   把「无声漂移」变成启动时可见。
+4. **接线那一格不存在**（两套判据同一意图：`apply()` 时向 bundler **要**自己挂的那格）：
+   webpack 支要 resolver 的 `internal-resolve` hook（enhanced-resolve 的 `getHook` 在 hook 不存在
+   时抛；同名的 `ensureHook` 会自己造一个，拿它自检永远不会红 —— 所以自检只能用 `getHook`）；
+   rspack 支要 `compiler.hooks.normalModuleFactory` 与工厂上的 `hooks.beforeResolve`。
+   任一格拿不到即告警并整体禁用改写，把「无声漂移」变成启动时可见。
    4b. **匹配到 `@theme-prev/*` 却拿不到 issuer**：上游不再把 `contextInfo` 挂成
-   `request.context` 时的漂移信号，正常构建里不该出现（webpack 的模块解析都带它）。
-   告警并交回官方解析。**硬失败**。
+   `request.context`（webpack 支）/ `resolveData.contextInfo`（rspack 支）时的漂移信号，
+   正常构建里不该出现（两个 bundler 的模块解析都带它）。告警并交回官方解析。**硬失败**。
+   4c. **bundler 名字既不是 `webpack` 也不是 `rspack`**：本包只验证过这两种接线，第三种名字
+   （官方新增 bundler、或改了 `utils.currentBundler.name` 那个值）不猜、不顺手按 webpack 那套接——
+   告警并整体禁用改写（连登记层目录上下文依赖那条规则也不交：改写都停了，它没有服务对象）。
+   表现与第 4 条同形：真实的 `Module not found`，但告警会点名那个名字。
+   让未知名字静默走 webpack 支，就是把「rspack 不消费 `resolve.plugins`」那次无声故障重新埋回去。**硬失败**。
 5. **改写逻辑抛错 / `doResolve` 返回失败**：告警后交回官方解析，让「解析真的坏了」
-   不再和「本来就不该我管」长得一样。
+   不再和「本来就不该我管」长得一样。两支都有这一格（webpack 在 `doResolve` 上，rspack 在
+   改写 `resolveData.request` 的外圈）。
 6. **插件构造失败**：**一律告警，但一次构建聚合成一条**（没有判据能区分「本来就没主题」与
    「有主题但构造失败」，漏报的代价是层栈少一层且完全静默 —— 所以一条都不能省；N 个失败
    逐条报就是每次构建刷 N 行，汇总里名单与原因全内联，行数从 N 降到 1）。
@@ -322,11 +343,19 @@ export default function myTheme(context, options) {
 - **`NODE_ENV` 相关的层栈漂移**：`docusaurus start` 下 `plugin-debug` 会进层栈（成因与两种环境的层栈对照见 `docs/internals.md`）；
   `verify:chain` 强制 `production` 语义，因此它的绿灯**不代表** `docusaurus start` 的行为。
 - **每个 specifier 只按「层 + 组件」决定**：不依赖 React 运行时状态，因此 SSR / 客户端行为一致。
+- **webpack 与 rspack 都接**：两支的改写落点相同（行内 loader 写法 `!!<loader>!@theme-prev/X`
+  也算相同：rspack 那一格拿到的是解析前的整串，外壳把前缀切开、只改模块请求、再原样拼回，
+  判据与落点都不变，见 `docs/internals.md`「两支交回的 request 不是同一个字符串」），
+  但**失效链路只有 webpack 那一支是官方原生**的 —
+  rspack 不消费 `resolve.plugins`，所以它挂的是模块工厂的解析前那一格，层目录的依赖靠上面那条
+  loader 登记（实测见 `docs/internals.md`「层目录的上下文依赖」）。切换 bundler 不需要改任何
+  `@theme-prev/*` 的写法。
 - **与 `pnpm swizzle` 共存**：wrap 只在站点层 `src/theme` 生成 `@theme-original/X` 包裹文件，
   不产生 `@theme-prev/*`；站点层改用 `@theme-prev/X` 则能拿到「最后一层插件主题」。
 - **会告警**：主题插件构造失败、组件名不是安全路径、层栈不变量违规、落点是 `theme-fallback`、
   拿不到 `theme-fallback` 目录（链底那一层缺席）、
-  导入者不属于任何已知层、resolver 缺 `internal-resolve` hook、`apply()` 抛错 / `doResolve` 失败。
+  导入者不属于任何已知层、接线那一格拿不到（webpack 的 `internal-resolve` / rspack 的
+  `beforeResolve`）、bundler 名字既不是 `webpack` 也不是 `rspack`、`apply()` 抛错 / `doResolve` 失败。
 
   **告警 ≠ 放过**：哪些告警后面是硬失败、哪些是降级，只看上方「告警」一节的两档表
   —— 别处不复述那张表。

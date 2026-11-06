@@ -10,15 +10,18 @@
 
 | 文件                          | 职责                                                                                               |
 | ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| `src/index.mts`               | 插件入口：推层栈 + 空层栈告警 + 注入 resolver                                                      |
+| `src/index.mts`               | 插件入口：推层栈 + 空层栈告警 + 按当前 bundler 接线（webpack 交 resolver，rspack 交工厂那一格）    |
 | `src/layers.mts`              | 层栈推导（与官方 `loadThemeAliases` 同序）+ core 模块定位                                          |
 | `src/plugin-slots.mts`        | 认那两份清单的纯判据（`slotIsNamespace` / 四种原始写法）                                           |
 | `src/registered-plugins.mts`  | 「本包注册了没有」与「注册成了几份」两条判据（后者另发一条现成的点名）：原始清单 + preset 两处都认 |
 | `src/plugins.mts`             | 复用官方 `loadContext` / `loadPluginConfigs` 取回插件列表                                          |
 | `src/resolve.mts`             | 纯逻辑：组件定位 / 导入者归属 / issuer / specifier 匹配                                            |
-| `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`）                                                          |
+| `src/resolver.mts`            | 逐层解析核心（`PrevLayerResolverPlugin`），两支共用的判据都在这座屋里                              |
+| `src/resolve-tap.mts`         | rspack 那一支的接线：把模块工厂解析前的 request 交给同一个 `resolveTarget`                         |
+| `src/layer-watch.mts`         | 「把层目录登记成引用方的上下文依赖」那条 `module.rules` 规则（两支都注册）                         |
+| `src/layer-watch-loader.cts`  | 上面那条规则挂的 loader：不改内容，只调 `addContextDependency`                                     |
 | `src/types.mts`               | 公共类型                                                                                           |
-| `types/theme-specifiers.d.ts` | `@theme*` 三条 specifier 的类型声明，见 README「类型声明」                                         |
+| `types/theme-specifiers.d.ts` | `@theme*` 四条 specifier 的类型声明，见 README「类型声明」                                         |
 
 源码全在 `src/` 下，`dist/` 是它的编译产物（`rootDir` = `src/`），两者的文件一一对应。
 三条出口发的是 `src/` 那一份（`./plugin-slots`、`./registered-plugins` 两条整条指过去，
@@ -29,7 +32,9 @@
 
 实现按「纯函数 / 副作用」切开：能穷举的解析逻辑在无副作用的函数里（`src/resolve.mts` /
 `src/layers.mts` / `src/resolver.mts` 的目标选择），副作用留在接线处（`src/index.mts` 推层栈、
-`src/plugins.mts` 读插件列表、`src/resolver.mts` 的 `apply()`）。各文件职责见上方「组成」，
+`src/plugins.mts` 读插件列表、`src/resolver.mts` 与 `src/resolve-tap.mts` 的 `apply()`）。
+两支的接线各是一个外壳，判据只有 `resolveTarget` 这一把 —— 所以新接一个 bundler 时，
+被替换的是外壳，不是判据。各文件职责见上方「组成」，
 各目录职责见仓库根 README 的「目录结构」；放错地方的代价见本包 README 的「使用约束」。
 
 > 源码是 ESM 的 `.mts`，相对 import 写**源码名**（`./layers.mts`），产出时才变成 `./layers.mjs`；
@@ -128,6 +133,12 @@ Docusaurus 插件在 `configureWebpack` 里给 `config.resolve.plugins` 追加�
 （落点见上面的语义表：紧邻下方、且永不落在导入者自己或它上方）。
 这一个 specifier 是**固定预设名**（`@theme-prev/`），不做成可配置项。
 
+> **这一格只有 webpack 读得到。** rspack 的 `ResolveOptions` 上根本没有 `plugins`，塞进去的
+> resolver 的 `apply()` 一次都不会被调用 —— 不报错、不告警，表现就是真实的 `Module not found`。
+> 开启 `future.v4.fasterByDefault` / `@docusaurus/faster` 的站点因此整条链静默失效，
+> 上面那把 `getHook` 自检也一起不会跑（它住在 `apply()` 里，而 `apply()` 没被调过）。
+> rspack 那一支的接线见下面「rspack 那一支：挂模块工厂的解析前那一格」。
+
 ```js
 // 插件初始化（异步）：拿插件列表（第三个参数是站点实际加载的那份配置文件 `context.siteConfigPath`）
 const plugins = await new PluginDiscovery(
@@ -138,14 +149,21 @@ const plugins = await new PluginDiscovery(
 
 export default {
   // configureWebpack（同步）：推层栈 + 注入 resolver
-  configureWebpack() {
+  configureWebpack(_config, _isServer, utils) {
     const layers = layersFromPlugins({ siteDir, plugins }); // 有序层栈
     // 每次构建新建实例：realpath 缓存挂在实例上，生命周期 = 一次构建
     const resolverPlugin = new PrevLayerResolverPlugin({ layers, logger });
+    // 两支都要：把层目录登记成引用方的上下文依赖，见「层目录的上下文依赖」
+    const watch = { module: { rules: [layerWatchRule(layers)] } };
+    if (utils.currentBundler.name === 'rspack')
+      return {
+        ...watch,
+        plugins: [new PrevLayerResolveTapPlugin(resolverPlugin)]
+      };
     // 只返回自己新增的那一个：官方 `applyConfigureWebpack` 用 webpack-merge 拼接，
     // 数组默认策略是 **concat**。写成 `[resolverPlugin, ...已有]` 会让已有的 resolver
     // 被复制一份、实例化两次（实测 `[别人, resolver, 别人]`）。
-    return { resolve: { plugins: [resolverPlugin] } };
+    return { ...watch, resolve: { plugins: [resolverPlugin] } };
   }
 };
 ```
@@ -166,7 +184,9 @@ export default {
 那条 `.tsx?` 规则、它的认领范围、`babelOptions` 为什么必须与官方同源，都记在
 `@show-docs/docusaurus-plugin-compile-source`
 （[`../../plugin-compile-source/docs/internals.md`](../../plugin-compile-source/docs/internals.md)）。
-本包与它只有「与层栈无关」这一句交集：`configureWebpack` 只交 `resolve.plugins`。
+本包与它只有「与层栈无关」这一句交集：`configureWebpack` 交的是解析期的接线，加上下面
+「层目录的上下文依赖」那一条 loader 规则 —— 两条规则住在同一个 `module.rules` 数组里、各判各的，
+本包那条不碰编译（它的 loader 原样返回源码）。
 
 本包也不向那边交任何东西：「怎么定位 core」那三把 helper 只在包内用（链底那一层就是从 core 的
 模块位置推出来的），包外没有消费者，而「用不到的那一格不许声明」。
@@ -239,7 +259,7 @@ preset 函数自己抛，三种都退成「不知道」）；而「官方答了�
 带回解析结果（实测），所以这里用裸名定位文件、把尾部原样拼回落点。切法与上游 `ParseModule` 同口径
 —— 第一个 `?` 或 `#` 起整段是尾部。
 
-## 两个 hook 的选择（换一个就坏）
+## 两个 hook 的选择（换一个就坏）—— webpack 那一支
 
 > 入口必须 tap `resolve`（裸 specifier 默认走「去 node_modules 里找」那条支路，
 > `internal-resolve` 到不了），出口必须 `doResolve` 到 `internal-resolve`（回到 `resolve` 会形成
@@ -250,6 +270,98 @@ preset 函数自己抛，三种都退成「不知道」）；而「官方答了�
 > 原样挂成 `request.context`（`Resolver.js`：`obj = { context, path, request }`）—— 只有这一种
 > 形态。enhanced-resolve 里不存在 `request.contextInfo`；首参给成字符串时上游会把它挪去 `path`、
 > `context` 归一成 `{}`，所以顶层 `request.issuer` 同样永远不出现（判据见 `resolveIssuer`）。
+
+## rspack 那一支：挂模块工厂的解析前那一格
+
+**为什么需要另一支**：rspack 的 `ResolveOptions` 上没有 `plugins` 这一格。把 resolver 塞进
+`resolve.plugins` 不报错、也不告警 —— 那个 key 在配置归一化之后还在，只是没人消费，它的 `apply()`
+一次都不会被调用。表现是真实的 `Module not found: @theme-prev/X`，而上一节那道 `getHook` 自检
+恰好也住在没被调用的 `apply()` 里，所以全程零提示。开关来自站点的 `future.faster.rspackBundler`
+（`future.v4.fasterByDefault` 会把它连同其他 `future.faster.*` 一起打开），本包不读它 ——
+分支判据取官方在 `configureWebpack` 第三份参数里算好的 `utils.currentBundler.name`，
+与 `plugin-lazy-compilation` 那一支的先例同一条口径（它的文件头写着「本包不另判一套」）。
+
+**挂在哪一格**：`compiler.hooks.normalModuleFactory` → 工厂上的 `hooks.beforeResolve`
+（`AsyncSeriesBailHook`）。三格契约，换任一格的写法都会坏：
+
+- 改的是 `resolveData.request` —— rspack 采信这个字段，改写后进官方解析的就是新值；
+- 处理函数必须**返回假值**。返回真值在那个 hook 上的语义是「我已经接管这次解析」，
+  rspack 会跳过后续所有 tap 与它自己的解析；
+- issuer 读 `resolveData.contextInfo.issuer`，与 webpack 那一支的 `request.context.issuer` 同字段名，
+  拿不到时同一条「拿不到导入者」告警。
+
+**判据一行不改**：这一支只是外壳，改写条件与落点计算全部走
+[`PrevLayerResolverPlugin.resolveTarget`](../src/resolver.mts)，所以同一份 `@theme-prev/X`
+在两个 bundler 下落到同一个文件。外壳不做的事：不碰官方别名（`@theme` / `@theme-original` /
+`@theme-init`）、不碰非字符串 request、不改已改写的值 —— 官方解析器与别的 tap 照旧在同一格上排队。
+
+### 两支交回的 request 不是同一个字符串（行内 loader 前缀）
+
+判据只有一份，但「交给判据的那段文字」有两套口径 —— 这一点是事后审计翻出来的，不是设计时知道的：
+
+| 层里的源码写法                                               | webpack 那一支的 resolver 收到                       | rspack 这一格的 `beforeResolve` 收到      |
+| ------------------------------------------------------------ | ---------------------------------------------------- | ----------------------------------------- |
+| `import X from '@theme-prev/Logo'`                           | `@theme-prev/Logo`                                   | `@theme-prev/Logo`                        |
+| `import X from '!!<loader>!@theme-prev/Logo'`（行内 loader） | `@theme-prev/Logo`（前缀已被 enhanced-resolve 切掉） | `!!<loader>!@theme-prev/Logo`（**整串**） |
+
+`resolveTarget` 只认裸串（认法见 `src/resolve.mts` 的 `matchSpecifier`：`startsWith('@theme-prev/')`），
+整串进来时它连「这条请求归我管」都不会认出来：不改写、**也不告警**，最后只剩一条指向
+`@theme-prev/Logo` 的 `Module not found`，看起来和「整个机制坏了」一模一样。
+
+外壳的补法在 `src/resolve-tap.mts` 的 `rewrite()`：按**最后一个 `!`**
+切开（与上游切分 loader 前缀同一口径，所以路径里出现 `!` 也只会切成「这段不是我们的 specifier」，
+不会误改），只对模块请求那一段跑判据，改写完成后把前缀**原样拼回** —— 整串替换会把用户自己点名的
+那份行内 loader 弄丢。
+
+**实测**（同一份夹具、两个 bundler 各跑一次真实编译）：行内 loader、裸串、行内 loader 带 `?query`
+三种形状，修复前 rspack 那支报 `Module not found` 而 webpack 那支绿灯；修复后两支都绿灯，产出的模块
+标识符是 `passthru.cjs!<内层>/logo.js` 与 `passthru.cjs!<内层>/logo.js?raw` —— 前缀与落点都在，两支落在
+同一个文件。这条对齐现在由 `test/resolve-tap.test.mts`「两支同一把尺子」钉住：同一条源码分别喂给两支，
+再比两支改写出的那一段。本仓库的层文件目前都写裸串，所以这个形状只有外部用户能踩到 ——
+这也正是它需要一条自动化判据而不是靠人记住的原因。
+
+**外壳自己也要在 `apply()` 里自检**，而且要**两格都查**（`compiler.hooks.normalModuleFactory`、
+工厂上的 `hooks.beforeResolve`）：这次的教训正是「我们 tap 的那个东西在那个 bundler 里不存在，
+而全程没人说话」。任一格拿不到就告警并整体禁用改写（README「告警」第 4 条），让
+`@theme-prev/*` 退回官方解析、表现为一条真实的 `Module not found`，而不是安静地不生效。
+
+**分支判据也是同一课**：`src/index.mts` 只在 `utils.currentBundler.name` 恰好是 `rspack` 时挂这一支，
+恰好是 `webpack` 时才挂 `resolve.plugins`；出现第三种名字（官方将来加 bundler、或改了那一格的名字）
+就告警并整体禁用。让未知名字顺手走 webpack 那套，等于把这次的故障形状原样埋回去，而下一次未必有人查。
+
+**实测**（真实站点，非推演）：整站一次冷缓存 rspack 构建里这个 tap 被过 44,504 次请求、累计
+self-time 12.1ms（噪声级）；client 与 server（SSG）两轮、`import()` 与 `require` 的动态形态都命中
+同一条 hook，不需要为 SSG 另接线；四层链（`src/theme > theme-c > theme-b > theme-a`）在 rspack
+产物上经 `pnpm verify:chain` 全部保留，webpack 对照组同一份代码同样绿灯。数字与跑法记在仓库根的
+`proposal-prev-layer-rspack.md`（那份是方案与实测记录，不进站点的路由，所以这里只报名字）。
+
+## 层目录的上下文依赖（两支都注册）
+
+这个机制的命中条件是**目录级**的 —— 「下面那一层的目录里**现在**有没有这个文件」。打包器记的是
+上一次的解析结果，所以层目录不在它的依赖表里时，「外层新增一个同名组件」这种改动判不旧：
+链会停在上一层，而且没有任何报错。
+
+做法是一条 `module.rules` 规则 + 一个不改内容的 loader（`src/layer-watch.mts` /
+`src/layer-watch-loader.cts`）：认领层目录内的源码文件，对每个 loader 调用
+`this.addContextDependency(层目录)`。规则的 `include` 用「层目录前缀 + 尾分隔符」判定，
+分隔符口径与 `src/resolve.mts` 的 `toPosix` 同一把（`theme` 不会误命中 `theme-outer`）；
+层栈为空时整条规则不注册 —— 没有目录可登记。
+
+**为什么是 loader，不是 `beforeResolve` 里 push 依赖**：实测过——在 `beforeResolve` 里往
+`resolveData.fileDependencies` / `missingDependencies` 写路径，watch 与持久缓存**都不采信**；
+只有 loader 的 `addContextDependency` 两侧都认。这一格现在是**门禁里的一条判据**，不再是手工探针：
+`pnpm verify:context-deps`（`tools/scripts/verify-context-deps.mts`，用包内产物 `dist/` 起一份最小站点）
+两个 bundler 各跑两趟 —— 半 A 看编译完成后 `compilation.contextDependencies` 里那两层目录在不在，
+半 B 往内层目录真写一个新组件、只认 **watcher 自己发起**的那一趟重解析（`watching.invalidate()`
+会让 bundler 重新 stat 一遍磁盘，拿它当触发器，反向对照就成了自证）。同一跑里还带反向对照：
+把那条规则摘掉再跑一遍，半 A 与半 B 都必须**不**成立 —— 否则「没落地」这个结论只是等待窗口里恰好没人来。
+
+**两支都注册**，不只挂在 rspack 分支上：这一格跟 bundler 无关，webpack 那一支的 watch 本来也需要同
+一个失效信号（`layers.mts` 的层存在性探测走 `node:fs`，绕开了 enhanced-resolve 的缓存文件系统，
+也没有登记 missing 依赖）。
+
+**已知边界**：`owner` 是 realpath，而 `resolve.symlinks: false` 时 loader 看到的资源路径是软链路径，
+前缀判不中 → 少一次失效（**不是**错层）。真需要这种布局时把真实目录也登记成一层。
 
 ## 层归属怎么判
 
@@ -321,7 +433,19 @@ theme-fallback 的位置以**官方同一基准**推导（core 的 `lib/webpack/
 - 没有给 Docusaurus 打补丁、`@theme-original` 未被改写、官方别名全落在层栈内
   → `test/layers.test.mts`（原在 `verify-chain.mts` 里，已迁出）；
 - 层栈与官方 `loadThemeAliases` 入参同序、层路径已归一
-  → `test/discover.test.mts` 与 `test/layers.test.mts`。
+  → `test/discover.test.mts` 与 `test/layers.test.mts`；
+- 两支各交哪一格（webpack 交 `resolve.plugins`、rspack 交工厂那一格，两支都交 `module.rules`
+  那条登记规则）→ `test/plugin.test.mts`；
+- rspack 外壳的改写与两格自检、非 `@theme-prev/*` 的 request 一律不碰 → `test/resolve-tap.test.mts`；
+- 登记规则的形状（层栈为空不注册、目录顺序 = 层栈顺序、loader 是 `.cjs` 产物）→ `test/layer-watch.test.mts`。
+
+真实构建那一侧**两个 bundler 都要跑一次**：`pnpm build` 用的只是站点当前配置的那一个，另一支要显式
+覆盖（把 `future.faster.rspackBundler` 临时设反，或反过来打开）。两支各自的跑都到
+`[SUCCESS]` + 下面那条渲染链断言绿灯为止 —— 同一份 `@theme-prev/X`、同一个判据、同一份产物判据。
+
+上下文依赖那一格另有一条真实构建判据：`pnpm verify:context-deps`（已并进 `pnpm verify`），
+两个 bundler 各跑两趟、带反向对照 —— 口径见上方「层目录的上下文依赖」，判据清单以脚本输出为准，
+本文件不抄第二份。
 
 需要真实产物的（那条渲染链在各页上的样子）由 `pnpm build && pnpm verify:chain`
 （读真实 build 产物）断言，判据清单以脚本输出为准（本文件不抄第二份）：
@@ -347,19 +471,22 @@ build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 
 ## 升级 `@docusaurus/core` 时的检查单
 
-本插件踩在七处**没有稳定性承诺**的内部契约上。`peerDependencies` 与版本护栏都只拦
+本插件踩在九处**没有稳定性承诺**的内部契约上。`peerDependencies` 与版本护栏都只拦
 「低于 `^3.9.2`」—— **高于已验证区间的漂移同样只会 warn、不会拦**，所以升级后必须跑
 下面这张单子，绿灯全亮才算真的兼容（这些用例就是护栏，只是分散在各契约面文件里）：
 
-| 内部契约                                                                 | 守它的用例                                                                                                               |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `loadContext` / `loadPluginConfigs` 两个入口的存在与导出形状             | `test/discover.test.mts` 全文件（含「只挂 `default`」「加载即抛」两档降级）                                              |
-| `loadContext` 的 `config` 入参（官方 `loadSiteConfig` 用它定位配置文件） | `test/discover.test.mts`「配置文件：读站点实际用的那一份」                                                               |
-| `normalizePluginOptions`（`@docusaurus/utils-validation`）               | `test/discover.test.mts`「插件 options 校验」两节                                                                        |
-| `normalizeThemeConfig` + 各插件 `validateThemeConfig` 的两条查找路       | `test/discover.test.mts`「插件构造前的 themeConfig 合并」                                                                |
-| core 包结构锚点 `lib/webpack/aliases` → `../../client/theme-fallback`    | `test/layers.test.mts`「theme-fallback 定位」+「路径遍历兜底」                                                           |
-| 层栈顺序 / 组件赢家 / 组件可见性与官方同口径                             | `test/layers.test.mts`「与官方 `loadThemeAliases` 同序」；`test/resolve.test.mts`「官方别名赢家」「组件可见性」          |
-| enhanced-resolve 的 `internal-resolve` hook 与 `contextInfo` 形态        | `test/enhanced-resolve.test.mts` 全文件；`test/resolver.test.mts`「挂在 resolve 入口」「没有 internal-resolve hook」两条 |
+| 内部契约                                                                                                                                                                         | 守它的用例                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `loadContext` / `loadPluginConfigs` 两个入口的存在与导出形状                                                                                                                     | `test/discover.test.mts` 全文件（含「只挂 `default`」「加载即抛」两档降级）                                                                                                                                                         |
+| `loadContext` 的 `config` 入参（官方 `loadSiteConfig` 用它定位配置文件）                                                                                                         | `test/discover.test.mts`「配置文件：读站点实际用的那一份」                                                                                                                                                                          |
+| `normalizePluginOptions`（`@docusaurus/utils-validation`）                                                                                                                       | `test/discover.test.mts`「插件 options 校验」两节                                                                                                                                                                                   |
+| `normalizeThemeConfig` + 各插件 `validateThemeConfig` 的两条查找路                                                                                                               | `test/discover.test.mts`「插件构造前的 themeConfig 合并」                                                                                                                                                                           |
+| core 包结构锚点 `lib/webpack/aliases` → `../../client/theme-fallback`                                                                                                            | `test/layers.test.mts`「theme-fallback 定位」+「路径遍历兜底」                                                                                                                                                                      |
+| 层栈顺序 / 组件赢家 / 组件可见性与官方同口径                                                                                                                                     | `test/layers.test.mts`「与官方 `loadThemeAliases` 同序」；`test/resolve.test.mts`「官方别名赢家」「组件可见性」                                                                                                                     |
+| enhanced-resolve 的 `internal-resolve` hook 与 `contextInfo` 形态                                                                                                                | `test/enhanced-resolve.test.mts` 全文件；`test/resolver.test.mts`「挂在 resolve 入口」「没有 internal-resolve hook」两条                                                                                                            |
+| rspack 的 `compiler.hooks.normalModuleFactory` → `hooks.beforeResolve` 两格、`resolveData.request` 被采信、`contextInfo.issuer` 形态、**这一格交回的是带行内 loader 前缀的整串** | `test/resolve-tap.test.mts` 全文件（含「两格任一拿不到 ⇒ 告警并整体禁用」「两支同一把尺子：同一条源码落点一致」）；真实一侧由 `pnpm build`（rspack）+ `verify:chain` 断言                                                           |
+| `configureWebpack` 第三份参数里的 `utils.currentBundler.name`（官方 `getCurrentBundler()`）                                                                                      | `test/plugin.test.mts` 三支各一条（「webpack 那一支交 `resolve.plugins`」「rspack 那一支交 `plugins`，不交 `resolve.plugins`」「未知 bundler 名：告警并整体禁用」）——第三种名字**不许**顺手按 webpack 那套接                        |
+| loader 的 `this.addContextDependency` 真被打包器采信为上下文依赖                                                                                                                 | 形状与目录列表：`test/layer-watch.test.mts`；**采信**这一格由 `pnpm verify:context-deps` 钉：两个 bundler 各跑两趟，半 A 看 `compilation.contextDependencies`、半 B 看 watcher 真的重解析，并带「摘掉那条规则必须不成立」的反向对照 |
 
 跑法：`pnpm verify` —— 它含真实的 `docusaurus build` 与 `verify:chain` 端到端断言
 （四层链真的渲染出来），比单跑单测多一层保障。
@@ -368,42 +495,46 @@ build/theme-markmap/docs/markmap-demo/index.html  整页没有任何包裹标记
 
 ## 设计取舍（明确不做什么）
 
-| 取舍                                                                        | 原因                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **层栈从 plugin 列表推导，而不是只读别名表**                                | 别名表每个组件只有 3 个落点，3 层以上覆盖会丢中间层                                                                                                                                                                                                                                                                                                                                                                                                  |
-| **不改 Docusaurus 任何文件**                                                | 只复用官方已导出的 `loadContext` / `loadPluginConfigs`，不与版本强绑定                                                                                                                                                                                                                                                                                                                                                                               |
-| **解析失败一律交回官方**                                                    | 最坏情况退化为官方语义（真实报错），而不是静默产出错误产物                                                                                                                                                                                                                                                                                                                                                                                           |
-| **层栈里没人提供该组件时不回落官方别名**                                    | 能用的落点里没有语义对的：`@theme-init` 要「最内层提供者」，而 `@theme` 是**最外层**全局赢家 —— 正好相反。宁可让人看到官方 `Module not found`，也不要安静地给一个语义相反的落点                                                                                                                                                                                                                                                                      |
-| **不试图让插件主题「感知自己是不是栈顶」**                                  | 那需要跨层运行时状态，反而引入不可判定行为                                                                                                                                                                                                                                                                                                                                                                                                           |
-| **`@theme-prev` 恒满足 `j < i`**                                            | 「落点严格在导入者下方」是模块图无环（不会 OOM）的来源，整个机制只有这一个 specifier，没有例外形态                                                                                                                                                                                                                                                                                                                                                   |
-| **组件名必须通过安全校验**                                                  | 它是从 specifier 拼出来的不可信输入，直接进 `path.join` 会让「层」的隔离被一段相对路径绕过；校验是纯输入检查，对合法输入零成本                                                                                                                                                                                                                                                                                                                       |
-| **插件构造失败一律告警（一次构建聚合成一条）**                              | 没有任何判据能可靠区分主题 / 非主题（入口都读得到、`getThemePath` 在压缩产物里会变短名）；漏报（层栈少一层且完全静默）比误报（多一行日志）严重得多                                                                                                                                                                                                                                                                                                   |
-| **不为「没人走的路径」留机制**                                              | 没有真实触发场景的开关 / 兜底 / 自证装置，成本是永久的，收益是零；发现它就该**删掉**，而不是补算术让它成立                                                                                                                                                                                                                                                                                                                                           |
-| **不为「只有测试在接的出口」留出口**                                        | 判据是「外面真的在用」。跨模块真在用的一个不动；只在本文件用的收成内部函数；只被测试用的**删掉**，测试改走真实路径（真实 `loadContext` / `layersFromPlugins` / 行为断言）。对外形状与「实际谁在用」对不上，文档和测试就会跟着这个形状一直把人往回带                                                                                                                                                                                                  |
-| **同一件事只有一个产地**                                                    | `resolveCoreModule` 是 core 内部文件定位的唯一入口（`resolveFallbackDir` 的锚点判据也走它）；层栈推导在**一个循环里**既解析 `getThemePath()` 又入栈                                                                                                                                                                                                                                                                                                  |
-| **内部状态不为「可读」而对外开洞**                                          | `realpathCache` 整体 private：外面要的只是「带上限的 `normalizeLayerPath`」这一个动作（`realpathOf`），不是那个 Map                                                                                                                                                                                                                                                                                                                                  |
-| **缓存的上限是构造入参，出厂值照旧**                                        | 那一条判据钉的是「越过上限就不再写入、之后照旧现算出正确答案」这**两条行为**，与那个数具体是多少无关；按出厂的 8192 跑就是八千多次真实 fs 解析（实测 14s，慢机器上顶到 vitest 的 30s 超时就成了假红）。所以交出来的是**上限**，不是那个 Map；生产路径（`index.mts` 造 resolver 那一格）两格都不传，落回出厂值                                                                                                                                        |
-| **组件扩展名固定为官方四种**                                                | 放宽会让 `provides()` 比官方别名体系宽 → 解析落到官方不认的文件上，出现两套可见性。同名多形态时的**赢家顺序**不靠推理（那是 fast-glob 的发射行为、非文档化契约），由与官方 `createAliasesForTheme` 交叉核对的用例钉住；同一口径还排掉**点开头的段**（官方 glob 默认 `dot: false`，`.hidden/Logo` 在它那边根本没有别名），排掉的形状与保留的形态在同一条交叉用例里双向断言                                                                            |
-| **层只认「官方别名指向的那一个」主题目录，不收 `getTypeScriptThemePath()`** | 两个声明**不是同一份实现**：实测 `theme-classic` 的 JS 形态是 `lib/theme`（编译产物），TS 形态是它发布出去的 `src/theme`（**未编译源码**）。把后者也当层，`@theme-prev/X` 就从「紧邻下面那一层」落进了未编译 `.tsx`：`theme-a` 的 `@theme-prev/Logo` 本该到 `lib/theme/Logo/index.js`，结果到 `src/theme/Logo/index.tsx` —— 与官方 `@theme/X` 分叉，且构建直接 `Module parse failed`。「能不能被 `swizzle --typescript`」是 swizzle 的事，不属于层栈 |
-| **`theme-fallback` 位置跟着 core 走，不从别名表反查**                       | 别名表里只有被覆盖 / 冲突过的组件才有落点，全覆盖时一个指向 fallback 的值都没有；语义关键层（落在它上面时要告警的锚点）不能建在别人数据的完整性上。拿不到 core 就明说这一层缺失，不留第二条「有时灵有时不灵」的路                                                                                                                                                                                                                                    |
-| **层属于哪一层按「层」判，不按文件路径判**                                  | 层不等 ⇒ 文件必不等，按层判严格更强；按路径判两个方向都会错（同层多文件漏判、同层同名不同文件误伤）                                                                                                                                                                                                                                                                                                                                                  |
-| **组件名只做一次安全校验，不加落点校验**                                    | `isSafeComponentName` 已经保证 `path.join` 不会越出层目录；它放行的一切都进不了落点校验，挡不住任何东西的分支只多一个漂移点                                                                                                                                                                                                                                                                                                                          |
-| **realpath 缓存与层栈推导都挂在实例上**                                     | `configureWebpack` 每次构建都新建 resolver 实例、每次插件初始化都新建插件实例 —— 「实例 = 一次构建 / 一次初始化」就是需要的粒度；跨实例共享状态要额外处理 epoch 切换、窗口淘汰与构建交错，保护的是一个不存在的场景                                                                                                                                                                                                                                   |
-| **解析缓存只存正解，负结论每次现算**                                        | 「这一层还没有 X」在 dev/watch 里会随文件出现而失效，而缓存没有任何失效路径 —— 存过负结论就把「现在有了」永久钉死。负结论的代价只是重算 `computeTarget`（字符串比较 + 有限次 exists），比静默不生效便宜得多                                                                                                                                                                                                                                          |
-| **缓存键的分隔符取 NUL，不用 `\|`**                                         | `\|` 是合法文件名字符（POSIX），出现在组件名或 issuer 里就能让两组不同字段划分的请求拼成同一个键 → 拿到别人的落点，是静默错层。组件名已拒 NUL，真实路径也不含它，所以 NUL 分隔的键是单射的                                                                                                                                                                                                                                                           |
-| **组件存在性只查文件系统，没有可注入的「存在」探针**                        | 唯一消费方是 `provides()`，而它必须与「这个文件真的在不在」同口径；探针只能在测试里假装文件存在，那测的是探针而不是生产路径                                                                                                                                                                                                                                                                                                                          |
-| **改写的「栈上判等」只看 `(name, request)`，不复刻上游七个字段**            | 上游 `StackEntry#has` 比七个字段（name/path/request/query/fragment/directory/module）+ `preSeeded`，我们**故意更粗**：同名的 `internal-resolve` 加同一个绝对目标路径本就只可能来自同一条改写。误判方向是保守 —— 少改写一次、交回官方（对 `@theme-prev/*` 即真实 `Module not found`），不会静默回环；逐项复刻多六个永不参与判等的漂移点                                                                                                               |
-| **`findIssuerLayerIndex` 收「realpath 函数」而不是「缓存对象」**            | 它只关心「怎么把路径归一」；把带上限的 Map 包成一个类再传进来，等于让判层逻辑知道「谁在缓存」。缓存是 resolver 的私有实现，`realpathOf` 是它交出去的那一个能力                                                                                                                                                                                                                                                                                       |
-| **从 core 的解析上下文读它自己的依赖**                                      | core 在 pnpm 下是符号链接进 `.pnpm/` 的，它的依赖只在它的真实路径下可解析；拿别人的 `node_modules` 当基准，拿到的是「凑巧也能用」的那一份                                                                                                                                                                                                                                                                                                            |
+| 取舍                                                                                              | 原因                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **层栈从 plugin 列表推导，而不是只读别名表**                                                      | 别名表每个组件只有 3 个落点，3 层以上覆盖会丢中间层                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **不改 Docusaurus 任何文件**                                                                      | 只复用官方已导出的 `loadContext` / `loadPluginConfigs`，不与版本强绑定                                                                                                                                                                                                                                                                                                                                                                               |
+| **解析失败一律交回官方**                                                                          | 最坏情况退化为官方语义（真实报错），而不是静默产出错误产物                                                                                                                                                                                                                                                                                                                                                                                           |
+| **层栈里没人提供该组件时不回落官方别名**                                                          | 能用的落点里没有语义对的：`@theme-init` 要「最内层提供者」，而 `@theme` 是**最外层**全局赢家 —— 正好相反。宁可让人看到官方 `Module not found`，也不要安静地给一个语义相反的落点                                                                                                                                                                                                                                                                      |
+| **不试图让插件主题「感知自己是不是栈顶」**                                                        | 那需要跨层运行时状态，反而引入不可判定行为                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **`@theme-prev` 恒满足 `j < i`**                                                                  | 「落点严格在导入者下方」是模块图无环（不会 OOM）的来源，整个机制只有这一个 specifier，没有例外形态                                                                                                                                                                                                                                                                                                                                                   |
+| **组件名必须通过安全校验**                                                                        | 它是从 specifier 拼出来的不可信输入，直接进 `path.join` 会让「层」的隔离被一段相对路径绕过；校验是纯输入检查，对合法输入零成本                                                                                                                                                                                                                                                                                                                       |
+| **插件构造失败一律告警（一次构建聚合成一条）**                                                    | 没有任何判据能可靠区分主题 / 非主题（入口都读得到、`getThemePath` 在压缩产物里会变短名）；漏报（层栈少一层且完全静默）比误报（多一行日志）严重得多                                                                                                                                                                                                                                                                                                   |
+| **不为「没人走的路径」留机制**                                                                    | 没有真实触发场景的开关 / 兜底 / 自证装置，成本是永久的，收益是零；发现它就该**删掉**，而不是补算术让它成立                                                                                                                                                                                                                                                                                                                                           |
+| **不为「只有测试在接的出口」留出口**                                                              | 判据是「外面真的在用」。跨模块真在用的一个不动；只在本文件用的收成内部函数；只被测试用的**删掉**，测试改走真实路径（真实 `loadContext` / `layersFromPlugins` / 行为断言）。对外形状与「实际谁在用」对不上，文档和测试就会跟着这个形状一直把人往回带                                                                                                                                                                                                  |
+| **同一件事只有一个产地**                                                                          | `resolveCoreModule` 是 core 内部文件定位的唯一入口（`resolveFallbackDir` 的锚点判据也走它）；层栈推导在**一个循环里**既解析 `getThemePath()` 又入栈                                                                                                                                                                                                                                                                                                  |
+| **内部状态不为「可读」而对外开洞**                                                                | `realpathCache` 整体 private：外面要的只是「带上限的 `normalizeLayerPath`」这一个动作（`realpathOf`），不是那个 Map                                                                                                                                                                                                                                                                                                                                  |
+| **缓存的上限是构造入参，出厂值照旧**                                                              | 那一条判据钉的是「越过上限就不再写入、之后照旧现算出正确答案」这**两条行为**，与那个数具体是多少无关；按出厂的 8192 跑就是八千多次真实 fs 解析（实测 14s，慢机器上顶到 vitest 的 30s 超时就成了假红）。所以交出来的是**上限**，不是那个 Map；生产路径（`index.mts` 造 resolver 那一格）两格都不传，落回出厂值                                                                                                                                        |
+| **组件扩展名固定为官方四种**                                                                      | 放宽会让 `provides()` 比官方别名体系宽 → 解析落到官方不认的文件上，出现两套可见性。同名多形态时的**赢家顺序**不靠推理（那是 fast-glob 的发射行为、非文档化契约），由与官方 `createAliasesForTheme` 交叉核对的用例钉住；同一口径还排掉**点开头的段**（官方 glob 默认 `dot: false`，`.hidden/Logo` 在它那边根本没有别名），排掉的形状与保留的形态在同一条交叉用例里双向断言                                                                            |
+| **层只认「官方别名指向的那一个」主题目录，不收 `getTypeScriptThemePath()`**                       | 两个声明**不是同一份实现**：实测 `theme-classic` 的 JS 形态是 `lib/theme`（编译产物），TS 形态是它发布出去的 `src/theme`（**未编译源码**）。把后者也当层，`@theme-prev/X` 就从「紧邻下面那一层」落进了未编译 `.tsx`：`theme-a` 的 `@theme-prev/Logo` 本该到 `lib/theme/Logo/index.js`，结果到 `src/theme/Logo/index.tsx` —— 与官方 `@theme/X` 分叉，且构建直接 `Module parse failed`。「能不能被 `swizzle --typescript`」是 swizzle 的事，不属于层栈 |
+| **`theme-fallback` 位置跟着 core 走，不从别名表反查**                                             | 别名表里只有被覆盖 / 冲突过的组件才有落点，全覆盖时一个指向 fallback 的值都没有；语义关键层（落在它上面时要告警的锚点）不能建在别人数据的完整性上。拿不到 core 就明说这一层缺失，不留第二条「有时灵有时不灵」的路                                                                                                                                                                                                                                    |
+| **层属于哪一层按「层」判，不按文件路径判**                                                        | 层不等 ⇒ 文件必不等，按层判严格更强；按路径判两个方向都会错（同层多文件漏判、同层同名不同文件误伤）                                                                                                                                                                                                                                                                                                                                                  |
+| **组件名只做一次安全校验，不加落点校验**                                                          | `isSafeComponentName` 已经保证 `path.join` 不会越出层目录；它放行的一切都进不了落点校验，挡不住任何东西的分支只多一个漂移点                                                                                                                                                                                                                                                                                                                          |
+| **realpath 缓存与层栈推导都挂在实例上**                                                           | `configureWebpack` 每次构建都新建 resolver 实例、每次插件初始化都新建插件实例 —— 「实例 = 一次构建 / 一次初始化」就是需要的粒度；跨实例共享状态要额外处理 epoch 切换、窗口淘汰与构建交错，保护的是一个不存在的场景                                                                                                                                                                                                                                   |
+| **解析缓存只存正解，负结论每次现算**                                                              | 「这一层还没有 X」在 dev/watch 里会随文件出现而失效，而缓存没有任何失效路径 —— 存过负结论就把「现在有了」永久钉死。负结论的代价只是重算 `computeTarget`（字符串比较 + 有限次 exists），比静默不生效便宜得多                                                                                                                                                                                                                                          |
+| **缓存键的分隔符取 NUL，不用 `\|`**                                                               | `\|` 是合法文件名字符（POSIX），出现在组件名或 issuer 里就能让两组不同字段划分的请求拼成同一个键 → 拿到别人的落点，是静默错层。组件名已拒 NUL，真实路径也不含它，所以 NUL 分隔的键是单射的                                                                                                                                                                                                                                                           |
+| **组件存在性只查文件系统，没有可注入的「存在」探针**                                              | 唯一消费方是 `provides()`，而它必须与「这个文件真的在不在」同口径；探针只能在测试里假装文件存在，那测的是探针而不是生产路径                                                                                                                                                                                                                                                                                                                          |
+| **改写的「栈上判等」只看 `(name, request)`，不复刻上游七个字段**                                  | 上游 `StackEntry#has` 比七个字段（name/path/request/query/fragment/directory/module）+ `preSeeded`，我们**故意更粗**：同名的 `internal-resolve` 加同一个绝对目标路径本就只可能来自同一条改写。误判方向是保守 —— 少改写一次、交回官方（对 `@theme-prev/*` 即真实 `Module not found`），不会静默回环；逐项复刻多六个永不参与判等的漂移点                                                                                                               |
+| **`findIssuerLayerIndex` 收「realpath 函数」而不是「缓存对象」**                                  | 它只关心「怎么把路径归一」；把带上限的 Map 包成一个类再传进来，等于让判层逻辑知道「谁在缓存」。缓存是 resolver 的私有实现，`realpathOf` 是它交出去的那一个能力                                                                                                                                                                                                                                                                                       |
+| **从 core 的解析上下文读它自己的依赖**                                                            | core 在 pnpm 下是符号链接进 `.pnpm/` 的，它的依赖只在它的真实路径下可解析；拿别人的 `node_modules` 当基准，拿到的是「凑巧也能用」的那一份                                                                                                                                                                                                                                                                                                            |
+| **两个 bundler 各挂各的格，而不是把两支统一到 `beforeResolve`**                                   | 判据（`resolveTarget`）本来就是一支的，换管道不改变任何落点；把 webpack 那一支也搬过去，删掉的是唯一会把「tap 的格不存在」喊出来的 `apply()` 自检，而这一类 bug 的症状正是全程零提示 + 一条真实的 `Module not found`。已在一侧生产路径上验证过的形状，不换成另一侧从没验证过的形状                                                                                                                                                                   |
+| **bundler 分支判据读 `utils.currentBundler.name`，不读 `siteConfig.future.faster.rspackBundler`** | 前者是官方 `@docusaurus/bundler` 算完 `fasterByDefault` 展开之后的结论，后者是自己另判一套：开关的展开口径一变就跟官方脱节（本仓 `plugin-lazy-compilation` 同一条口径）                                                                                                                                                                                                                                                                              |
 
 ## 不能碰的做法（留作对照）
 
 试过、看着可行但**不成立**的做法。留下这张表是为了不重复踩坑（源码注释不复述）。
 
-| 不成立的做法                                                   | 为什么                                                                                                                                                                                                                                                           |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 自己读配置算指纹感知配置改动                                   | 配置要生效必先过官方那一关，官方重读后 `loadContext` 交出的就是新配置；自己再读一遍多一类「读到了但没生效」的失败                                                                                                                                                |
-| 从 `configureWebpack` 的第二参数（或插件上下文）取插件实例列表 | 第二个形参是 `isServer` **布尔值**；`context.plugins` 在初始化阶段也还没有（实测：它只在官方自己调 `configureWebpack` 时才被拼进那份拷贝里）。据此改过一版，「链失效」被 `.docusaurus` 的 webpack 缓存遮住，本地全绿、CI 红在 `Can't resolve '@theme-prev/Logo'` |
+| 不成立的做法                                                                                             | 为什么                                                                                                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 自己读配置算指纹感知配置改动                                                                             | 配置要生效必先过官方那一关，官方重读后 `loadContext` 交出的就是新配置；自己再读一遍多一类「读到了但没生效」的失败                                                                                                                                                |
+| 从 `configureWebpack` 的第二参数（或插件上下文）取插件实例列表                                           | 第二个形参是 `isServer` **布尔值**；`context.plugins` 在初始化阶段也还没有（实测：它只在官方自己调 `configureWebpack` 时才被拼进那份拷贝里）。据此改过一版，「链失效」被 `.docusaurus` 的 webpack 缓存遮住，本地全绿、CI 红在 `Can't resolve '@theme-prev/Logo'` |
+| 以为 `resolve.plugins` 里的 resolver 在任何 bundler 下都会被调用                                         | rspack 的 `ResolveOptions` 上没有 `plugins` 这一格：塞进去的那把 resolver 的 `apply()` **一次都不会被调用**，配置归一化之后那个 key 还在，只是没人消费。连带住在 `apply()` 里的自检也不跑 ⇒ 全程零提示。见「rspack 那一支：挂模块工厂的解析前那一格」            |
+| 在 rspack 的 `beforeResolve` 里 push `resolveData.fileDependencies` / `missingDependencies` 来登记层目录 | 实测 watch 与持久缓存**都不采信**这些路径，改外层主题文件不触发重建、产物一直是旧的。登记层目录的依赖只有 loader 里的 `this.addContextDependency` 被两侧认，见「层目录的上下文依赖」                                                                             |
 
 ## 类型声明
 

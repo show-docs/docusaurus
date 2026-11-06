@@ -1,7 +1,7 @@
 /**
 `@theme` 系 specifier 的类型声明。
 
-这些 specifier 由本插件在 webpack resolve 阶段改写，磁盘上并不存在对应目录，
+这些 specifier 由本插件在打包器的解析阶段改写（webpack / rspack 两支都接），磁盘上并不存在对应目录，
 因此 TypeScript 需要在这里被告知「这些模块存在」。
 
 收录口径 = **本仓库真的 import 过它**（`pnpm lint:type` 各项目输入的文件）：官方别名

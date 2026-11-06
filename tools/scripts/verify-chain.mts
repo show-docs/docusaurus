@@ -3,8 +3,13 @@
 运行：pnpm build && pnpm verify:chain（读的是 `pnpm build:core` 产出的包内 `dist/`，
 也就是包出口真正指向的那份产物）。
 
-机制、`@theme-prev/X` 语义与「`@theme-original` 零改动」的理由在
-`packages/plugin-prev-layer-resolver/README.md`，这里不抄第二份。免 build 的判据已迁到单测、
+真实构建那一侧**两个 bundler 都要跑**：`pnpm build` 用的只是站点当前配置的那一个（webpack 或
+rspack），另一支要显式覆盖一次再跑本脚本 —— 两支的接线不同格（`resolve.plugins` /
+模块工厂的解析前那一格），同一份产物判据才说明「换 bundler 不换落点」。
+`@theme-prev/X` 的语义、两支怎么接线、层目录为什么必须登记成上下文依赖，
+全在 `packages/plugin-prev-layer-resolver/docs/internals.md`，这里不抄第二份。
+
+免 build 的判据已迁到单测、
 随 `pnpm test` 常规运行（无需等一次真实 build）：
 
   - 没有给 Docusaurus 打补丁、`@theme-original` 官方语义零改动 → `test/layers.test.mts`

@@ -111,8 +111,13 @@ export function resolveComponentInLayer(
   return null;
 }
 
-/** 规范化路径用于前缀比较（统一分隔符）；POSIX 上 `sep` 就是 `/`，等于恒等 */
-function toPosix(p: string): string {
+/**
+规范化路径用于前缀比较（统一分隔符）；POSIX 上 `sep` 就是 `/`，等于恒等。
+
+出口给 `./layer-watch.mts` 用：那里判「文件在不在某个层目录里」走的是同一种前缀比较，
+两套分隔符口径不该各写一遍。
+*/
+export function toPosix(p: string): string {
   return p.replaceAll(path.sep, '/');
 }
 

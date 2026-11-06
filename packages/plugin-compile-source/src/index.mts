@@ -11,8 +11,10 @@ Docusaurus 官方那条规则把整个 `node_modules` 排除在外，所以这�
 与 `./docs/internals.md`，这里只留接线所需的事实。
 
 它和 `@show-docs/docusaurus-plugin-prev-layer-resolver` 是两件事：那个包管「多个主题层链式包裹
-同一个组件」（往 `resolve.plugins` 里放一把 resolver），本包管「谁编译这一族的源码」（往
-`module.rules` 里放一条规则）。两格互不依赖 —— 层栈空了这条规则照样在，摘掉这条规则
+同一个组件」（webpack 那一支往 `resolve.plugins` 里放一把 resolver，rspack 那一支往模块工厂的
+解析前那一格挂改写），本包管「谁编译这一族的源码」（往 `module.rules` 里放一条规则）。
+那个包的 `module.rules` 里也确实有一条 —— 登记主题层目录的依赖，不改任何内容、也不参与编译，
+两条规则的判据各在各的包里。两格互不依赖：层栈空了这条规则照样在，摘掉这条规则
 `@theme-prev/*` 照旧解析得动，只是那些 `.tsx` 没人编。
 */
 export default async function compileSourcePlugin(

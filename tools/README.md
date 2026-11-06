@@ -12,7 +12,7 @@
 | `theme-a/`    | 主题插件 A（`@show-docs/theme-a`，覆盖 ChainDemo）                   |
 | `theme-b/`    | 主题插件 B（`@show-docs/theme-b`，覆盖 ChainDemo）                   |
 | `theme-c/`    | 主题插件 C（`@show-docs/theme-c`，覆盖 ChainDemo，验证链可加长）     |
-| `scripts/`    | 验证脚本（`verify-chain.mts`，不是包）                               |
+| `scripts/`    | 验证脚本（`verify-chain.mts` / `verify-context-deps.mts`，不是包）   |
 
 四个包各有 `package.json`（见 `pnpm-workspace.yaml`），站点按**包名**加载。`theme-base` 必须排在
 `theme-a` 之前注册 —— 层栈按声明顺序，链底要在被包的那几层下面。
@@ -34,9 +34,16 @@
 ## 验证链
 
 ```bash
-pnpm build          # 先构建（含 build:core 与静态站点）
-pnpm verify:chain   # 读真实 build 产物（示例页 `build/plugin-prev-layer-resolver/docs/chain-demo/index.html`、主页 `build/index.html` 与示例页 `build/theme-markmap/docs/markmap-demo/index.html`），验证每一层都被保留
+pnpm build                 # 先构建（含 build:core 与静态站点）
+pnpm verify:chain          # 读真实 build 产物（示例页 `build/plugin-prev-layer-resolver/docs/chain-demo/index.html`、主页 `build/index.html` 与示例页 `build/theme-markmap/docs/markmap-demo/index.html`），验证每一层都被保留
+pnpm verify:context-deps   # 用包内产物起最小站点，两个 bundler 各验「层目录进了上下文依赖」与「往层里真写一个新组件、watcher 会重解析」，并带「摘掉那条规则就不许成立」的反向对照
 ```
+
+`verify:chain` 读的是**产物**，`verify:context-deps` 读的是**编译器当场记的那张依赖表**：
+`@theme-prev/X` 的落点是「下面那一层目录里现在有没有这个文件」现算的，层目录没进引用方的依赖表时
+「层里新增组件」这种改动判不旧，链停在旧落点上一句错都不报（机制见
+`packages/plugin-prev-layer-resolver/docs/internals.md`「层目录的上下文依赖」）。两支各跑两趟要 20 多秒，
+主要花在反向对照那个固定等待窗口上 —— 没有它，「没落地」这个结论只是等待时间里恰好没人来。
 
 从上面那几份真实渲染产物里回读那条链：
 

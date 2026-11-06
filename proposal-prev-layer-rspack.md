@@ -1,6 +1,9 @@
 # 设计方案：plugin-prev-layer-resolver 在 rspack 下怎么接线
 
-> 日期：2026-11-05。状态：三项实测已在真实站点上跑过，`packages/` 里一行代码没动。
+> 日期：2026-11-05。状态：**方案 A 已实施**，两支的真实构建都跑过并绿灯；下面「实施要动的格」
+> 记的是实际落点，两条让步一起做完了。实施之后又按「发掘设计缺陷、测试疏漏」重跑了一轮真实编译，
+> 两处补正记在下面「实施之后的审计」一节（其中一处正是「两支落点相同」这句话被证伪的形状）；
+> 第三处是那节里的判据空缺 —— 那句「由真实构建钉住」当时在门禁里并没有对应的那一条。
 > 仓库级事实放这一份；机制本身、`@theme-prev/X` 的语义与「`@theme-original` 官方语义零改动」的理由
 > 仍以[包 README](./packages/plugin-prev-layer-resolver/README.md) 与
 > [包 internals](./packages/plugin-prev-layer-resolver/docs/internals.md) 那两处为主，这里只指过去，不抄第二份。
@@ -97,44 +100,115 @@ B 不是「删掉测试」，是「把已经在生产里验证过的一侧换成
 rspack 在这个包的公开使用者侧仍是 opt-in（`future.faster.rspackBundler`，只有 `future.v4.fasterByDefault`
 才默认全开）。装这些主题包的多数项目还在 webpack，所以 A 的 webpack 一支不是维护包袱，而是当前的默认路径。
 
-## 实施要动的格（还没动）
+## 实施落地的格（已做完）
 
-1. [`index.mts:50-78`](./packages/plugin-prev-layer-resolver/src/index.mts)：读 `utils.currentBundler.name`，
-   webpack 保持返回 `resolve.plugins`，rspack 返回那条 NMF tap + 上下文依赖规则。
-2. [`resolver.mts`](./packages/plugin-prev-layer-resolver/src/resolver.mts)：新增一个 tap 形状的外壳
-   （能力自检 + 把 `resolveData.request` 交给 `resolveTarget({ request, issuer: resolveData.contextInfo?.issuer })`），
-   解析判据一行不改。改写只在 `@theme-prev/` 前缀上做，与现在的入口口径同一条。
-3. 上下文依赖规则：一支共用（让步 2）。它只登记层目录，不改任何请求。
-4. 用例：tap 外壳一类（含「hook 不存在 ⇒ 告警并整体禁用」）、规则注册一类，现有 24 例不动。
-5. 文档要跟着这一支一起扫的句子（不留旧口径）：包 README
-   [第 3](./packages/plugin-prev-layer-resolver/README.md)、13、76 行那三处「在 webpack resolve 阶段」的表述、
-   internals 的「插件如何注入 resolver」「两个 hook 的选择（换一个就坏）」「实测」「升级检查单」四节、
-   [`plugin-compile-source/src/index.mts:14`](./packages/plugin-compile-source/src/index.mts) 那句
-   「那个包管……往 `resolve.plugins` 里放一把 resolver」的分工表述，以及
-   [`tools/scripts/verify-chain.mts`](./tools/scripts/verify-chain.mts) 文件头那段机制说明。
+1. [`index.mts`](./packages/plugin-prev-layer-resolver/src/index.mts)：第三份参数从 `_utils` 变成判据，
+   webpack 照旧交 `resolve.plugins`，rspack 交 `plugins: [新外壳]`；两支都交 `module.rules` 那一条。
+2. [`resolve-tap.mts`](./packages/plugin-prev-layer-resolver/src/resolve-tap.mts)（新）：tap 形状的外壳 ——
+   两格能力自检 + `resolveData.request` ← `resolveTarget({ request, issuer: resolveData.contextInfo?.issuer })`，
+   抛错时告警并交回官方。解析判据一行不改，`resolver.mts` 里被搬动的只有 `resolveTarget` / `warn`
+   改成对外可读。
+3. [`layer-watch.mts`](./packages/plugin-prev-layer-resolver/src/layer-watch.mts) +
+   [`layer-watch-loader.cts`](./packages/plugin-prev-layer-resolver/src/layer-watch-loader.cts)（新）：
+   上下文依赖规则，两支共用（让步 2）。它只登记层目录，不改任何请求、也不参与编译。
+4. 用例：`test/resolve-tap.test.mts` 9 例（含「hook 不存在 ⇒ 告警并整体禁用」）、
+   `test/layer-watch.test.mts` 7 例、`test/plugin.test.mts` 两支各一条；原有 24 例一行没动。
+5. 文档跟着这一支扫完：包 README 那三处「在 webpack 解析阶段」的表述、「工作方式」「与那条规则的分工」
+   一节、「告警」第 4/5 条与「已知限制」；internals 新增「rspack 那一支」与「层目录的上下文依赖」两节，
+   「两个 hook 的选择」限定为 webpack 支，「不能碰的做法」加两条（`resolve.plugins` 恒被消费、
+   在 `beforeResolve` 里 push 依赖），升级检查单从七处变九处；
+   `plugin-compile-source` 那句分工表述、`types/theme-specifiers.d.ts` 头部、`test/README.md` 索引同步。
 
-## 待补的两跑
+## 待补的两跑（已补，两支都绿）
 
-1. **补好防递归的 `rspack-tap` 完整构建 + 对那份产物跑 `pnpm verify:chain`。** 上面第 1 项那组数字来自一次
-   成功的 rspack 构建（`[SUCCESS]` 有），但那条四层链
-   （`src/theme > theme-c > theme-b > theme-a`）**从没在 rspack 产物上验过** —— 这是当前证据里最厚的空档。
-2. **webpack 对照要重跑。** `rspackBundler: false` 那一跑报了另一个错：`Can't resolve '@theme/DebugConfig'
-in '.docusaurus'`（同类还有 `@theme/DebugSiteMetadata`）。怀疑是 dev 跑过后 `.docusaurus` 里的残留
-   （`plugin-debug` 只在 dev 注册那些组件）。**没在 `docusaurus clear` 之后复验过，所以现在既不能说 webpack
-   一支坏了，也不能说它是绿的** —— 方案 D 能不能止血取决于这一跑。
+1. **rspack 完整构建 + `verify:chain`**：`pnpm build`（站点当前配置即 rspack）到 `[SUCCESS]`，
+   `pnpm verify:chain` 报「✅ ChainDemo 链成立（4 层全部保留）」、EXIT=0。
+   第 1 项那组数字留下的证据空档（四层链从没在 rspack 产物上验过）就此闭合。
+2. **webpack 对照**：临时把 `future.faster.rspackBundler` / `rspackPersistentCache` 设回 `false` 再跑，
+   同样 `[SUCCESS]` + `verify:chain` EXIT=0。之前那次的 `Can't resolve '@theme/DebugConfig' in '.docusaurus'`
+   是 dev 跑过留下的 `.docusaurus` 残留，不是 webpack 一支坏了 —— 所以方案 D 那句「今天止不住」的
+   第二个理由不成立（第一个仍然成立：关掉 rspack 不解决接线问题，只是把故障按住）。
 
-## 没钉住的那一条（读码推出来的，未实测）
+**另补一条**：让步 2 那条规则真的把层目录登记上了吗 —— 用**包内产物**（`dist/` 的
+`resolver.mjs` / `resolve-tap.mjs` / `layer-watch.mjs` + `layer-watch-loader.cjs`）跑一次最小 rspack
+编译，`afterCompile` 里读 `compilation.contextDependencies`，两份层目录都在；同一跑里
+`@theme-prev/Logo` 也被改写成了内层那份文件。注意这一格只能读 Compilation 上那两把访问器：
+rspack 的 JS 模块对象上没有 `contextDependencies`（`module.contextDependencies` 恒空），
+别把「读不到」当成「没登记」。
 
-[`layers.mts:21-33`](./packages/plugin-prev-layer-resolver/src/layers.mts) 的层存在性探测直接走 `node:fs` 的
-`existsSync` / `statSync`，绕开了 enhanced-resolve 的缓存文件系统，也没有登记 missing 依赖。照这一条读，
-webpack 的 watch 在「外层新建一个组件文件」这个边界上大概有同一个洞。方案 A 的让步 2 顺手把它一起堵上，
-但**这条要单独实测**（webpack dev 里新建一个外层组件文件，看站点是否重建那条链）才算证据。
+## 「没钉住的那一条」现在钉住了
 
-## 探针工件（跑完删，不进提交）
+`layers.mts` 的层存在性探测走 `node:fs`、绕开 enhanced-resolve 的缓存文件系统，webpack 的 watch 在
+「外层新建一个组件文件」这个边界上原本大概有同一个洞。让步 2 把同一条规则也注册进了 webpack 支，
+所以那个洞的**成因**已经不在（层目录进了官方 watch 的依赖表）。当时缺的是复验：实测项 3 只跑了
+rspack dev watch + 持久缓存，webpack 那一支没有单独跑过 —— 这一条从「未实测的洞」只剩「未复验的修复」。
+
+审计里的补正三把这一格做成了门禁：`pnpm verify:context-deps` 对**两个** bundler 各跑「层目录有没有进
+`compilation.contextDependencies`」与「往内层真写一个新组件，watcher 会不会重解析」两趟，
+所以两支的 watch 链路现在都有可复跑的那一条，不再依赖某次手工探针。两趟的口径记在
+[包 internals](./packages/plugin-prev-layer-resolver/docs/internals.md)「层目录的上下文依赖」。
+
+## 实施之后的审计：三处补正
+
+方案 A 落地之后按「发掘设计缺陷、测试疏漏」重跑了一轮真实编译，翻出两条与
+「两支共用一份判据」这句话直接冲突的事实，加上一条「文档写着有真实构建钉着、门禁里其实没有」的
+判据空缺，三处都补完了。
+
+**补正一：rspack 那一格交回的 request 是解析前的整串。** 同一份夹具（导入者在外层），三种写法各跑
+一次真实编译，下表只记**修复前**的形状（修复后与它的实测在下面那条指针里）：
+
+| 层里的写法                                                   | 修复前 webpack 支             | 修复前 rspack 支                     |
+| ------------------------------------------------------------ | ----------------------------- | ------------------------------------ |
+| `import X from '@theme-prev/Logo'`                           | 绿灯，落内层                  | 绿灯，落内层                         |
+| `import X from '!!<loader>!@theme-prev/Logo'`（行内 loader） | 绿灯，`passthru.cjs!<内层>/…` | **`Module not found`，且本包零告警** |
+| 同上再带 `?raw`                                              | 绿灯                          | 同一处红                             |
+
+原因：enhanced-resolve 在把 request 交给 resolver **之前**就把行内 loader 前缀切掉了，rspack 的
+`beforeResolve` 没有这一步，于是 `matchSpecifier` 那个 `startsWith('@theme-prev/')` 连「这条请求归我管」
+都没认出来 —— 不改写也不响，只剩一条看起来像「整个机制坏了」的 Module not found。上面「结论」那节写
+「差异只在把 request 交给谁」时低估了这一格：判据确实只有一份，**交给判据的字符串**却有两套。
+补法、为什么不能整串替换（会把用户点名的那份 loader 弄丢）、以及修复后两支各自的实测，见
+[包 internals](./packages/plugin-prev-layer-resolver/docs/internals.md)「两支交回的 request 不是同一个字符串」；
+钉它的是 `test/resolve-tap.test.mts` 末尾「两支同一把尺子」——此前两支各自的用例只喂裸串，
+所以两支都绿着、却对同一行源码给出不同结果，这条对照判据本来就是缺的。
+
+**补正二：分支判据只护了 rspack 那一支。** 让步 1 的能力自检管的是「我们 tap 的 hook 在不在」，
+管不到「名字是不是我们认的那两个」。`index.mts` 原来是 `=== 'rspack'` 一条判据、其余全落
+`resolve.plugins`：官方哪天加第三种 bundler（或改了那一格的名字），本包就原样退回这次的故障形状 ——
+不消费 `resolve.plugins` 的那个 bundler 会静默不生效。现在第三种名字 ⇒ 告警点名 + 整体禁用
+（包 README「告警」4c）。这一条不需要实测：它就是把一条 else 补在只有 if 的地方，
+判据是 `test/plugin.test.mts`「未知 bundler 名：告警并整体禁用，不交任何一支持线」。
+
+**补正三：上面那些「实测」当时没有可复跑的判据。** 包 internals 与 `test/layer-watch.test.mts` 的头
+都写着这一格「由真实构建那一轮钉」，但 `verify:chain` 只读产物里那条渲染链 —— 它既不看 watch，
+也不看 `compilation.contextDependencies`。那次实测只活在一个手工探针里，而探针按规矩跑完就删了，
+于是「文档承诺有真实构建钉着」与「门禁里真有那么一条」之间是空的。
+现在这一格有自己的判据：`tools/scripts/verify-context-deps.mts`（`pnpm verify:context-deps`，已并进
+`pnpm verify`）—— 两个 bundler 各跑上面那两趟，并带反向对照：把那条规则摘掉，这两趟都必须**不**成立。
+半 A / 半 B 的口径、以及为什么不能用 `watching.invalidate()` 当触发器，记在
+[包 internals](./packages/plugin-prev-layer-resolver/docs/internals.md)「层目录的上下文依赖」与脚本自己的文件头，
+这里不抄第三份。
+
+**审计里另外三条没在这批动**（都落在「少一次失效」那一档，不是错层，下次真跑构建时再收）：
+
+- `dirs` 交出的是**全部层**，含导入者自己那一层与它上面所有层。落点只可能来自下面那层，所以这些
+  目录只会把模块判旧、不参与答案 —— dev 下的过度失效来自这里，代价没量过。
+- `SOURCE_FILE` 只收 `[cm]?[jt]sx?`：层目录里的 `.mdx` 导入 `@theme-prev/X` 时不登记上下文依赖
+  （与 bundler 无关，两支同犯）。本仓库现在没有 theme 下的 `.mdx`，所以踩不到。
+- 升级本包不会让持久缓存失效：`getCacheBuildDependencies()` 只有 core 的三个文件，`cacheVersion`
+  是 docusaurus 版本 + themeAliases 的哈希（`@docusaurus/core/lib/webpack/base.js`）。这是官方对所有
+  插件的口径，本包要收只能把自身版本并进 cacheVersion，目前没做。
+
+## 探针工件（已删，不进提交）
 
 `docusaurus.config.probe.mjs`、`tools/tmp-probe-plugin.mjs`、`tools/tmp-layer-watch-loader.cjs`、
-`tools/tmp-layer-watch-loader.mjs`、`tools/tmp-probe15.mjs`、`tools/tmp-probe16.mjs`。
-它们只是为了把上面三张表量出来，不复刻真实包的防递归与告警，别当契约读。
+`tools/tmp-layer-watch-loader.mjs`、`tools/tmp-probe15.mjs`、`tools/tmp-probe16.mjs`、
+`tools/tmp-verify-deps.mjs` —— 三张表量完即删。它们只为把上面的数字跑出来，不复刻真实包的防递归与
+告警，别当契约读；真实包的那两条契约由 `test/resolve-tap.test.mts` / `test/layer-watch.test.mts` 钉。
+
+审计那一轮的探针同样跑完即删（`tools/tmp-audit-probe.mjs`、`tools/tmp-audit-probe2.mjs`、
+`tools/tmp-inline-check.mjs`）：它们换出来的是 `test/resolve-tap.test.mts`「两支同一把尺子」那几条
+与 `tools/scripts/verify-context-deps.mts` —— 这次的重点正是「探针删了以后，判据得留在门禁里」。
 
 ## 参考
 

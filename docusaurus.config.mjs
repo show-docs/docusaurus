@@ -58,6 +58,7 @@ const config = {
     locales: ['zh-Hans'],
   },
   markdown: {
+    emoji: false,
     hooks: {
       onBrokenMarkdownLinks: 'warn',
     },
@@ -211,8 +212,10 @@ const config = {
     // `DocItem/Content`），谁都不争同一格，放在层栈最外面。判据不是 frontmatter，
     // 而是站点有没有写 `themeConfig.footer.copyright`。
     '@show-docs/docusaurus-theme-copy-button',
-    // 开发期 webpack 加速：非 build 的客户端编译开 `lazyCompilation`（页面与依赖按需编译，
-    // 首屏更快）。`configureWebpack` 不是站点配置的合法字段（配置 schema 会直接拒收），
+    // 开发期编译加速：非 build 的客户端编译开 `lazyCompilation`（页面与依赖按需编译，首屏更快）。
+    // 这一格在 webpack 下住 `experiments`、在 rspack 下住顶层并且要多挂一份中间件，插件按官方
+    // 给 `configureWebpack` 的那格 bundler 信息自己选（细节与实测见该包 README）。
+    // `configureWebpack` 不是站点配置的合法字段（配置 schema 会直接拒收），
     // 它只能是插件生命周期方法，所以逻辑放进 `packages/plugin-lazy-compilation/` 那个子包、
     // 在这里按包名挂上。
     // 这个插件没有主题目录，不参与上面的层栈推导（见 layers.mts 的过滤口径）。
@@ -271,15 +274,17 @@ const config = {
   // 依赖关系：这一格为 true 时 `@docusaurus/bundler` 会 `import('@docusaurus/faster')`，
   // 缺包直接抛错，所以 devDependencies 里那个包不是可选项；版本要跟 `@docusaurus/core` 同轨。
   future: {
+    // experimental_vcs: {},
+    v4: {
+      useCssCascadeLayers: false,
+      fasterByDefault: true,
+      mdx1CompatDisabledByDefault: false,
+      removeLegacyPostBuildHeadAttribute: true,
+    },
     faster: {
-      lightningCssMinimizer: true,
-      swcHtmlMinimizer: true,
-      swcJsMinimizer: true,
-      mdxCrossCompilerCache: true,
-      swcJsLoader: true,
+      gitEagerVcs: true,
     },
   },
-
   themeConfig: {
     // navbar 给两棵内容根各一格。`docSidebar` 链的是**那份侧栏自己的索引页**：官方从侧栏第一项
     // 算出那条地址（`docs` 那格落 `/`，`themes` 那格落 `/themes/`），所以这里只点名侧栏，
