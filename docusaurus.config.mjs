@@ -148,6 +148,14 @@ const config = {
     // 它不提供 `DocItem`：`diff` 那一页在自己的 `loadContent()` 里交给 component-page，
     // 命中后挂本包的 `theme/DiffPage`（与 markmap 同一形态）。
     '@show-docs/docusaurus-theme-diff',
+    // 全站字数主题层：md 里 `wordCount: true` 那一页在正文上方显示**自己所在内容根**的字数
+    // （整站的数在配置期算好，页面按路由上下文只挑自己那一格）。本站两棵内容根各有一页写了
+    // 这把键 —— 示例页在 `default`，`themes/README.md` 落地页在 `themes` —— 两块各写自己那份。
+    // 它不提供 `DocItem`：`wordCount` 那一把键在自己的 `loadContent()` 里交给 component-page，
+    // 命中后挂本包的 `theme/WordCountPage`（与 diff 同一形态）。统计读的是**各 docs 实例已经
+    // 加载到的那份清单**（不是重扫目录），所以站点这边不必转述内容根那三格；数的口径
+    // （CJK 按字、其余按词，代码块与表格都算）在包 README。
+    '@show-docs/docusaurus-theme-word-count',
     // 下面三条 API 层各在自己的 `loadContent()` 里交出一份组件与一条规则（`scalar` / `redoc` /
     // `stoplight`，都写 `true`），渲染哪份文档读各自那两把 spec 键（OpenAPI 写 `oas3:`、
     // AsyncAPI 3 写 `aas3:`），口径分别在各包自己的 README。同源那份框、握手与框内页面都在
@@ -166,14 +174,14 @@ const config = {
     //
     // 一列里的顺序就是命中优先级，所以本站把四条「整页交给一个框」的键按 e2e 钉的那个先后
     // 列出来（scalar → redoc → stoplight → iframe）：同一页写中多把键时，排在前面的先判。
-    // 没在这一列里提过的默认规则（markmap / erd / diff）按**键名的固定字符串顺序**接在后面，
+    // 没在这一列里提过的默认规则（markmap / erd / diff / word-count）按**键名的固定字符串顺序**接在后面，
     // 与上面 `plugins` 的声明顺序无关。
     //
     // 仓库里只有本层提供 `DocItem`，所以落空时交回官方那一份（`@theme-init/DocItem`），
     // 没有要串的链。上面各包交来的那几页也走这一张表，命中后分别由
     // `@theme/ScalarView` / `@theme/RedocView` / `@theme/StoplightView`（同源框，框内那份页面
     // 是 `@theme/ComponentFramePage`）/ `@theme/ExternalFrame` / `@theme/MarkmapPage` /
-    // `@theme/ErdPage` / `@theme/DiffPage` 渲染 —— 这一层因此是「整页交给谁」的唯一套壳。
+    // `@theme/ErdPage` / `@theme/DiffPage` / `@theme/WordCountPage` 渲染 —— 这一层因此是「整页交给谁」的唯一套壳。
     // 本站的键是 `componentPage`（认真布尔 `true`），与那几把交来的键都不撞。
     [
       '@show-docs/docusaurus-theme-component-page',

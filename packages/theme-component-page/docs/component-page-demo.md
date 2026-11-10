@@ -54,7 +54,7 @@ export default {
 
 上面那两条来自站点配置。装了的插件也可以自己交回条目：`theme-iframe` 的 `iframe:`、
 三条 API 层的 `scalar:` / `redoc:` / `stoplight:`（那三条写的是 `render: 'iframe'`，框与框内那份
-文档都由本层提供）、`theme-markmap` 的 `markmap`、`theme-erd` 的 `dbml_json` 与 `theme-diff` 的
-`diff` 就是这么来的 —— 各自在 `loadContent()` 里交回 `{ componentPage }`，命中后分别由
+文档都由本层提供）、`theme-markmap` 的 `markmap`、`theme-erd` 的 `dbml_json`、`theme-diff` 的
+`diff` 与 `theme-word-count` 的 `wordCount` 就是这么来的 —— 各自在 `loadContent()` 里交回 `{ componentPage }`，命中后分别由
 `@theme/ExternalFrame` / `@theme/ScalarView` / `@theme/RedocView` / `@theme/StoplightView` /
-`@theme/MarkmapPage` / `@theme/ErdPage` / `@theme/DiffPage` 渲染，不必再抄到站点这一列里。
+`@theme/MarkmapPage` / `@theme/ErdPage` / `@theme/DiffPage` / `@theme/WordCountPage` 渲染，不必再抄到站点这一列里。

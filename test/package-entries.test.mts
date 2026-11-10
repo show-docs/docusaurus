@@ -16,6 +16,7 @@ import markmapTheme from '../packages/theme-markmap/src/index.mts';
 import redocTheme from '../packages/theme-redoc/src/index.mts';
 import scalarTheme from '../packages/theme-scalar/src/index.mts';
 import stoplightTheme from '../packages/theme-stoplight/src/index.mts';
+import wordCountTheme from '../packages/theme-word-count/src/index.mts';
 import { PLUGIN_NAME as AVATAR_PLUGIN_NAME } from '../themes/theme-avatar/src/config.mts';
 import avatarTheme from '../themes/theme-avatar/src/index.mts';
 import copyButtonTheme from '../themes/theme-copy-button/src/index.mts';
@@ -867,5 +868,25 @@ describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node �
     expect((config.module.rules[1] as { type?: string }).type).toBe(
       'asset/resource',
     );
+  });
+});
+
+describe('theme-word-count 入口：层目录与全站那一份统计', () => {
+  it('层目录与名字', () => {
+    const plugin = wordCountTheme(contextWith());
+
+    expect(plugin.name).toBe('@show-docs/docusaurus-theme-word-count');
+    expectThemePath(plugin, 'theme-word-count');
+    // 这一层没有样式表、也没有 webpack 那一格：数在配置期算完，浏览器只读生成模块
+    expect(plugin.getClientModules).toBeUndefined();
+    expect(plugin.configureWebpack).toBeUndefined();
+  });
+
+  it('loadContent：交出 wordCount 那一格，组件写的是 @theme/WordCountPage', async () => {
+    expect(await contributedOf(wordCountTheme(contextWith()))).toEqual({
+      components: [{ id: 'word-count', component: '@theme/WordCountPage' }],
+      // `boolean` 判法：只有认真布尔 `true` 才算命中（写串文本或选项对象都不算）
+      rules: [{ key: 'wordCount', match: 'boolean', component: 'word-count' }],
+    });
   });
 });

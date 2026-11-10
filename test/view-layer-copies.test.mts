@@ -290,6 +290,7 @@ describe('TS 源码的编译规则只有一处', () => {
     'theme-markmap',
     'theme-erd',
     'theme-diff',
+    'theme-word-count',
     'theme-viewer',
     'theme-copy-button',
     'theme-component-page',

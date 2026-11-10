@@ -1,6 +1,7 @@
 ---
 title: 主题包说明
-description: /themes/ 落地页：四个功能层主题包，各自占侧边栏一顶层格。
+description: '/themes/ 落地页：四个功能层主题包，各自占侧边栏一顶层格；这一页也写了 wordCount: true。'
+wordCount: true
 ---
 
 import DocCardList from '@theme/DocCardList';
@@ -39,3 +40,14 @@ import DocCardList from '@theme/DocCardList';
 示例页跟着包走，触发条件各判各的：头像看站点配置里的 `userApi`（不写就整层不启用），复制按钮
 看 `themeConfig.footer.copyright` 那一格在不在，图片查看器看正文里有没有图片，侧边栏徽标看 git；
 都不命中的页面那一层等于透明。
+
+## 这一页自己的字数
+
+这一页的 frontmatter 也写了 `wordCount: true`，所以正文上方那一块数的是**这一棵内容根**
+（实例 `themes`）：`themes/` 里每个包的 README 与 `docs/` 下的页都在里面，块上写着的就是
+`内容根 themes`。`packages/` 那一棵的示例页（`/theme-word-count/docs/word-count-demo`）写的是
+同一把键，看到的是 `default` 那一份 —— 两棵树各挑自己那一格，不是同一串数。
+
+这一格没有另起一页：`/themes/` 本来就是这一棵内容根的索引页，两棵树各有一页命中，正好对着看。
+统计的触发条件、计数口径与已知限制在
+[`theme-word-count` 的 README](/theme-word-count/)。

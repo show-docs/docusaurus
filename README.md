@@ -42,6 +42,7 @@ pnpm verify         # 一键全链路（组成见 package.json 的 verify；本�
 | `packages/theme-erd/`                  | 主题包：`.dbml` 文件在正文上方渲染数据库关系图                                             | [README](./packages/theme-erd/README.md) · [internals](./packages/theme-erd/docs/internals.md) · [示例页](./packages/theme-erd/docs/erd-demo.dbml)                                                                                     |
 | `packages/theme-diff/`                 | 主题包：frontmatter 写 `diff:` 即在正文上方渲染它与上一版之间的差异                        | [README](./packages/theme-diff/README.md) · [internals](./packages/theme-diff/docs/internals.md) · [示例页](./packages/theme-diff/docs/diff-demo.md) · [两份对照](./packages/theme-diff/docs/diff-pair-demo.md)                        |
 | `packages/theme-iframe/`               | 主题包：frontmatter 写 `iframe: <地址>` 时整页换成一个指向外部站点的框                     | [README](./packages/theme-iframe/README.md) · [internals](./packages/theme-iframe/docs/internals.md) · [示例页](./packages/theme-iframe/docs/iframe-demo.md)                                                                           |
+| `packages/theme-word-count/`           | 主题包：frontmatter 写 `wordCount: true` 时在正文上方显示这一页所在内容根的文档字数        | [README](./packages/theme-word-count/README.md) · [internals](./packages/theme-word-count/docs/internals.md) · [示例页](./packages/theme-word-count/docs/word-count-demo.md)                                                           |
 | `packages/theme-component-page/`       | 主题包：整页交给一个组件（`theme-iframe` 与三条 API 层是这一族的一支）                     | [README](./packages/theme-component-page/README.md) · [internals](./packages/theme-component-page/docs/internals.md) · [示例页](./packages/theme-component-page/docs/component-page-demo.md)                                           |
 | `packages/theme-stoplight/`            | 主题包：frontmatter 写 `stoplight: true` 时整页交给一个同源框，框内 Elements 渲染 API 文档 | [README](./packages/theme-stoplight/README.md) · [internals](./packages/theme-stoplight/docs/internals.md) · [示例页](./packages/theme-stoplight/docs/stoplight-demo.md)                                                               |
 | `packages/theme-redoc/`                | 主题包：frontmatter 写 `redoc: true` 时整页交给一个同源框，框内 Redoc 渲染 API 文档        | [README](./packages/theme-redoc/README.md) · [internals](./packages/theme-redoc/docs/internals.md) · [示例页](./packages/theme-redoc/docs/redoc-demo.md) · [AsyncAPI 示例页](./packages/theme-redoc/docs/redoc-asyncapi-demo.md)       |
@@ -71,7 +72,7 @@ pnpm verify         # 一键全链路（组成见 package.json 的 verify；本�
 基础设施回答「这一类页怎么被交给别的东西」，并且只实现一次。四格按**一般到具体**排：
 
 ```text
-功能层（theme-markmap、theme-erd、theme-diff、theme-redoc、theme-scalar、theme-stoplight …）
+功能层（theme-markmap、theme-erd、theme-diff、theme-word-count、theme-redoc、theme-scalar、theme-stoplight …）
   │  只能往下依赖
 theme-iframe                 整页交给一个框
   │

@@ -170,13 +170,14 @@ console.log(`
 // ---- 3. 「整页交给一个组件」的那几页真的进了 component-page 那两张生成表 ----
 // 每个交出方在自己的 `loadContent()` 里交一份组件登记 + 一条规则（三条 API 层交 `scalar` /
 // `redoc` / `stoplight` 那三把键、都写 `render: 'iframe'`；`theme-iframe` 只交 `iframe:` 那一把
-// 外部站点的框，`render` 用缺省的 `page`；`theme-markmap` / `theme-erd` / `theme-diff` 各交自己
-// 那一格视图；本站还有一条指向站点自己 `src/theme/ComponentPageDemo` 的规则，写在插件选项里）。
+// 外部站点的框，`render` 用缺省的 `page`；`theme-markmap` / `theme-erd` / `theme-diff` /
+// `theme-word-count` 各交自己那一格视图；本站还有一条指向站点自己 `src/theme/ComponentPageDemo`
+// 的规则，写在插件选项里）。
 // 合成那张表的是机制层：站点那一列排前面（顺序 = 命中优先级），没被提过的默认规则按键名接在后面。
 // 浏览器侧不读 `siteConfig.plugins`，所以这里看的是两份生成模块，而不是生成的浏览器配置。
 // 这一条同时钉住「本站声明的那几条真的被各包交了出来」—— 哪一层没声明或没交，表里就少一条。
 const SITE_FIRST = ['componentPage', 'scalar', 'redoc', 'stoplight', 'iframe'];
-const DEFAULT_TAIL = ['dbml_json', 'diff', 'markmap'];
+const DEFAULT_TAIL = ['dbml_json', 'diff', 'markmap', 'wordCount'];
 const FRAME_ROWS = [
   { component: 'scalar', key: 'scalar', specifier: '@theme/ScalarView' },
   { component: 'redoc', key: 'redoc', specifier: '@theme/RedocView' },
@@ -201,6 +202,11 @@ const PAGE_ROWS = [
   { component: 'markmap', key: 'markmap', specifier: '@theme/MarkmapPage' },
   { component: 'erd', key: 'dbml_json', specifier: '@theme/ErdPage' },
   { component: 'diff', key: 'diff', specifier: '@theme/DiffPage' },
+  {
+    component: 'word-count',
+    key: 'wordCount',
+    specifier: '@theme/WordCountPage',
+  },
 ];
 
 const generatedDir = path.join(root, '.docusaurus/theme-component-page');
