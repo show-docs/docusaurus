@@ -8,17 +8,10 @@ import { afterAll, describe, expect, it } from 'vitest';
 import type { LoadContext, ParseFrontMatter } from '@docusaurus/types';
 import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
 
-import { PLUGIN_NAME as RESOLVER_PLUGIN } from '../packages/plugin-prev-layer-resolver/src/plugin-slots.mts';
 import {
   badgeKindOf,
   PINNED_BADGE_KEY,
 } from '../themes/theme-git-badge/src/badge.mts';
-import {
-  createScope,
-  DEFAULT_INCLUDE,
-  docsContentPath,
-  scopeOf,
-} from '../themes/theme-git-badge/src/docs-scope.mts';
 import {
   isPlainObject,
   normalizePath,
@@ -42,11 +35,10 @@ import gitBadgeTheme from '../themes/theme-git-badge/src/index.mts';
 import { canLinkDir, mkdtempReal } from './helpers.mts';
 
 /**
-## theme-git-badge 的四段判据
+## theme-git-badge 的三段判据
 
-这一包只做一件事：给「新建」与「更新过」的页面在侧边栏挂一枚纯色点。判据分四段 ——
-徽标种类怎么算（纯函数）、地盘由文档插件的 `include` / `exclude` 怎么收窄、git 那份「最近」
-怎么读（真 git）、包装层与插件接线（假解析器）。
+这一包只做一件事：给「新建」与「更新过」的页面在侧边栏挂一枚纯色点。判据分三段 ——
+徽标种类怎么算（纯函数）、git 那份「最近」怎么读（真 git）、包装层与插件接线（假解析器）。
 
 git 那一组走**真实的 git**（临时仓库真提交几次，提交时刻自己给），不 mock `execFileSync`：
 这一层最容易坏的地方恰恰是「参数怎么拼、`git log` 的输出长什么样」。
@@ -228,7 +220,6 @@ describe('badgeKindOf：页面钉死的说了算，没钉才问 git', () => {
 
 describe('wrapParseFrontMatter：只补不覆盖', () => {
   const root = tempDir('git-badge-wrap-');
-  const scope = createScope(root, { include: ['docs/**/*.md'] });
   const filePath = path.join(root, 'docs', 'a.md');
   const now = Math.floor(Date.now() / 1000);
   /** 这份文件只提交过一次、且刚动过 → 新建 */
@@ -236,9 +227,9 @@ describe('wrapParseFrontMatter：只补不覆盖', () => {
     'docs/a.md': { created: now - 60, updated: now - 60 },
   });
 
-  /** 包一层：仓库与地盘由用例自己给（这一层不碰 git） */
+  /** 包一层：仓库由用例自己给（这一层不碰 git） */
   const wrap = (base: ParseFrontMatterLike): ParseFrontMatter =>
-    wrapParseFrontMatter(base as ParseFrontMatter, () => repo, scope);
+    wrapParseFrontMatter(base as ParseFrontMatter, () => repo);
 
   it('注入叠在 base 的结果上：base 先跑，站点自己改写的那几格还在', async () => {
     const base = async () => ({
@@ -279,7 +270,6 @@ describe('wrapParseFrontMatter：只补不覆盖', () => {
     const result = await wrapParseFrontMatter(
       async () => parsed,
       () => undefined,
-      scope,
     )(params(filePath));
 
     expect(result).toBe(parsed);
@@ -288,22 +278,27 @@ describe('wrapParseFrontMatter：只补不覆盖', () => {
     );
   });
 
-  it('地盘之外的文件：原样交回，连 git 都不问', async () => {
-    let asked = false;
+  it('不再分内容根：任何被解析的 markdown 都判', async () => {
+    let asked = 0;
+    const outsideRepo = fakeRepo(root, {
+      'tools/README.md': { created: now - 60, updated: now - 60 },
+    });
     const parsed = { frontMatter: { title: 'a' }, content: '正文' };
     const wrapped = wrapParseFrontMatter(
       async () => parsed,
       () => {
-        asked = true;
+        asked += 1;
 
-        return repo;
+        return outsideRepo;
       },
-      scope,
     );
 
-    // 同一棵根下，但不在 `include` 认的那几条里
-    expect(await wrapped(params(path.join(root, 'README.md')))).toBe(parsed);
-    expect(asked).toBe(false);
+    // 内容根之外的文件也照样问、照样写：读那一格的只有文档插件的侧边栏
+    const result = await wrapped(params(path.join(root, 'tools', 'README.md')));
+    expect(result.frontMatter).toMatchObject({
+      sidebar_custom_props: { gitBadge: 'new' },
+    });
+    expect(asked).toBe(1);
   });
 
   it('frontmatter 不是普通对象时原样交回，不去改别人的返回值', async () => {
@@ -318,7 +313,7 @@ describe('wrapParseFrontMatter：只补不覆盖', () => {
   it('包两次只有一层：第二次原样交回同一个函数', () => {
     const wrapped = wrap(fakeParse());
 
-    expect(wrapParseFrontMatter(wrapped, () => repo, scope)).toBe(wrapped);
+    expect(wrapParseFrontMatter(wrapped, () => repo)).toBe(wrapped);
   });
 
   it('包过的那份解析器带记号（重跑时认得出是自己）', () => {
@@ -347,7 +342,7 @@ describe('wrapParseFrontMatter：只补不覆盖', () => {
   });
 
   it.runIf(path.sep === '\\')(
-    '反斜杠写的文件路径照样判地盘（Windows 上路径是这一种写法）',
+    '反斜杠写的文件路径照样判（Windows 上路径是这一种写法）',
     async () => {
       const wrapped = wrap(fakeParse());
       const { frontMatter } = await wrapped(
@@ -359,167 +354,6 @@ describe('wrapParseFrontMatter：只补不覆盖', () => {
       });
     },
   );
-});
-
-describe('地盘：只对文档插件扫得到的那批文件动手', () => {
-  // 假站点根也过一遍平台的 `resolve()`：Windows 上 `'/site'` 会补出当前盘（`D:/site`），
-  // 与 `docsContentPath()` / `covers()` 里那一次 resolve 同一形状。钉的仍是那几件事
-  // （缺省 `docs`、`path` 换根、include/exclude 的认领范围），不是钉 POSIX 那一串分隔符。
-  const root = path.resolve('/site').replaceAll('\\', '/');
-
-  /** 站点里真实的那一份：内容根是 `packages/`，按包点名收 */
-  const scope = createScope(`${root}/packages`, {
-    include: ['README.md', '*/README.md', '*/docs/**/*.{md,dbml}'],
-    exclude: ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'],
-  });
-
-  it('内容根默认是 `<站点根>/docs`，`path` 换成别的就跟着换', () => {
-    expect(docsContentPath(root, {})).toBe(`${root}/docs`);
-    expect(docsContentPath(root, { path: 'packages' })).toBe(
-      `${root}/packages`,
-    );
-    expect(docsContentPath(root, { path: 'content/docs' })).toBe(
-      `${root}/content/docs`,
-    );
-  });
-
-  it('include 收的才收：内容根外的 README 与包根上的其他 md 不进站点', () => {
-    for (const [path, expected] of [
-      // 主页：内容根自己那一份，靠第一条点名收进来（`*/README.md` 差一整段）
-      ['README.md', true],
-      ['a/README.md', true],
-      ['a/docs/internals.md', true],
-      ['a/docs/demo.dbml', true],
-      // 内容根之外：仓库根那份 README、顶层 `docs/`、`tools/`、`src/theme/` 都不进站点
-      ['../README.md', false],
-      ['../docs/intro.md', false],
-      ['../tools/README.md', false],
-      ['../src/theme/README.md', false],
-      // 包根上的其他 md 不在 include 里：include 是点名的，不是按目录放开的
-      ['a/NOTES.md', false],
-      // include 明写 `.md`/`.dbml`：`*/docs/**` 下没有 `.mdx` 这一格
-      ['a/docs/internals.mdx', false],
-    ] as const) {
-      expect(scope.covers(path), path).toBe(expected);
-    }
-  });
-
-  it('exclude 挡掉的才不收：装出来的依赖与产物目录，连包里的 build 也算', () => {
-    for (const path of [
-      'node_modules/a/README.md',
-      'a/node_modules/x/README.md',
-      'build/docs/a.md',
-      'a/build/README.md',
-      '.docusaurus/a.md',
-    ]) {
-      expect(scope.covers(path), path).toBe(false);
-    }
-  });
-
-  it('内容根之外的路径一律不收（官方匹配器只认自己那棵根，先自己判）', () => {
-    expect(scope.covers('/elsewhere/docs/a.md')).toBe(false);
-    // mdx-loader 递进来的那种带协议的假路径：折进内容根之后也不再是那几条 include 认得的样子
-    expect(scope.covers('webpack:///./notes.md')).toBe(false);
-  });
-
-  it('相对内容根的路径也认；Windows 分隔符先归一', () => {
-    // 形状照上面那份 include 取（内容根是 `packages/`，包内 docs 才被收）：这里钉的是
-    // 「相对内容根 / 反斜杠 / 绝对反斜杠」三种写法归一到同一判定，不是钉某一条 include。
-    expect(scope.covers('a/docs/b.md')).toBe(true);
-    expect(scope.covers(String.raw`a\docs\b.md`)).toBe(true);
-    expect(scope.covers(String.raw`${root}\packages\a\docs\b.md`)).toBe(true);
-  });
-
-  it('没转述 include 时按官方缺省收 md/mdx，`exclude` 不兜默认', () => {
-    expect(DEFAULT_INCLUDE).toEqual(['**/*.{md,mdx}']);
-    const bare = createScope(`${root}/docs`);
-
-    // 不转述 include 时按官方的缺省口径收（`**/*.{md,mdx}`）
-    expect(bare.covers(`${root}/docs/a.md`)).toBe(true);
-    expect(bare.covers(`${root}/docs/sub/a.mdx`)).toBe(true);
-    expect(bare.covers(`${root}/docs/sub/a.dbml`)).toBe(false);
-    expect(bare.covers(`${root}/packages/a/README.md`)).toBe(false);
-  });
-
-  it('scopeOf 拿站点根与 docs.path 拼内容根，与文档插件自己算的口径一致', () => {
-    expect(scopeOf(root, { path: 'packages' }).contentPaths).toEqual([
-      `${root}/packages`,
-    ]);
-    expect(scopeOf(root, {}).contentPaths).toEqual([`${root}/docs`]);
-  });
-});
-
-/**
-站点里有两份文档插件实例（本仓：classic 预设那一份管 `packages/`，独立那一份管 `themes/`），
-转述就是**数组**：一份实例一份。地盘因此是「任一棵根里的一页」。
-*/
-describe('地盘可以多棵根（站点有几份 docs 实例就转述几份）', () => {
-  const root = path.resolve('/site').replaceAll('\\', '/');
-  const INCLUDE = ['README.md', '*/README.md', '*/docs/**/*.{md,dbml}'];
-  const EXCLUDE = ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'];
-  /** 站点配置里真实的那两份转述 */
-  const scope = scopeOf(root, [
-    { path: 'packages', include: INCLUDE, exclude: EXCLUDE },
-    { path: 'themes', include: INCLUDE, exclude: EXCLUDE },
-  ]);
-
-  it('两棵根各自的内容都收：第一棵不命中时继续问第二棵', () => {
-    expect(scope.covers(`${root}/packages/a/README.md`)).toBe(true);
-    // 这一条走的是「第一棵判假、第二棵判真」那一步：缺它就等于没钉住第二棵
-    expect(
-      scope.covers(`${root}/themes/theme-viewer/docs/viewer-demo.md`),
-    ).toBe(true);
-    expect(scope.covers(`${root}/themes/theme-viewer/README.md`)).toBe(true);
-    expect(scope.covers(`${root}/packages/a/docs/b.dbml`)).toBe(true);
-  });
-
-  it('两棵根之外一律不收', () => {
-    expect(scope.covers(`${root}/tools/README.md`)).toBe(false);
-    expect(scope.covers('/elsewhere/themes/a.md')).toBe(false);
-    expect(scope.covers(`${root}/themes/a/NOTES.md`)).toBe(false);
-  });
-
-  it('每棵根的 include / exclude 只在自己那棵根里解释', () => {
-    // 第二棵根只收 `internals.md`：同一条路径形状在两棵根里的结论不同，
-    // 说明 include 是逐根的，不是一串 glob 合起来判
-    const mixed = scopeOf(root, [
-      { path: 'packages', include: ['*/docs/*.md'] },
-      { path: 'themes', include: ['*/docs/internals.md'] },
-    ]);
-    expect(mixed.covers(`${root}/packages/a/docs/demo.md`)).toBe(true);
-    expect(mixed.covers(`${root}/themes/theme-x/docs/demo.md`)).toBe(false);
-    expect(mixed.covers(`${root}/themes/theme-x/docs/internals.md`)).toBe(true);
-
-    // exclude 也只压自己那棵根：第二棵根挡掉的这一条，第一棵根照样收
-    const excluded = scopeOf(root, [
-      { path: 'packages', include: ['*/docs/*.md'] },
-      {
-        path: 'themes',
-        include: ['*/docs/*.md'],
-        exclude: ['*/docs/internals.md'],
-      },
-    ]);
-    expect(excluded.covers(`${root}/packages/a/docs/internals.md`)).toBe(true);
-    expect(excluded.covers(`${root}/theme-x/docs/internals.md`)).toBe(false);
-    expect(excluded.covers(`${root}/themes/theme-x/docs/internals.md`)).toBe(
-      false,
-    );
-  });
-
-  it('转述成空数组时地盘是空的（一份 docs 实例都没有）', () => {
-    const none = scopeOf(root, []);
-
-    expect(none.contentPaths).toEqual([]);
-    expect(none.covers(`${root}/packages/a/README.md`)).toBe(false);
-  });
-
-  it('写成一份（不是数组）时照常工作，`contentPaths` 就是一元数组', () => {
-    const single = scopeOf(root, { path: 'packages', include: INCLUDE });
-
-    expect(single.contentPaths).toEqual([`${root}/packages`]);
-    expect(single.covers(`${root}/packages/a/README.md`)).toBe(true);
-    expect(single.covers(`${root}/themes/a/README.md`)).toBe(false);
-  });
 });
 
 describe('isRecent：最近动过没有', () => {
@@ -653,9 +487,8 @@ describe('git 那一侧（真 git 仓库）', () => {
   `root.md` 是「只在根提交里出现过」那一格：完整检出里它没有父提交、但那是**真**根提交，仍然要
   给出 `created` —— 少了这份文件，「没有父提交」这条就可以不判 `shallow` 也全绿。
 
-  三份内容必须**互不相同**：内容与已有文件一模一样的新建会被 git 当成复制/改名往前再追一行
-  （实测同样两次提交，内容相同给 2 行、不同给 1 行），这份仓库就不是一份干净的「只提交过一次」
-  样本了。
+  三份内容互不相同只是让夹具一眼分得清谁是谁；内容相同也不会多算一行 —— 扫描只认改名，
+  复制不接链（旧实现逐文件跑 `--follow` 时会多追一行，见「复制不接链」那条用例）。
   */
   function makeThreeCommitRepo(): string {
     const { root, commit } = gitRepo('git-badge-history-');
@@ -856,6 +689,103 @@ describe('git 那一侧（真 git 仓库）', () => {
     });
   });
 
+  it('连续改名：整条链上的提交都算这份文件的历史', () => {
+    const { root, run, commit } = gitRepo('git-badge-rename-chain-');
+    const created = now - 30 * DAY;
+    const renamed = now - 2 * DAY;
+    const renamedAgain = now - 60;
+
+    fs.writeFileSync(path.join(root, 'a.md'), 'v1\n');
+    commit('创建', created);
+    run(['mv', 'a.md', 'b.md']);
+    commit('第一次改名', renamed);
+    run(['mv', 'b.md', 'c.md']);
+    commit('第二次改名', renamedAgain);
+
+    const repo = openRepo(root);
+    // 三次提交：最老那次在最早的旧名下，仍然要算进现在这个名字
+    expect(timesOf(repo, path.join(root, 'c.md'))).toEqual({
+      created: undefined,
+      updated: renamedAgain,
+    });
+  });
+
+  it('旧路径后来被新文件复用：两段历史各算各的', () => {
+    const { root, run, commit } = gitRepo('git-badge-rename-reuse-');
+    const created = now - 30 * DAY;
+    const renamed = now - 2 * DAY;
+    const recreated = now - 60;
+
+    fs.writeFileSync(path.join(root, 'a.md'), 'old\n');
+    commit('创建 a', created);
+    run(['mv', 'a.md', 'b.md']);
+    commit('改名成 b', renamed);
+    fs.writeFileSync(path.join(root, 'a.md'), 'brand new\n');
+    commit('新的 a', recreated);
+
+    const repo = openRepo(root);
+    // 新 a 只提交过一次：旧 a 的历史已经跟着改名走到 b 了，不能并回来
+    expect(timesOf(repo, path.join(root, 'a.md'))).toEqual({
+      created: recreated,
+      updated: recreated,
+    });
+    expect(timesOf(repo, path.join(root, 'b.md'))).toEqual({
+      created: undefined,
+      updated: renamed,
+    });
+  });
+
+  it('复制不接链：内容一模一样的新建仍只算一次提交', () => {
+    const { root, commit } = gitRepo('git-badge-copy-');
+    const created = now - 30 * DAY;
+    const copied = now - 60;
+
+    fs.writeFileSync(path.join(root, 'a.md'), 'same\n');
+    commit('创建 a', created);
+    fs.writeFileSync(path.join(root, 'b.md'), 'same\n');
+    commit('复制成 b', copied);
+
+    const repo = openRepo(root);
+    // 旧实现逐文件跑 `--follow`：b 被认成 a 的复制、往前多追一行 → created 拿不到。
+    // 扫描只开 `-M`（改名），复制的这份从自己那一次起算。
+    expect(timesOf(repo, path.join(root, 'b.md'))).toEqual({
+      created: copied,
+      updated: copied,
+    });
+    expect(timesOf(repo, path.join(root, 'a.md'))).toEqual({
+      created,
+      updated: created,
+    });
+  });
+
+  it('最后 5 个提交之外的提交：落在 7 天窗口里才算最近', () => {
+    const { root, commit } = gitRepo('git-badge-window-');
+
+    fs.writeFileSync(path.join(root, 'old.md'), 'old\n');
+    commit('很老的 old', now - 30 * DAY);
+
+    fs.writeFileSync(path.join(root, 'middle.md'), 'middle\n');
+    commit('六天前的 middle', now - 6 * DAY);
+
+    for (const name of ['a', 'b', 'c', 'd', 'e']) {
+      fs.writeFileSync(path.join(root, `${name}.md`), `${name}\n`);
+      commit(`最近的 ${name}`, now - 50);
+    }
+
+    const repo = openRepo(root);
+    // 最后 5 段提交只覆盖 a..e；middle 在这个范围外，但落在 7 天窗口里
+    expect([...repo.recent].toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'a.md',
+      'b.md',
+      'c.md',
+      'd.md',
+      'e.md',
+      'middle.md',
+    ]);
+    expect(isRecent(repo, 'middle.md', now - 6 * DAY)).toBe(true);
+    expect(isRecent(repo, 'old.md', now - 30 * DAY)).toBe(false);
+  });
+
   it.runIf(canLinkDir)(
     '软链那条路进来的文件也算在仓库里（仓库根与文件路径同一种写法）',
     () => {
@@ -927,13 +857,13 @@ describe('theme-git-badge 插件接线', () => {
     format: 'mdx',
   });
 
-  /** 一份够用的站点上下文：前置检查读 `siteConfig.plugins`，入口读 `siteConfig.markdown` */
+  /** 一份够用的站点上下文：入口只读 `siteConfig.markdown` */
   const contextWith = (siteDir: string, markdown: unknown): LoadContext =>
     ({
       siteDir,
       siteConfig: {
         markdown,
-        plugins: [RESOLVER_PLUGIN],
+        plugins: [],
         themes: [],
       },
     }) as unknown as LoadContext;
@@ -998,8 +928,8 @@ describe('theme-git-badge 插件接线', () => {
   });
 
   /**
-  一份**两棵内容根**的站点：`packages/a/README.md` 与 `themes/theme-x/README.md` 各刚提交一次，
-  `tools/README.md` 留在两棵根之外。
+  一份**两棵内容根**的站点：`packages/a/README.md`、`themes/theme-x/README.md` 与
+  `tools/README.md` 各刚提交一次。
   */
   function makeTwoRootSite(): { root: string } {
     const site = makeSite('git-badge-two-roots-');
@@ -1013,46 +943,31 @@ describe('theme-git-badge 插件接线', () => {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, `---\ntitle: ${rel}\n---\n`);
     }
-    // 只提交两棵根里的那两份：`tools/` 那一份既没进 git，也不该被问到
-    run(['add', 'packages', 'themes']);
+    run(['add', '.']);
     run(['commit', '-q', '-m', '两棵根', '--no-verify']);
 
     return site;
   }
 
-  /** 站点配置里那份数组转述：一份 docs 实例一份 */
-  const TWO_ROOTS = [
-    { path: 'packages', include: ['*/README.md'] },
-    { path: 'themes', include: ['*/README.md'] },
-  ];
-
-  it('转述两份实例时两棵根的页都有徽标，两棵根外的连 git 都不问', async () => {
+  it('不按内容根筛：两棵根里的页都有徽标，根外的文件也照样判', async () => {
     const { root } = makeTwoRootSite();
     const markdown = createMarkdown();
-    const scope = scopeOf(root, TWO_ROOTS);
 
-    gitBadgeTheme(contextWith(root, markdown), {
-      docs: TWO_ROOTS,
-    }).loadContent?.();
+    gitBadgeTheme(contextWith(root, markdown)).loadContent?.();
 
+    // 三份都被判：没有 `docs` 选项，也没有内容根过滤 —— 读那一格的只有文档插件的侧边栏，
+    // 所以「跟哪一棵根」不再由本层区分
     for (const rel of [
       path.join('packages', 'a', 'README.md'),
       path.join('themes', 'theme-x', 'README.md'),
+      path.join('tools', 'README.md'),
     ]) {
       const file = path.join(root, rel);
-      // 地盘判据与那一格是两件事，各钉一次
-      expect(scope.covers(file), rel).toBe(true);
       const { frontMatter } = await markdown.parseFrontMatter(params(file));
       expect(frontMatter, rel).toMatchObject({
         sidebar_custom_props: { gitBadge: 'new' },
       });
     }
-
-    // 两棵根之外：不注入 —— 站点里就不会多出一个「不存在的页面有了标记」
-    const outside = path.join(root, 'tools', 'README.md');
-    expect(scope.covers(outside)).toBe(false);
-    const { frontMatter } = await markdown.parseFrontMatter(params(outside));
-    expect(Object.hasOwn(frontMatter, 'sidebar_custom_props')).toBe(false);
   });
 
   it('两个阶段都调也不会套第二层（reloadSite 只重跑 contentLoaded）', () => {

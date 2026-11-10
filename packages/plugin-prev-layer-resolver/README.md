@@ -161,9 +161,8 @@ export default function myTheme(context, options) {
 }
 ```
 
-那条判据查的是**任一**包名，不只本包。本仓真调它的只有一处：`themes/theme-git-badge` 用同
-一份文件里那条「数几份」的判据查自己那一格（`assertSinglePluginInstance`）。要查解析器注册了
-没有的那一层照上面的写法自己查。
+那条判据查的是**任一**包名，不只本包：要查解析器注册了没有的那一层照上面的写法自己查。
+本仓今天没有哪一层在配置期调它，判据仍由 `test/registered-plugins.test.mts` 从那一侧钉着。
 判错的两侧不对称 —— 误报判死一个本来能成的构建，漏报只是把构建期注定会炸的那一步留到构建期，
 所以「问不到官方那一份」（core 结构变了、配置文件读不了、preset 函数自己抛）一律放行。
 `./plugin-slots` 那条纯函数出口仍然单独发了给只读清单的读者用，理由与内部契约见
@@ -181,8 +180,8 @@ export default function myTheme(context, options) {
 
 官方只拦「同一个插件挂两次又不给 id」（`Plugin IDs must be unique`），给了不同 id 的两份在它那里
 合法 —— 但合法不等于有用。吃不下第二份实例的那几层，症状都要等构建跑完才看得见，而且都不指向真正
-的原因（徽标那层第二份被「只包一次」的护栏原样交回，等于什么都没干；机制层那一份各写一遍同一份
-产物，谁说了算只看插件顺序）。所以同一份文件里还发这两个：
+的原因（第二份被「只包一次」的护栏原样交回，等于什么都没干；或者几份各写一遍同一份产物，谁说了算
+只看插件顺序）。所以同一份文件里还发这两个：
 
 ```js
 import { assertSinglePluginInstance } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
@@ -206,7 +205,8 @@ export default function myTheme(context, options) {
 只可能少判，不可能多判 —— 原始清单数到了就不翻案，问不到官方那一份时按原始清单那份交回。
 想要份数本身（不给判据、只做诊断）用同一份文件发出来的 `pluginInstanceCount()`。
 「为什么两份不行」归调用方自己在 `why` 里说，这里只负责数出来并给一句能照着改的话；一份都没有
-也不点名（那是「装没装」那道题，不是这道）。
+也不点名（那是「装没装」那道题，不是这道）。本仓今天没有哪一层调它，用例在
+`test/registered-plugins.test.mts`。
 
 **两条都判到「注册」为止**：清单上有那个名字就算，官方允许插件构造函数返回 `null` 自行禁用，那种
 包在清单上照样看得见，但它的 `loadContent()` 不会跑 —— 读得到真实例的唯一一处是 `allContent`，而它

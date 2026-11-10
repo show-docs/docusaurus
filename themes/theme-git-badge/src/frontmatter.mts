@@ -2,7 +2,6 @@ import type { ParseFrontMatter } from '@docusaurus/types';
 
 import type { GitBadgeKind } from './badge.mts';
 import { badgeKindOf } from './badge.mts';
-import type { Scope } from './docs-scope.mts';
 import type { Repo } from './git-info.mts';
 
 /**
@@ -39,11 +38,14 @@ export function normalizePath(filePath: string): string {
 （含 `defaultParseFrontMatter`），原样透传 —— 抓闭包里那份会让「两处版本错位」变成两份
 frontmatter。`reloadSite()` 会把插件重跑一遍，同一份解析器套两层等于算两次，
 所以带记号：见到记号直接交回同一个函数。
+
+**不分内容根**：解析器是站点全局的，这里不看文件落在哪一棵内容根里 —— 判得出种类就写
+`sidebar_custom_props`，读它的只有文档插件的侧边栏。blog / pages 那些 markdown 也会被写上
+这一格，但没人读；反过来，站点里任何一份 docs 实例（含 preset 里那一份）都自然覆盖到。
 */
 export function wrapParseFrontMatter(
   base: ParseFrontMatter,
   repo: () => Repo | undefined,
-  scope: Scope,
 ): ParseFrontMatter {
   if ((base as { [WRAPPED]?: true })[WRAPPED] === true) {
     return base;
@@ -53,12 +55,9 @@ export function wrapParseFrontMatter(
     async (params: Parameters<ParseFrontMatter>[0]) => {
       const parsed = await base(params);
       const { frontMatter } = parsed;
-      const filePath = normalizePath(params.filePath);
 
-      // 地盘之外的文件在站点里不是页面（mdx-loader 也会路过它们），一个标记都不给 ——
-      // 「地盘」是站点转述的那几棵内容根合起来，任一棵里的一页都算；
       // 不是普通对象时连判据都不看 —— 那种 frontmatter 本来就没处写
-      if (!isPlainObject(frontMatter) || !scope.covers(filePath)) {
+      if (!isPlainObject(frontMatter)) {
         return parsed;
       }
 
@@ -67,6 +66,7 @@ export function wrapParseFrontMatter(
         return parsed;
       }
 
+      const filePath = normalizePath(params.filePath);
       const kind = badgeKindOf({ filePath, frontMatter, repo: repo() });
 
       // 不表态就不写这一格：否则 frontmatter 上会多出一格 `sidebar_custom_props: undefined`，

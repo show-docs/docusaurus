@@ -28,8 +28,8 @@ import DocCardList from '@theme/DocCardList';
 两份侧栏共用同一份扫描逻辑（仓库根的 `sidebars-lib.mts`），只是各扫自己那一棵根，
 新增一个包不必回来改这里。
 
-侧边栏徽标在两棵根都生效：`theme-git-badge` 收到的「站点有几份文档实例」就转述成几份地盘，
-判据跟着各自的 include/exclude 逐棵根解释（见下那一包）。
+侧边栏徽标在两棵根都生效：`theme-git-badge` 不按内容根筛 —— 注入包住站点全局的解析器，
+两棵根里的页一视同仁。
 
 <DocCardList />
 

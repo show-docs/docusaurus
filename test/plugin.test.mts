@@ -595,9 +595,10 @@ describe('构建脚本与 CI 护栏', () => {
         `docsScope('${root}') 应在配置里：内容根由那一格工厂转述，别处不该再出现裸的 path 字面量`,
       ).toContain(`docsScope('${root}')`);
     }
-    expect(config, '徽标那一份实例要把两棵根都转述给它').toContain(
-      "[docsScope('packages'), docsScope('themes')]",
-    );
+    expect(
+      config,
+      '徽标那一层不带选项：注入包住站点全局的解析器，不按内容根筛',
+    ).toContain("'@show-docs/docusaurus-theme-git-badge',");
     expect(config, '每棵根各点自己那份侧栏文件').toContain(
       "sidebarPath: './sidebars.mts'",
     );

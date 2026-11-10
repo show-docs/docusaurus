@@ -1,37 +1,16 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertSinglePluginInstance } from '@show-docs/docusaurus-plugin-prev-layer-resolver/registered-plugins';
-
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
-import type { DocsScopes } from './docs-scope.mts';
-import { scopeOf } from './docs-scope.mts';
 import { wrapParseFrontMatter } from './frontmatter.mts';
 import type { Repo } from './git-info.mts';
 import { openRepoFrom } from './git-info.mts';
-
-export type { DocsScope, DocsScopes } from './docs-scope.mts';
 
 const PLUGIN_NAME = '@show-docs/docusaurus-theme-git-badge';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
 const thisDir = dirname(fileURLToPath(import.meta.url));
-
-export interface GitBadgeOptions {
-  /**
-  文档插件扫哪些文件（每份实例的 `docs.path` / `docs.include` / `docs.exclude`）。
-
-  站点把那份选项写在预设或独立实例里时插件拿不到，只能由站点转述过来；一份实例转述一份，
-  站点里有几份文档插件实例就写几份（数组）。不传 = 只管 `<siteDir>/docs` 整棵。
-
-  地盘之外的文件一个标记都不给 —— 「页面」这个概念由文档插件定义，徽标跟着它走。
-  注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份本插件实例会被「只包一次」的护栏
-  原样交回（等于什么都没干），所以**多棵内容根只能在这一份实例里用数组表达**；真的注册了两份，
-  `loadContent()` 会当场点名，不会静默少一整棵根。
-  */
-  docs?: DocsScopes;
-}
 
 /**
 侧边栏徽标：给「新建」与「更新过」的页面挂一枚颜色标记（叶子行一个点，分类行给折叠箭头
@@ -44,19 +23,14 @@ export interface GitBadgeOptions {
  - **画**：覆盖 `DocSidebarItem/Link` 与 `DocSidebarItem/Category` 两格，把种类摊成
    `data-git-badge` 属性，形状由包里的样式表画。
 
-两件事都在包里：站点只管把它装上，以及转述 `docs` 那三格。
+站点只管把它装上。**不再有 `docs` 选项，也不分内容根**：注入包住站点全局那份
+`markdown.parseFrontMatter`，任何被解析的 markdown 都判 —— 读那一格的只有文档插件的侧边栏，
+所以站点有几份 docs 实例、各自扫哪一棵根，本层都不必知道。
 
 取舍与证据在 `./docs/internals.md`。
 */
-export default function gitBadgeTheme(
-  context: LoadContext,
-  { docs }: GitBadgeOptions = {},
-): Plugin {
+export default function gitBadgeTheme(context: LoadContext): Plugin {
   const { markdown } = context.siteConfig;
-
-  // 地盘在构造函数里定下来就够：`docs.path` / `include` / `exclude` 是站点配置的一部分，
-  // 改它们等于重启（dev 下 `reloadSite()` 会带着新配置重新实例化本插件）
-  const scope = scopeOf(context.siteDir, docs);
 
   // 插件实例级：`reloadSite()` 重跑的是插件各阶段，那次整仓读不必跟着重来
   let cached: { repo: Repo | undefined } | undefined;
@@ -78,30 +52,17 @@ export default function gitBadgeTheme(
 
         return cached.repo;
       },
-      scope,
     );
   };
 
   return {
     name: PLUGIN_NAME,
-    async loadContent() {
-      // 顺序是刻意的：先装，再 await 那条前提。官方会 `await` 每个插件的 `loadContent()`，
-      // 而让出一次微任务就赶不上 docs 读走 `parseFrontMatter`（见上面 `install` 的注释）；
-      // 多注册了一份照样当场点名，只是红在装完之后。
-      //
+    loadContent() {
       // 这一层只改 frontmatter 与侧边栏那两格，不交规则给机制层，也没有「装没装」那一条要查：
       // 层里那句 `@theme-init/...` 用的是官方别名，编译本包未编译 TS 源码那条 babel 规则归
       // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它，
-      // 配置期不查）。剩下那一条是本层自己的形状 —— 只能有一份实例，就在下面。
+      // 配置期不查）。
       install();
-      // 第二份实例过去只是静默不干活（徽标少一整棵根，而那份配置看着完全正常），所以数出来点名
-      await assertSinglePluginInstance(
-        context,
-        PLUGIN_NAME,
-        '注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份会被 `loadContent()` 里' +
-          '「只包一次」那道护栏原样交回。多棵内容根不靠多份实例：在这一份的 `docs` 数组里' +
-          '一份根转述一条。',
-      );
     },
     // 插件被单独 reload（`reloadSite()`）时会重跑这一阶段
     contentLoaded: install,

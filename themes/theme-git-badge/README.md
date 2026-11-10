@@ -4,20 +4,16 @@
 折叠箭头上）。判据是 **git**：这份文件只提交过一次且最近动过 = 新建（绿），
 最近动过 = 更新（橙）。
 
-判与画都在这一包里：站点只管把它装上，以及转述 `docs` 那三格。
+判与画都在这一包里：站点只管把它装上。
 
 ## 安装
 
 `theme/` 与 `components/` 是随包发布的未编译 TS 源码，编译它们的 babel 规则由
 `@show-docs/docusaurus-plugin-compile-source` 一处认领，所以它也得装上并**注册成插件**（本包不查
-它，只在 `peerDependencies` 里点名，缺了要到打包才报 `Module parse failed`）。
-另有一条**形状**前提：只能有一份本包实例，注册了两份同样当场点名（见下面「为什么只能有一份本包
-实例」）；那一句判据住在解析器包的 `./registered-plugins` 出口里，所以那一个包也在 `peerDependencies`
-里点名 —— 本层装它的**模块**，不查它**注册**了没有：层里那句 `@theme-init/DocSidebarItem/...`
-用的是官方别名，解析器不在场也解得开。三个包一起安装：
+它，只在 `peerDependencies` 里点名，缺了要到打包才报 `Module parse failed`）。两个包一起安装：
 
 ```bash
-pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-plugin-prev-layer-resolver @show-docs/docusaurus-theme-git-badge
+pnpm add @show-docs/docusaurus-plugin-compile-source @show-docs/docusaurus-theme-git-badge
 ```
 
 需要 Docusaurus `^3.9.2` 与 Node `^24`。
@@ -29,30 +25,11 @@ git 那一半要求构建机上有 `git`、且站点在仓库里；读不到就�
 ```js
 // docusaurus.config.mjs
 export default {
-  plugins: [
-    [
-      '@show-docs/docusaurus-theme-git-badge',
-      {
-        // 文档插件扫哪些文件：每份 docs 实例一份转述，见下面「地盘」。
-        // 站点只有一份文档插件实例时写成单个对象也行。
-        docs: [
-          {
-            path: '.',
-            include: ['docs/**/*.md'],
-            exclude: ['**/node_modules/**']
-          },
-          {
-            path: 'packages',
-            include: ['*/README.md', '*/docs/**/*.md']
-          }
-        ]
-      }
-    ]
-  ]
+  plugins: ['@show-docs/docusaurus-theme-git-badge']
 };
 ```
 
-**本包只有这一个选项。** 判据、徽标种类、锚点键、画法全在包里 —— 站点写不出来，也不需要写。
+**本包没有选项。** 判据、徽标种类、锚点键、画法全在包里 —— 站点写不出来，也不需要写。
 
 ## 判据
 
@@ -97,46 +74,32 @@ export default {
 一行只留一处标记。颜色即语义，两种画法都不带文字、不带链接 —— 文字是第二份要跟着语义走的
 文案，链接会让这枚状态标记看起来像一处导航。
 
-## 地盘：跟着文档插件走
+## 地盘：不再分内容根
 
-`docs` 那一格是 `DocsScope | DocsScope[]`：**站点有几份文档插件实例，就转述几份**。一份
-`DocsScope` 对应一实例的 `path` / `include` / `exclude` 那三格，三格都按**它自己那棵内容根**解释：
+注入包住的是站点全局那一个 `markdown.parseFrontMatter`，**任何被它解析的 markdown 都判**：不认
+内容根，也不认哪一份文档插件实例扫到了这一页。读那一格的只有文档插件的侧边栏，所以多检查的那些
+文件（blog、pages）身上多出的 `sidebar_custom_props` 没人读；官方校验 frontmatter 时对这一格
+不设防（`allowUnknown`），构建也不会红。
 
-| 字段      | 缺省                | 说明                                           |
-| --------- | ------------------- | ---------------------------------------------- |
-| `path`    | `'docs'`            | 内容根，相对站点根                             |
-| `include` | `['**/*.{md,mdx}']` | 收哪些文件，相对内容根（与 docs 插件缺省同值） |
-| `exclude` | `[]`                | 挡掉哪些，相对内容根                           |
+这样地盘就不必由站点抄一遍：多棵内容根也好、preset 里那份 `docs` 选项也好，站点都不再转述。
+代价是「被解析了但不是页面」的文件也会被问一次历史 —— 整仓每场构建只扫一遍，问一次就是一次
+查表，不再起 subprocess。
 
-地盘因此是「**任一**棵根里的一页」，逐棵各判一次：把 A 根的路径递给 B 根的匹配器，官方那句
-`createAbsoluteFilePathMatcher`（只认自己那棵根）会直接抛，所以每一问都先过自己那棵根的
-inside 护栏。写成数组以外的单个对象 = 只有一棵根，与不传 `path` 时的官方缺省同形。
-
-**为什么是「转述」。** 站点常把 `docs` 选项写在自己的预设里（本仓就是 classic 预设那一份，加上
-`themes/` 那一棵根的独立实例，共两份），本包在手上拿不到 —— 所以由站点把每份实例那三格再写一遍。
-抄两遍会漂，本仓的做法是把清单提成 `docusaurus.config.mjs` 顶部的一份常量与一个
-`docsScope(根)` 工厂：每份实例调用一次，徽标拿到的数组与真正生效的那几份同源。
-
-**为什么只能有一份本包实例。** 注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份实例
-会被「只包一次」的护栏当成「已经是我」而原样交回 —— 它不干活，也不报错，症状只是徽标少一整棵根。
-所以本层在 `loadContent()` 里数站点写的那两份清单（连 preset 里那一份一起数），注册了两份以上**当场
-点名**，报错里给出该改的地方：多棵内容根在**这一份**里用数组表达，而不是每棵根挂一份插件。
-
-地盘之外的文件**一个标记都不给**：页面这个概念由文档插件定义，徽标跟着它走。匹配器用的是
-同一个 `@docusaurus/utils` 的 `createAbsoluteFilePathMatcher`，与 `Globby` 扫文件时同一套
-micromatch 口径 —— 自己写一遍容易漂的是「相对内容根」那一折与 `exclude` 压过 include 那一条
-（同引擎、同语义，实测见 [internals 的「地盘」一节](./docs/internals.md)）。
+**为什么不在构造期收窄。** 文档插件扫了哪些文件，要到 `allContentLoaded` 才定；而注入必须赶在
+docs 插件读走解析器之前（时序见下面「已知限制」），那时内容根清单还不存在。与其把清单抄两遍，
+不如不筛。
 
 ## 导出
 
-一个默认导出（这一层本身）外加 `DocsScope` / `DocsScopes` 那两个类型。判据与认种类的那些函数是**内部的**：
-它们是这一层的实现，不是给站点用的 API。
+一个默认导出（这一层本身）。判据与认种类的那些函数是**内部的**：它们是这一层的实现，不是给站点
+用的 API。
 
 ## 使用约束
 
 - **只对「元数据」负责。** 正文一个字都不动。
-- **注入是站点级单例。** 本层改的是 `siteConfig.markdown.parseFrontMatter`，那是**一份**
-  函数。所以它会**包装**当前那一份（站点自己接 CMS 的那份照旧生效），而不是替换。
+- **注入包住站点那一份。** 本层改的是 `siteConfig.markdown.parseFrontMatter`，那是**一份**
+  函数。所以它会**包装**当前那一份（站点自己接 CMS 的那份照旧生效），而不是替换；包过的函数
+  带记号，重新走一遍（`reloadSite()`）或注册了第二份实例都原样交回，不会套第二层。
 - **不写磁盘。** 磁盘上的 md 一个字都不改，所以 `git status` 永远是干净的、
   dev 模式不会因为注入反复重编译。
 

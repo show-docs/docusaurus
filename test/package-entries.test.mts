@@ -29,7 +29,7 @@ import { pkgPath } from './helpers.mts';
 ## 每个包入口交出的那几格
 
 入口（每个包 `src/` 下那一份 `index.mts`）是 Docusaurus 唯一看得见的那一面：层目录、客户端模块、
-webpack 那几格、交给机制层的那一列、以及配置期那几条校验（选项写歪、同一层挂了两份）。
+webpack 那几格、交给机制层的那一列、以及配置期那几条校验（选项写歪、宿主前提没开）。
 这一面全是**配置期**代码，跑在 Node 里 ——
 `pnpm build` 全绿只说明它没把构建搞崩，证明不了它交出去的东西是对的：层目录指错一层、
 样式表路径写错、loader 写成了源码名（`.mts`）而不是产物名（`.mjs`），构建照样绿，
@@ -44,8 +44,7 @@ webpack 那几格、交给机制层的那一列、以及配置期那几条校验
 
 「缺前置插件时当场点名」那一族用例不再由这一面钉了：机制层不依赖解析器包，于是「本层挂了几份」
 和「交规则的层有没有装上机制层」那两条一起删掉了（后果记在机制层入口的文件头）。配置期还查前提
-的只剩两处，各自读本包用得上的那一格 —— `themes/theme-git-badge` 数自己挂了几份（就在本文件
-下面那组），`themes/theme-viewer` 查宿主开没开那个压缩器（在 `test/prerequisites.test.mts`）。
+的只剩一处：`themes/theme-viewer` 查宿主开没开那个压缩器（在 `test/prerequisites.test.mts`）。
 */
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
@@ -163,9 +162,8 @@ const clientModulesOf = (plugin: Plugin): string[] =>
   plugin.getClientModules!() as string[];
 
 /**
-`loadContent`：交回本层那份 content；`themes/` 那两处配置期校验也在这一步里。
-交回的不一定是 `Promise`（数份数那一条在原始清单认不出时还要问 preset，见解析器包的
-`registered-plugins`），所以这里的断言一律 `await`。
+`loadContent`：交回本层那份 content。个别层在这一步里当场点名宿主前提
+（`themes/theme-viewer` 那一格），交回的东西未必是 `Promise`，所以这里的断言一律 `await`。
 */
 const loadContentOf = (plugin: Plugin): (() => Promise<unknown>) =>
   plugin.loadContent as () => Promise<unknown>;
@@ -594,19 +592,19 @@ describe('theme-erd 入口', () => {
   });
 });
 
-describe('theme-git-badge 入口：层目录、样式表与前置检查', () => {
+describe('theme-git-badge 入口：层目录、样式表与接线', () => {
   const GIT_BADGE = '@show-docs/docusaurus-theme-git-badge';
 
   /**
   这一层要改 `siteConfig.markdown.parseFrontMatter`，所以站点上下文里得有一份 `markdown`；
   那一格长什么样与本组断言无关，只要解析器在那儿就行。
   */
-  const contextWithMarkdown = (plugins: unknown[]): LoadContext =>
+  const contextWithMarkdown = (): LoadContext =>
     ({
       siteDir: repoRoot,
       siteConfig: {
         baseUrl: '/',
-        plugins,
+        plugins: [],
         themes: [],
         future: { faster: { lightningCssMinimizer: true } },
         markdown: {
@@ -616,7 +614,7 @@ describe('theme-git-badge 入口：层目录、样式表与前置检查', () => 
     }) as unknown as LoadContext;
 
   it('层目录与客户端模块：层是包根那份 `theme/`，样式表是包根那份', () => {
-    const plugin = gitBadgeTheme(contextWithMarkdown([]));
+    const plugin = gitBadgeTheme(contextWithMarkdown());
 
     expect(plugin.name).toBe(GIT_BADGE);
     expectThemePath(plugin, 'theme-git-badge');
@@ -628,13 +626,11 @@ describe('theme-git-badge 入口：层目录、样式表与前置检查', () => 
     expect(existsSync(modules[0]!)).toBe(true);
   });
 
-  it('第二份实例当场点名：那道「只包一次」的护栏自己不会报出来', async () => {
-    // 症状原本只是「徽标少一整棵根，而那份配置看着完全正常」—— 点名的是数份那一句，
-    // 报错里得把「多棵根写在同一份的 docs 数组里」那条路给出。
-    const twice = gitBadgeTheme(contextWithMarkdown([GIT_BADGE, GIT_BADGE]));
-    await expect(loadContentOf(twice)()).rejects.toThrow(
-      new RegExp(String.raw`${GIT_BADGE}[\s\S]*只包一次[\s\S]*docs`),
-    );
+  it('接线在 `loadContent()`，`contentLoaded()` 那格留给 reloadSite', () => {
+    const plugin = gitBadgeTheme(contextWithMarkdown());
+
+    expect(plugin.loadContent).toBeTypeOf('function');
+    expect(plugin.contentLoaded).toBeTypeOf('function');
   });
 });
 

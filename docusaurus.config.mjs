@@ -11,9 +11,8 @@
 // 该由生成它的代码（CJS 风格）决定。所以实际落点只有这一处：配置用 `.mjs`（Docusaurus 按 `.mjs`
 // 加载配置；无 `"type"` 时 `.js` 会被当 CJS）。
 //
-// 文档插件扫哪些文件。放在外面是因为有几处要**同一份**：每份 docs 实例的 `docs` 选项（真正
-// 生效的那一份）与徽标那一层的 `docs`（转述给它的地盘判据）。抄两遍迟早会漂，漂了就是
-// 「徽标挂在一批站点里不存在的页面上」或者「站点里的页面一个徽标都没有」。
+// 文档插件扫哪些文件。放在外面是因为两棵内容根要**同一份**清单：classic 预设里那一份与下面
+// 单独挂的 `@docusaurus/plugin-content-docs`。抄两遍迟早会漂。
 //
 // 站点有**两棵内容根**：`packages/`（classic 预设那一份）与 `themes/`（下面单独挂的
 // `@docusaurus/plugin-content-docs`）。两棵根的目录形状一致 —— 每个包的 `README.md` 就是它在
@@ -36,8 +35,6 @@ const DOCS_EXCLUDE = ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'];
 /**
  一份内容根的三格。站点里有几份 docs 实例就调用几次：`include` / `exclude` 都是**相对 `path`
  那棵根**解释的，所以每份实例拿到的是自己那一棵根的判据，不是一串混在一起的 glob。
-
- 徽标那一层要的就是这一份（它拿不到预设与插件的选项，只能由站点转述）。
 */
 const docsScope = (path) => ({
   path,
@@ -64,25 +61,16 @@ const config = {
     },
   },
   plugins: [
-    // 侧边栏徽标：给「新建」与「更新过」的页面挂一枚纯色点。判据是 **git**，载体是官方那条
-    // `sidebar_custom_props` 通道，画法在那一层自己的 `theme/DocSidebarItem/` 与 `components/`。
+    // 侧边栏徽标：给「新建」与「更新过」的页面挂一枚纯色点。判据是 **git**，画法在那一层
+    // 自己的 `theme/DocSidebarItem/` 与 `components/`。
     //
     // 这一层是**主题层**：它覆盖的那两格由官方别名「全局赢家」那条规则决定 —— 站点层若再
     // swizzle 同一格就压过它。所以这两格只由那一层管，站点层不碰。
     //
-    // 判据、徽标种类、页面自己钉的那把键（`git_badge`）全在包里，站点写不出来也不必写。
-    //
-    // `docs` 那一格是**转述**：真正生效的选项在下面 classic 预设里与紧随本条那份独立实例里，
-    // 插件手上拿不到，所以把每份实例的 `path` / `include` / `exclude` 在这里再写一遍 ——
-    // 徽标的地盘跟着文档插件扫出来的那批文件走。站点有两份 docs 实例，就转述两份。
-    //
-    // 只能有本层**一份**实例：注入走的是站点全局那一个 `markdown.parseFrontMatter`，第二份会被
-    // 「只包一次」的护栏原样交回（不干活，也不报）。本层在 `loadContent()` 里数那两份清单，
-    // 注册了两份以上当场点名 —— 所以多棵内容根必须在这一份里用数组表达。
-    [
-      '@show-docs/docusaurus-theme-git-badge',
-      { docs: [docsScope('packages'), docsScope('themes')] },
-    ],
+    // 不带选项、也不转述内容根：注入包住站点全局的 `markdown.parseFrontMatter`，凡被解析的
+    // markdown 都判；读那一格的只有文档插件的侧边栏，blog / pages 多出的那一格没人读。页面自己
+    // 钉徽标用 `git_badge` 那把键，判据与徽标种类全在包里。
+    '@show-docs/docusaurus-theme-git-badge',
     // `themes/` 那四个功能层主题包的文档：一份独立的 docs 实例，接法与预设里那一份同形
     // （清单还是 `DOCS_INCLUDE` / `DOCS_EXCLUDE` 那一份，只是相对 `themes/` 解释）。
     //
@@ -97,10 +85,8 @@ const config = {
       {
         id: 'themes',
         routeBasePath: '/themes',
-        path: 'themes',
         sidebarPath: './sidebars-themes.mts',
-        include: DOCS_INCLUDE,
-        exclude: DOCS_EXCLUDE,
+        ...docsScope('themes'),
       },
     ],
     // 编译 `@show-docs` 家族随包发布、尚未编译的 `.ts` / `.tsx`：官方那条 babel 规则把整个
@@ -272,9 +258,10 @@ const config = {
   // PostCSS 与 clean-css 各报一次，看着像「两条告警」，其实是同一个坏点。
   //
   // 换成 lightningcss：它认嵌套（不摊平时原样留着 `&`，浏览器认就直接跑），
-  // 三条告警一起消失，`select` 那条规则回来。代价是产物大 9.7%（详见 issue #15 的实测表），
-  // 以及这里只能是**这一格**开关 —— `faster: true` 那种简写会顺带打开 swc / rspack /
-  // 持久缓存，跟压缩器无关的变量一概不要。
+  // 三条告警一起消失，`select` 那条规则回来。代价是产物大 9.7%（详见 issue #15 的实测表）。
+  // 这一格显式留着是为了说明用途；其余 `future.faster` 键由下面 `v4.fasterByDefault` 一次填
+  // true，不在 `future.faster` 下逐键重复。`gitEagerVcs` 也不抄在这里：VCS 那一格
+  // （`experimental_vcs`）本仓没开，它只在那一格写成布尔时参与选预设。
   //
   // theme-viewer 也靠这一格：`viewerjs` 那份样式表同样是原生嵌套，本包已删掉自己那句
   // `postcss-nesting`，宿主没开 lightningcss 时它在 `loadContent()` 里直接报错。
@@ -288,9 +275,6 @@ const config = {
       fasterByDefault: true,
       mdx1CompatDisabledByDefault: false,
       removeLegacyPostBuildHeadAttribute: true,
-    },
-    faster: {
-      gitEagerVcs: true,
     },
   },
   themeConfig: {

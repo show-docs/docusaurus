@@ -64,8 +64,9 @@
   加载插件入口那一步接住 —— Docusaurus 用 jiti 的 `loadFreshModule` 读配置与插件入口
   （`@docusaurus/utils/lib/moduleUtils.js`），jiti 自带剥类型、不受那条限制：把本包与
   `theme-git-badge` 的 tarball 解进同一个 `node_modules`、用 jiti 加载
-  `theme-git-badge/dist/index.mjs`，它按包名引 `…/registered-plugins`（指回 `src/registered-plugins.mts`）
-  那一条边走得通，入口也照常跑出插件实例。
+  `theme-git-badge/dist/index.mjs`（当时那一版入口按包名引 `…/registered-plugins`，指回
+  `src/registered-plugins.mts`），那一条边走得通，入口也照常跑出插件实例。今天本仓没有哪一层
+  在配置期引它，这条边仍由 `test/registered-plugins.test.mts` 从判据那一侧钉着。
 
 **边界**：这几把源码出口只承诺 Docusaurus 配置期那条加载链；站点自己拿 plain `import()` 去引一把子路径，
 npm 安装下撞的就是上面那条限制。同一格限制早就是 `./lib/*` 那一族的前提 ——
@@ -198,7 +199,7 @@ export default {
 「本包注册了没有」（`pluginIsRegistered()`，报错文案由调用方自己给）住在
 `src/registered-plugins.mts`，经 `./registered-plugins` 发出去。同一份文件里还有另一道题：
 「**这个包被注册成了几份**」（`pluginInstanceCount()` / `assertSinglePluginInstance()`），
-吃不下第二份实例的那两层各调它一次。
+给吃不下第二份实例的层备用；本仓今天没有哪一层调它。
 
 **为什么拆成两份**：前一份是纯函数，只看手上的那两份清单；后一份还要回答「清单上还可能有
 **第三处来源**」。站点把插件写在 `presets:` 里完全合法，而官方把那几份清单合并成真实插件表发生
@@ -210,8 +211,7 @@ export default {
 
 **代价与判错口径**：问官方那一跳只在「缺的这一侧 + 站点写了 presets」时发生，而且要等，
 所以这一格交回 `Promise`，调它的层 `loadContent()` 必须把它交回官方等（入口里别的活照旧同步干完，
-别让这一跳插到「必须在被读走之前装上」的那些动作前面 —— `theme-git-badge` 那一份是先把
-`parseFrontMatter` 包住再 `await` 的）。判错的两侧不对称：误报判死一个本来能成的构建，漏报只是
+别让这一跳插到「必须在被读走之前装上」的那些动作前面）。判错的两侧不对称：误报判死一个本来能成的构建，漏报只是
 把构建期注定会炸的那一步留到构建期，因此**问不到官方那一份时不拦**（core 结构变了、配置文件读不了、
 preset 函数自己抛，三种都退成「不知道」）；而「官方答了、那份清单里没有」判得实。
 
@@ -235,8 +235,7 @@ preset 函数自己抛，三种都退成「不知道」）；而「官方答了�
 安装前提一起背走 —— 而真正的前提只有本包这一个。这一格交出去的是判据 `pluginIsRegistered`：
 要查的那一层自己调它、自己写报错（README 那段给的就是这一份写法），本仓今天没有哪一层在配置期
 真查它 —— 用例仍从判据那一侧钉着它（`test/registered-plugins.test.mts`）。
-同一份文件里的另一道题（「注册成了几份」）只剩一家查自己那一格：`themes/theme-git-badge`，
-护栏在 `test/infrastructure-rules.test.mts`。
+同一份文件里的另一道题（「注册成了几份」）也一样：判据还发着、用例还钉着，本仓今天没有调用方。
 
 **为什么纯函数那一份单开一条 `./plugin-slots` 出口**：读者都在配置期（Node）。包根本机会引
 `node:*` 与 webpack，配置期读者不该为此多背依赖，所以走一条只含这个
@@ -244,9 +243,7 @@ preset 函数自己抛，三种都退成「不知道」）；而「官方答了�
 
 判据本身的用例在 `test/plugin-slots.test.mts`；preset 那一半在
 `test/registered-plugins.test.mts`（走真的 `loadContext` + `loadPresets`，替身掉就什么都没验），
-真实形状（路径写法、`themes` 那份清单、写成 preset 里那一份）也在这一份里从判据那一侧钉；
-「注册了两份要响」接进入口那一面由 `test/package-entries.test.mts` 里徽标那一组那条
-「第二份实例当场点名」钉。
+真实形状（路径写法、`themes` 那份清单、写成 preset 里那一份）也在这一份里从判据那一侧钉。
 
 ## 输入处理：`@theme-prev/<rest>` 怎么切、怎么校验
 

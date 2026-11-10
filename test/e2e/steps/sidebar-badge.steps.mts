@@ -214,9 +214,9 @@ Then(
 /**
 ## 另一棵内容根上也有徽标
 
-`theme-git-badge` 的地盘由站点转述**几份就是几棵根**（`docusaurus.config.mjs` 里那个数组），
-徽标注入走的是站点全局那一次 `parseFrontMatter` 包装 —— 所以「`themes/` 里的页也带徽标」这件事
-只能由真站点证：这一族的一条示例页在自己那一页里钉了 `git_badge: new`，地址落在
+`theme-git-badge` 不按内容根筛：注入包住站点全局那一次 `parseFrontMatter`，任何被解析的
+markdown 都判 —— 所以「`themes/` 里的页也带徽标」这件事只能由真站点证：这一族的一条示例页在
+自己那一页里钉了 `git_badge: new`，地址落在
 `/themes/theme-git-badge/docs/git-badge-demo`（多一段前缀，因为那一棵根的 `routeBasePath` 是 `/themes`）。
 
 「这一页在侧边栏里那一格」那一句判据是按**当前 pathname** 找格子的，与它挂在哪一份 docs 实例无关，

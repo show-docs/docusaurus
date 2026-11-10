@@ -48,8 +48,8 @@ import DocCardList from '@theme/DocCardList';
 
 侧边栏里每一条文档末尾那枚纯色点说的是「这一页是新建还是更新过的」：判据是 git，写进官方
 那条 `sidebar_custom_props` 通道，判与画都在
-[`theme-git-badge`](/themes/theme-git-badge/) 那一包里。它跟着内容根走：站点有两份文档实例，
-两棵根里的页都各有徽标。
+[`theme-git-badge`](/themes/theme-git-badge/) 那一包里。它不按内容根筛：注入包住站点全局的
+解析器，两棵根里的页一视同仁都有徽标。
 
 ## 文档
 

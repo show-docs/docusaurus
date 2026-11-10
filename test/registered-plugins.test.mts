@@ -156,7 +156,8 @@ describe('问不到官方那一份时不拦', () => {
 
 /**
 「注册成了几份」是另一道题：官方只拦「同一插件挂两次又不给 id」，给了不同 id 的两份在它那里合法，
-而在吃不下第二份实例的那几层里，第二份只是不干活（徽标那层）或把第一份写的产物盖掉（机制层那一份）。
+而在吃不下第二份实例的那几层里，第二份要么只是不干活（被「只包一次」的护栏原样交回），要么把第一份
+写的产物盖掉。
 这两道题的误差方向是同一句：**只可能少判，不可能多判** —— 数错成「两份」会判死一个本来能成的构建，
 数漏了只是那句点名不响。
 */
@@ -262,10 +263,10 @@ describe('assertSinglePluginInstance：两份以上才点名', () => {
       assertSinglePluginInstance(
         contextOf(NO_CORE_SITE, { plugins: [LAYER_NAME, LAYER_NAME] }),
         LAYER_NAME,
-        '多棵内容根请在一份实例的 docs 数组里转述',
+        '这一层的表由一处生成',
       ),
     ).rejects.toThrow(
-      /@show-docs\/docusaurus-theme-git-badge 在本站点被注册成了 2 份实例[\s\S]*docs 数组里转述/,
+      /@show-docs\/docusaurus-theme-git-badge 在本站点被注册成了 2 份实例[\s\S]*一处生成/,
     );
   });
 
