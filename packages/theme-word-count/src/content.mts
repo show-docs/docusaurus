@@ -4,11 +4,11 @@
 于是「统计覆盖了哪些页」与「站点渲染了哪些页」天然是同一份口径 —— 站点里多一棵内容根、
 换一条 include、开一个版本，这里都不必跟着改，也不必由站点再转述一遍那三格。
 
-草稿不在清单里：官方在 `loadVersion` 里就把 `draft` 的那几份分出去了，剩下的 `docs` 才是清单。
-未列出（`unlisted: true`）的那几份仍在清单里，照数 —— 它们也是会被渲染的页面。
+草稿也在清单里：生产构建把 `draft` 的那几份分到 `drafts`，开发模式留在 `docs`，两处都读、
+只读一次。明细里另记一行「草稿数量」，与参考实现一致 —— 草稿也算进其它各项。
 
 分组按「实例 id + 版本」：本站两份实例因此各占一格（`default` 与 `themes`），
-不必读站点配置里那三格转述。
+不必读站点配置里那三格转述。实例合计与目录合计也在这里先合好：浏览器侧只查表。
 */
 
 import { readFileSync } from 'node:fs';
@@ -30,8 +30,9 @@ import type {
   WordCountStats,
 } from '../types/word-count.ts';
 
-import { countWords } from './count.mts';
+import { add, EMPTY, foldersOf, sumOf } from './aggregate.mts';
 import { withoutWordCountDirectives } from './directive.mts';
+import { measureMarkdown, measureText } from './measure.mts';
 
 /** 一份文档在清单里被认出来的那几格（其余各格本包一眼都不看）。 */
 interface DocLike {
@@ -46,23 +47,13 @@ interface VersionLike {
   label?: string;
   versionName: string;
   docs: readonly DocLike[];
+  /** 生产构建里被分出去的那几份草稿；开发模式这一格是空的（草稿留在 `docs` 里）。 */
+  drafts?: readonly DocLike[];
 }
 
 /** 一份 docs 实例的 content 里，本包只看的那一格。 */
 interface DocsContentLike {
   loadedVersions?: readonly VersionLike[];
-}
-
-/** 每一格攒着的那些页的计数，最后合一次（`./count.mts` 交回的三份数字）。 */
-function sumOf(counts: readonly WordCount[]): WordCount {
-  return counts.reduce(
-    (total, count) => ({
-      cjk: total.cjk + count.cjk,
-      latin: total.latin + count.latin,
-      words: total.words + count.words,
-    }),
-    { cjk: 0, latin: 0, words: 0 },
-  );
 }
 
 /** 清单里那一个 `@site/` 地址解回磁盘上的那一份文件。 */
@@ -73,34 +64,45 @@ function fileOf(source: string, siteDir: string): string {
 }
 
 /**
-一份文件里那些「词」：只剥头部那一段 YAML，正文一个字都不动。
+一份文件的全部明细：markdown 走语法树，其余文档按整份正文数。
 
 frontmatter 用的就是站点渲染这一页时那一份解析器（`siteConfig.markdown.parseFrontMatter`，
-别的层可以包住它），所以「剥掉的那一段」与「页面开头看不见的那一段」是同一件事；
-正文里的标题行照数，那是看得见的文字。`:::word-count` 那一行是看不见的语法，
-与预处理器共用同一个扫描器剥掉。
+别的层可以包住它），所以「哪一份算草稿」与页面那一侧的判据是同一个；正文里的标题行照数，
+那是看得见的文字。`:::word-count` 那一行是看不见的语法，与预处理器共用同一个扫描器剥掉。
+
+站点清单里不只有 `.md` / `.mdx`：本站还把 `.dbml` 收进 docs（它由自己的 loader 渲染，不按
+MDX 编译）。那一份交给 MDX 解析器会当场报 acorn 错，所以按扩展名分两条路 —— 非 markdown
+的文档用站点剥好的正文按文字数，结构那几行记 0。
 */
 async function countFile(
   file: string,
   parseFrontMatter: ParseFrontMatter,
 ): Promise<WordCount> {
-  const { content } = await parseMarkdownFile({
+  const fileContent = readFileSync(file, 'utf8');
+  const { content, frontMatter } = await parseMarkdownFile({
     filePath: file,
-    fileContent: readFileSync(file, 'utf8'),
+    fileContent,
     parseFrontMatter,
   });
+  const draft = Boolean(frontMatter.draft);
 
-  return countWords(withoutWordCountDirectives(content));
+  try {
+    return /\.mdx?$/i.test(file)
+      ? measureMarkdown(withoutWordCountDirectives(fileContent), draft)
+      : measureText(content, draft, Object.keys(frontMatter).length > 0);
+  } catch (error) {
+    // 解析器报的行号只对这份字符串有效，把文件路径补在前面，构建日志里才找得到是哪一页
+    throw new Error(`解析 ${file} 失败`, { cause: error });
+  }
 }
 
 /**
-全站那一份统计：把清单里每一条解成文件、逐页数完，再按「实例 + 版本」各合一格，
-同时留下每页的明细。
+全站那一份统计：把清单里每一条（含草稿）解成文件、逐页数完，再按「实例 + 版本」各合一格，
+同时留下每页、每个实例、每个目录的明细。
 
-格子的顺序跟着清单走（实例、版本），同一份内容根每次都是同一份产物；
-`pages` 就是那一格里数到的页数，不另数一遍。`docs` 那一张表的键就是清单里的 `source`
-（`@site/…`），浏览器侧拿 `useDoc().metadata.source` 直接查 —— 本文件夹的范围也由它
-按目录前缀在表内求和，不另发一张文件夹表。
+格子的顺序跟着清单走（实例、版本），同一份内容根每次都是同一份产物。
+`docs` 的键就是清单里的 `source`（`@site/…`），浏览器侧拿 `useDoc().metadata.source` 直接查；
+`instances` 与 `folders` 是配置期先合好的，页面里不做加法。
 */
 export async function collectStats(
   allContent: AllContent,
@@ -113,7 +115,9 @@ export async function collectStats(
     string,
     { instance: string; version: string; counts: WordCount[] }
   >();
-  /** 每页的字数：键是清单里的 `source`，值就是这一份文件交回的那三格。 */
+  /** 实例 id → 那一份内容根已经数到的那些页（各版本先合在一起）。 */
+  const instances: Record<string, WordCount> = {};
+  /** 每页的明细：键是清单里的 `source`，值就是这一份文件交回的那一整格。 */
   const docs: Record<string, WordCount> = {};
 
   for (const byId of Object.values(allContent)) {
@@ -133,7 +137,8 @@ export async function collectStats(
 
         groups.set(key, group);
 
-        for (const doc of version.docs) {
+        // 生产构建里草稿在 `drafts`，开发模式里在 `docs`；两处并起来正好各读一次。
+        for (const doc of [...version.docs, ...(version.drafts ?? [])]) {
           const count = await countFile(
             fileOf(doc.source, siteDir),
             parseFrontMatter,
@@ -141,6 +146,7 @@ export async function collectStats(
 
           docs[doc.source] = count;
           group.counts.push(count);
+          instances[instance] = add(instances[instance] ?? EMPTY, count);
         }
       }
     }
@@ -150,13 +156,13 @@ export async function collectStats(
   const statsGroups: WordCountGroup[] = entries.map(({ counts, ...one }) => ({
     ...one,
     ...sumOf(counts),
-    pages: counts.length,
   }));
 
   return {
     ...sumOf(entries.flatMap(({ counts }) => counts)),
-    pages: statsGroups.reduce((total, group) => total + group.pages, 0),
     groups: statsGroups,
+    instances,
+    folders: foldersOf(docs),
     docs,
   };
 }

@@ -8,19 +8,73 @@ import Admonition from '@theme/Admonition';
 // 算它的是 `src/content.mts`。
 import { stats } from '@generated/theme-word-count/stats';
 
-import type { WordCountScope } from '../../types/word-count.ts';
+import type {
+  WordCount as WordCountData,
+  WordCountScope,
+} from '../../types/word-count.ts';
 
-import { add, ofFolder, ofPage, ZERO, type Totals } from './scope.ts';
+import { ofFolder, ofInstance, ofPage } from './scope.ts';
 
 /** docs 插件在路由上下文里的名字：只有这一种上下文才谈得上「这一页属于哪份实例」。 */
 const DOCS_PLUGIN = 'docusaurus-plugin-content-docs';
+
+/** 明细表的行：左边那一句与右边取哪一格数。 */
+const METRICS: readonly (readonly [
+  label: string,
+  value: (totals: WordCountData) => number,
+])[] = [
+  ['文件数量', (totals) => totals.pages],
+  ['草稿数量', (totals) => totals.drafts],
+  ['Frontmatter', (totals) => totals.frontmatter],
+  ['Heading ID', (totals) => totals.headingIds],
+  ['一级标题数', (totals) => totals.h1],
+  ['二级标题数', (totals) => totals.h2],
+  ['三级标题数', (totals) => totals.h3],
+  ['四级标题数', (totals) => totals.h4],
+  ['五级标题数', (totals) => totals.h5],
+  ['六级标题数', (totals) => totals.h6],
+  ['代码段', (totals) => totals.codeBlocks],
+  ['代码段行数', (totals) => totals.codeLines],
+  ['图像', (totals) => totals.images],
+  ['描述性图表', (totals) => totals.graphs],
+  ['表格', (totals) => totals.tables],
+  ['外部链接', (totals) => totals.externalLinks],
+  ['内部链接', (totals) => totals.internalLinks],
+  ['引用文本段', (totals) => totals.blockquotes],
+  ['词数', (totals) => totals.words],
+  ['中日韩文字', (totals) => totals.cjk],
+  ['其余文字', (totals) => totals.latin],
+  ['字符数', (totals) => totals.characters],
+];
+
+/** 四种范围共用的一张明细表：左边是项目，右边是数。 */
+function MetricsTable({ totals }: { totals: WordCountData }): ReactNode {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>项目</th>
+          <th>统计</th>
+        </tr>
+      </thead>
+      <tbody>
+        {METRICS.map(([label, value]) => (
+          <tr key={label}>
+            <td>{label}</td>
+            <td>{value(totals)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 /** 块上的那一句总数；`withPages` 只有「本页」不需要。 */
 function Summary({
   totals,
   withPages = true,
 }: {
-  totals: Totals;
+  totals: WordCountData;
   withPages?: boolean;
 }): ReactNode {
   return (
@@ -32,7 +86,7 @@ function Summary({
   );
 }
 
-/** 四种范围共用的一块：标题、正文（可带前缀）与明细。 */
+/** 四种范围共用的一块：标题、正文（可带前缀）与明细表。 */
 function StatsBlock({
   title,
   prefix,
@@ -42,7 +96,7 @@ function StatsBlock({
 }: {
   title: string;
   prefix?: ReactNode;
-  totals: Totals;
+  totals: WordCountData;
   withPages?: boolean;
   details?: ReactNode;
 }): ReactNode {
@@ -52,12 +106,13 @@ function StatsBlock({
         {prefix}
         <Summary totals={totals} withPages={withPages} />
       </p>
+      <MetricsTable totals={totals} />
       {details}
     </Admonition>
   );
 }
 
-/** 全站那一份：站点里没有文档时也走这里（三个数都是 0）。 */
+/** 全站那一份：站点里没有文档时也走这里（所有数都是 0）。 */
 function SiteStats(): ReactNode {
   return (
     <StatsBlock
@@ -65,7 +120,7 @@ function SiteStats(): ReactNode {
       totals={stats}
       details={
         stats.groups.length === 0 ? (
-          <p>站点里还没有加载到任何文档，所以三个数都是 0。</p>
+          <p>站点里还没有加载到任何文档，所以表里的数都是 0。</p>
         ) : (
           <ul>
             {stats.groups.map((group) => (
@@ -85,8 +140,9 @@ function SiteStats(): ReactNode {
 /** 所在内容根的那几格（版本化的实例有几格）；挑不出格时退回全站。 */
 function InstanceStats({ instance }: { instance: string }): ReactNode {
   const own = stats.groups.filter((group) => group.instance === instance);
+  const totals = ofInstance(stats, instance);
 
-  if (own.length === 0) {
+  if (own.length === 0 || totals === undefined) {
     return <SiteStats />;
   }
 
@@ -98,7 +154,7 @@ function InstanceStats({ instance }: { instance: string }): ReactNode {
           内容根 <code>{instance}</code>：
         </>
       }
-      totals={own.reduce((total, group) => add(total, group), ZERO)}
+      totals={totals}
       details={
         // 一个实例只有一个版本时，合计那一句已经说完了；多版本才把各格摊开。
         own.length > 1 && (
@@ -125,7 +181,7 @@ function InstanceStats({ instance }: { instance: string }): ReactNode {
 */
 function DocStats({ scope }: { scope: 'page' | 'folder' }): ReactNode {
   const { metadata } = useDoc();
-  const page = ofPage(stats.docs, metadata.source);
+  const page = ofPage(stats, metadata.source);
 
   if (page === undefined) {
     return <SiteStats />;
@@ -135,7 +191,7 @@ function DocStats({ scope }: { scope: 'page' | 'folder' }): ReactNode {
     return <StatsBlock title="本页字数" totals={page} withPages={false} />;
   }
 
-  const folder = ofFolder(stats.docs, metadata.source);
+  const folder = ofFolder(stats, metadata.source);
 
   if (folder === undefined) {
     return <SiteStats />;
@@ -177,6 +233,10 @@ function DocStats({ scope }: { scope: 'page' | 'folder' }): ReactNode {
 这一块不进 `ViewLayerDocItem` 那个共用外壳：那一只外壳是为「正文上方一块懒加载的视图」准备的
 （错误边界 + `Suspense` + 放宽容器），这里四份都不需要 —— 数在配置期就算好了，读它只是一句
 对象取值；它又插在正文中间，容器宽度要跟着正文那一栏。
+
+四种范围都摆同一张明细表：文件、草稿、frontmatter、标题、代码、图表、表格、链接、引用，末尾
+是词数与字符数。表里的数与那句总数一起由配置期算好；本页、本文件夹、内容根、全站各自取生成
+模块里已经合好的那一格，页面里不做加法。
 
 数字直接写出来，不加千分位：同一份数在静态渲染与服务端注水里要写成同一个字符串，
 少一处格式化就少一处能漂的地方。

@@ -8,13 +8,15 @@
 | ---------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.mts`                    | ✅ `src/` → `dist/` | 入口：`loadContent()` 把预处理器包到站点那份 `markdown.preprocessor` 上、`allContentLoaded()` 算出全站统计并铺成生成模块、给出层目录                 |
 | `src/directive.mts`                | ✅                  | `:::word-count [page\|folder\|instance\|site]` 的扫描与改写：指令换成 `<__WordCount scope="…" />`、文首补一句 import；统计侧剥掉指令的那一份也在这里 |
-| `src/content.mts`                  | ✅                  | 从 `allContent` 里各份 docs 实例的清单解回磁盘上的文件、逐页数一遍，按「实例 + 版本」合一格，并把每页那一份按 `@site/…` 地址记进 `docs`              |
+| `src/content.mts`                  | ✅                  | 从 `allContent` 里各份 docs 实例的清单解回磁盘上的文件、逐页数一遍，按「实例 + 版本」合一格，并把每页、每个实例、每个目录各记一份                    |
+| `src/measure.mts`                  | ✅                  | 一份正文的明细：markdown 按语法树逐节点数，非 markdown 的文档按整份文字数                                                                            |
+| `src/aggregate.mts`                | ✅                  | 逐字段相加、按目录一层层滚上去、全 0 的底；`instances` 与 `folders` 就是这里合出来的                                                                 |
 | `src/count.mts`                    | ✅                  | 「一个词」的码位表与两种来源各数一种（CJK 按字、其余按词）                                                                                           |
 | `src/stats-module.mts`             | ✅                  | 把统计渲染成那一份生成模块的文本（只有一句 `export const stats = <JSON>`）                                                                           |
 | `types/word-count.d.ts`            | ❌（随包发的声明）  | 四份形状：`WordCount` / `WordCountGroup` / `WordCountStats` / `WordCountScope`；`src/` 与 `theme/` 两侧都读它                                        |
 | `types/word-count-specifiers.d.ts` | ❌（随包发的声明）  | `declare module '@generated/theme-word-count/stats'`：浏览器侧那句 `import` 的类型从这来                                                             |
-| `theme/WordCount/index.tsx`        | ❌ 站点编译         | 指令换出来的那一块：按 `scope` 挑本页 / 本文件夹 / 所在实例 / 全站那一份，摆成一块 `Admonition`                                                      |
-| `theme/WordCount/scope.ts`         | ❌ 站点编译         | `page` / `folder` 的取数与求和（纯函数，`test/word-count.test.mts` 直接钉「含子目录」）                                                              |
+| `theme/WordCount/index.tsx`        | ❌ 站点编译         | 指令换出来的那一块：按 `scope` 挑本页 / 本文件夹 / 所在实例 / 全站那一格，摆成一句合计加一张明细表                                                   |
+| `theme/WordCount/scope.ts`         | ❌ 站点编译         | `page` / `folder` / `instance` 各查哪张表（纯函数，页面里不做加法，`test/word-count.test.mts` 直接钉）                                               |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/`，本包就不编译第二遍；口径的产地在
 [plugin-compile-source 的维护者文档](../../plugin-compile-source/docs/internals.md) 的「这一族构建包的编译口径」。
@@ -44,7 +46,25 @@ Docusaurus 的 `markdown` 配置里**没有** `remarkPlugins` 那一格：remark
 
 清单里的 `source` 不是 `@site/` 打头时官方那一位当场抛，本包不截字符串、不自己拼路径：宁可在构建里点名，也不要安静算出一条不存在的路径。
 
-每页数完的那三格同时按 `source` 记进 `docs`（键是清单里那一条 `@site/…`），所以生成模块里既有「实例 + 版本」那几格，也有「一页一格」的明细。`page` / `folder` 要在浏览器里挑，那张表只能跟产物一起走；`instance` / `site` 仍由配置期那几格给出，浏览器只做挑选与合计，不重数文件。
+每页数完的那一整格同时按 `source` 记进 `docs`（键是清单里那一条 `@site/…`）；同一轮里实例合计进 `instances`、按目录一层层滚上去的合计进 `folders`（每一格都含子目录）。这三张表就是浏览器侧能挑的全部范围：`page` / `folder` / `instance` 只查表，页面里不做加法，也就不存在第二份求和口径。`site` 用顶层那一整格。
+
+草稿在生产构建里被官方分到 `version.drafts`，开发模式里留在 `version.docs`：两列并起来读，各读一次，所以两种模式下页数一样。
+
+## 正文按语法树数：文本、结构与标题 id
+
+`src/measure.mts` 把正文交给与站点同一族解析器（`unified` + `remark-parse` + `remark-mdx` + `remark-gfm` + `remark-frontmatter`），解析一次、走一遍：
+
+- `text` / `inlineCode`：词与字符都加。
+- `code`：词、字符、段数与行数；围栏语言是 `mermaid` / `kroki` 的记「描述性图表」，不算代码段。
+- `heading`：按 `depth` 记 `h1`…`h6`；末尾显式写了 id 的另记 `headingIds`。
+- `table` / `image` / `link` / `linkReference` / `blockquote`：各记一格；链接按 `http(s):` 分内外。
+- `yaml`：只记 `frontmatter` 数量，那一段的内容不进词数。
+
+**为什么不用正则扫原文**：围栏里的一行 `# 不是标题` 会被当成标题，链接地址里的字母会被当成词。语法树与站点编译这一页时看到的正文同源，结构行才有形状。
+
+**标题 id 有两种写法**：经典写法 `{#custom-id}` 在 MDX 里不是合法表达式（acorn 报错），站点预处理器先调 `escapeMarkdownHeadingIds` 把它转成转义形式。这里解析前调同一句转义，解析回来后文字节点的 `value` 又是不带反斜杠的 `{#custom-id}`。MDX 注释写法（`{/*` 开头、星号加斜杠收尾，中间写 `#custom-id`）解析成一格 `mdxTextExpression`。两种都只认标题的最后一个子节点，标题以行内代码或强调收尾时不算。
+
+**非 markdown 的文档**（本站是 `.dbml`）：它不按 MDX 编译，硬套解析器会当场报 acorn 错（`Table … {` 在 MDX 眼里是一个表达式）。于是按扩展名分两条路：非 `.md` / `.mdx` 用站点剥好的正文按文字数，结构各行记 0 —— 那一页仍在清单与合计里，不因为「没有语法树」而消失。
 
 ## 「一个词」的码位表写死在这里
 
@@ -54,8 +74,8 @@ Docusaurus 的 `markdown` 配置里**没有** `remarkPlugins` 那一格：remark
 - **其余按词**：`[\p{L}\p{N}][\p{L}\p{N}'’-]*`，以字母或数字开头，后面可带撇号与连字符，所以 `don't`、`web-page` 各算一个。数之前先把 CJK 换成空格，否则 `\p{L}` 认汉字，同一个字被数两遍。
 - **中日韩标点不算**：`\u3000-\u303f`、`\uff00-\uffef` 那两段不在 CJK 类里，一个「。」不是一个词。
 - **表外的汉字走拉丁那一路**：码位段只列常用那几段，扩展 B（平面 2，`CJK Unified Ideographs Extension B`）不在 CJK 类里，但带 `u` 标记的 `\p{L}` 认它，于是落进拉丁那一路 —— 结果还是一个词，与按字同一个数。真正会被数成「一段」的是表外那族连着写的多个字，本站没有那种内容。
-- **markdown 语法符号自然不算**：`#`、`|`、反引号、链接的圆括号既不是字母也不是数字，两把正则都落不到它们身上。代码块与表格的**内容**因此在统计里（那是选定的口径，见 README 的「计数口径」），但那些符号本身一个词都不是。
-- **frontmatter 不数**：正文由 `parseMarkdownFile()` 交回，那一段 YAML 已经剥掉了。用的解析器是 `siteConfig.markdown.parseFrontMatter`，也就是站点渲染这一页时那一份 —— 别的层包住它时，「剥掉的那一段」与「页面开头看不见的那一段」还是同一件事。标题行（`# 标题`）在正文里，照数。
+- **markdown 语法符号自然不算**：`#`、`|`、反引号、链接的圆括号既不是字母也不是数字，两把正则都落不到它们身上。代码块与表格的**内容**因此按 `text` / `code` 节点进统计（见上一节），但那些符号本身一个词都不是。
+- **frontmatter 不数**：markdown 的正文原样进语法树，头部那段是 `yaml` 节点，只记 `frontmatter` 数量；非 markdown 的文档用 `parseMarkdownFile()` 剥好的正文。两处「哪一段算头部」都来自 `siteConfig.markdown.parseFrontMatter`，也就是站点渲染这一页时那一份 —— 别的层包住它时，剥掉的那一段与页面开头看不见的那一段还是同一件事。标题行（`# 标题`）在正文里，照数。
 - **指令不数**：`:::word-count` 那一行是看不见的语法，数之前由 `withoutWordCountDirectives()` 剥掉；围栏里的同名文字是示例正文，照数。
 
 CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标记，花括号会被当成量词，那一类当场变形状。
@@ -66,7 +86,7 @@ CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标�
 
 生成模块只有那一句 `export const stats = <JSON>`，没有日期、没有 git 状态：同一份内容两次构建产物一样。浏览器侧读它的地址由 webpack 那条 `@generated` 别名给出，那一串路径必须与 `src/index.mts` 里 `STATS_FILE` 一致，它的类型来自 `types/word-count-specifiers.d.ts`。
 
-那一份 JSON 里最大的一格是 `docs`（每页一条）。本站 54 页实测 4,639 字节（gzip 后 977 字节，每页约 86 / 18 字节）；只写 `instance` 的站点也照付这份大小 —— 这是 `page` / `folder` 能在浏览器里挑数的代价。想再压小就得把「这一页所在目录」也在配置期算成一张表，但那张表要么随目录数长，要么把同一份路径抄第二遍，当前没有这个必要。
+那一份 JSON 里最大的是两张表：`docs`（每页一整格，本站 54 页约 24 KB）与 `folders`（按目录滚上去的合计，34 个目录约 15 KB）；`instances` 与 `groups` 各不到 1 KB。整份实测 46,298 字节（gzip 后 3,969 字节，平均每页约 450 字节）。每页那几格是 22 个字段，换目录那张表只会把同一份路径再抄一遍；三个范围都要在浏览器里挑，所以这两张表只能跟产物一起走。
 
 数字在页面上直接写出来，不加千分位格式化：静态渲染与服务端注水要拼出同一个字符串，少一处格式化就少一处能漂的地方。
 
@@ -88,12 +108,14 @@ CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标�
 
 `page` / `folder` 调 `useDoc()` 拿这一页的 `metadata`：
 
-- **`metadata.source` 与清单里的 `source` 同源**：两边都是 `@site/<相对路径>`。`page` 直接用这个键去 `docs` 里取那一格（页数记 1）；取不到（开发期重载中间那一瞬）就退回全站，不安静显示 0。
-- **`folder` 是前缀求和，不另存目录表**：取 `source` 最后一个 `/` 之前那一段做前缀（右侧带 `/`），对 `docs` 所有键求和。子目录天然以这个前缀打头，所以「含子目录」不需要额外的递归；`docs/guide/` 也收不到 `docs/guides/…`。
+- **`metadata.source` 与清单里的 `source` 同源**：两边都是 `@site/<相对路径>`。`page` 直接用这个键去 `docs` 里取那一整格（页数就是这一页记的 1）；取不到（开发期重载中间那一瞬）就退回全站，不安静显示 0。
+- **`folder` 查的是配置期合好的那张表**：取 `source` 最后一个 `/` 之前那一段当键，去 `folders` 里取。`folders` 在 `aggregate.mts` 里由每页往上滚出来：每一页记进自己的目录，再一层层记到根，所以每一格都含所有子目录，`docs/guide` 也收不到 `docs/guides/…`（键按整段目录比，不做字符串前缀）。页面里不做前缀求和。
 - **它不是按实例切的**：两个实例挂同一个目录时，那一块是两边合计。目录由文件地址算，不看 URL，也不管版本。
 - **`useDoc()` 为什么只在 `page` / `folder` 里调**：它需要 `DocProvider`，而只有 docs 页面的 `DocItem` 包了那一层；`instance` 不需要它（`metadata` 里没有实例 id），`site` 更不需要。外层先按 `scope` 与路由分派到各自的子组件，所以这条 hook 不会在 docs 以外的页面里被调到。
 
-`site` 直接读顶层那三个数与各格清单，不发路由上下文、也不调 `useDoc()`。
+`instance` 取的是 `instances[plugin.id]`：配置期 `content.mts` 在数每一页时就把那一格加进对应实例，页面里只查表，不在各版本之间再做一次求和。
+
+`site` 直接读顶层那一整格，不发路由上下文、也不调 `useDoc()`。
 
 ## 这一块为什么不用共用的视图外壳
 
@@ -108,7 +130,8 @@ CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标�
 | 情况                                                   | 落点                                                                                                    |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | 清单里那一份文件在磁盘上读不到（或头部 YAML 解析不了） | 构建抛错，点名那一份文件                                                                                |
-| 站点里没有 docs 实例（`allContent` 里没有清单可读）    | 三个数都是 0，块上显示「站点里还没有加载到任何文档」                                                    |
+| 一份 `.md` / `.mdx` 的正文不是合法 MDX                 | 构建抛错，错误里带着那一份文件的路径（非 markdown 的文档走文字那条路，不受影响）                        |
+| 站点里没有 docs 实例（`allContent` 里没有清单可读）    | 各项都是 0，块上显示「站点里还没有加载到任何文档」                                                      |
 | 这一块的路由不属于 docs                                | 除 `site` 以外的范围都退回全站视图；指令可以写在 docs 以外的页面里，这条到得了                          |
 | docs 页面里 `page` / `folder` 在明细里挑不出这一页     | 退回全站视图（开发期重载中间那一瞬会走到），不安静显示 0                                                |
 | 那一份文件没按 MDX 解析（`markdown.format: 'md'`）     | 指令原样落成两行可见文字（那句 import 与 `<__WordCount scope="instance" />`），块不出现；构建本身不报错 |
@@ -118,8 +141,8 @@ CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标�
 
 ## 用例与红线
 
-- 构建期判据：`test/word-count.test.mts` —— 指令改写（任意位置、四种范围各写进组件、不认的范围原样留下、容器式收尾、围栏与缩进代码块里不认、CRLF、无指令时原样交回）、预处理器包装（站点那份先跑、重复挂只一层）、计数侧剥指令，以及两把码位表的边界（纯 CJK / 纯拉丁 / 混排 / 空串、标点、`don't` 这类带分隔符的一个词）、`@site/` 地址反解、非 docs 实例的 content、`label` 与 `versionName` 两种落点、同一格重复出现与新开一格、多实例分组、每页明细的键与数，以及 `allContentLoaded()` 真的往一个临时 `generatedFilesDir` 写出那份模块。同一份还直接钉 `theme/WordCount/scope.ts`：本页取那一格、本文件夹含子目录且挡住名字相近的邻居、内容根根目录按整个根合计。`src/` 全份挂在覆盖率红线上（`vitest.config.mts` 的 `coverage.include` 盖住每个包的 `src/`）。
+- 构建期判据：`test/word-count.test.mts` —— 指令改写（任意位置、四种范围各写进组件、不认的范围原样留下、容器式收尾、围栏与缩进代码块里不认、CRLF、无指令时原样交回）、预处理器包装（站点那份先跑、重复挂只一层）、计数侧剥指令；两把码位表的边界（纯 CJK / 纯拉丁 / 混排 / 空串、标点、`don't` 这类带分隔符的一个词）；`measureMarkdown()` 按节点各数一格（文字与行内代码、六级标题与两种标题 id、代码围栏与图表、表格 / 图片 / 内外链接 / 引用、frontmatter 与草稿）与非法 MDX 会抛；`measureText()` 那条非 markdown 的路；`aggregate.mts` 的逐字段相加与目录往上滚；`@site/` 地址反解、`docs` 与 `drafts` 两列都读、非 docs 实例的 content、`label` 与 `versionName` 两种落点、同一格重复出现与新开一格、多实例分组、每页 / 每实例 / 每目录三张表，以及 `allContentLoaded()` 真的往一个临时 `generatedFilesDir` 写出那份模块。同一份还直接钉 `theme/WordCount/scope.ts`：本页与内容根各取那一格、本文件夹查配置期那张表（含子目录、挡住名字相近的邻居）。`src/` 全份挂在覆盖率红线上（`vitest.config.mts` 的 `coverage.include` 盖住每个包的 `src/`）。
 - 产物回读：`tools/scripts/verify-chain.mts` 第 4 节看两页构建出来的 HTML —— 有 `theme-admonition` 那一块、标题写着「内容根字数」。预处理器没挂上时这里红。
-- 页面上那一块：`test/e2e/features/word-count.feature`（步骤在同名 `steps/word-count.steps.mts`）。**不**断言具体数字 —— 本站的内容根每加一页文档，总数就变。两棵内容根各有一页写指令（`/theme-word-count/docs/word-count-demo` 在 `default`、`/themes/` 在 `themes`），各断言「那一块在、只写自己那个实例、不出现另一个实例、正文仍在、位置就是指令那一处」；挑错时页面会退回全站合计，两个 id 都会露在块里，所以「不出现另一个」正好把那两种症状一起兜住。示例页把四种范围排在一起：本页那一块不写页数、本文件夹那一块写目录且页数大于 1、全站那一块列出两份实例，并断言四块的词数按「页 < 文件夹 < 内容根 < 全站」依次变大。另有一条反向：没写指令的页面这一块不出现。
+- 页面上那一块：`test/e2e/features/word-count.feature`（步骤在同名 `steps/word-count.steps.mts`）。**不**断言具体数字 —— 本站的内容根每加一页文档，总数就变。两棵内容根各有一页写指令（`/theme-word-count/docs/word-count-demo` 在 `default`、`/themes/` 在 `themes`），各断言「那一块在、只写自己那个实例、不出现另一个实例、正文仍在、位置就是指令那一处」；挑错时页面会退回全站合计，两个 id 都会露在块里，所以「不出现另一个」正好把那两种症状一起兜住。明细表另钉「表里的数与总数那一句自洽」：文件数量 = 页数、词数 = 总数、中日韩文字 + 其余文字 = 词数、字符数大于 0；本页那一块的文件数量是 1。示例页把四种范围排在一起：本页那一块不写页数、本文件夹那一块写目录且页数大于 1、全站那一块列出两份实例，并断言四块的词数按「页 < 文件夹 < 内容根 < 全站」依次变大。另有一条反向：没写指令的页面这一块不出现。
 - 入口交出的那一格：`test/package-entries.test.mts` 钉名字、层目录两格，以及 `loadContent()` 真的把 `markdown.preprocessor` 挂上、不再向 component-page 交规则。本包也在 `test/view-layer-copies.test.mts` 那份「带源码层的包」清单里 —— 那一格钉的是「不许在本包入口再补一条 TS 源码编译规则」。
 - 站点自己那份配置里的说明在 `docusaurus.config.mjs` 的 `plugins` 清单里（为什么这一层不必转述内容根那三格）。

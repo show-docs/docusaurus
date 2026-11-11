@@ -136,13 +136,14 @@ const config = {
     '@show-docs/docusaurus-theme-diff',
     // 字数统计主题层：正文里写一行 `:::word-count`，那一处就显示**自己所在内容根**的字数；
     // 后面写 `page` / `folder` / `site` 换成这一页、这个目录（含子目录）或全站。
-    // 整站的数在配置期算好，页面按 `scope` 从生成模块里挑。本站两棵内容根各有一页写了
+    // 整站的数在配置期算好，页面按 `scope` 从生成模块里挑；每一块是一句合计加一张明细表
+    // （文件、标题、代码、链接、词数、字符数），四个范围摆同一张表。本站两棵内容根各有一页写了
     // 这行指令 —— 示例页在 `default`，`themes/README.md` 落地页在 `themes` —— 两块各写自己那份。
     // 它不向 component-page 交规则：指令由本层的 `markdown.preprocessor` 换成
     // `<__WordCount scope="…" />` 并在文首补一句 import（主题包零配置能改的就这一格，`markdown`
     // 里没有给主题层留 `remarkPlugins`）。统计读的是**各 docs 实例已经加载到的那份清单**（不是
-    // 重扫目录），所以站点这边不必转述内容根那三格；数的口径（CJK 按字、其余按词，代码块与表格
-    // 都算）在包 README。
+    // 重扫目录），所以站点这边不必转述内容根那三格；数的口径（正文按 MDX 语法树数，非 markdown
+    // 的文档按整份文字数）在包 README。
     '@show-docs/docusaurus-theme-word-count',
     // 下面三条 API 层各在自己的 `loadContent()` 里交出一份组件与一条规则（`scalar` / `redoc` /
     // `stoplight`，都写 `true`），渲染哪份文档读各自那两把 spec 键（OpenAPI 写 `oas3:`、

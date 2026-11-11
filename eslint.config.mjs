@@ -17,6 +17,9 @@ const ignores = [
   '.temp/**',
   'test-results/**',
   'playwright-report/**',
+  // `wordcount/` 是参考实现（未入库的第三方脚本，自带 node_modules 与自己的写法），
+  // 不参与本仓 lint；那个目录删掉时这一行一并删。
+  'packages/theme-word-count/wordcount/**',
 ];
 
 // Docusaurus 的虚拟模块 + 我们的 `@theme-prev*` specifier 族（口径产地见

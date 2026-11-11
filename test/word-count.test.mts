@@ -11,6 +11,12 @@ import type {
 } from '@docusaurus/types';
 import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
 
+import {
+  add,
+  EMPTY,
+  foldersOf,
+  sumOf,
+} from '../packages/theme-word-count/src/aggregate.mts';
 import { collectStats } from '../packages/theme-word-count/src/content.mts';
 import { countWords } from '../packages/theme-word-count/src/count.mts';
 import {
@@ -21,11 +27,20 @@ import {
   wrapPreprocessor,
 } from '../packages/theme-word-count/src/directive.mts';
 import wordCountTheme from '../packages/theme-word-count/src/index.mts';
+import {
+  measureMarkdown,
+  measureText,
+} from '../packages/theme-word-count/src/measure.mts';
 import { renderStatsModule } from '../packages/theme-word-count/src/stats-module.mts';
 import {
   ofFolder,
+  ofInstance,
   ofPage,
 } from '../packages/theme-word-count/theme/WordCount/scope.ts';
+import type {
+  WordCount,
+  WordCountStats,
+} from '../packages/theme-word-count/types/word-count.ts';
 
 import { mkdtempReal } from './helpers.mts';
 
@@ -131,6 +146,179 @@ describe('countWords：两把码位表就是全部规则', () => {
   it('表外的字（汉字扩展 B）按拉丁那一路数，还是一个', () => {
     // 码位表只列常用那几段；带 `u` 标记的拉丁那一路认码位平面 2 上的字母，所以不会漏成 0
     expect(countWords('\u{20000}')).toEqual({ cjk: 0, latin: 1, words: 1 });
+  });
+});
+
+/** 从全 0 那一格出发造一份明细：只写这一条用例关心的那几个数。 */
+const countOf = (overrides: Partial<WordCount> = {}): WordCount => ({
+  ...EMPTY,
+  ...overrides,
+});
+
+describe('measureMarkdown：一页的明细从语法树上数', () => {
+  it('文字与行内代码：词数与字符数都加，段落这类容器本身不数', () => {
+    expect(measureMarkdown('汉字 hi `code`\n', false)).toMatchObject({
+      characters: 10,
+      cjk: 2,
+      drafts: 0,
+      frontmatter: 0,
+      latin: 2,
+      pages: 1,
+      words: 4,
+    });
+  });
+
+  it('六级标题各记一格；显式写的 id 两种写法各认一次', () => {
+    const text = [
+      '# 一',
+      '## 二',
+      '### 三',
+      '#### 四',
+      '##### 五',
+      '###### 六',
+      // 经典写法：解析前与站点一样先转义，否则 MDX 当场报 acorn 错
+      '## 标题 {#custom-id}',
+      // MDX 注释写法：解析成一格 `mdxTextExpression`
+      '## 注释 {/* #other-id */}',
+      '## 结尾 **粗体**',
+      '',
+    ].join('\n');
+
+    expect(measureMarkdown(text, false)).toMatchObject({
+      h1: 1,
+      h2: 4,
+      h3: 1,
+      h4: 1,
+      h5: 1,
+      h6: 1,
+      headingIds: 2,
+    });
+  });
+
+  it('代码围栏：段数、行数与字数都进；mermaid / kroki 只算图表，不算代码段', () => {
+    const text = [
+      '```ts',
+      'const a = 1;',
+      '```',
+      '',
+      '```mermaid',
+      'graph TD',
+      '```',
+      '',
+      '```kroki',
+      'digraph {}',
+      '```',
+      '',
+      // MDX 不认四格缩进的代码块（站点那边也把它当普通文字），所以这一段进词数、不进代码段
+      '    indented',
+      '',
+    ].join('\n');
+
+    expect(measureMarkdown(text, false)).toMatchObject({
+      codeBlocks: 1,
+      codeLines: 1,
+      graphs: 2,
+      words: 7,
+    });
+  });
+
+  it('表格、图片、链接、引用各记一格；链接地址与图片地址不是文字', () => {
+    const text = [
+      '| a | b |',
+      '| - | - |',
+      '| 1 | 2 |',
+      '',
+      '![alt](img.png)',
+      '',
+      '[外部](https://example.com) [内部](./a.md) [引用式][ref]',
+      '',
+      '> 引用',
+      '',
+      '[ref]: ./ref.md',
+      '',
+    ].join('\n');
+
+    expect(measureMarkdown(text, false)).toMatchObject({
+      blockquotes: 1,
+      externalLinks: 1,
+      images: 1,
+      internalLinks: 2,
+      tables: 1,
+      // 表格里的四格、三条链接的文字与引用那一段；`alt` 与两个地址都不算
+      words: 13,
+    });
+  });
+
+  it('frontmatter 只记数量，正文里的标题与草稿另算', () => {
+    expect(
+      measureMarkdown('---\ntitle: 示例\ndraft: true\n---\n\n# 标题\n', true),
+    ).toMatchObject({
+      drafts: 1,
+      frontmatter: 1,
+      h1: 1,
+      // frontmatter 里的 title / 示例 都不进词数
+      words: 2,
+    });
+  });
+
+  it('不是 markdown 的正文没有语法树：整份按文字数，结构那几行记 0', () => {
+    // 站在 DBML 那种内容的角度：`{` 在 MDX 眼里是表达式，走语法树会当场解析失败
+    expect(measureText('Table 用户 {}\n', false, true)).toMatchObject({
+      blockquotes: 0,
+      characters: 12,
+      cjk: 2,
+      codeBlocks: 0,
+      drafts: 0,
+      frontmatter: 1,
+      h1: 0,
+      latin: 1,
+      pages: 1,
+      words: 3,
+    });
+    expect(measureText('纯文字\n', true, false)).toMatchObject({
+      drafts: 1,
+      frontmatter: 0,
+      words: 3,
+    });
+  });
+});
+
+describe('aggregate：逐字段相加与按目录滚上去', () => {
+  it('add 交回新的一份，左边那份不动', () => {
+    const left = countOf({ cjk: 1, pages: 1, words: 1 });
+    const right = countOf({ characters: 5, latin: 2, pages: 1, words: 2 });
+
+    expect(add(left, right)).toMatchObject({
+      characters: 5,
+      cjk: 1,
+      latin: 2,
+      pages: 2,
+      words: 3,
+    });
+    expect(left).toMatchObject({ cjk: 1, pages: 1, words: 1 });
+  });
+
+  it('空数组就是全 0 那一格', () => {
+    expect(sumOf([])).toBe(EMPTY);
+    expect(sumOf([countOf({ words: 2 }), countOf({ words: 3 })])).toMatchObject(
+      { words: 5 },
+    );
+  });
+
+  it('目录那一格含所有子目录，往上每一层也留一格', () => {
+    const folders = foldersOf({
+      '@site/docs/a.md': countOf({ pages: 1, words: 1 }),
+      '@site/docs/guide/b.md': countOf({ pages: 1, words: 2 }),
+      '@site/docs/guide/deep/c.md': countOf({ pages: 1, words: 3 }),
+    });
+
+    expect(folders['@site/docs/guide']).toMatchObject({ pages: 2, words: 5 });
+    expect(folders['@site/docs']).toMatchObject({ pages: 3, words: 6 });
+    expect(folders['@site']).toMatchObject({ pages: 3, words: 6 });
+  });
+
+  it('地址里没有目录时不留格', () => {
+    expect(foldersOf({ 'README.md': countOf({ pages: 1 }) })).toEqual({});
   });
 });
 
@@ -365,7 +553,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
 
     const stats = await collectStats(allContent, context);
 
-    expect(stats.groups).toEqual([
+    expect(stats.groups).toMatchObject([
       // 「两个 词」3 个字 + 标题里的 A 一个词；「hello world」两个词
       {
         cjk: 3,
@@ -386,6 +574,13 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     ]);
     expect(stats).toMatchObject({ cjk: 9, latin: 3, words: 12, pages: 3 });
+    // 实例合计是配置期先合好的：每个 id 一格，页面侧只查表
+    expect(stats.instances).toMatchObject({
+      default: { pages: 2, words: 6 },
+      themes: { pages: 1, words: 6 },
+    });
+    // 两个实例的文件都在同一份 `docs/` 底下，目录那一格是两边合计
+    expect(stats.folders['@site/docs']).toMatchObject({ pages: 3, words: 12 });
   });
 
   it('头部那段 YAML 不数，正文里的标题行照数', async () => {
@@ -440,6 +635,42 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
     });
   });
 
+  it('清单里的非 markdown 文档（.dbml）按整份正文数，构建不红', async () => {
+    // 本站把 `.dbml` 也收进 docs：它不按 MDX 编译，硬套解析器会报 acorn 错
+    const withHead = docFile(
+      'chart.dbml',
+      '---\ntitle: 关系图\n---\n\nTable users {\n  id integer\n}\n',
+    );
+    const withoutHead = docFile('bare.dbml', 'Table orders\n');
+    const allContent = {
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            {
+              versionName: 'current',
+              docs: [docOf('chart', withHead), docOf('bare', withoutHead)],
+            },
+          ],
+        },
+      },
+    } as unknown as AllContent;
+
+    const stats = await collectStats(allContent, context);
+
+    expect(stats.docs[withHead]).toMatchObject({
+      frontmatter: 1,
+      h1: 0,
+      pages: 1,
+      words: 4,
+    });
+    expect(stats.docs[withoutHead]).toMatchObject({
+      frontmatter: 0,
+      pages: 1,
+      words: 2,
+    });
+    expect(stats.groups[0]).toMatchObject({ latin: 6, pages: 2, words: 6 });
+  });
+
   it('每页那一格留在 docs 里，键就是清单里的 source', async () => {
     const source = docFile('folder/deep/x.md', '这一页 两个词 hello\n');
     const allContent = {
@@ -455,10 +686,64 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
     const stats = await collectStats(allContent, context);
 
     // 「这一页 两个词」6 个字 + hello 一个词；键与清单里的 `source` 同一个形状
-    expect(stats.docs).toEqual({
-      [source]: { cjk: 6, latin: 1, words: 7 },
+    expect(stats.docs).toMatchObject({
+      [source]: { cjk: 6, latin: 1, pages: 1, words: 7 },
     });
+    expect(Object.keys(stats.docs)).toEqual([source]);
     expect(stats.groups[0]).toMatchObject({ cjk: 6, latin: 1, words: 7 });
+  });
+
+  it('生产构建分出去的草稿也数：docs 与 drafts 两处并起来只读一次', async () => {
+    const published = docFile('published.md', '正页 一句\n');
+    const draft = docFile(
+      'draft.md',
+      '---\ntitle: 草稿\ndraft: true\n---\n\n草稿 一句\n',
+    );
+    const allContent = {
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            {
+              versionName: 'current',
+              docs: [docOf('p', published)],
+              drafts: [docOf('d', draft)],
+            },
+          ],
+        },
+      },
+    } as unknown as AllContent;
+
+    const stats = await collectStats(allContent, context);
+
+    // 两页都进：正页 4 个字，草稿正文 4 个字（frontmatter 不进词数）
+    expect(stats.docs[draft]).toMatchObject({ drafts: 1, pages: 1, words: 4 });
+    expect(stats.groups[0]).toMatchObject({
+      drafts: 1,
+      frontmatter: 1,
+      pages: 2,
+      words: 8,
+    });
+    expect(stats).toMatchObject({ drafts: 1, pages: 2, words: 8 });
+  });
+
+  it('草稿留在 docs 里（开发模式）时同样记进「草稿数量」', async () => {
+    const draft = docFile(
+      'dev-draft.md',
+      '---\ntitle: 草稿\ndraft: true\n---\n\n一句\n',
+    );
+    const allContent = {
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            { versionName: 'current', docs: [docOf('d', draft)] },
+          ],
+        },
+      },
+    } as unknown as AllContent;
+
+    const stats = await collectStats(allContent, context);
+
+    expect(stats).toMatchObject({ drafts: 1, pages: 1, words: 2 });
   });
 
   it('没有 label 时用 versionName 顶上，有 label 时显示名就是那一格的名字', async () => {
@@ -481,7 +766,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
     ]);
   });
 
-  it('两份实例里的空版本也占一格：那一格页数 0、三个数都是 0', async () => {
+  it('两份实例里的空版本也占一格：那一格页数 0、各项都是 0', async () => {
     const allContent = {
       '@docusaurus/plugin-content-docs': {
         default: { loadedVersions: [{ versionName: 'current', docs: [] }] },
@@ -490,7 +775,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
 
     const stats = await collectStats(allContent, context);
 
-    expect(stats.groups).toEqual([
+    expect(stats.groups).toMatchObject([
       {
         instance: 'default',
         version: 'current',
@@ -498,9 +783,16 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
         latin: 0,
         words: 0,
         pages: 0,
+        frontmatter: 0,
       },
     ]);
-    expect(stats).toMatchObject({ words: 0, pages: 0 });
+    expect(stats).toMatchObject({
+      words: 0,
+      pages: 0,
+      instances: {},
+      folders: {},
+      docs: {},
+    });
   });
 
   it('同一格重复出现时合进去，不多开一格', async () => {
@@ -584,66 +876,89 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       /not site-aliased/,
     );
   });
+
+  it('正文不是合法 MDX 时把文件路径补进错误里，构建日志找得到哪一页', async () => {
+    const source = docFile('broken.md', '正文 {1 +}\n');
+    const allContent = {
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            { versionName: 'current', docs: [docOf('k', source)] },
+          ],
+        },
+      },
+    } as unknown as AllContent;
+
+    await expect(collectStats(allContent, context)).rejects.toThrow(
+      /解析 .*broken\.md 失败/,
+    );
+  });
 });
 
-describe('scope：本页与本文件夹从生成的每页明细里挑', () => {
+describe('scope：四种范围都只查配置期合好的表', () => {
   const docs = {
-    '@site/docs/a.md': { cjk: 1, latin: 1, words: 2 },
-    '@site/docs/guide/b.md': { cjk: 2, latin: 0, words: 2 },
-    '@site/docs/guide/deep/c.md': { cjk: 3, latin: 0, words: 3 },
-    '@site/docs/guides/d.md': { cjk: 4, latin: 0, words: 4 },
-    '@site/themes/a.md': { cjk: 5, latin: 0, words: 5 },
+    '@site/docs/a.md': countOf({ cjk: 1, latin: 1, pages: 1, words: 2 }),
+    '@site/docs/guide/b.md': countOf({ cjk: 2, pages: 1, words: 2 }),
+    '@site/docs/guide/deep/c.md': countOf({ cjk: 3, pages: 1, words: 3 }),
+    '@site/docs/guides/d.md': countOf({ cjk: 4, pages: 1, words: 4 }),
+    '@site/themes/a.md': countOf({ cjk: 5, pages: 1, words: 5 }),
+  };
+  const stats: WordCountStats = {
+    ...EMPTY,
+    groups: [],
+    instances: {
+      default: countOf({ cjk: 10, latin: 1, pages: 4, words: 11 }),
+      themes: countOf({ cjk: 5, pages: 1, words: 5 }),
+    },
+    folders: foldersOf(docs),
+    docs,
   };
 
-  it('本页就是明细里那一格，页数记 1；键不在明细里时不猜', () => {
-    expect(ofPage(docs, '@site/docs/guide/deep/c.md')).toEqual({
-      cjk: 3,
-      latin: 0,
-      pages: 1,
-      words: 3,
-    });
-    expect(ofPage(docs, '@site/docs/gone.md')).toBeUndefined();
+  it('本页就是明细里那一格，页数那一格原样带着；键不在明细里时不猜', () => {
+    expect(ofPage(stats, '@site/docs/guide/deep/c.md')).toBe(
+      docs['@site/docs/guide/deep/c.md'],
+    );
+    expect(ofPage(stats, '@site/docs/gone.md')).toBeUndefined();
   });
 
   it('本文件夹含子目录，右侧那个分隔挡住名字相近的邻居', () => {
-    // `docs/guide/` 收 b 与 deep/c；`docs/guides/d.md` 是另一个目录，不进这一格
-    expect(ofFolder(docs, '@site/docs/guide/b.md')).toEqual({
+    // `docs/guide` 收 b 与 deep/c；`docs/guides/d.md` 是另一个目录，不进这一格
+    expect(ofFolder(stats, '@site/docs/guide/b.md')).toMatchObject({
       cjk: 5,
-      latin: 0,
       pages: 2,
       words: 5,
     });
   });
 
   it('内容根根目录那一页按整个根合计；地址里没有目录那一段时挑不出', () => {
-    expect(ofFolder(docs, '@site/docs/a.md')).toEqual({
+    expect(ofFolder(stats, '@site/docs/a.md')).toMatchObject({
       cjk: 10,
       latin: 1,
       pages: 4,
       words: 11,
     });
-    expect(ofFolder(docs, 'README.md')).toBeUndefined();
+    expect(ofFolder(stats, 'README.md')).toBeUndefined();
+  });
+
+  it('内容根取实例那一格；没有这一格时不猜', () => {
+    expect(ofInstance(stats, 'themes')).toMatchObject({
+      cjk: 5,
+      pages: 1,
+      words: 5,
+    });
+    expect(ofInstance(stats, 'blog')).toBeUndefined();
   });
 });
 
 describe('renderStatsModule：生成模块只有那一句导出', () => {
   it('写出来的文本读回来就是同一份统计', () => {
-    const stats = {
-      cjk: 1,
-      latin: 2,
-      words: 3,
-      pages: 4,
-      groups: [
-        {
-          cjk: 1,
-          latin: 2,
-          words: 3,
-          instance: 'default',
-          pages: 4,
-          version: 'current',
-        },
-      ],
-      docs: { '@site/docs/a.md': { cjk: 1, latin: 2, words: 3 } },
+    const page = countOf({ cjk: 1, latin: 2, pages: 1, words: 3 });
+    const stats: WordCountStats = {
+      ...countOf({ cjk: 1, latin: 2, pages: 4, words: 3 }),
+      groups: [{ ...page, instance: 'default', version: 'current' }],
+      instances: { default: page },
+      folders: { '@site/docs': page },
+      docs: { '@site/docs/a.md': page },
     };
 
     const text = renderStatsModule(stats);
@@ -698,5 +1013,9 @@ describe('theme-word-count 入口：把统计铺进生成目录', () => {
     expect(text).toContain('"pages": 1');
     // 每页那一格也铺进去了：浏览器侧按这一页的 source 挑
     expect(text).toContain('"@site/docs/run.md"');
+    // 实例与目录在配置期先合好，页面里不做加法
+    expect(text).toContain('"instances"');
+    expect(text).toContain('"folders"');
+    expect(text).toContain('"@site/docs"');
   });
 });

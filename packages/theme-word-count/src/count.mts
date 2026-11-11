@@ -1,4 +1,4 @@
-import type { WordCount } from '../types/word-count.ts';
+import type { WordTally } from '../types/word-count.ts';
 
 /**
 「一个词」的两种来源，各数一种：CJK 一个字算一个，其余一段连续的字母数字算一个。
@@ -31,7 +31,7 @@ const LATIN = /[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu;
 `split` 的段数减一是匹配次数（无捕获组的正则才会这样算，上面两把都没有捕获组）；
 拉丁那一路先按 CJK 隔开再数，见下面那一句注释。
 */
-export function countWords(text: string): WordCount {
+export function countWords(text: string): WordTally {
   const cjk = text.split(CJK).length - 1;
   // 汉字换成空格再数其余那一种：`\p{L}` 也认汉字，不先隔开就是同一个字被数两遍。
   const latin = text.replaceAll(CJK, ' ').matchAll(LATIN).toArray().length;

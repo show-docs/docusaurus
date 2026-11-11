@@ -1,54 +1,39 @@
-import type { WordCount } from '../../types/word-count.ts';
+import type { WordCount, WordCountStats } from '../../types/word-count.ts';
 
-/** 块上摆出来的那一份数：三类词的和，加上这些数来自几页。 */
-export type Totals = WordCount & { pages: number };
+/**
+三种范围各从生成模块的哪一格取数。
 
-export const ZERO: Totals = { cjk: 0, latin: 0, words: 0, pages: 0 };
+配置期已经把「按实例」「按目录」合好了（见 `../../src/aggregate.mts` 与 `content.mts`），
+这里只查表：页面里不做加法，也就不会出现「两处求和口径各写一遍」。
+*/
 
-export function add(left: Totals, right: Totals): Totals {
-  return {
-    cjk: left.cjk + right.cjk,
-    latin: left.latin + right.latin,
-    words: left.words + right.words,
-    pages: left.pages + right.pages,
-  };
-}
-
-/** 一页在生成模块 `docs` 里那一格：源地址同一个 `@site/…`，页数记作 1。 */
+/** 本页：明细里那一格；键就是清单里的 `@site/…`，与 `useDoc().metadata.source` 同源。 */
 export function ofPage(
-  docs: Readonly<Record<string, WordCount>>,
+  stats: WordCountStats,
   source: string,
-): Totals | undefined {
-  const page = docs[source];
-
-  return page === undefined ? undefined : { ...page, pages: 1 };
+): WordCount | undefined {
+  return stats.docs[source];
 }
 
 /**
-当前页所在文件夹（含子目录）的合计：按源地址前缀挑，不另存一张目录表。
+本文件夹（含子目录）：`source` 砍掉最后一段去查配置期合好的那一张表。
 
-`source` 是 `@site/<相对路径>`，同一目录下的页共享 `@site/<目录>/` 这个前缀；子目录里的页
-也以它打头，所以一次前缀求和就含子目录。右侧补的那个 `/` 是分隔：`docs/guide` 那一格收不到
-`docs/guides/…`。各内容根的路径不同，天然分开；两个实例挂同一个目录时按目录合计。
+表里的每一格含所有子目录；键不带结尾 `/`，所以 `docs/guide` 收不到 `docs/guides/…`。
+地址里没有 `/` 时挑不出目录，交回 `undefined`。
 */
 export function ofFolder(
-  docs: Readonly<Record<string, WordCount>>,
+  stats: WordCountStats,
   source: string,
-): Totals | undefined {
+): WordCount | undefined {
   const cut = source.lastIndexOf('/');
 
-  if (cut === -1) {
-    return undefined;
-  }
+  return cut === -1 ? undefined : stats.folders[source.slice(0, cut)];
+}
 
-  const prefix = source.slice(0, cut + 1);
-  let totals = ZERO;
-
-  for (const [path, count] of Object.entries(docs)) {
-    if (path.startsWith(prefix)) {
-      totals = add(totals, { ...count, pages: 1 });
-    }
-  }
-
-  return totals;
+/** 所在内容根：`instances` 里已经按实例合好的那一格。 */
+export function ofInstance(
+  stats: WordCountStats,
+  instance: string,
+): WordCount | undefined {
+  return stats.instances[instance];
 }

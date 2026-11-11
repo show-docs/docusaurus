@@ -26,6 +26,22 @@ const wordsOf = (text: string): number =>
 const pagesOf = (text: string): number =>
   Number(/来自\s*(\d+)\s*页/.exec(text)?.[1]);
 
+/** 明细表里某一行右侧那一格：左边那一格按整句匹配，免得「标题数」撞上「一级标题数」。 */
+const metricOf = async (
+  page: Page,
+  title: string,
+  metric: string,
+): Promise<number> => {
+  const row = statsBlock(page, title)
+    .locator('tr')
+    .filter({
+      has: page.getByRole('cell', { exact: true, name: metric }),
+    });
+  const value = await row.getByRole('cell').nth(1).textContent();
+
+  return Number(value?.trim());
+};
+
 Given('我打开字数统计示例页', async ({ page }) => {
   watchPageErrors(page);
   await page.goto('/theme-word-count/docs/word-count-demo');
@@ -171,6 +187,60 @@ Then('「全站字数」那一块列出两个内容根', async ({ page }) => {
   for (const instance of INSTANCES) {
     expect(text, `全站那一块没列 ${instance}：${text}`).toContain(instance);
   }
+});
+
+/**
+明细表与总数那一句必须自洽：文件数量对页数、词数对总数、两类文字加起来对词数。
+
+这三条都是生成模块里同一格数据的两种读法：只要有一段是页面里现算的，或者某个范围挑错了格，
+至少有一条对不上。字符数只钉「大于 0」，它的口径单独在单测里钉。
+*/
+Then(
+  /^「([^」]+)」那一块的明细表与总数自洽$/,
+  async ({ page }, title: string) => {
+    const text = await blockText(page, title);
+    const words = wordsOf(text);
+
+    await expect(
+      statsBlock(page, title).getByRole('table'),
+      '明细表没有渲染',
+    ).toBeVisible();
+    expect(
+      await metricOf(page, title, '文件数量'),
+      `文件数量与页数那一句不一致：${text}`,
+    ).toBe(pagesOf(text));
+    expect(
+      await metricOf(page, title, '词数'),
+      `词数一行与总数那一句不一致：${text}`,
+    ).toBe(words);
+    expect(
+      (await metricOf(page, title, '中日韩文字')) +
+        (await metricOf(page, title, '其余文字')),
+      `两类文字加起来不等于词数：${text}`,
+    ).toBe(words);
+    expect(
+      await metricOf(page, title, '字符数'),
+      `字符数为 0：${text}`,
+    ).toBeGreaterThan(0);
+  },
+);
+
+// 本页这一格的页数是 1：明细表里那一行必须与「这一块只数这一页」对上。
+Then('「本页字数」那一块的明细表只有这一页', async ({ page }) => {
+  const text = await blockText(page, '本页字数');
+
+  await expect(
+    statsBlock(page, '本页字数').getByRole('table'),
+    '明细表没有渲染',
+  ).toBeVisible();
+  expect(
+    await metricOf(page, '本页字数', '文件数量'),
+    `本页的文件数量不是 1：${text}`,
+  ).toBe(1);
+  expect(
+    await metricOf(page, '本页字数', '词数'),
+    `词数一行与总数那一句不一致：${text}`,
+  ).toBe(wordsOf(text));
 });
 
 /**

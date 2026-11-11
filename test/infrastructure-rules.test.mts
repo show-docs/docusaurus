@@ -98,15 +98,17 @@ function chainBelow(dir: string): Set<string> {
   );
 }
 
-/** 一个包里参与「谁依赖谁」的文件（跳过 `node_modules` 与产物）。 */
+/** 一个包里参与「谁依赖谁」的文件（跳过 `node_modules`、产物与嵌套的子包）。 */
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const file = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      return entry.name === 'node_modules' || entry.name === 'dist'
-        ? []
-        : sourceFiles(file);
+      // 嵌套目录自带 package.json 时它是一份独立的包（例如塞在包里的参考脚本），
+      // 用的是它自己那份清单，不记在外层包的依赖账上。
+      return entry.name === 'node_modules' ||
+        entry.name === 'dist' ||
+        existsSync(path.join(file, 'package.json')) ? [] : sourceFiles(file);
     }
 
     return sourceExt.test(entry.name) ? file : [];
