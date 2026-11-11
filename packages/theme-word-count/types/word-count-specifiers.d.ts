@@ -6,7 +6,7 @@
 口径同 `@theme/*` 那一族（见 `packages/plugin-prev-layer-resolver/types/theme-specifiers.d.ts`）。
 
 形状只在 `./word-count.d.ts` 里写：产出它的文本在 `../src/stats-module.mts`，读它的是
-`../theme/WordCountPage`，两侧都从这里取类型。
+`../theme/WordCount`，两侧都从这里取类型。
 */
 declare module '@generated/theme-word-count/stats' {
   export const stats: import('./word-count.ts').WordCountStats

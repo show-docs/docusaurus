@@ -342,8 +342,7 @@ export default {
 
 - 本包是基础设施链中间那一格：站点自己写两格是一条用法，别的插件在 `loadContent()` 里
   交回 `{ componentPage }` 是另一条（三条 API 层的框内视图、`theme-iframe` 的 `iframe:`、
-  `theme-markmap` 的导图页、`theme-erd` 的关系图页、`theme-diff` 的差异页与
-  `theme-word-count` 的全站字数页就是这么接上的）。
+  `theme-markmap` 的导图页、`theme-erd` 的关系图页与 `theme-diff` 的差异页就是这么接上的）。
   四格的规矩写在[解析器包的维护者文档](../plugin-prev-layer-resolver/docs/internals.md) 的
   「基础设施链的规矩」一节。
 - [示例页](./docs/component-page-demo.md)：这一层命中时长什么样。

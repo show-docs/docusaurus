@@ -31,6 +31,7 @@ import type {
 } from '../types/word-count.ts';
 
 import { countWords } from './count.mts';
+import { withoutWordCountDirectives } from './directive.mts';
 
 /** 一份文档在清单里被认出来的那几格（其余各格本包一眼都不看）。 */
 interface DocLike {
@@ -76,7 +77,8 @@ function fileOf(source: string, siteDir: string): string {
 
 frontmatter 用的就是站点渲染这一页时那一份解析器（`siteConfig.markdown.parseFrontMatter`，
 别的层可以包住它），所以「剥掉的那一段」与「页面开头看不见的那一段」是同一件事；
-正文里的标题行照数，那是看得见的文字。
+正文里的标题行照数，那是看得见的文字。`:::word-count` 那一行是看不见的语法，
+与预处理器共用同一个扫描器剥掉。
 */
 async function countFile(
   file: string,
@@ -88,14 +90,17 @@ async function countFile(
     parseFrontMatter,
   });
 
-  return countWords(content);
+  return countWords(withoutWordCountDirectives(content));
 }
 
 /**
-全站那一份统计：把清单里每一条解成文件、逐页数完，再按「实例 + 版本」各合一格。
+全站那一份统计：把清单里每一条解成文件、逐页数完，再按「实例 + 版本」各合一格，
+同时留下每页的明细。
 
 格子的顺序跟着清单走（实例、版本），同一份内容根每次都是同一份产物；
-`pages` 就是那一格里数到的页数，不另数一遍。
+`pages` 就是那一格里数到的页数，不另数一遍。`docs` 那一张表的键就是清单里的 `source`
+（`@site/…`），浏览器侧拿 `useDoc().metadata.source` 直接查 —— 本文件夹的范围也由它
+按目录前缀在表内求和，不另发一张文件夹表。
 */
 export async function collectStats(
   allContent: AllContent,
@@ -108,6 +113,8 @@ export async function collectStats(
     string,
     { instance: string; version: string; counts: WordCount[] }
   >();
+  /** 每页的字数：键是清单里的 `source`，值就是这一份文件交回的那三格。 */
+  const docs: Record<string, WordCount> = {};
 
   for (const byId of Object.values(allContent)) {
     for (const [instance, content] of Object.entries(byId)) {
@@ -132,6 +139,7 @@ export async function collectStats(
             parseFrontMatter,
           );
 
+          docs[doc.source] = count;
           group.counts.push(count);
         }
       }
@@ -149,5 +157,6 @@ export async function collectStats(
     ...sumOf(entries.flatMap(({ counts }) => counts)),
     pages: statsGroups.reduce((total, group) => total + group.pages, 0),
     groups: statsGroups,
+    docs,
   };
 }

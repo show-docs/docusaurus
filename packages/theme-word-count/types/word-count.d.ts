@@ -1,6 +1,6 @@
 /**
 「全站字数」那一份数据的形状：配置期算出来并铺进生成模块（`../src/stats-module.mts`），
-浏览器期由 `../theme/WordCountPage` 读（那一句 `import` 的类型来自本包
+浏览器期由 `../theme/WordCount` 读（那一句 `import` 的类型来自本包
 `word-count-specifiers.d.ts`）。
 
 形状为什么单独占一份 `.d.ts`，而不是跟算法一起留在 `src/`：`src/` 要过 `tsc`（`rootDir` 是
@@ -23,7 +23,7 @@ export type WordCount = {
 export type WordCountGroup = WordCount & {
   /**
   docs 实例的 id（站点 `plugins` 里那一份实例的 `id`；缺省那一份是 `default`）。
-  页面侧按同一个 id 从分组里挑自己那一根：`theme/WordCountPage` 读的路由上下文 `plugin.id`
+  页面侧按同一个 id 从分组里挑自己那一根：`theme/WordCount` 读的路由上下文 `plugin.id`
   就是它（两处都是 `plugin.options.id`）。
   */
   instance: string
@@ -33,10 +33,21 @@ export type WordCountGroup = WordCount & {
   pages: number
 }
 
-/** 生成模块里交出的那一份：全站那一格，加上按实例与版本分的其余各格。 */
+/** 指令能带的四种范围：本页 / 本文件夹（含子目录）/ 所在内容根 / 全站。 */
+export type WordCountScope = 'page' | 'folder' | 'instance' | 'site'
+
+/** 生成模块里交出的那一份：全站那一格，加上按实例与版本分的其余各格与每页明细。 */
 export type WordCountStats = WordCount & {
   /** 全站页数（各格 `pages` 之和）。 */
   pages: number
-  /** 按「实例 + 版本」分的那几格，顺序是清单里第一次见到那一格的顺序。 */
+  /**
+  按「实例 + 版本」分的那几格，顺序是清单里第一次见到那一格的顺序。
+  `theme/WordCount` 用路由上下文的 `plugin.id` 挑自己那一份（只到实例，到不了版本）。
+  */
   groups: WordCountGroup[]
+  /**
+  每页的字数，键与清单里的 `source` 相同（`@site/…`）。浏览器侧用
+  `useDoc().metadata.source` 直接查：本页取那一条，本文件夹按它的目录前缀在表内求和。
+  */
+  docs: Record<string, WordCount>
 }

@@ -2,11 +2,10 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { ComponentPageContent } from '@show-docs/docusaurus-theme-component-page/lib/component-page.ts';
-
 import type { LoadContext, Plugin } from '@docusaurus/types';
 
 import { collectStats } from './content.mts';
+import { installPreprocessor } from './directive.mts';
 import { renderStatsModule } from './stats-module.mts';
 
 // 包出口是 `dist/`，所以这里的路径都相对**产物**目录算，不是相对 `src/`。
@@ -22,42 +21,49 @@ const NAMESPACE = '@show-docs/docusaurus-theme-word-count';
 const STATS_FILE = join('theme-word-count', 'stats.ts');
 
 /**
-本层的入口：`getThemePath()` 挂本包那一层（里面只有 `WordCountPage`），`loadContent()` 交出
-**一份组件与一条规则**（`wordCount` 那一把键、`@theme/WordCountPage`），判表与挂载都在
-`@show-docs/docusaurus-theme-component-page` 里；`allContentLoaded()` 算出全站那份统计并铺成
-浏览器读得到的生成模块。于是本层有两个前提：那一层要装进站点、并注册成插件，以及**至少有一份
-docs 实例**（没有内容根时全站数字全是 0，这一格由数字自己说，配置期不查）。
+本层的入口：`loadContent()` 把 `:::word-count` 的预处理器包到站点那份
+`markdown.preprocessor` 上，`allContentLoaded()` 算出全站那份统计并铺成浏览器读得到的
+生成模块，`getThemePath()` 挂本包那一层（里面只有 `WordCount` 那一块）。
 
-`wordCount` 那把键的判法是 `boolean`：只有认真布尔 `true`，写串文本或选项对象都不算命中
-（判法与落空告警都在机制层）。命中后整页交给 `@theme/WordCountPage`（`render` 缺省即 `page`：
-统计摆在正文上方，正文仍由官方 `DocItem` 渲染）；那一页只显示**自己所在实例**的那一份，
-挑格的口径见该组件的注释与 `docs/internals.md`。
+**触发条件是正文里那一行 `:::word-count`**，不是 frontmatter 里的一把键：指令写在哪儿，
+那一块就出现在哪儿，正文其余部分一个字都不动。它由预处理器换成 `<__WordCount />`
+（`./directive.mts`），换出来的是 MDX 正文里的一个普通组件 —— 本层因此不再向
+`@show-docs/docusaurus-theme-component-page` 交规则，也不要求站点再注册任何一层。
+
+**为什么挂在 `markdown.preprocessor`**：Docusaurus 的 `markdown` 配置没有给主题层留
+`remarkPlugins`（那几格按内容插件各配各的），主题包零配置能改的就只有这一格。它在 MDX
+编译前拿到文件原文，指令那一行换成组件、文首补一句 import；限制（这一份文件必须按 MDX
+解析）记在 README 的「已知限制」。
 
 **为什么算在 `allContentLoaded` 而不是 `postBuild`**：产物里的数字要能被静态渲染看见，而
 `postBuild` 跑在 HTML 已经写完之后 —— 那时算出来的数只赶得上下一轮构建。这一步是配置期唯一
-「所有插件的 content 都已到齐」的点（机制层铺那张规则表用的也是它），客户端打包在它之后，
-所以生成模块赶得上第一次打包。每轮都从完整的 `allContent` 全量重算并整份覆写：
-没有「这一轮只看到一部分内容根就先把数铺出去」的中间状态。
-
-组件写的是 `@theme/WordCountPage` 而不是硬路径：站点在 `src/theme/WordCountPage` 放一份就覆写掉它，
-与站点自己那一列同一条口径。
+「所有插件的 content 都已到齐」的点，客户端打包在它之后，所以生成模块赶得上第一次打包。
+每轮都从完整的 `allContent` 全量重算并整份覆写：没有「这一轮只看到一部分内容根就先把数铺
+出去」的中间状态。
 
 `theme/` 是本层静态的那一半，不经 `tsc`：用本包的 Docusaurus 项目会用自己的 babel 编译它。
 「谁来编」归 `@show-docs/docusaurus-plugin-compile-source`，本包不自己补 babel 规则。
 */
 export default function theme(context: LoadContext): Plugin {
+  const { markdown } = context.siteConfig;
+
+  /**
+  把预处理器包上去，只包一次。
+
+  时机必须在第一次 MDX 编译之前：所有插件的 `loadContent()` 都早于 webpack 配置，而
+  mdx-loader 在 `configureWebpack()` 里读的是同一个 `siteConfig.markdown` 对象。
+  */
+  const install = () => {
+    installPreprocessor(markdown);
+  };
+
   return {
     name: NAMESPACE,
     loadContent() {
-      return {
-        componentPage: {
-          components: [{ id: 'word-count', component: '@theme/WordCountPage' }],
-          rules: [
-            { key: 'wordCount', match: 'boolean', component: 'word-count' },
-          ],
-        },
-      } satisfies ComponentPageContent;
+      install();
     },
+    // 插件被单独 reload（`reloadSite()`）时会重跑这一阶段
+    contentLoaded: install,
     async allContentLoaded({ allContent }) {
       const stats = await collectStats(allContent, context);
       const target = join(context.generatedFilesDir, STATS_FILE);

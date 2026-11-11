@@ -249,17 +249,15 @@ https 页面上把 `http:` 升上来）。它不提供 `DocItem`、不提供通�
 和一条 `{ key, match: 'boolean', render: 'iframe' }` 的规则；要渲染哪份文档读它们自己的那两把
 spec 键（`oas3:` / `aas3:`），键名由它们自己传给 `lib/frontmatter-values.ts`，机制层不认得。
 
-`theme-markmap`、`theme-erd`、`theme-diff` 与 `theme-word-count` 是另外四个交出方，走的还是同一条约定：各交回
+`theme-markmap`、`theme-erd`、`theme-diff` 是另外三个交出方，走的还是同一条约定：各交回
 `{ key: 'markmap', match: 'options', component: 'markmap' }`、
-`{ key: 'dbml_json', match: 'any', component: 'erd' }`、
-`{ key: 'diff', match: 'any', component: 'diff' }` 与
-`{ key: 'wordCount', match: 'boolean', component: 'word-count' }`，组件指回自己的
-`@theme/MarkmapPage` / `@theme/ErdPage` / `@theme/DiffPage` / `@theme/WordCountPage`。`markmap` 是「开着、选项写在键里」，由 `options` 判法原样
+`{ key: 'dbml_json', match: 'any', component: 'erd' }` 与
+`{ key: 'diff', match: 'any', component: 'diff' }`，组件指回自己的
+`@theme/MarkmapPage` / `@theme/ErdPage` / `@theme/DiffPage`。`markmap` 是「开着、选项写在键里」，由 `options` 判法原样
 交给它自己的页面组件；`dbml_json` 那把键**不写在 frontmatter 里** —— 它是 `theme-erd` 的 loader
 给 `.dbml` 页追加的 `export const`，判据读模块导出那一处才命中；`diff` 那把键三种写法各有含义
-（`true` 比本文自己、路径比那一份、`{ old, new }` 比磁盘上那两份），所以用 `any`；`wordCount`
-只认认真布尔 `true`，与三条 API 层同一把判法。这四条都是
-`render: 'page'`：它们在正文上方多插一块视图或一格统计，要留正文，所以用不了 iframe 那一侧。
+（`true` 比本文自己、路径比那一份、`{ old, new }` 比磁盘上那两份），所以用 `any`。这三条都是
+`render: 'page'`：它们在正文上方多插一块视图，要留正文，所以用不了 iframe 那一侧。
 
 本包在配置期**一条前提都不查**，入口因此没有 `loadContent()`：本层是「装了就能用」那一族机制里
 最下面的一格，不该背一个自己用不到的包，而那两句判据都要读站点那份插件清单、判据只有解析器包

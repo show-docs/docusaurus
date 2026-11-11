@@ -16,7 +16,7 @@ import type { WordCountStats } from '../types/word-count.ts';
 export function renderStatsModule(stats: WordCountStats): string {
   return `// 这份文件由 @show-docs/docusaurus-theme-word-count 在配置期生成，别手改。
 // 要改的是各 docs 实例加载到的那批文件；改完重启站点（\`docusaurus start\` 会重跑那一步）。
-// 形状在本包 types/word-count.d.ts，读它的是本包 theme/WordCountPage。
+// 形状在本包 types/word-count.d.ts，读它的是本包 theme/WordCount。
 export const stats = ${JSON.stringify(stats, undefined, 2)};
 `;
 }

@@ -12,19 +12,26 @@ const { Given, Then } = createBdd();
 认 `.theme-admonition` 而不是产物里那个 `admonition_xxxx` —— 官方那份组件的 CSS 类名带哈希，
 `theme-admonition` 与 `alert` 才是稳定那一半。再按标题的这句话筛，就不必赌 DOM 深浅。
 */
-const statsBlock = (page: Page): ReturnType<Page['locator']> =>
-  page.locator('.theme-admonition', { hasText: '内容根字数' });
+const statsBlock = (page: Page, title: string): ReturnType<Page['locator']> =>
+  page.locator('.theme-admonition', { hasText: title });
 
-/** 那一块上的整段文本（标题、总数那一句、多版本时那几行，连成一串）。 */
-const blockText = async (page: Page): Promise<string> =>
-  (await statsBlock(page).textContent()) ?? '';
+/** 某一块的整段文本（标题、总数那一句、多版本时那几行，连成一串）。 */
+const blockText = async (page: Page, title: string): Promise<string> =>
+  (await statsBlock(page, title).textContent()) ?? '';
 
-Given('我打开全站字数示例页', async ({ page }) => {
+/** 块上那句总数里的词数与页数；句子形状由本层组件的模板定，数本身不断言。 */
+const wordsOf = (text: string): number =>
+  Number(/共\s*(\d+)\s*个词/.exec(text)?.[1]);
+
+const pagesOf = (text: string): number =>
+  Number(/来自\s*(\d+)\s*页/.exec(text)?.[1]);
+
+Given('我打开字数统计示例页', async ({ page }) => {
   watchPageErrors(page);
   await page.goto('/theme-word-count/docs/word-count-demo');
 });
 
-/** 另一棵内容根（`themes`）的那一页：落地页自己写了 `wordCount: true`。 */
+/** 另一棵内容根（`themes`）的那一页：落地页正文里有一行 `:::word-count`。 */
 Given('我打开主题包说明页', async ({ page }) => {
   watchPageErrors(page);
   await page.goto('/themes/');
@@ -36,17 +43,19 @@ Given('我打开主题包说明页', async ({ page }) => {
 **不断言具体数字**：本站的内容根每加一页文档，总数就变。这一格要钉的是「配置期算出来的数走到了
 静态 HTML」—— 数在客户端没有第二次请求，首屏文本里就得有它。
 */
-Then('统计那一格写明总词数与页数', async ({ page }) => {
-  const text = await blockText(page);
+Then(
+  /^「([^」]+)」那一块写明总词数与页数$/,
+  async ({ page }, title: string) => {
+    const text = await blockText(page, title);
+    const words = wordsOf(text);
+    const pages = pagesOf(text);
 
-  const words = /共\s*(\d+)\s*个词/.exec(text)?.[1];
-  const pages = /来自\s*(\d+)\s*页/.exec(text)?.[1];
-
-  expect(words, `这一句里没有总词数：${text}`).toBeTruthy();
-  expect(pages, `这一句里没有页数：${text}`).toBeTruthy();
-  expect(Number(words), '总词数是 0：生成模块没进浏览器').toBeGreaterThan(0);
-  expect(Number(pages), '页数是 0：清单里一份文档都没数到').toBeGreaterThan(0);
-});
+    expect(words, `这一句里没有总词数：${text}`).toBeTruthy();
+    expect(pages, `这一句里没有页数：${text}`).toBeTruthy();
+    expect(words, '总词数是 0：生成模块没进浏览器').toBeGreaterThan(0);
+    expect(pages, '页数是 0：清单里一份文档都没数到').toBeGreaterThan(0);
+  },
+);
 
 /**
 站点两份实例的 id。哪一页归哪一份由句子点名，实现不按地址猜：断言的是块上**只**出现它。
@@ -57,9 +66,9 @@ Then('统计那一格写明总词数与页数', async ({ page }) => {
 const INSTANCES = ['default', 'themes'] as const;
 
 Then(
-  /^统计那一格只提 "([^"]+)" 这一个内容根$/,
-  async ({ page }, instance: string) => {
-    const text = await blockText(page);
+  /^「([^」]+)」那一块只提 "([^"]+)" 这一个内容根$/,
+  async ({ page }, title: string, instance: string) => {
+    const text = await blockText(page, title);
 
     expect(INSTANCES, `句子里的实例「${instance}」不在清单里`).toContain(
       instance,
@@ -75,24 +84,52 @@ Then(
   },
 );
 
-// 位置要真的在正文之上：这一层把统计摆在前面，正文仍交回官方那一份 `DocItem`。
+// 位置要真的在指令那一处：示例页把指令写在开场那一段之后，块就得落在那段文字与下一个小标题
+// 之间 —— 这才证明它是插在正文中间，而不是照旧挂在正文最前面。
 // 取第一个 `article`：`/themes/` 那一页的卡片列表（`DocCardList`）里每张卡也是一个 `<article>`，
 // 正文那一份在 DOM 里排在它们前面。
-Then('统计那一格落在正文上方', async ({ page }) => {
-  const [blockBox, articleBox] = [
-    await statsBlock(page).boundingBox(),
-    await page.locator('article').first().boundingBox(),
+Then('统计那一格落在正文那一段之后', async ({ page }) => {
+  const article = page.locator('article').first();
+  const [introBox, blockBox, nextBox] = [
+    await article.getByText('这一页的正文里有几行').boundingBox(),
+    await statsBlock(page, '内容根字数').boundingBox(),
+    await article
+      .getByRole('heading', { name: '数的是哪些文件' })
+      .boundingBox(),
   ];
 
+  expect(introBox, '指令前面那一段没有渲染').not.toBeNull();
   expect(blockBox, '统计那一格没有落位').not.toBeNull();
-  expect(articleBox, '正文没有渲染').not.toBeNull();
-  expect(blockBox!.y + blockBox!.height).toBeLessThanOrEqual(articleBox!.y);
+  expect(nextBox, '指令后面的小标题没有渲染').not.toBeNull();
+  expect(blockBox!.y).toBeGreaterThanOrEqual(introBox!.y + introBox!.height);
+  expect(blockBox!.y + blockBox!.height).toBeLessThanOrEqual(nextBox!.y);
+});
+
+// 另一棵内容根那一页把指令写在「这一页自己的字数」那一节的开头：块要落在这个小标题之后、
+// 它下面那一段之前。
+Then('统计那一格落在「这一页自己的字数」那一节里', async ({ page }) => {
+  const article = page.locator('article').first();
+  const [headingBox, blockBox, introBox] = [
+    await article
+      .getByRole('heading', { name: '这一页自己的字数' })
+      .boundingBox(),
+    await statsBlock(page, '内容根字数').boundingBox(),
+    await article.getByText('这一块数的是').boundingBox(),
+  ];
+
+  expect(headingBox, '指令所在那一节的小标题没有渲染').not.toBeNull();
+  expect(blockBox, '统计那一格没有落位').not.toBeNull();
+  expect(introBox, '指令后面那一段没有渲染').not.toBeNull();
+  expect(blockBox!.y).toBeGreaterThanOrEqual(
+    headingBox!.y + headingBox!.height,
+  );
+  expect(blockBox!.y + blockBox!.height).toBeLessThanOrEqual(introBox!.y);
 });
 
 // 原文没被吃掉（不是替换）。
 Then('正文那一段照常在场', async ({ page }) => {
   await expect(
-    page.locator('article').getByText('这一页的 frontmatter 写了'),
+    page.locator('article').getByText('这一页的正文里有几行'),
     '正文段落不见了',
   ).toBeVisible();
 });
@@ -105,9 +142,72 @@ Then('主题包说明的正文照常在场', async ({ page }) => {
   ).toBeVisible();
 });
 
+// 本页那一块只有一句词数：页数对一页没有意义，组件不写「来自 1 页」。
+Then('「本页字数」那一块只写词数，不写页数', async ({ page }) => {
+  const text = await blockText(page, '本页字数');
+
+  expect(wordsOf(text), `这一句里没有本页词数：${text}`).toBeGreaterThan(0);
+  expect(text, `本页那一块不该写页数：${text}`).not.toContain('来自');
+});
+
+// 本文件夹那一块数的是示例页所在的那一个目录；目录里还有同级的另一份文档，所以页数大于 1。
+Then(
+  /^「本文件夹字数」那一块写明 "([^"]+)" 与页数$/,
+  async ({ page }, folder: string) => {
+    const text = await blockText(page, '本文件夹字数');
+
+    expect(text, `块里没写所在文件夹：${text}`).toContain(folder);
+    expect(
+      pagesOf(text),
+      `本文件夹那一块的页数不大于 1：${text}`,
+    ).toBeGreaterThan(1);
+  },
+);
+
+// 全站那一块把两份实例各列一行：这正是「退回全站」与「只挑自己那一格」的分界。
+Then('「全站字数」那一块列出两个内容根', async ({ page }) => {
+  const text = await blockText(page, '全站字数');
+
+  for (const instance of INSTANCES) {
+    expect(text, `全站那一块没列 ${instance}：${text}`).toContain(instance);
+  }
+});
+
+/**
+四个范围的数一层套一层：本页 ⊆ 本文件夹 ⊆ 内容根 ⊆ 全站。
+
+只钉方向、不钉数字：这一页所在目录里还有另一份文档，内容根里还有别的包，全站里还有另一棵根，
+所以四条都该是严格小于。数值如果反了，说明挑错了范围（例如 `folder` 只算了这一页）。
+*/
+Then('四块的词数按页、文件夹、内容根、全站依次变大', async ({ page }) => {
+  const titles = [
+    '本页字数',
+    '本文件夹字数',
+    '内容根字数',
+    '全站字数',
+  ] as const;
+  const words: number[] = [];
+
+  for (const title of titles) {
+    words.push(wordsOf(await blockText(page, title)));
+  }
+
+  expect(
+    words.every((count) => Number.isFinite(count) && count > 0),
+    `四块里有一块没数出词：${words.join(' / ')}`,
+  ).toBe(true);
+
+  for (let index = 1; index < words.length; index += 1) {
+    expect(
+      words[index]!,
+      `${titles[index]} 不大于 ${titles[index - 1]}：${words.join(' / ')}`,
+    ).toBeGreaterThan(words[index - 1]!);
+  }
+});
+
 Then('这一页没有字数统计', async ({ page }) => {
   await expect(
-    statsBlock(page),
-    '没写 wordCount 的页面被加了这一格',
+    page.locator('.theme-admonition'),
+    '没写指令的页面被加了这一格',
   ).toHaveCount(0);
 });

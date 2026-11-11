@@ -170,14 +170,14 @@ console.log(`
 // ---- 3. 「整页交给一个组件」的那几页真的进了 component-page 那两张生成表 ----
 // 每个交出方在自己的 `loadContent()` 里交一份组件登记 + 一条规则（三条 API 层交 `scalar` /
 // `redoc` / `stoplight` 那三把键、都写 `render: 'iframe'`；`theme-iframe` 只交 `iframe:` 那一把
-// 外部站点的框，`render` 用缺省的 `page`；`theme-markmap` / `theme-erd` / `theme-diff` /
-// `theme-word-count` 各交自己那一格视图；本站还有一条指向站点自己 `src/theme/ComponentPageDemo`
+// 外部站点的框，`render` 用缺省的 `page`；`theme-markmap` / `theme-erd` / `theme-diff`
+// 各交自己那一格视图；本站还有一条指向站点自己 `src/theme/ComponentPageDemo`
 // 的规则，写在插件选项里）。
 // 合成那张表的是机制层：站点那一列排前面（顺序 = 命中优先级），没被提过的默认规则按键名接在后面。
 // 浏览器侧不读 `siteConfig.plugins`，所以这里看的是两份生成模块，而不是生成的浏览器配置。
 // 这一条同时钉住「本站声明的那几条真的被各包交了出来」—— 哪一层没声明或没交，表里就少一条。
 const SITE_FIRST = ['componentPage', 'scalar', 'redoc', 'stoplight', 'iframe'];
-const DEFAULT_TAIL = ['dbml_json', 'diff', 'markmap', 'wordCount'];
+const DEFAULT_TAIL = ['dbml_json', 'diff', 'markmap'];
 const FRAME_ROWS = [
   { component: 'scalar', key: 'scalar', specifier: '@theme/ScalarView' },
   { component: 'redoc', key: 'redoc', specifier: '@theme/RedocView' },
@@ -202,11 +202,6 @@ const PAGE_ROWS = [
   { component: 'markmap', key: 'markmap', specifier: '@theme/MarkmapPage' },
   { component: 'erd', key: 'dbml_json', specifier: '@theme/ErdPage' },
   { component: 'diff', key: 'diff', specifier: '@theme/DiffPage' },
-  {
-    component: 'word-count',
-    key: 'wordCount',
-    specifier: '@theme/WordCountPage',
-  },
 ];
 
 const generatedDir = path.join(root, '.docusaurus/theme-component-page');
@@ -353,7 +348,34 @@ if (fs.existsSync(registryFile) && fs.existsSync(frameRegistryFile)) {
   isOk = false;
 }
 
-// ---- 4. CSS 产物没被压缩器吃掉规则 ----
+// ---- 4. `:::word-count` 在构建产物里是一块统计，不是一行原文 ----
+// 指令由 `theme-word-count` 在 `markdown.preprocessor` 里换掉（`<__WordCount scope="…" />` + 一句
+// import）。预处理器没挂上时，那一行会原样渲染成正文 —— 构建全程绿，只有对产物看才看得见。
+// 两棵内容根各取一页：`default` 的示例页四种范围各一块，`themes` 的落地页只有缺省那一块。
+const WORD_COUNT_PAGES = [
+  {
+    file: 'build/theme-word-count/docs/word-count-demo/index.html',
+    titles: ['内容根字数', '本页字数', '本文件夹字数', '全站字数'],
+  },
+  { file: 'build/themes/index.html', titles: ['内容根字数'] },
+];
+console.log('\nword-count 的产物回读（:::word-count 应当换成那一块统计）：');
+for (const { file, titles } of WORD_COUNT_PAGES) {
+  const full = path.join(root, file);
+  const html = fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : '';
+  const ok =
+    html.includes('theme-admonition') &&
+    titles.every((title) => html.includes(title));
+  console.log(`   ${ok ? '✅' : '❌'} ${file}`);
+  if (!ok) {
+    console.log(
+      `   → 没找到那一块（\`theme-admonition\` + ${titles.map((title) => `「${title}」`).join('')}）：预处理器没挂上，或指令那一行（含范围词）没被认出来。`,
+    );
+  }
+  isOk &&= ok;
+}
+
+// ---- 5. CSS 产物没被压缩器吃掉规则 ----
 // `future.faster.lightningCssMinimizer` 之前，CSS 走的是 cssnano 预设 + clean-css（`csso`
 // 只是 css-minimizer-webpack-plugin 带的备选，默认没走），而 clean-css 不认识 CSS Nesting：
 // `@scalar/api-reference` 那份样式表里
@@ -406,7 +428,7 @@ for (const file of cssFiles) {
   isOk &&= ok;
 }
 
-// ---- 5. git-badge 那一格真的从 frontmatter 走到了产物侧边栏 ----
+// ---- 6. git-badge 那一格真的从 frontmatter 走到了产物侧边栏 ----
 // 这条把 `themes/theme-git-badge/docs/internals.md`「升级检查单」第 5 条从「读一眼产物」变成断言。
 // 注入只换 `siteConfig.markdown.parseFrontMatter` 那一个值，而它被两条路各读一次、**不是同一次
 // 调用**（docs 插件在它自己的 `loadContent()` 里就读走了，早于本包的 `contentLoaded`）。官方的先后

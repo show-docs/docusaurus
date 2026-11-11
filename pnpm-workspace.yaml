@@ -15,6 +15,7 @@ configDependencies:
 catalog:
   '@docusaurus/babel': '^3.9.2'
   '@docusaurus/core': '^3.9.2'
+  '@docusaurus/plugin-content-docs': '^3.9.2'
   '@docusaurus/theme-common': '^3.9.2'
   '@docusaurus/types': '^3.9.2'
   '@docusaurus/utils': '^3.9.2'

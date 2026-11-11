@@ -69,6 +69,7 @@ const contextWith = (): LoadContext =>
       plugins: [],
       themes: [],
       future: { faster: { lightningCssMinimizer: true } },
+      markdown: {},
     },
   }) as unknown as LoadContext;
 
@@ -867,7 +868,7 @@ describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node �
   });
 });
 
-describe('theme-word-count 入口：层目录与全站那一份统计', () => {
+describe('theme-word-count 入口：层目录与 markdown 预处理器', () => {
   it('层目录与名字', () => {
     const plugin = wordCountTheme(contextWith());
 
@@ -878,11 +879,24 @@ describe('theme-word-count 入口：层目录与全站那一份统计', () => {
     expect(plugin.configureWebpack).toBeUndefined();
   });
 
-  it('loadContent：交出 wordCount 那一格，组件写的是 @theme/WordCountPage', async () => {
-    expect(await contributedOf(wordCountTheme(contextWith()))).toEqual({
-      components: [{ id: 'word-count', component: '@theme/WordCountPage' }],
-      // `boolean` 判法：只有认真布尔 `true` 才算命中（写串文本或选项对象都不算）
-      rules: [{ key: 'wordCount', match: 'boolean', component: 'word-count' }],
-    });
+  it('loadContent：包住 markdown.preprocessor，不再向 component-page 交规则', async () => {
+    const context = contextWith();
+    const plugin = wordCountTheme(context);
+
+    // 站点没配预处理器时本层也挂一份，否则指令没人认
+    expect(context.siteConfig.markdown.preprocessor).toBeUndefined();
+
+    expect(await loadContentOf(plugin)()).toBeUndefined();
+
+    const { preprocessor } = context.siteConfig.markdown;
+    expect(preprocessor).toBeTypeOf('function');
+    expect(
+      preprocessor!({
+        fileContent: '前\n\n:::word-count\n\n后\n',
+        filePath: 'a.md',
+      }),
+    ).toBe(
+      'import __WordCount from \'@theme/WordCount\';\n前\n\n<__WordCount scope="instance" />\n\n后\n',
+    );
   });
 });

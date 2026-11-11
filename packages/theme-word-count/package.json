@@ -1,7 +1,7 @@
 {
   "name": "@show-docs/docusaurus-theme-word-count",
   "version": "0.1.0",
-  "description": "构建时统计全站文档的字数，frontmatter 写 wordCount: true 的那一页在正文上方显示所在内容根的数",
+  "description": "构建时统计全站文档的字数，正文里写一行 :::word-count 就在那一处显示所在内容根的数",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-word-count",
   "repository": {
@@ -35,9 +35,9 @@
     "@docusaurus/utils": "catalog:"
   },
   "peerDependencies": {
+    "@docusaurus/plugin-content-docs": "catalog:",
     "@docusaurus/types": "catalog:",
     "@show-docs/docusaurus-plugin-compile-source": "workspace:^",
-    "@show-docs/docusaurus-theme-component-page": "workspace:^",
     "react": "catalog:"
   },
   "peerDependenciesMeta": {

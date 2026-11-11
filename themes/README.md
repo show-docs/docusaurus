@@ -1,7 +1,6 @@
 ---
 title: 主题包说明
-description: '/themes/ 落地页：四个功能层主题包，各自占侧边栏一顶层格；这一页也写了 wordCount: true。'
-wordCount: true
+description: '/themes/ 落地页：四个功能层主题包，各自占侧边栏一顶层格；这一页正文里也写了一次 :::word-count。'
 ---
 
 import DocCardList from '@theme/DocCardList';
@@ -43,11 +42,14 @@ import DocCardList from '@theme/DocCardList';
 
 ## 这一页自己的字数
 
-这一页的 frontmatter 也写了 `wordCount: true`，所以正文上方那一块数的是**这一棵内容根**
-（实例 `themes`）：`themes/` 里每个包的 README 与 `docs/` 下的页都在里面，块上写着的就是
-`内容根 themes`。`packages/` 那一棵的示例页（`/theme-word-count/docs/word-count-demo`）写的是
-同一把键，看到的是 `default` 那一份 —— 两棵树各挑自己那一格，不是同一串数。
+:::word-count
 
-这一格没有另起一页：`/themes/` 本来就是这一棵内容根的索引页，两棵树各有一页命中，正好对着看。
+这一块数的是**这一棵内容根**（实例 `themes`）：`themes/` 里每个包的 README 与 `docs/` 下的页
+都在里面，块上写着的就是 `内容根 themes`。`packages/` 那一棵的示例页
+（`/theme-word-count/docs/word-count-demo`）也写了一行同样的指令，看到的是 `default` 那一份
+—— 两棵树各挑自己那一格，不是同一串数。
+
+指令写在正文的哪一处，块就出现在哪一处：这一行摆在标题下面，所以它落在本节开头；
+`/themes/` 本来就是这一棵内容根的索引页，两棵树各有一页写指令，正好对着看。
 统计的触发条件、计数口径与已知限制在
 [`theme-word-count` 的 README](/theme-word-count/)。
