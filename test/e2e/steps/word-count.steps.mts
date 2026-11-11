@@ -7,26 +7,18 @@ import { watchPageErrors } from '../helpers.mts';
 const { Given, Then } = createBdd();
 
 /**
-本层那一格的认法：一条标题写着「内容根字数」的提示块。
+本层那一格的认法：一块 `aria-label` 写着「…字数」的 `<section>`。
 
-认 `.theme-admonition` 而不是产物里那个 `admonition_xxxx` —— 官方那份组件的 CSS 类名带哈希，
-`theme-admonition` 与 `alert` 才是稳定那一半。再按标题的这句话筛，就不必赌 DOM 深浅。
+名字由组件自己写在 `aria-label` 上，不赌 DOM 深浅，也不认产物里带哈希的类名。
 */
-const statsBlock = (page: Page, title: string): ReturnType<Page['locator']> =>
-  page.locator('.theme-admonition', { hasText: title });
+const statsBlock = (page: Page, title: string): ReturnType<Page['getByRole']> =>
+  page.getByRole('region', { exact: true, name: title });
 
-/** 某一块的整段文本（标题、总数那一句、多版本时那几行，连成一串）。 */
+/** 某一块的整段文本（标题、范围那一行、四栏明细，连成一串）。 */
 const blockText = async (page: Page, title: string): Promise<string> =>
   (await statsBlock(page, title).textContent()) ?? '';
 
-/** 块上那句总数里的词数与页数；句子形状由本层组件的模板定，数本身不断言。 */
-const wordsOf = (text: string): number =>
-  Number(/共\s*(\d+)\s*个词/.exec(text)?.[1]);
-
-const pagesOf = (text: string): number =>
-  Number(/来自\s*(\d+)\s*页/.exec(text)?.[1]);
-
-/** 明细表里某一行右侧那一格：左边那一格按整句匹配，免得「标题数」撞上「一级标题数」。 */
+/** 明细里某一格：项目名按整句匹配，免得「标题数」撞上「一级标题数」。 */
 const metricOf = async (
   page: Page,
   title: string,
@@ -35,9 +27,9 @@ const metricOf = async (
   const row = statsBlock(page, title)
     .locator('tr')
     .filter({
-      has: page.getByRole('cell', { exact: true, name: metric }),
+      has: page.getByRole('rowheader', { exact: true, name: metric }),
     });
-  const value = await row.getByRole('cell').nth(1).textContent();
+  const value = await row.getByRole('cell').textContent();
 
   return Number(value?.trim());
 };
@@ -54,7 +46,7 @@ Given('我打开主题包说明页', async ({ page }) => {
 });
 
 /**
-总数与页数都写得出来、且都大于 0。
+词数与页数都写得出来、且都大于 0。
 
 **不断言具体数字**：本站的内容根每加一页文档，总数就变。这一格要钉的是「配置期算出来的数走到了
 静态 HTML」—— 数在客户端没有第二次请求，首屏文本里就得有它。
@@ -62,14 +54,14 @@ Given('我打开主题包说明页', async ({ page }) => {
 Then(
   /^「([^」]+)」那一块写明总词数与页数$/,
   async ({ page }, title: string) => {
-    const text = await blockText(page, title);
-    const words = wordsOf(text);
-    const pages = pagesOf(text);
-
-    expect(words, `这一句里没有总词数：${text}`).toBeTruthy();
-    expect(pages, `这一句里没有页数：${text}`).toBeTruthy();
-    expect(words, '总词数是 0：生成模块没进浏览器').toBeGreaterThan(0);
-    expect(pages, '页数是 0：清单里一份文档都没数到').toBeGreaterThan(0);
+    expect(
+      await metricOf(page, title, '词数'),
+      '词数是 0：生成模块没进浏览器',
+    ).toBeGreaterThan(0);
+    expect(
+      await metricOf(page, title, '文件数量'),
+      '页数是 0：清单里一份文档都没数到',
+    ).toBeGreaterThan(0);
   },
 );
 
@@ -158,14 +150,6 @@ Then('主题包说明的正文照常在场', async ({ page }) => {
   ).toBeVisible();
 });
 
-// 本页那一块只有一句词数：页数对一页没有意义，组件不写「来自 1 页」。
-Then('「本页字数」那一块只写词数，不写页数', async ({ page }) => {
-  const text = await blockText(page, '本页字数');
-
-  expect(wordsOf(text), `这一句里没有本页词数：${text}`).toBeGreaterThan(0);
-  expect(text, `本页那一块不该写页数：${text}`).not.toContain('来自');
-});
-
 // 本文件夹那一块数的是示例页所在的那一个目录；目录里还有同级的另一份文档，所以页数大于 1。
 Then(
   /^「本文件夹字数」那一块写明 "([^"]+)" 与页数$/,
@@ -174,73 +158,63 @@ Then(
 
     expect(text, `块里没写所在文件夹：${text}`).toContain(folder);
     expect(
-      pagesOf(text),
+      await metricOf(page, '本文件夹字数', '文件数量'),
       `本文件夹那一块的页数不大于 1：${text}`,
     ).toBeGreaterThan(1);
   },
 );
 
-// 全站那一块把两份实例各列一行：这正是「退回全站」与「只挑自己那一格」的分界。
+// 全站那一块把两份实例都列出来：这正是「退回全站」与「只挑自己那一格」的分界。
+// 两只共用一个版本时「内容根」「版本」各写一遍 —— 逐组抄会读成「内容根 A · 版本 Next、内容根 B · 版本 Next」。
 Then('「全站字数」那一块列出两个内容根', async ({ page }) => {
   const text = await blockText(page, '全站字数');
 
   for (const instance of INSTANCES) {
     expect(text, `全站那一块没列 ${instance}：${text}`).toContain(instance);
   }
+
+  expect(
+    text.match(/内容根/g)?.length ?? 0,
+    `「内容根」逐组抄了一遍：${text}`,
+  ).toBe(1);
 });
 
 /**
-明细表与总数那一句必须自洽：文件数量对页数、词数对总数、两类文字加起来对词数。
+明细里的数必须彼此自洽：两类文字加起来等于词数，字符数另有其一格。
 
-这三条都是生成模块里同一格数据的两种读法：只要有一段是页面里现算的，或者某个范围挑错了格，
+这几条都是生成模块里同一格数据的几种读法：只要某一段是页面里现算的，或者某个范围挑错了格，
 至少有一条对不上。字符数只钉「大于 0」，它的口径单独在单测里钉。
 */
-Then(
-  /^「([^」]+)」那一块的明细表与总数自洽$/,
-  async ({ page }, title: string) => {
-    const text = await blockText(page, title);
-    const words = wordsOf(text);
+Then(/^「([^」]+)」那一块的明细彼此自洽$/, async ({ page }, title: string) => {
+  const text = await blockText(page, title);
 
-    await expect(
-      statsBlock(page, title).getByRole('table'),
-      '明细表没有渲染',
-    ).toBeVisible();
-    expect(
-      await metricOf(page, title, '文件数量'),
-      `文件数量与页数那一句不一致：${text}`,
-    ).toBe(pagesOf(text));
-    expect(
-      await metricOf(page, title, '词数'),
-      `词数一行与总数那一句不一致：${text}`,
-    ).toBe(words);
-    expect(
-      (await metricOf(page, title, '中日韩文字')) +
-        (await metricOf(page, title, '其余文字')),
-      `两类文字加起来不等于词数：${text}`,
-    ).toBe(words);
-    expect(
-      await metricOf(page, title, '字符数'),
-      `字符数为 0：${text}`,
-    ).toBeGreaterThan(0);
-  },
-);
+  await expect(
+    statsBlock(page, title).getByRole('table').first(),
+    '明细没有渲染',
+  ).toBeVisible();
+  expect(
+    (await metricOf(page, title, '中日韩文字')) +
+      (await metricOf(page, title, '其余文字')),
+    `两类文字加起来不等于词数：${text}`,
+  ).toBe(await metricOf(page, title, '词数'));
+  expect(
+    await metricOf(page, title, '字符数'),
+    `字符数为 0：${text}`,
+  ).toBeGreaterThan(0);
+});
 
-// 本页这一格的页数是 1：明细表里那一行必须与「这一块只数这一页」对上。
-Then('「本页字数」那一块的明细表只有这一页', async ({ page }) => {
+// 本页这一格的页数是 1：明细里那一行必须与「这一块只数这一页」对上。
+Then('「本页字数」那一块的明细只有这一页', async ({ page }) => {
   const text = await blockText(page, '本页字数');
 
   await expect(
-    statsBlock(page, '本页字数').getByRole('table'),
-    '明细表没有渲染',
+    statsBlock(page, '本页字数').getByRole('table').first(),
+    '明细没有渲染',
   ).toBeVisible();
   expect(
     await metricOf(page, '本页字数', '文件数量'),
     `本页的文件数量不是 1：${text}`,
   ).toBe(1);
-  expect(
-    await metricOf(page, '本页字数', '词数'),
-    `词数一行与总数那一句不一致：${text}`,
-  ).toBe(wordsOf(text));
 });
 
 /**
@@ -259,7 +233,7 @@ Then('四块的词数按页、文件夹、内容根、全站依次变大', async
   const words: number[] = [];
 
   for (const title of titles) {
-    words.push(wordsOf(await blockText(page, title)));
+    words.push(await metricOf(page, title, '词数'));
   }
 
   expect(
@@ -277,7 +251,9 @@ Then('四块的词数按页、文件夹、内容根、全站依次变大', async
 
 Then('这一页没有字数统计', async ({ page }) => {
   await expect(
-    page.locator('.theme-admonition'),
+    page.getByRole('region', {
+      name: /^(本页|本文件夹|内容根|全站)字数$/,
+    }),
     '没写指令的页面被加了这一格',
   ).toHaveCount(0);
 });

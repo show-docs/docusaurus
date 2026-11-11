@@ -363,13 +363,14 @@ console.log('\nword-count 的产物回读（:::word-count 应当换成那一块�
 for (const { file, titles } of WORD_COUNT_PAGES) {
   const full = path.join(root, file);
   const html = fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : '';
-  const ok =
-    html.includes('theme-admonition') &&
-    titles.every((title) => html.includes(title));
+  // 产物经过 HTML 压缩，属性值可能带引号也可能不带（`aria-label=内容根字数`），两种都认。
+  const ok = titles.every((title) =>
+    new RegExp(`aria-label=["']?${title}`).test(html),
+  );
   console.log(`   ${ok ? '✅' : '❌'} ${file}`);
   if (!ok) {
     console.log(
-      `   → 没找到那一块（\`theme-admonition\` + ${titles.map((title) => `「${title}」`).join('')}）：预处理器没挂上，或指令那一行（含范围词）没被认出来。`,
+      `   → 没找到那一块（\`aria-label\` 写着 ${titles.map((title) => `「${title}」`).join('')}）：预处理器没挂上，或指令那一行（含范围词）没被认出来。`,
     );
   }
   isOk &&= ok;

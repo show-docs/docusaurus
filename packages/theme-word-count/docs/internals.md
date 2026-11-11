@@ -4,19 +4,20 @@
 
 ## 组成
 
-| 文件                               | 编译吗              | 职责                                                                                                                                                 |
-| ---------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.mts`                    | ✅ `src/` → `dist/` | 入口：`loadContent()` 把预处理器包到站点那份 `markdown.preprocessor` 上、`allContentLoaded()` 算出全站统计并铺成生成模块、给出层目录                 |
-| `src/directive.mts`                | ✅                  | `:::word-count [page\|folder\|instance\|site]` 的扫描与改写：指令换成 `<__WordCount scope="…" />`、文首补一句 import；统计侧剥掉指令的那一份也在这里 |
-| `src/content.mts`                  | ✅                  | 从 `allContent` 里各份 docs 实例的清单解回磁盘上的文件、逐页数一遍，按「实例 + 版本」合一格，并把每页、每个实例、每个目录各记一份                    |
-| `src/measure.mts`                  | ✅                  | 一份正文的明细：markdown 按语法树逐节点数，非 markdown 的文档按整份文字数                                                                            |
-| `src/aggregate.mts`                | ✅                  | 逐字段相加、按目录一层层滚上去、全 0 的底；`instances` 与 `folders` 就是这里合出来的                                                                 |
-| `src/count.mts`                    | ✅                  | 「一个词」的码位表与两种来源各数一种（CJK 按字、其余按词）                                                                                           |
-| `src/stats-module.mts`             | ✅                  | 把统计渲染成那一份生成模块的文本（只有一句 `export const stats = <JSON>`）                                                                           |
-| `types/word-count.d.ts`            | ❌（随包发的声明）  | 四份形状：`WordCount` / `WordCountGroup` / `WordCountStats` / `WordCountScope`；`src/` 与 `theme/` 两侧都读它                                        |
-| `types/word-count-specifiers.d.ts` | ❌（随包发的声明）  | `declare module '@generated/theme-word-count/stats'`：浏览器侧那句 `import` 的类型从这来                                                             |
-| `theme/WordCount/index.tsx`        | ❌ 站点编译         | 指令换出来的那一块：按 `scope` 挑本页 / 本文件夹 / 所在实例 / 全站那一格，摆成一句合计加一张明细表                                                   |
-| `theme/WordCount/scope.ts`         | ❌ 站点编译         | `page` / `folder` / `instance` 各查哪张表（纯函数，页面里不做加法，`test/word-count.test.mts` 直接钉）                                               |
+| 文件                                 | 编译吗              | 职责                                                                                                                                                                            |
+| ------------------------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.mts`                      | ✅ `src/` → `dist/` | 入口：`loadContent()` 把预处理器包到站点那份 `markdown.preprocessor` 上、`allContentLoaded()` 算出全站统计并铺成生成模块、给出层目录                                            |
+| `src/directive.mts`                  | ✅                  | `:::word-count [page\|folder\|instance\|site]` 的扫描与改写：指令换成 `<__WordCount scope="…" />`、文首补一句 import；统计侧剥掉指令的那一份也在这里                            |
+| `src/content.mts`                    | ✅                  | 从 `allContent` 里各份 docs 实例的清单解回磁盘上的文件、逐页数一遍，按「实例 + 版本」合一格，并把每页、每个实例、每个目录各记一份                                               |
+| `src/measure.mts`                    | ✅                  | 一份正文的明细：markdown 按语法树逐节点数，非 markdown 的文档按整份文字数                                                                                                       |
+| `src/aggregate.mts`                  | ✅                  | 逐字段相加、按目录一层层滚上去、全 0 的底；`instances` 与 `folders` 就是这里合出来的                                                                                            |
+| `src/count.mts`                      | ✅                  | 「一个词」的码位表与两种来源各数一种（CJK 按字、其余按词）                                                                                                                      |
+| `src/stats-module.mts`               | ✅                  | 把统计渲染成那一份生成模块的文本（只有一句 `export const stats = <JSON>`）                                                                                                      |
+| `types/word-count.d.ts`              | ❌（随包发的声明）  | 四份形状：`WordCount` / `WordCountGroup` / `WordCountStats` / `WordCountScope`；`src/` 与 `theme/` 两侧都读它                                                                   |
+| `types/word-count-specifiers.d.ts`   | ❌（随包发的声明）  | `declare module '@generated/theme-word-count/stats'`：浏览器侧那句 `import` 的类型从这来                                                                                        |
+| `theme/WordCount/index.tsx`          | ❌ 站点编译         | 指令换出来的那一块：按 `scope` 挑本页 / 本文件夹 / 所在实例 / 全站那一格，摆成四栏明细（文件 / 文字 / 标题 / 正文结构）                                                         |
+| `theme/WordCount/metrics.module.css` | ❌ 站点编译         | 四栏明细的排布：断点取自这一块自己的宽度（容器查询），够宽两行两列、窄了叠放；卡片与间距取 Infima 的 `.card` / `.card__body` 与 `--ifm-*`，字号与颜色跟正文走，只改外观，不碰数 |
+| `theme/WordCount/scope.ts`           | ❌ 站点编译         | `page` / `folder` / `instance` 各查哪张表（纯函数，页面里不做加法，`test/word-count.test.mts` 直接钉）                                                                          |
 
 「编译吗」那一列的判据是谁编译 —— 站点的 Docusaurus 会编译 `theme/`，本包就不编译第二遍；口径的产地在
 [plugin-compile-source 的维护者文档](../../plugin-compile-source/docs/internals.md) 的「这一族构建包的编译口径」。
@@ -142,7 +143,7 @@ CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标�
 ## 用例与红线
 
 - 构建期判据：`test/word-count.test.mts` —— 指令改写（任意位置、四种范围各写进组件、不认的范围原样留下、容器式收尾、围栏与缩进代码块里不认、CRLF、无指令时原样交回）、预处理器包装（站点那份先跑、重复挂只一层）、计数侧剥指令；两把码位表的边界（纯 CJK / 纯拉丁 / 混排 / 空串、标点、`don't` 这类带分隔符的一个词）；`measureMarkdown()` 按节点各数一格（文字与行内代码、六级标题与两种标题 id、代码围栏与图表、表格 / 图片 / 内外链接 / 引用、frontmatter 与草稿）与非法 MDX 会抛；`measureText()` 那条非 markdown 的路；`aggregate.mts` 的逐字段相加与目录往上滚；`@site/` 地址反解、`docs` 与 `drafts` 两列都读、非 docs 实例的 content、`label` 与 `versionName` 两种落点、同一格重复出现与新开一格、多实例分组、每页 / 每实例 / 每目录三张表，以及 `allContentLoaded()` 真的往一个临时 `generatedFilesDir` 写出那份模块。同一份还直接钉 `theme/WordCount/scope.ts`：本页与内容根各取那一格、本文件夹查配置期那张表（含子目录、挡住名字相近的邻居）。`src/` 全份挂在覆盖率红线上（`vitest.config.mts` 的 `coverage.include` 盖住每个包的 `src/`）。
-- 产物回读：`tools/scripts/verify-chain.mts` 第 4 节看两页构建出来的 HTML —— 有 `theme-admonition` 那一块、标题写着「内容根字数」。预处理器没挂上时这里红。
-- 页面上那一块：`test/e2e/features/word-count.feature`（步骤在同名 `steps/word-count.steps.mts`）。**不**断言具体数字 —— 本站的内容根每加一页文档，总数就变。两棵内容根各有一页写指令（`/theme-word-count/docs/word-count-demo` 在 `default`、`/themes/` 在 `themes`），各断言「那一块在、只写自己那个实例、不出现另一个实例、正文仍在、位置就是指令那一处」；挑错时页面会退回全站合计，两个 id 都会露在块里，所以「不出现另一个」正好把那两种症状一起兜住。明细表另钉「表里的数与总数那一句自洽」：文件数量 = 页数、词数 = 总数、中日韩文字 + 其余文字 = 词数、字符数大于 0；本页那一块的文件数量是 1。示例页把四种范围排在一起：本页那一块不写页数、本文件夹那一块写目录且页数大于 1、全站那一块列出两份实例，并断言四块的词数按「页 < 文件夹 < 内容根 < 全站」依次变大。另有一条反向：没写指令的页面这一块不出现。
+- 产物回读：`tools/scripts/verify-chain.mts` 第 4 节看两页构建出来的 HTML —— 有那一块（`aria-label` 写着「内容根字数」）。预处理器没挂上时这里红。
+- 页面上那一块：`test/e2e/features/word-count.feature`（步骤在同名 `steps/word-count.steps.mts`）。**不**断言具体数字 —— 本站的内容根每加一页文档，总数就变。两棵内容根各有一页写指令（`/theme-word-count/docs/word-count-demo` 在 `default`、`/themes/` 在 `themes`），各断言「那一块在、只写自己那个实例、不出现另一个实例、正文仍在、位置就是指令那一处」；挑错时页面会退回全站合计，两个 id 都会露在块里，所以「不出现另一个」正好把那两种症状一起兜住。明细另钉「各项彼此自洽」：中日韩文字 + 其余文字 = 词数、字符数大于 0；本页那一块的文件数量是 1。示例页把四种范围排在一起：本文件夹那一块写目录且文件数量大于 1、全站那一块列出两份实例，并断言四块的词数按「页 < 文件夹 < 内容根 < 全站」依次变大。另有一条反向：没写指令的页面这一块不出现。
 - 入口交出的那一格：`test/package-entries.test.mts` 钉名字、层目录两格，以及 `loadContent()` 真的把 `markdown.preprocessor` 挂上、不再向 component-page 交规则。本包也在 `test/view-layer-copies.test.mts` 那份「带源码层的包」清单里 —— 那一格钉的是「不许在本包入口再补一条 TS 源码编译规则」。
 - 站点自己那份配置里的说明在 `docusaurus.config.mjs` 的 `plugins` 清单里（为什么这一层不必转述内容根那三格）。

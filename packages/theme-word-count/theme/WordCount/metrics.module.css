@@ -1,0 +1,123 @@
+/* 明细的排布（`theme/WordCount/index.tsx` 挂的类名）。
+
+   四栏各用 Infima 的 `.card` + `.card__body`：底色、圆角、阴影、内边距都跟着 `--ifm-card-*`
+   与 `--ifm-global-*` 走，亮暗主题不用另写一支。这一份只做三件事：卡片等高时让表格撑满，
+   收掉 Infima 给 `table` 的行线与隔行底色 —— 22 行各带一条线会盖过数字本身 —— 以及给字号
+   与颜色留空：标题、定位、栏目名和数都跟着正文走，这里只留粗细。 */
+
+/* 断点按这一块自己的宽度算：它落在正文栏里，视口宽窄和它能拿到的宽度不是一回事
+   （文档侧栏、目录栏都会吃掉宽度）。 */
+.block {
+  container-name: word-count-stats;
+  container-type: inline-size;
+  margin: var(--ifm-spacing-vertical) 0;
+}
+
+/* 抬头：标题在左，定位靠右；块本身窄了折成两行、定位降到标题下面。 */
+.header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--ifm-spacing-horizontal);
+  align-items: baseline;
+  margin: 0 0 var(--ifm-spacing-vertical);
+  border-left: calc(var(--ifm-global-border-width) * 3) solid
+    var(--ifm-color-primary);
+  padding-left: var(--ifm-spacing-horizontal);
+}
+
+.title {
+  font-weight: var(--ifm-heading-font-weight);
+  line-height: var(--ifm-line-height-base);
+}
+
+.meta {
+  justify-self: end;
+  line-height: var(--ifm-line-height-base);
+  text-align: right;
+  overflow-wrap: break-word;
+}
+
+/* 一个内容根 / 一个版本各是一个整体：只在两组之间换行，不从中间断开。 */
+.meta span {
+  display: inline-block;
+}
+
+/* 36rem 以下：标题与定位各占一行，定位靠左。 */
+@container word-count-stats (max-width: 36rem) {
+  .header {
+    grid-template-columns: 1fr;
+    row-gap: calc(var(--ifm-spacing-vertical) / 4);
+  }
+
+  .meta {
+    justify-self: start;
+    text-align: left;
+  }
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr;
+  /* 同一行的两张卡片等高：表格跟着卡片撑满，多出来的那一点高摊到各行上，不空在底部。 */
+  align-items: stretch;
+  gap: var(--ifm-card-vertical-spacing) var(--ifm-spacing-horizontal);
+}
+
+/* 36rem 以上排成两行两列：三栏时第四栏会独自掉到下一行，右侧空出半截。 */
+@container word-count-stats (min-width: 36rem) {
+  .panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.panels table {
+  display: table;
+  flex: 1;
+  margin: 0;
+  width: 100%;
+}
+
+.panels caption {
+  /* 线画在 caption 的底边，margin-bottom 是线到第一行的距离。 */
+  margin: 0 0 var(--ifm-table-cell-padding);
+  border-bottom: var(--ifm-table-border-width) solid var(--ifm-color-primary);
+  padding: 0 0 calc(var(--ifm-table-cell-padding) / 2);
+  caption-side: top;
+  font-weight: var(--ifm-table-head-font-weight);
+  text-align: left;
+}
+
+.panels tr {
+  border: 0;
+  background: var(--ifm-table-background);
+}
+
+/* Infima 的隔行底色写在 `table tr:nth-child(2n)` 上，比上面那条多一级。 */
+.panels tbody tr:nth-child(2n) {
+  background: var(--ifm-table-background);
+}
+
+.panels th,
+.panels td {
+  border: 0;
+  padding: 0;
+  line-height: var(--ifm-line-height-base);
+}
+
+.panels th {
+  font-weight: var(--ifm-font-weight-normal);
+  text-align: left;
+}
+
+.panels td {
+  font-weight: var(--ifm-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}

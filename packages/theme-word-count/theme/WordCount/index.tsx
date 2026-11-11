@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 
 import { useDoc } from '@docusaurus/plugin-content-docs/client';
 import useRouteContext from '@docusaurus/useRouteContext';
-import Admonition from '@theme/Admonition';
 // 全站那一份统计：本包在配置期算好、铺进 Docusaurus 的生成目录，由 `@generated` 那条别名读回来。
 // 形状在本包 `types/word-count-specifiers.d.ts`（那一句 `import` 的类型来自它），
 // 算它的是 `src/content.mts`。
@@ -13,126 +12,169 @@ import type {
   WordCountScope,
 } from '../../types/word-count.ts';
 
+import css from './metrics.module.css';
 import { ofFolder, ofInstance, ofPage } from './scope.ts';
 
 /** docs 插件在路由上下文里的名字：只有这一种上下文才谈得上「这一页属于哪份实例」。 */
 const DOCS_PLUGIN = 'docusaurus-plugin-content-docs';
 
-/** 明细表的行：左边那一句与右边取哪一格数。 */
-const METRICS: readonly (readonly [
+/** 明细的一格：项目名与取哪一格数。 */
+type Metric = readonly [
   label: string,
   value: (totals: WordCountData) => number,
-])[] = [
-  ['文件数量', (totals) => totals.pages],
-  ['草稿数量', (totals) => totals.drafts],
-  ['Frontmatter', (totals) => totals.frontmatter],
-  ['Heading ID', (totals) => totals.headingIds],
-  ['一级标题数', (totals) => totals.h1],
-  ['二级标题数', (totals) => totals.h2],
-  ['三级标题数', (totals) => totals.h3],
-  ['四级标题数', (totals) => totals.h4],
-  ['五级标题数', (totals) => totals.h5],
-  ['六级标题数', (totals) => totals.h6],
-  ['代码段', (totals) => totals.codeBlocks],
-  ['代码段行数', (totals) => totals.codeLines],
-  ['图像', (totals) => totals.images],
-  ['描述性图表', (totals) => totals.graphs],
-  ['表格', (totals) => totals.tables],
-  ['外部链接', (totals) => totals.externalLinks],
-  ['内部链接', (totals) => totals.internalLinks],
-  ['引用文本段', (totals) => totals.blockquotes],
-  ['词数', (totals) => totals.words],
-  ['中日韩文字', (totals) => totals.cjk],
-  ['其余文字', (totals) => totals.latin],
-  ['字符数', (totals) => totals.characters],
 ];
 
-/** 四种范围共用的一张明细表：左边是项目，右边是数。 */
-function MetricsTable({ totals }: { totals: WordCountData }): ReactNode {
+/**
+四栏明细：文件、文字、标题、正文结构。
+
+一栏一张两列表、各带一句表头，宽屏两行两列、窄屏叠放 —— 比一张二十多行的两列长表好扫。
+按行数配对（3 / 4 / 7 / 8）是为了两列各自填满、不在矮的那一栏下面空出一截。
+分栏只改排布：四栏里的数与合计读的是同一整格。
+*/
+const METRIC_GROUPS: readonly (readonly [
+  caption: string,
+  metrics: readonly Metric[],
+])[] = [
+  [
+    '文件',
+    [
+      ['文件数量', (totals) => totals.pages],
+      ['草稿数量', (totals) => totals.drafts],
+      ['Frontmatter', (totals) => totals.frontmatter],
+    ],
+  ],
+  [
+    '文字',
+    [
+      ['词数', (totals) => totals.words],
+      ['中日韩文字', (totals) => totals.cjk],
+      ['其余文字', (totals) => totals.latin],
+      ['字符数', (totals) => totals.characters],
+    ],
+  ],
+  [
+    '标题',
+    [
+      ['Heading ID', (totals) => totals.headingIds],
+      ['一级标题数', (totals) => totals.h1],
+      ['二级标题数', (totals) => totals.h2],
+      ['三级标题数', (totals) => totals.h3],
+      ['四级标题数', (totals) => totals.h4],
+      ['五级标题数', (totals) => totals.h5],
+      ['六级标题数', (totals) => totals.h6],
+    ],
+  ],
+  [
+    '正文结构',
+    [
+      ['代码段', (totals) => totals.codeBlocks],
+      ['代码段行数', (totals) => totals.codeLines],
+      ['图像', (totals) => totals.images],
+      ['描述性图表', (totals) => totals.graphs],
+      ['表格', (totals) => totals.tables],
+      ['外部链接', (totals) => totals.externalLinks],
+      ['内部链接', (totals) => totals.internalLinks],
+      ['引用文本段', (totals) => totals.blockquotes],
+    ],
+  ],
+];
+
+/** 四种范围共用的四栏明细：项目名做行头，右边是数。四栏各是一张 Infima 卡片。 */
+function Metrics({ totals }: { totals: WordCountData }): ReactNode {
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>项目</th>
-          <th>统计</th>
-        </tr>
-      </thead>
-      <tbody>
-        {METRICS.map(([label, value]) => (
-          <tr key={label}>
-            <td>{label}</td>
-            <td>{value(totals)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className={css.panels}>
+      {METRIC_GROUPS.map(([caption, metrics]) => (
+        <div className="card" key={caption}>
+          <div className={`card__body ${css.body}`}>
+            <table>
+              <caption>{caption}</caption>
+              <tbody>
+                {metrics.map(([label, value]) => (
+                  <tr key={label}>
+                    <th scope="row">{label}</th>
+                    <td>{value(totals)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
-/** 块上的那一句总数；`withPages` 只有「本页」不需要。 */
-function Summary({
-  totals,
-  withPages = true,
-}: {
-  totals: WordCountData;
-  withPages?: boolean;
-}): ReactNode {
-  return (
-    <>
-      共 <strong>{totals.words}</strong> 个词
-      {withPages ? `，来自 ${totals.pages} 页` : ''}
-      ：中日韩文字按字 {totals.cjk} 个， 其余文字按词 {totals.latin} 个。
-    </>
-  );
-}
+/**
+四种范围共用的一块：左边标题，右边交代「这是哪一格」的定位；下面是四栏明细。
 
-/** 四种范围共用的一块：标题、正文（可带前缀）与明细表。 */
+不进 callout：这一块讲的是正文自己的数，不是需要读者留意的旁注；四张 Infima 卡片直接排在正文里，
+`aria-label` 让它在读屏与判据里仍然有名字。定位放右端是为了让抬头占满一整行 —— 写在标题
+后面时，右边会空出大半截。
+*/
 function StatsBlock({
   title,
-  prefix,
+  meta,
   totals,
-  withPages,
-  details,
 }: {
   title: string;
-  prefix?: ReactNode;
+  meta?: ReactNode;
   totals: WordCountData;
-  withPages?: boolean;
-  details?: ReactNode;
 }): ReactNode {
   return (
-    <Admonition title={title} type="note">
-      <p>
-        {prefix}
-        <Summary totals={totals} withPages={withPages} />
+    <section className={css.block} aria-label={title}>
+      <p className={css.header}>
+        <span className={css.title}>{title}</span>
+        {meta === undefined ? null : <span className={css.meta}>{meta}</span>}
       </p>
-      <MetricsTable totals={totals} />
-      {details}
-    </Admonition>
+      <Metrics totals={totals} />
+    </section>
   );
 }
 
-/** 全站那一份：站点里没有文档时也走这里（所有数都是 0）。 */
+/**
+全站那一份：站点里没有文档时也走这里（所有数都是 0）。
+
+版本只有一个时只写一次：逐个分组抄一遍会读成「内容根 A · 版本 Next、内容根 B · 版本 Next」，
+「内容根」「版本」两副字样各重复一遍，说的却是同一件事。版本不止一个时退回逐组写 ——
+那时每个内容根用的是哪一版，不是一句话能说清的。
+*/
 function SiteStats(): ReactNode {
+  const roots = [...new Set(stats.groups.map((group) => group.instance))];
+  const versions = [...new Set(stats.groups.map((group) => group.version))];
+
   return (
     <StatsBlock
       title="全站字数"
-      totals={stats}
-      details={
+      meta={
         stats.groups.length === 0 ? (
-          <p>站点里还没有加载到任何文档，所以表里的数都是 0。</p>
+          '站点里还没有加载到任何文档'
+        ) : versions.length === 1 ? (
+          <>
+            统计范围：内容根{' '}
+            {roots.map((root, index) => (
+              <span key={root}>
+                <code>{root}</code>
+                {index === roots.length - 1 ? null : '、'}
+              </span>
+            ))}{' '}
+            <span>
+              · 版本 <code>{versions[0]}</code>
+            </span>
+          </>
         ) : (
-          <ul>
-            {stats.groups.map((group) => (
-              <li key={`${group.instance}/${group.version}`}>
+          <>
+            统计范围：
+            {stats.groups.map((group, index) => (
+              <span key={`${group.instance}/${group.version}`}>
                 内容根 <code>{group.instance}</code> · 版本{' '}
-                <code>{group.version}</code>： {group.pages} 页、{group.words}{' '}
-                词
-              </li>
+                <code>{group.version}</code>
+                {index === stats.groups.length - 1 ? null : '、'}
+              </span>
             ))}
-          </ul>
+          </>
         )
       }
+      totals={stats}
     />
   );
 }
@@ -149,25 +191,18 @@ function InstanceStats({ instance }: { instance: string }): ReactNode {
   return (
     <StatsBlock
       title="内容根字数"
-      prefix={
+      meta={
         <>
-          内容根 <code>{instance}</code>：
+          内容根 <code>{instance}</code> · 版本{' '}
+          {own.map((group, index) => (
+            <span key={group.version}>
+              <code>{group.version}</code>
+              {index === own.length - 1 ? null : '、'}
+            </span>
+          ))}
         </>
       }
       totals={totals}
-      details={
-        // 一个实例只有一个版本时，合计那一句已经说完了；多版本才把各格摊开。
-        own.length > 1 && (
-          <ul>
-            {own.map((group) => (
-              <li key={group.version}>
-                版本 <code>{group.version}</code>：{group.pages} 页、
-                {group.words} 词
-              </li>
-            ))}
-          </ul>
-        )
-      }
     />
   );
 }
@@ -188,7 +223,17 @@ function DocStats({ scope }: { scope: 'page' | 'folder' }): ReactNode {
   }
 
   if (scope === 'page') {
-    return <StatsBlock title="本页字数" totals={page} withPages={false} />;
+    return (
+      <StatsBlock
+        title="本页字数"
+        meta={
+          <>
+            文件 <code>{metadata.source.replace(/^@site\//, '')}</code>
+          </>
+        }
+        totals={page}
+      />
+    );
   }
 
   const folder = ofFolder(stats, metadata.source);
@@ -200,12 +245,12 @@ function DocStats({ scope }: { scope: 'page' | 'folder' }): ReactNode {
   return (
     <StatsBlock
       title="本文件夹字数"
-      prefix={
+      meta={
         metadata.sourceDirName === '.' ? (
-          '内容根根目录：'
+          '内容根根目录'
         ) : (
           <>
-            文件夹 <code>{metadata.sourceDirName}</code>：
+            文件夹 <code>{metadata.sourceDirName}</code>
           </>
         )
       }
@@ -234,9 +279,8 @@ function DocStats({ scope }: { scope: 'page' | 'folder' }): ReactNode {
 （错误边界 + `Suspense` + 放宽容器），这里四份都不需要 —— 数在配置期就算好了，读它只是一句
 对象取值；它又插在正文中间，容器宽度要跟着正文那一栏。
 
-四种范围都摆同一张明细表：文件、草稿、frontmatter、标题、代码、图表、表格、链接、引用，末尾
-是词数与字符数。表里的数与那句总数一起由配置期算好；本页、本文件夹、内容根、全站各自取生成
-模块里已经合好的那一格，页面里不做加法。
+四种范围都摆同一份四栏明细，各自取生成模块里已经合好的那一格，页面里不做加法。数字只出现在
+表里：标题左、定位右，只交代「这是哪一格」，不再用一句话把词数、页数那些数重复一遍。
 
 数字直接写出来，不加千分位：同一份数在静态渲染与服务端注水里要写成同一个字符串，
 少一处格式化就少一处能漂的地方。
