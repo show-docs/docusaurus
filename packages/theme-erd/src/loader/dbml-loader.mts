@@ -54,7 +54,7 @@ function createMarkdownTables(model: DbmlModel): (string | null)[] {
           ...enum_.valueIds.map((valueId) => {
             const value: DbmlEnumValue = enumValues[valueId]!;
 
-            return [value.name, value.note];
+            return [tableCell(value.name), tableCell(value.note)];
           }),
         ],
         { align: ['l', 'l'] },
@@ -75,13 +75,13 @@ function createMarkdownTables(model: DbmlModel): (string | null)[] {
             const field = fields[fieldId]!;
 
             return [
-              field.pk ? `${field.name} 🔑` : field.name,
-              field.note,
-              enumType(field, model),
+              tableCell(field.pk ? `${field.name} 🔑` : field.name),
+              tableCell(field.note),
+              tableCell(enumType(field, model)),
               field.not_null ? '是' : '',
               field.unique ? '是' : '',
               field.increment ? '是' : '',
-              field.dbdefault?.value.toString(),
+              tableCell(field.dbdefault?.value.toString()),
             ];
           }),
         ],
@@ -111,14 +111,31 @@ function enumType(field: DbmlField, { enums, enumValues }: DbmlModel): string {
 }
 
 /**
+把一格作者内容收成「在 markdown 表格里不散架」的形状。
+
+`markdown-table@3` 的 serialize 只做 `String(value)`，**不转义** `|` 也不处理换行：note 里
+一个 `admin | editor` 会被当成列分隔（多出几列），一段多行 note 会把那一行截断、整张表散架。
+所以进单元格之前先收一遍：`|` 转义成 `\|`，换行（CRLF / CR / LF）收成 `<br>`。
+标识符与固定文案没有这两样，过这一格是恒等。
+*/
+function tableCell(value: string | null | undefined): string {
+  return (value ?? '')
+    .replaceAll('|', String.raw`\|`)
+    .replaceAll(/\r\n|\r|\n/g, '<br>');
+}
+
+/**
 头部那份 frontmatter：解析前摘掉，产物里不再写回。
 
 `@dbml/core` 的解析器只认 DBML 语法 —— 文件头那个 `---` 块会让它抛 `Expect an identifier`，
 所以解析前必须摘掉。摘掉的那份**不写回产物**：站点那份（标题、说明、侧栏名）由 docs 插件
 从**原文件**读（`plugin-content-docs` 的 `parseMarkdownFile` 读的是文件本身），不经过这一层
 换过的产物 —— 所以那一页的 `<h1>` 与别的文档页同一个来源。
+
+中段那一行是可选的：空块（`---` 紧跟 `---`）收尾前没有换行，强制要那一行会让整段剥不掉，
+`---` 混进 DBML 照样抛 `Expect an identifier`。
 */
-const FRONT_MATTER = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
+const FRONT_MATTER = /^---\r?\n(?:[\s\S]*?\r?\n)?---(?:\r?\n|$)/;
 
 /**
 取一句可读的消息。

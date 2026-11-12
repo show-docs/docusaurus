@@ -58,6 +58,9 @@ function fields(entry: TableEntry): string {
 /**
 文档页那一份的 `import`：每条上面留一句出处，webpack 报 `Module not found` 时才知道是第几条、
 哪把键要它。空表交回空串（那时连那行都不占）。
+
+`key` 原样写进 `//` 注释而不走 JSON 写法：`./config.mts` 已在配置期挡掉换行与控制字符，
+所以它截不断这条注释（否则一个换行就能在生成的模块里放进一条真的 `import`）。
 */
 function renderPageImports(pageEntries: readonly TableEntry[]): string {
   return pageEntries
@@ -68,7 +71,7 @@ function renderPageImports(pageEntries: readonly TableEntry[]): string {
     .join('\n');
 }
 
-/** 框内那一份的 `import`：按登记名去重，一个组件只 `import` 一次。 */
+/** 框内那一份的 `import`：按登记名去重，一个组件只 `import` 一次。登记名同样已由配置期挡掉换行与控制字符，原样写进注释才安全。 */
 function renderFrameImports(
   frameEntries: readonly { id: string; specifier: string }[],
 ): string {

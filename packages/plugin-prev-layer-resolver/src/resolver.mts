@@ -270,10 +270,17 @@ export class PrevLayerResolverPlugin {
 
     const componentName = request!.slice(prefix.length);
     if (!componentName) return null;
+    // query/fragment 不属于组件名，但属于改写后的请求：官方别名对 `@theme/Logo?raw` 一样生效
+    // 并把尾部带回（实测），故用裸名定位文件、把尾部拼回落点。切法同上游 `ParseModule`：
+    // 第一个 `?` 或 `#` 起整段是尾部。
+    const sep = componentName.search(/[?#]/);
+    const base = sep < 0 ? componentName : componentName.slice(0, sep);
+    const tail = sep < 0 ? '' : componentName.slice(sep);
     // 组件名为何是不可信输入、拒哪些形状：判据在 `resolve.mts` 的 `isSafeComponentName`。
-    // 告警走 warnSample：消息里带用户写的组件名，高基数时按完整消息去重会失效
-    // （判据见 {@link warnedMessages}）。
-    if (!isSafeComponentName(componentName)) {
+    // 只校验裸名 base：尾部不进 path.join，拿整串去校验会把 `?url=https://…` 里的空段、
+    // `?path=C:\…` 里的反斜杠误判成不安全。告警走 warnSample：消息里带用户写的组件名，
+    // 高基数时按完整消息去重会失效（判据见 {@link warnedMessages}）。
+    if (!isSafeComponentName(base)) {
       this.warnSample(
         'unsafe-component-name',
         `[plugin-prev-layer-resolver] 组件名不是安全的相对路径，已交回官方解析：\`${componentName}\`。` +
@@ -284,12 +291,6 @@ export class PrevLayerResolverPlugin {
       );
       return null;
     }
-    // query/fragment 不属于组件名，但属于改写后的请求：官方别名对 `@theme/Logo?raw` 一样生效
-    // 并把尾部带回（实测），故用裸名定位文件、把尾部拼回落点。切法同上游 `ParseModule`：
-    // 第一个 `?` 或 `#` 起整段是尾部。
-    const sep = componentName.search(/[?#]/);
-    const base = sep < 0 ? componentName : componentName.slice(0, sep);
-    const tail = sep < 0 ? '' : componentName.slice(sep);
 
     // 键的四段：层栈指纹 / 前缀 / 组件名（含尾部）/ issuer。分隔符必须取 NUL 而不是 `|`
     // （`|` 是合法文件名字符，能让两组字段划分撞进同一个键 = 静默错层），理由见 docs/internals.md

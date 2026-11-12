@@ -97,6 +97,13 @@ function namesOf(spec: Record<string, FieldSpec>): string {
     .join(' / ');
 }
 
+/** 随 ahooks → swr 退掉的三格（都在 request 下）：给老站点一句迁移指引，而不是泛泛的「没有这一格」。 */
+const RETIRED_REQUEST_FIELDS = new Set([
+  'debounceLeading',
+  'debounceWait',
+  'throttleWait',
+]);
+
 /** 叶子那一格判到底，顺带把值原样交回。 */
 function checkLeaf(value: unknown, spec: LeafSpec, at: string): unknown {
   if (typeof value !== 'string') {
@@ -144,7 +151,15 @@ function checkGroup(
   }
 
   for (const [field, declaredValue] of Object.entries(declared)) {
-    if (spec[field] === undefined && declaredValue !== undefined) {
+    // 用 hasOwn 而不是 `spec[field] === undefined`：`constructor` / `toString` 这类继承键
+    // 在 spec 上查得到（不是 undefined），会把「不认得的格」这条悄悄放过去。
+    if (!Object.hasOwn(spec, field) && declaredValue !== undefined) {
+      if (at === `${ROOT}.request` && RETIRED_REQUEST_FIELDS.has(field)) {
+        throw new Error(
+          `${at}.${field} 已随 ahooks 退掉：请求那一层换成了 swr，没有防抖/节流入参。` +
+            `这一格在本层从来没有可观察的效果，删掉它即可；请求那一格现在只收 \`cacheKey\`。`,
+        );
+      }
       throw new Error(
         `${at} 里没有 \`${field}\` 这一格；它只有 ${namesOf(spec)}`,
       );

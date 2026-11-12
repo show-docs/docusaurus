@@ -36,10 +36,12 @@ export default function gitBadgeTheme(context: LoadContext): Plugin {
   let cached: { repo: Repo | undefined } | undefined;
 
   /**
-   把注入包上去，只包一次。
+  把注入包上去，只包一次。
 
-   时机必须是 `loadContent()`，不能晚到 `contentLoaded()`：docs 插件在它**自己的**
-   `loadContent()` 里就把 `parseFrontMatter` 读走了，之后再换属性只是换了一份没人用的。
+  主注入点在**工厂期**：`initPlugins()` 把所有插件的构造函数都 await 完，才进
+  `executeAllPluginsContentLoading()` —— 这一份因此保证早于 docs 插件在它自己
+  `loadContent()` 里对 `parseFrontMatter` 的解构。放在 `loadContent()` 里只是碰巧早于：
+  各插件的 `loadContent()` 也是 `Promise.all()` 一起跑的，谁先谁后没有保证。
   */
   const install = () => {
     markdown.parseFrontMatter = wrapParseFrontMatter(
@@ -55,17 +57,15 @@ export default function gitBadgeTheme(context: LoadContext): Plugin {
     );
   };
 
+  install();
+
   return {
     name: PLUGIN_NAME,
     loadContent() {
-      // 这一层只改 frontmatter 与侧边栏那两格，不交规则给机制层，也没有「装没装」那一条要查：
-      // 层里那句 `@theme-init/...` 用的是官方别名，编译本包未编译 TS 源码那条 babel 规则归
-      // `@show-docs/docusaurus-plugin-compile-source`（本包只在 `peerDependencies` 里点名它，
-      // 配置期不查）。
+      // 兜底重包：`markdown` 是插件间共享可变对象，若有别的插件在工厂期换了那一格，
+      // 这里包到的是别人写完的那一份。没换过时记号认得出来，原样交回，不会套第二层。
       install();
     },
-    // 插件被单独 reload（`reloadSite()`）时会重跑这一阶段
-    contentLoaded: install,
     // 主题层与 `components/` 是**源码**，站在包根上，不经 `tsc`：用本包的 Docusaurus
     // 项目会用自己的 babel 编译它们。这里只编译 `src/` 那一份入口。
     //

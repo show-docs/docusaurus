@@ -107,6 +107,25 @@ describe('externalFrameURL：frontmatter 那个值落成的最终地址', () => 
       }),
     ).toBe(`${https}/404`);
   });
+
+  it('?path= 非 http(s) 协议（javascript:/data:）不落进 src：回退到 src 那条地址', () => {
+    // ?path= 由别人拼得来：javascript: 落进 <iframe src> 会在站点源里执行（同源 XSS），
+    // data: 会渲染攻击者 HTML。与姊妹函数 httpUrlOf 同口径，只收 http(s)，否则回退 src。
+    for (const path of [
+      'javascript:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'vbscript:msgbox(1)',
+    ]) {
+      expect(
+        externalFrameURL({
+          src: 'https://cdn.example.com/a.yaml',
+          search: `?path=${encodeURIComponent(path)}`,
+          origin: https,
+        }),
+        path,
+      ).toBe('https://cdn.example.com/a.yaml');
+    }
+  });
 });
 
 describe('httpsOnHttpsSite：服务端那一遍只按站点协议归一', () => {

@@ -146,6 +146,15 @@ function isPlainContainer(value: object): boolean {
 }
 
 /**
+一把自有属性名是不是数组下标（`0`、`1`、…）。`01`、`1.0`、`-1`、以及到了 `2**32-1`
+（数组长度上限，不再是下标）的那些都不算 —— 它们挂在数组上时 JSON 写法会静默丢掉。
+与 `../src/config.mts` 那一份同口径（配置期判 `props`，这里判某一页的 frontmatter）。
+*/
+function isArrayIndex(key: string): boolean {
+  return /^(?:0|[1-9]\d*)$/.test(key) && Number(key) < 2 ** 32 - 1;
+}
+
+/**
 这份数据里有没有送不出去的那几格；有就交回一句点名的话，没有交回 `undefined`。
 
 为什么要在这里走到底而不是直接 `JSON.stringify` 试一次：那种写法要么消失（函数、`undefined`、
@@ -184,6 +193,25 @@ export function frameDataError(
   }
 
   const parentsOfChildren = new Set([...parents, data]);
+
+  if (Array.isArray(data)) {
+    const keys = Object.keys(data);
+
+    // 数组上挂的非下标自有属性（`Object.assign([1, 2], { note: fn })`）JSON 写法会静默丢掉，
+    // 与函数 / undefined 同一种落空，所以也点名。
+    for (const key of keys) {
+      if (!isArrayIndex(key)) {
+        return `${where} 上挂了非下标的自有属性「${key}」：JSON 写法只收数组下标那几格，别的送进框里会静默丢掉`;
+      }
+    }
+
+    // 稀疏数组的洞 JSON 写法会写成 null（又一种静默变形）。在这里点名，而不是让 .map 跳过洞、
+    // 再在下面的解构里撞出一句看不出出处的 TypeError；也不按长度铺密数组（超长稀疏数组会撑爆内存）。
+    if (keys.length !== data.length) {
+      return `${where} 是稀疏数组（下标那几格有洞）：JSON 写法会把洞写成 null，送进框里要的是每一格都填实的数组`;
+    }
+  }
+
   const children = Array.isArray(data)
     ? data.map((item, index) => [`${where}[${index}]`, item] as const)
     : Object.entries(data).map(

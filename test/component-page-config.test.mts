@@ -157,6 +157,32 @@ describe('normalizeSiteRules：每一种写歪都点名到那一格', () => {
     red([{ key: 'report', component: '' }], /rules\[0\]\.component 不能是空串/);
   });
 
+  it('key 与 component 不许带换行或控制字符（会原样铺进生成模块那条注释）', () => {
+    // 生成模块把 key 与登记名原样写进 `//` 注释：一个换行就把注释截断、在生成的模块里放进一条
+    // 真的 import。配置期点名，而不是等 webpack 报一句看不出出处的语法错。U+2028 / U+2029
+    // 在 JS 源码里同样算换行，DEL 与其余控制字符也不该出现在标识符里。
+    for (const bad of [
+      'a\nb',
+      'a\rb',
+      'a\tb',
+      'a\0b',
+      'a\u{7F}b',
+      'a\u{2028}b',
+      'a\u{2029}b',
+    ]) {
+      red([{ ...rule, key: bad }], /rules\[0\]\.key 不能含换行或控制字符/);
+      red(
+        [{ ...rule, component: bad }],
+        /rules\[0\]\.component 不能含换行或控制字符/,
+      );
+    }
+
+    // 正常的 Unicode 键名（中文）不受影响。
+    expect(
+      normalizeSiteRules([{ key: '报表', component: 'site/A' }]),
+    ).toHaveLength(1);
+  });
+
   it('同一把键在这一列里只算一条账：引用、覆写、禁用混着写也红', () => {
     red(
       [rule, { ...rule, component: 'site/Other' }],
@@ -256,6 +282,27 @@ describe('normalizeSiteRules：每一种写歪都点名到那一格', () => {
     );
   });
 
+  it('props 最外层是 Date / Map / Set / 自定义原型这种另一种对象也红（与深处同口径）', () => {
+    // 最外层那一道不只挡数组与 null：Date 写成串、Map / Set 写成空对象，都是静默变形，
+    // 和深处那一格一样当场点名，而不是放过去等生成模块把它写成另一种东西。
+    red(
+      [{ ...rule, props: new Date(0) }],
+      /rules\[0\]\.props 要一个普通对象，拿到的是另一种对象/,
+    );
+    red(
+      [{ ...rule, props: new Map([['a', 1]]) }],
+      /rules\[0\]\.props 要一个普通对象，拿到的是另一种对象/,
+    );
+    red(
+      [{ ...rule, props: new Set(['a']) }],
+      /rules\[0\]\.props 要一个普通对象，拿到的是另一种对象/,
+    );
+    red(
+      [{ ...rule, props: Object.create({}) }],
+      /rules\[0\]\.props 要一个普通对象，拿到的是另一种对象/,
+    );
+  });
+
   it('props 深处那种留不进生成模块的值，点名到具体哪一格', () => {
     // 函数与 undefined 会静默消失，NaN 会写成 null，所以这些都在配置期红，红话带完整路径。
     red(
@@ -298,6 +345,34 @@ describe('normalizeSiteRules：每一种写歪都点名到那一格', () => {
     red(
       [{ ...rule, props: loop }],
       /rules\[0\]\.props\.self 绕回了自己，进不了生成模块/,
+    );
+  });
+
+  it('props 里的稀疏数组点名（洞会被 JSON 写成 null），不按长度铺密数组', () => {
+    // 洞原先被 .map 跳过、再在解构里撞出一句看不出出处的 TypeError；现在按「有洞」点名。
+    const sparse: unknown[] = [];
+    sparse[2] = 1;
+
+    red(
+      [{ ...rule, props: { list: sparse } }],
+      /rules\[0\]\.props\.list 是稀疏数组（下标那几格有洞）/,
+    );
+  });
+
+  it('props 里数组上挂的非下标自有属性点名（JSON 会静默丢掉）', () => {
+    // 下标那几格以外的自有属性 JSON 写法一律丢掉，与函数 / undefined 同一种落空。
+    red(
+      [{ ...rule, props: { list: Object.assign([1, 2], { note: () => {} }) } }],
+      /rules\[0\]\.props\.list 上挂了非下标的自有属性「note」/,
+    );
+    // 「01」不是规范下标，到了长度上限的「4294967295」也不再是下标，同样丢掉、同样点名。
+    red(
+      [{ ...rule, props: { list: Object.assign([1], { '01': 1 }) } }],
+      /上挂了非下标的自有属性「01」/,
+    );
+    red(
+      [{ ...rule, props: { list: Object.assign([1], { '4294967295': 1 }) } }],
+      /上挂了非下标的自有属性「4294967295」/,
     );
   });
 
@@ -365,6 +440,18 @@ describe('normalizeSiteColumn 的 components 那一格：登记名 + 说明符',
     expect(() => column([{ id: 'a', component: '@theme/DocItem' }])).toThrow(
       /站点配置\.components\[0\]（登记名「a」）的 component 是 @theme\/DocItem：那正是本层接管的那一格/u,
     );
+  });
+
+  it('登记名与说明符同样不许带换行或控制字符', () => {
+    // 登记名会原样铺进框内那份生成模块的 `//` 注释，说明符也不该带这些。
+    for (const bad of ['a\nb', 'a\u{2028}b']) {
+      expect(() => column([{ id: bad, component: '@theme/A' }])).toThrow(
+        /站点配置\.components\[0\]\.id 不能含换行或控制字符/,
+      );
+      expect(() => column([{ id: 'a', component: bad }])).toThrow(
+        /站点配置\.components\[0\]\.component 不能含换行或控制字符/,
+      );
+    }
   });
 
   it('组件那一格不是数组 / 某一条不是对象都点名到那一格', () => {

@@ -65,7 +65,8 @@ export default {
 写了不认得的格（例如把 `userApi` 打成 `userAPI`）红在加载配置那一句，报错点名到那一格与它
 能收的名单；类型写歪（`cacheKey` 给了数字、`request` 给了数组）同样红在这里。防抖与节流那三格
 （`debounceLeading` / `debounceWait` / `throttleWait`）随 `ahooks` 一起退掉了，写了它们的老站点
-红在同一句报错上，报错会点名那一格并列出还能收的名单。
+红在同一句报错上，但那一句是专门的迁移指引：点名那一格已随 ahooks 退掉、请求那一层换成了 swr、
+删掉即可（请求那一格现在只收 `cacheKey`），而不是泛泛的「没有这一格」。
 
 ## 层栈
 

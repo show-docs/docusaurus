@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-plugin-lazy-compilation",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "UNLICENSED",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/plugin-lazy-compilation",

@@ -1,12 +1,27 @@
 import { execFileSync } from 'node:child_process';
-import { basename, dirname } from 'node:path';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join } from 'node:path';
 
 /**
-一次 git 调用的输出（去掉首尾空白）。用参数数组而不是拼命令串：路径里带空格或
-引号时拼串会被 shell 拆开，`git log` 那步还会把别人的路径当成参数。
+一次 git 调用的输出。用参数数组而不是拼命令串：路径里带空格或引号时拼串会被 shell 拆开，
+`git log` 那步还会把别人的路径当成参数。
+
+`core.quotepath=false` 显式关：默认会把非 ASCII 路径转义成 `"\346\226\207…"`，那串转义文本
+与真实路径对不上 —— 改名那条拿旧名去 `git show` 会读不到（与 theme-git-badge 同口径）。
+`maxBuffer` 给足：默认 1 MB，大文件的 `git show` / `git diff` 会先于 git 把 Node 撑爆（ENOBUFS）。
+
+`trim` 默认去掉首尾空白（路径、哈希、差异原文都该去）；读文件内容（`git show`）那一格传
+`false`：那份内容的首尾空行与结尾换行是文件本身的一部分，trim 掉会让视图展开上下文时行号错位。
 */
-function git(args: string[], cwd: string): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+function git(args: string[], cwd: string, trim = true): string {
+  const out = execFileSync('git', ['-c', 'core.quotepath=false', ...args], {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+
+  return trim ? out.trim() : out;
 }
 
 /** 从这份文件所在目录往上找仓库根；不在任何 git 仓库里时返回 `undefined`。 */
@@ -108,11 +123,20 @@ export function readLastChange(
   // `HEAD:<路径>` 取到的正是这份文件最后一次被提交的内容 —— 后面的提交没动过它时，
   // 它在 `HEAD` 里就是那一份。
   if (worktree.diff) {
+    // 文件从索引里删了、却又以未跟踪的身份留在磁盘上（`git rm --cached` 后写回，或删了又重建
+    // 但没 add）：`git diff HEAD` 只看到「删了」，而右边本该是磁盘此刻这一份。拿 HEAD 那一份与磁盘比。
+    if (
+      worktree.type?.startsWith('D') &&
+      existsSync(join(repoRoot, pathFromRoot))
+    ) {
+      return headVsDiskChange(pathFromRoot, repoRoot);
+    }
+
     return {
       diff: worktree.diff,
       old: worktree.type?.startsWith('A')
         ? ''
-        : git(['show', `HEAD:${pathFromRoot}`], repoRoot),
+        : git(['show', `HEAD:${pathFromRoot}`], repoRoot, false),
     };
   }
 
@@ -140,7 +164,7 @@ export function readLastChange(
 
   return {
     diff: last.diff,
-    old: git(['show', `${prevHash}:${prevPath}`], repoRoot),
+    old: git(['show', `${prevHash}:${prevPath}`], repoRoot, false),
   };
 }
 
@@ -175,5 +199,32 @@ export function readFilesChange(
     }
 
     return diff;
+  }
+}
+
+/**
+HEAD 里那一份与磁盘此刻这一份互相比一次：专给「索引里删了、磁盘上却还在（未跟踪）」那种局面。
+
+`git diff HEAD` 看不见未跟踪文件，只会报「删了」；这里把 HEAD 那份内容落到一个临时文件，
+交给 `readFilesChange`（`--no-index`）与磁盘比，右边于是仍是磁盘此刻这一份。临时文件用完即删。
+磁盘那份按仓库相对路径给（git 认的正斜杠写法），临时那份是绝对地址 —— 差异头部里它会被加上
+引号，但视图显示的名字取自 `fileName`（见 `md-diff-loader.mts`），不读头部那一格，所以不外露。
+两份内容一样时 `readFilesChange` 给 `undefined`，这里也交回 `undefined`（没有可显示的改动）。
+*/
+function headVsDiskChange(
+  pathFromRoot: string,
+  repoRoot: string,
+): LastChange | undefined {
+  const old = git(['show', `HEAD:${pathFromRoot}`], repoRoot, false);
+  const dir = mkdtempSync(join(tmpdir(), 'theme-diff-'));
+  const headFile = join(dir, 'head');
+
+  try {
+    writeFileSync(headFile, old);
+    const diff = readFilesChange(headFile, pathFromRoot, repoRoot);
+
+    return diff === undefined ? undefined : { diff, old };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 }

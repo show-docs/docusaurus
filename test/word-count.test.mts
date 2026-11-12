@@ -8,6 +8,7 @@ import type {
   AllContent,
   LoadContext,
   MarkdownConfig,
+  ParseFrontMatter,
 } from '@docusaurus/types';
 import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
 
@@ -17,9 +18,13 @@ import {
   foldersOf,
   sumOf,
 } from '../packages/theme-word-count/src/aggregate.mts';
-import { collectStats } from '../packages/theme-word-count/src/content.mts';
+import {
+  collectStats,
+  type StatsUsage,
+} from '../packages/theme-word-count/src/content.mts';
 import { countWords } from '../packages/theme-word-count/src/count.mts';
 import {
+  directiveScopes,
   installPreprocessor,
   rewriteWordCountDirectives,
   withoutWordCountDirectives,
@@ -88,6 +93,20 @@ function contextOf(): LoadContext {
 
 /** 一份 docs 清单里的一条（其余各格本包一眼都不看，这里也就不必造）。 */
 const docOf = (id: string, source: string) => ({ id, source });
+
+/** 收告警的假 logger：`warn` 收到的每一组参数都记下来，断言里翻。 */
+function warnCollector() {
+  const warnings: unknown[][] = [];
+
+  return {
+    logger: {
+      warn: (...args: unknown[]) => {
+        warnings.push(args);
+      },
+    },
+    warnings,
+  };
+}
 
 describe('countWords：两把码位表就是全部规则', () => {
   it('中日韩文字按字：汉字、假名、谚文各算一个', () => {
@@ -192,6 +211,16 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
       h5: 1,
       h6: 1,
       headingIds: 2,
+    });
+  });
+
+  it('空标题是合法 markdown：各记一格，不认 id，也不当场抛', () => {
+    // `## ` 与 `###` 都没有子节点：「只认最后一个子节点」那一步先判空
+    expect(measureMarkdown('## \n\n###\n\n正文\n', false)).toMatchObject({
+      h2: 1,
+      h3: 1,
+      headingIds: 0,
+      words: 2,
     });
   });
 
@@ -422,6 +451,22 @@ describe('rewriteWordCountDirectives：指令换成正文里的一个组件', ()
     }
   });
 
+  it('带信息串的行不是收尾；光秃秃的收尾（可带尾随空白）照常关', () => {
+    // CommonMark：收尾围栏不带信息串，```js 这种行是围栏内的正文
+    for (const text of [
+      '```\n```js\n:::word-count\n```\n',
+      '~~~\n~~~js\n:::word-count\n~~~\n',
+    ]) {
+      expect(rewriteWordCountDirectives(text)).toBe(text);
+      expect(withoutWordCountDirectives(text)).toBe(text);
+    }
+    expect(
+      rewriteWordCountDirectives('```\ncode\n```  \n\n:::word-count\n'),
+    ).toBe(
+      `${IMPORT_LINE}\n\`\`\`\ncode\n\`\`\`  \n\n<__WordCount scope="instance" />\n`,
+    );
+  });
+
   it('围栏收掉之后，后面的指令照常认', () => {
     expect(
       rewriteWordCountDirectives('```\ncode\n```\n\n:::word-count\n'),
@@ -483,6 +528,21 @@ describe('withoutWordCountDirectives：指令是看不见的语法，不数', ()
     expect(withoutWordCountDirectives('    :::word-count\n')).toBe(
       '    :::word-count\n',
     );
+  });
+});
+
+describe('directiveScopes：报出每条指令的范围，供统计侧裁明细', () => {
+  it('没写范围是 instance，写了的按写的报；多条按出现顺序', () => {
+    expect(
+      directiveScopes(
+        ':::word-count\n:::word-count page\n:::word-count site\n',
+      ),
+    ).toEqual(['instance', 'page', 'site']);
+  });
+
+  it('没有指令、或只在围栏里提到，都是空数组', () => {
+    expect(directiveScopes('正文 一句\n')).toEqual([]);
+    expect(directiveScopes('```\n:::word-count page\n```\n')).toEqual([]);
   });
 });
 
@@ -551,7 +611,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     expect(stats.groups).toMatchObject([
       // 「两个 词」3 个字 + 标题里的 A 一个词；「hello world」两个词
@@ -598,7 +658,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     // 正文里 10 个字（看得见 的 标题 / 正文 一句）；frontmatter 那 6 个词一个字都不进
     expect(stats.groups[0]).toMatchObject({
@@ -624,7 +684,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     // 指令两行是看不见的语法；正文 4 个字；围栏里那行示例留在正文里（`word-count` 一个词）
     expect(stats.groups[0]).toMatchObject({
@@ -655,7 +715,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     expect(stats.docs[withHead]).toMatchObject({
       frontmatter: 1,
@@ -683,7 +743,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     // 「这一页 两个词」6 个字 + hello 一个词；键与清单里的 `source` 同一个形状
     expect(stats.docs).toMatchObject({
@@ -713,7 +773,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     // 两页都进：正页 4 个字，草稿正文 4 个字（frontmatter 不进词数）
     expect(stats.docs[draft]).toMatchObject({ drafts: 1, pages: 1, words: 4 });
@@ -741,7 +801,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     expect(stats).toMatchObject({ drafts: 1, pages: 1, words: 2 });
   });
@@ -758,7 +818,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     expect(stats.groups.map((group) => group.version)).toEqual([
       'current',
@@ -773,7 +833,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     expect(stats.groups).toMatchObject([
       {
@@ -816,7 +876,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     expect(stats.groups).toHaveLength(1);
     expect(stats.groups[0]).toMatchObject({ cjk: 7, pages: 2, words: 7 });
@@ -832,7 +892,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    const stats = await collectStats(allContent, context);
+    const { stats } = await collectStats(allContent, context);
 
     expect(stats).toMatchObject({
       cjk: 0,
@@ -843,21 +903,40 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
     });
   });
 
-  it('清单里那一份文件在磁盘上读不到时构建抛错，不安静少数', async () => {
+  it('清单里那一份文件在磁盘上读不到：告警一声，那一页按 0 计，其余各页照常', async () => {
+    const { logger, warnings } = warnCollector();
     const allContent = {
       '@docusaurus/plugin-content-docs': {
         default: {
           loadedVersions: [
             {
               versionName: 'current',
-              docs: [docOf('g', '@site/docs/gone.md')],
+              docs: [
+                docOf('g', '@site/docs/gone.md'),
+                docOf('ok', docFile('ok.md', 'hello world\n')),
+              ],
             },
           ],
         },
       },
     } as unknown as AllContent;
 
-    await expect(collectStats(allContent, context)).rejects.toThrow();
+    const { stats } = await collectStats(allContent, context, logger);
+
+    // 读不到的那一页仍在清单里：算 1 页、各项 0，不安静消失，也不红
+    expect(stats.docs['@site/docs/gone.md']).toMatchObject({
+      pages: 1,
+      words: 0,
+    });
+    // 其余各页照常数
+    expect(stats.docs['@site/docs/ok.md']).toMatchObject({
+      pages: 1,
+      words: 2,
+    });
+    expect(stats).toMatchObject({ pages: 2, words: 2 });
+    // 告警里带得上是哪一份文件
+    expect(warnings).toHaveLength(1);
+    expect(String(warnings[0]![0])).toContain('gone.md');
   });
 
   it('地址不是 `@site/` 打头时官方那一位当场抛，不自己截字符串', async () => {
@@ -877,7 +956,8 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
     );
   });
 
-  it('正文不是合法 MDX 时把文件路径补进错误里，构建日志找得到哪一页', async () => {
+  it('正文不是合法 MDX：告警里带着文件路径，那一页按 0 计，构建不红', async () => {
+    const { logger, warnings } = warnCollector();
     const source = docFile('broken.md', '正文 {1 +}\n');
     const allContent = {
       '@docusaurus/plugin-content-docs': {
@@ -889,9 +969,108 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
       },
     } as unknown as AllContent;
 
-    await expect(collectStats(allContent, context)).rejects.toThrow(
-      /解析 .*broken\.md 失败/,
-    );
+    const { stats } = await collectStats(allContent, context, logger);
+
+    expect(stats.docs['@site/docs/broken.md']).toMatchObject({
+      pages: 1,
+      words: 0,
+    });
+    expect(stats).toMatchObject({ pages: 1, words: 0 });
+    expect(warnings).toHaveLength(1);
+    expect(String(warnings[0]![0])).toMatch(/broken\.md/);
+  });
+
+  it('原文没变的那几份不重数：第二遍不再调解析器（dev 增量）', async () => {
+    let calls = 0;
+    const counting: ParseFrontMatter = async (params) => {
+      calls += 1;
+
+      return DEFAULT_PARSE_FRONT_MATTER(params);
+    };
+    const context = {
+      ...contextOf(),
+      siteConfig: { markdown: { parseFrontMatter: counting } },
+    } as unknown as LoadContext;
+    const allContent = {
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            {
+              versionName: 'current',
+              docs: [docOf('memo', docFile('memo.md', 'memo 一页\n'))],
+            },
+          ],
+        },
+      },
+    } as unknown as AllContent;
+
+    await collectStats(allContent, context);
+    const first = calls;
+
+    expect(first).toBeGreaterThan(0);
+
+    // 同一份原文、同一份解析器：第二遍走 memo，一份都不重数
+    await collectStats(allContent, context);
+    expect(calls).toBe(first);
+  });
+
+  it('原文改了：那一份重新数，不交回上一轮的旧结果（dev 改正文）', async () => {
+    const context = contextOf();
+    const source = docFile('memo-content.md', '一页\n');
+    const allContent = {
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            { versionName: 'current', docs: [docOf('mc', source)] },
+          ],
+        },
+      },
+    } as unknown as AllContent;
+
+    const before = await collectStats(allContent, context);
+    expect(before.stats.docs[source]!.words).toBe(2);
+
+    // 路径不变、原文改了：memo 必须失效，按新原文重数
+    docFile('memo-content.md', '一页 二页 三页\n');
+    const after = await collectStats(allContent, context);
+    expect(after.stats.docs[source]!.words).toBe(6);
+  });
+
+  it('解析器换了：memo 失效，用新解析器重数（reloadSite 重跑工厂）', async () => {
+    const source = docFile('memo-parser.md', '一页\n');
+    const allContent = {
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            { versionName: 'current', docs: [docOf('mp', source)] },
+          ],
+        },
+      },
+    } as unknown as AllContent;
+    let firstCalls = 0;
+    let secondCalls = 0;
+    const first: ParseFrontMatter = async (params) => {
+      firstCalls += 1;
+
+      return DEFAULT_PARSE_FRONT_MATTER(params);
+    };
+    const second: ParseFrontMatter = async (params) => {
+      secondCalls += 1;
+
+      return DEFAULT_PARSE_FRONT_MATTER(params);
+    };
+    const contextWith = (parser: ParseFrontMatter) =>
+      ({
+        ...contextOf(),
+        siteConfig: { markdown: { parseFrontMatter: parser } },
+      }) as unknown as LoadContext;
+
+    await collectStats(allContent, contextWith(first));
+    expect(firstCalls).toBeGreaterThan(0);
+
+    // 同一份原文、换一份解析器引用：第二遍不能走 memo，必须用新解析器重数
+    await collectStats(allContent, contextWith(second));
+    expect(secondCalls).toBeGreaterThan(0);
   });
 });
 
@@ -970,6 +1149,61 @@ describe('renderStatsModule：生成模块只有那一句导出', () => {
     const json = text.slice(text.indexOf('{')).replace(/;\s*$/, '');
     expect(JSON.parse(json)).toEqual(stats);
   });
+
+  it('按 usage 裁：只留写了 page/folder 的那几格，合计与分组不动', () => {
+    const page = countOf({ pages: 1, words: 2 });
+    const stats: WordCountStats = {
+      ...countOf({ pages: 3, words: 6 }),
+      groups: [{ ...page, instance: 'default', version: 'current' }],
+      instances: { default: countOf({ pages: 3, words: 6 }) },
+      folders: { '@site/docs': page, '@site/docs/guide': page },
+      docs: {
+        '@site/docs/a.md': page,
+        '@site/docs/guide/b.md': page,
+        '@site/docs/c.md': page,
+      },
+    };
+    const usage: StatsUsage = {
+      '@site/docs/a.md': ['page'],
+      '@site/docs/guide/b.md': ['folder'],
+    };
+
+    const text = renderStatsModule(stats, usage);
+    const json = JSON.parse(
+      text.slice(text.indexOf('{')).replace(/;\s*$/, ''),
+    ) as WordCountStats;
+
+    // a.md 写了 page → 留；guide/b.md 写了 folder → 它的目录 guide 留；c.md 没写 → 裁
+    expect(Object.keys(json.docs)).toEqual(['@site/docs/a.md']);
+    expect(Object.keys(json.folders)).toEqual(['@site/docs/guide']);
+    // 合计、分组、实例合计照旧全铺（site / instance 范围读它们）
+    expect(json.words).toBe(6);
+    expect(json.groups).toHaveLength(1);
+    // instances 不被裁（site / instance 范围读它），夹具里 default 那一格一定在
+    expect(json.instances.default!.pages).toBe(3);
+  });
+
+  it('按 usage 裁：folder 范围但地址里没有目录那一段时，不铺那一格目录', () => {
+    // 与浏览器侧 ofFolder 同一种砍法：地址没有 `/` 就挑不出目录（那边交回 undefined）。
+    const page = countOf({ pages: 1, words: 2 });
+    const stats: WordCountStats = {
+      ...countOf({ pages: 1, words: 2 }),
+      groups: [],
+      instances: {},
+      folders: { '@site/docs': page },
+      docs: { 'README.md': page },
+    };
+    const usage: StatsUsage = { 'README.md': ['folder'] };
+
+    const text = renderStatsModule(stats, usage);
+    const json = JSON.parse(
+      text.slice(text.indexOf('{')).replace(/;\s*$/, ''),
+    ) as WordCountStats;
+
+    // README.md 没有 `/`：挑不出目录，folders 一格都不留；写的是 folder 不是 page，docs 也裁掉
+    expect(Object.keys(json.folders)).toEqual([]);
+    expect(Object.keys(json.docs)).toEqual([]);
+  });
 });
 
 /**
@@ -989,7 +1223,16 @@ describe('theme-word-count 入口：把统计铺进生成目录', () => {
           loadedVersions: [
             {
               versionName: 'current',
-              docs: [docOf('run', docFile('run.md', '跑一遍 就好\n'))],
+              // 写了 page 与 folder 两种指令：每页与每目录那两格因此铺得出去
+              docs: [
+                docOf(
+                  'run',
+                  docFile(
+                    'run.md',
+                    ':::word-count page\n:::word-count folder\n\n跑一遍 就好\n',
+                  ),
+                ),
+              ],
             },
           ],
         },
@@ -1008,14 +1251,79 @@ describe('theme-word-count 入口：把统计铺进生成目录', () => {
     const text = fs.readFileSync(target, 'utf8');
     expect(text).toContain('export const stats = ');
     expect(text).toContain('"instance": "default"');
-    // 「跑一遍 就好」5 个字，一份文件
+    // 「跑一遍 就好」5 个字，一份文件（指令那两行是看不见的语法，不数）
     expect(text).toContain('"words": 5');
     expect(text).toContain('"pages": 1');
-    // 每页那一格也铺进去了：浏览器侧按这一页的 source 挑
+    // 这一页写了 page 指令：每页那一格铺进去了，浏览器侧按这一页的 source 挑
     expect(text).toContain('"@site/docs/run.md"');
-    // 实例与目录在配置期先合好，页面里不做加法
+    // 实例与目录在配置期先合好，页面里不做加法；这一页写了 folder 指令，目录那一格也在
     expect(text).toContain('"instances"');
     expect(text).toContain('"folders"');
     expect(text).toContain('"@site/docs"');
+  });
+
+  it('没写 page/folder 指令的页：每页与每目录明细不铺给浏览器，合计照常', async () => {
+    const context = contextOf();
+    const plugin = wordCountTheme(context);
+    const allContent = {
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            {
+              versionName: 'current',
+              docs: [docOf('plain', docFile('plain.md', 'hello world\n'))],
+            },
+          ],
+        },
+      },
+    } as unknown as AllContent;
+    const target = path.join(context.generatedFilesDir, STATS_TARGET);
+
+    await plugin.allContentLoaded!({
+      allContent,
+      contentByLoadName: {},
+    } as never);
+
+    const text = fs.readFileSync(target, 'utf8');
+    // 合计与实例照常铺（instance / site 范围读它们）
+    expect(text).toContain('"words": 2');
+    expect(text).toContain('"instances"');
+    // 这一页没写 page/folder：每页与每目录明细都裁掉，不白占浏览器载荷
+    expect(text).not.toContain('"@site/docs/plain.md"');
+    expect(text).not.toContain('"@site/docs"');
+  });
+
+  it('数没变就不重写那份模块（dev 下改无关文件不该让浏览器白刷）', async () => {
+    const context = contextOf();
+    const plugin = wordCountTheme(context);
+    const allContent = {
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            {
+              versionName: 'current',
+              docs: [docOf('stable', docFile('stable.md', '稳定 的一页\n'))],
+            },
+          ],
+        },
+      },
+    } as unknown as AllContent;
+    const target = path.join(context.generatedFilesDir, STATS_TARGET);
+    const run = () =>
+      plugin.allContentLoaded!({
+        allContent,
+        contentByLoadName: {},
+      } as never);
+
+    await run();
+    const { mtimeMs } = fs.statSync(target);
+
+    // 隔一小段再跑同样的内容：真写盘的话 mtime 一定会往前走（NTFS 精度足够）
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50);
+    });
+    await run();
+
+    expect(fs.statSync(target).mtimeMs).toBe(mtimeMs);
   });
 });

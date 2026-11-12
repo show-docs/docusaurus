@@ -58,6 +58,16 @@
 不生成页签。这一层不往产物里写 frontmatter：站点那份（标题、说明、侧栏名）留在文件头上给
 Docusaurus 读，DBML 解析器只收 `---` 块之后的部分 —— 所以那一页的 `<h1>` 与别的文档页同一个来源。
 
+## 两张表格的单元格要自己转义
+
+`createMarkdownTables()` 用 `markdown-table` 拼枚举表与字段表，而那份依赖（实测 3.0.4）的
+`serialize()` 只做 `String(value)`，**不转义** `|` 也不处理换行。note 与字符串默认值是作者随手写
+的散文，`'admin | editor'` 这种「或」描述、`'''…'''` 多行 note 都常见：裸塞进单元格，一个管道就
+多出一列，一段换行就把那一行截断、整张表散架。所以动态那几格（标识符、note、类型、默认值）进表前
+先过 `tableCell()`：`|` 转义成 `\|`、换行（CRLF / CR / LF）收成 `<br>`（标识符没有这两样，过它
+是恒等）。表头与「是 / 空」是固定文案，`### 表名` 下那句 note 是独立散文、不是单元格，都不进这一
+格。这条由 `test/theme-erd.test.mts` 的「表格单元格里的作者内容要转义」那组用例钉着。
+
 ## 用例与红线
 
 - 构建期判据：`test/theme-erd.test.mts` —— 夹具是真 DBML 原文（含站点那份 `packages/theme-erd/docs/erd-demo.dbml`），

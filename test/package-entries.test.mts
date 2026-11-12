@@ -195,6 +195,22 @@ describe('plugin-lazy-compilation：开发期给客户端编译开 lazyCompilati
   }
 
   /**
+  把 `process.argv[2]` 摆成用例要的那一个命令，跑完恢复。官方 `cli.js` 正是从这一格认命令
+  （`command = cliArgs[2]`，bin 传的就是 `process.argv`），本包判 build 与它同一个口径。
+  整份换掉再交回原引用：按下标读会拿到 `string | undefined`（noUncheckedIndexedAccess），
+  塞回 `string` 那一格类型上过不去。
+  */
+  function withCommand(command: string, run: () => void): void {
+    const previous = process.argv;
+    process.argv = [...previous.slice(0, 2), command, ...previous.slice(3)];
+    try {
+      run();
+    } finally {
+      process.argv = previous;
+    }
+  }
+
+  /**
   `configureWebpack` 交回来的那一格（本包只点名自己要的那几格，其余一概不写）。
   官方那一步把它用 webpack-merge 并进传进来的 config，所以这里断言的是「交出去的那几格」。
   */
@@ -261,20 +277,78 @@ describe('plugin-lazy-compilation：开发期给客户端编译开 lazyCompilati
     expect(patch?.experiments).toBeUndefined();
   });
 
-  it('rspack：那份中间件挂到中间件表表头，compiler 交给它，devServer 只交这一格', () => {
+  it('rspack：只交回自己那一项的新数组，不碰传进来那份，compiler 交给它', () => {
     const patch = patchOf(false, 'rspack');
     const compiler = { tag: 'fake-client-compiler' };
-    const registered = patch?.devServer?.setupMiddlewares?.(
-      [{ name: 'webpack-dev-middleware' }],
-      { compiler },
-    ) as MiddlewareEntry[];
+    const incoming = [{ name: 'webpack-dev-middleware' }];
+    const registered = patch?.devServer?.setupMiddlewares?.(incoming, {
+      compiler,
+    }) as MiddlewareEntry[];
 
     expect(Object.keys(patch?.devServer ?? {})).toEqual(['setupMiddlewares']);
+    // 只交自己那一项：合并那一步把它与官方那份的返回值拼接（下一条用真实 merge 钉）
     expect(registered.map((entry) => entry.name)).toEqual([
       'rspack-lazy-compilation',
-      'webpack-dev-middleware',
     ]);
     expect(registered[0]?.middleware?.seen).toBe(compiler);
+    // 不改传进来那份：改同一份再交回，拼接后整张表会翻倍
+    expect(incoming).toEqual([{ name: 'webpack-dev-middleware' }]);
+  });
+
+  it('rspack：真实 webpack-merge 合并后，每项中间件各注册一次（不翻倍）', async () => {
+    // 取官方 applyConfigureWebpack 用的那份 webpack-merge（同一份依赖解析，版本与官方一致）
+    const { createRequire } = await import('node:module');
+    const req = createRequire(
+      path.resolve(
+        repoRoot,
+        'node_modules/@docusaurus/core/lib/webpack/configure.js',
+      ),
+    );
+    const { mergeWithCustomize } = req('webpack-merge') as {
+      mergeWithCustomize: (opts: Record<string, unknown>) => (
+        a: unknown,
+        b: unknown,
+      ) => {
+        devServer: {
+          setupMiddlewares: (
+            middlewares: MiddlewareEntry[],
+            devServer: { compiler: unknown },
+          ) => MiddlewareEntry[];
+        };
+      };
+    };
+
+    // 官方那一份的形状（core/lib/commands/start/webpack.js:101）：往传进来的数组 unshift、再交回同一份
+    const officialConfig = {
+      devServer: {
+        setupMiddlewares: (middlewares: MiddlewareEntry[]) => {
+          middlewares.unshift({ name: 'eval-source-map' });
+          return middlewares;
+        },
+      },
+    };
+    const merged = mergeWithCustomize({})(
+      officialConfig,
+      patchOf(false, 'rspack'),
+    );
+
+    const compiler = { tag: 'fake-client-compiler' };
+    const registered = merged.devServer.setupMiddlewares(
+      [{ name: 'webpack-dev-middleware' }],
+      { compiler },
+    );
+
+    // 三项各一次。本包若也改同一份数组再交回，两份返回值是同一个引用，拼接后这里各变成两次。
+    const names = registered.map((entry) => entry.name);
+    expect(names.filter((n) => n === 'rspack-lazy-compilation')).toHaveLength(
+      1,
+    );
+    expect(names.filter((n) => n === 'eval-source-map')).toHaveLength(1);
+    expect(names.filter((n) => n === 'webpack-dev-middleware')).toHaveLength(1);
+    expect(
+      registered.find((e) => e.name === 'rspack-lazy-compilation')?.middleware
+        ?.seen,
+    ).toBe(compiler);
   });
 
   it('服务端编译：两处都不动', () => {
@@ -293,6 +367,36 @@ describe('plugin-lazy-compilation：开发期给客户端编译开 lazyCompilati
       });
       expect(config).toEqual({ experiments: { asyncWebAssembly: true } });
     }
+  });
+
+  it('`build --dev`：NODE_ENV 被置回 development，仍按命令认出是 build，两处都不动', () => {
+    // `docusaurus build --dev` 把 NODE_ENV 又置回 development（build.js），光看 NODE_ENV
+    // 会把这一档误当成 start 而开了按需编译。命令按官方同一个口径读 `process.argv[2]`。
+    for (const bundler of ['webpack', 'rspack'] as const) {
+      const config = { experiments: { asyncWebAssembly: true } };
+      withNodeEnv('development', () => {
+        withCommand('build', () => {
+          expect(
+            webpackOf(lazyCompilationPlugin(), config, false, bundler),
+          ).toBeUndefined();
+        });
+      });
+      expect(config).toEqual({ experiments: { asyncWebAssembly: true } });
+    }
+  });
+
+  it('`start`：同样是 development，命令是 start 就照常装上（与 build --dev 对照）', () => {
+    withNodeEnv('development', () => {
+      withCommand('start', () => {
+        const patch = webpackOf(
+          lazyCompilationPlugin(),
+          {},
+          false,
+          'webpack',
+        ) as unknown as LazyPatch;
+        expect(patch?.experiments?.lazyCompilation).toEqual(LAZY);
+      });
+    });
   });
 
   it('交出的那一格只有本包自己那几格，不带同级别的键', () => {
@@ -627,11 +731,13 @@ describe('theme-git-badge 入口：层目录、样式表与接线', () => {
     expect(existsSync(modules[0]!)).toBe(true);
   });
 
-  it('接线在 `loadContent()`，`contentLoaded()` 那格留给 reloadSite', () => {
-    const plugin = gitBadgeTheme(contextWithMarkdown());
+  it('接线在工厂期：构造完解析器就被包住，`loadContent()` 只是兜底重包', () => {
+    const context = contextWithMarkdown();
+    const before = context.siteConfig.markdown.parseFrontMatter;
+    const plugin = gitBadgeTheme(context);
 
+    expect(context.siteConfig.markdown.parseFrontMatter).not.toBe(before);
     expect(plugin.loadContent).toBeTypeOf('function');
-    expect(plugin.contentLoaded).toBeTypeOf('function');
   });
 });
 

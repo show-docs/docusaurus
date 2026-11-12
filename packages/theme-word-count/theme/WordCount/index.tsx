@@ -212,17 +212,20 @@ function InstanceStats({ instance }: { instance: string }): ReactNode {
 
 块是正文里的一个普通组件，而 `theme-classic` 的 `DocItem` 把 `<DocProvider>` 包在整棵正文外面，
 所以这里拿到的 `metadata.source` 与配置期清单里的 `source` 是同一个 `@site/…`。
-这一页在统计里挑不出来（开发期重载中间的那一瞬）就退回全站，不安静显示 0。
+两种范围各查各的表：本页查 `docs`，本文件夹查 `folders`（配置期已含子目录）。生成模块只铺
+写了 `page` / `folder` 指令的那几格，所以本文件夹这一格不拿「本页在不在明细里」当前提 ——
+写了 `folder` 的页未必写了 `page`。挑不出来（开发期重载中间的那一瞬）就退回全站，不安静显示 0。
 */
 function DocStats({ scope }: { scope: 'page' | 'folder' }): ReactNode {
   const { metadata } = useDoc();
-  const page = ofPage(stats, metadata.source);
-
-  if (page === undefined) {
-    return <SiteStats />;
-  }
 
   if (scope === 'page') {
+    const page = ofPage(stats, metadata.source);
+
+    if (page === undefined) {
+      return <SiteStats />;
+    }
+
     return (
       <StatsBlock
         title="本页字数"

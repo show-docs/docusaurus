@@ -140,6 +140,26 @@ function kindOf(value: unknown): string {
   return Array.isArray(value) ? '数组' : typeof value;
 }
 
+/**
+这一串里有没有换行或控制字符（含 JS 源码里同样算换行的 U+2028 / U+2029）。
+
+key 与登记名会原样铺进生成模块那条 `//` 注释（`./registry-module.mts`），带一个换行就把注释
+截断、在生成的模块里放进一条真的 `import`；说明符也不该带这些。配置期当场点名，而不是等
+webpack 报一句看不出出处的语法错。
+*/
+function hasLineOrControl(value: string): boolean {
+  for (const ch of value) {
+    // for…of 每一格都是非空串，codePointAt(0) 必有值。
+    const code = ch.codePointAt(0)!;
+
+    if (code <= 0x1f || code === 0x7f || code === 0x2028 || code === 0x2029) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function requireString(value: unknown, field: string, where: string): string {
   if (typeof value !== 'string') {
     throw new TypeError(
@@ -149,6 +169,12 @@ function requireString(value: unknown, field: string, where: string): string {
 
   if (value === '') {
     throw new Error(`theme-component-page 的 ${where}.${field} 不能是空串`);
+  }
+
+  if (hasLineOrControl(value)) {
+    throw new Error(
+      `theme-component-page 的 ${where}.${field} 不能含换行或控制字符（拿到 ${JSON.stringify(value)}）`,
+    );
   }
 
   return value;
@@ -163,6 +189,14 @@ function isPlainContainer(value: object): boolean {
   const prototype = Object.getPrototypeOf(value);
 
   return prototype === Object.prototype || prototype === null;
+}
+
+/**
+一把自有属性名是不是数组下标（`0`、`1`、…）。`01`、`1.0`、`-1`、以及到了 `2**32-1`
+（数组长度上限，不再是下标）的那些都不算 —— 它们挂在数组上时 JSON 写法会静默丢掉。
+*/
+function isArrayIndex(key: string): boolean {
+  return /^(?:0|[1-9]\d*)$/.test(key) && Number(key) < 2 ** 32 - 1;
 }
 
 /**
@@ -216,6 +250,29 @@ function assertPureData(
   }
 
   const parentsOfChildren = new Set([...parents, value]);
+
+  if (Array.isArray(value)) {
+    const keys = Object.keys(value);
+
+    // 数组上挂的非下标自有属性（`Object.assign([1, 2], { note: fn })`）JSON 写法会静默丢掉，
+    // 与函数 / undefined 同一种落空，所以也点名。
+    for (const key of keys) {
+      if (!isArrayIndex(key)) {
+        throw new TypeError(
+          `theme-component-page 的 ${where} 上挂了非下标的自有属性「${key}」，进不了生成模块：JSON 写法只收数组下标那几格，别的会静默丢掉`,
+        );
+      }
+    }
+
+    // 稀疏数组的洞 JSON 写法会写成 null（又一种静默变形）。在这里点名，而不是让 .map 跳过洞、
+    // 再在下面的解构里撞出一句看不出出处的 TypeError；也不按长度铺密数组（超长稀疏数组会撑爆内存）。
+    if (keys.length !== value.length) {
+      throw new TypeError(
+        `theme-component-page 的 ${where} 是稀疏数组（下标那几格有洞），进不了生成模块：JSON 写法会把洞写成 null，要的是每一格都填实的数组`,
+      );
+    }
+  }
+
   const children = Array.isArray(value)
     ? value.map((item, index) => [`${where}[${index}]`, item] as const)
     : Object.entries(value).map(
@@ -230,8 +287,9 @@ function assertPureData(
 /**
 `props` 那一格：要么缺席，要么一个普通对象，而且里头每一样都得是纯数据。
 
-最外层先按普通对象判（数组与 `null` 在那一步就被挡掉），再逐格走到底 —— 深处的函数留不进
-生成模块，与其让它静默变成一个 `undefined`，不如红在配置加载那一句。
+最外层先按普通对象判（数组、`null`、`Date` / `Map` / `Set` 这类另一种对象都在那一步被挡掉），
+再逐格走到底 —— 深处的函数留不进生成模块，与其让它静默变成一个 `undefined`，不如红在配置加载
+那一句。
 */
 function requirePropsObject(
   value: unknown,
@@ -240,6 +298,12 @@ function requirePropsObject(
   if (kindOf(value) !== 'object') {
     throw new TypeError(
       `theme-component-page 的 ${where}.props 要一个普通对象，拿到的是 ${kindOf(value)}`,
+    );
+  }
+
+  if (!isPlainContainer(value as object)) {
+    throw new TypeError(
+      `theme-component-page 的 ${where}.props 要一个普通对象，拿到的是另一种对象（如 Date / Map / Set）：那一格只放纯数据`,
     );
   }
 

@@ -566,6 +566,25 @@ describe('git 那一侧（真 git 仓库）', () => {
     expect(timesOf(repo, loose)).toEqual(noTimes);
   });
 
+  it('非 ASCII 文件名：路径不转义，时刻表与徽标都查得到', () => {
+    const { root, commit } = gitRepo('git-badge-quotepath-');
+
+    fs.writeFileSync(path.join(root, '中文页面.md'), '你好\n');
+    commit('建中文页面', now - 60);
+
+    const repo = openRepo(root);
+    const file = path.join(root, '中文页面.md');
+
+    // git 默认把非 ASCII 路径转义成 `"\\344\\270\\255…"`：不显式关 quotepath，
+    // 这张表按转义文本建键，按真实路径查永远 miss
+    expect(timesOf(repo, file)).toEqual({
+      created: now - 60,
+      updated: now - 60,
+    });
+    expect(repo.recent.has('中文页面.md')).toBe(true);
+    expect(badgeKindOf({ filePath: file, frontMatter: {}, repo })).toBe('new');
+  });
+
   it('「最近」的两个口径：七天内的算最近；最后一个提交里的老文件也算最近', () => {
     const { root, repo } = makeRepo();
 
@@ -900,20 +919,38 @@ describe('theme-git-badge 插件接线', () => {
     expect(plugin.name).toBe('@show-docs/docusaurus-theme-git-badge');
   });
 
-  it('构造函数不动站点那份解析器：接线在 `loadContent()` 里', () => {
+  it('构造函数里就包住站点那份解析器：工厂期接线，不等 loadContent', () => {
     const base = fakeParse();
     const markdown = createMarkdown(base as ParseFrontMatter);
     gitBadgeTheme(contextWith('/site', markdown));
 
-    expect(markdown.parseFrontMatter).toBe(base);
+    expect(markdown.parseFrontMatter).not.toBe(base);
   });
 
-  it('loadContent 之后站点那份解析器被包住，兄弟键连引用都不换', async () => {
+  it('工厂一返回，解构走的那份就带注入（docs 的 loadContent 就是这么读的）', async () => {
+    const { root } = makeSite('git-badge-race-');
+    const markdown = createMarkdown();
+
+    gitBadgeTheme(contextWith(root, markdown));
+    // docs 插件在它自己的 loadContent() 里解构的是函数引用：那一刻注入必须已经在。
+    // initPlugins 把所有工厂 await 完才跑各插件的 loadContent，所以工厂期接线没有竞态。
+    const { parseFrontMatter } = markdown;
+
+    const { frontMatter } = await parseFrontMatter(
+      params(path.join(root, 'docs', 'intro.md')),
+    );
+
+    expect(frontMatter).toMatchObject({
+      sidebar_custom_props: { gitBadge: 'new' },
+    });
+  });
+
+  it('构造之后站点那份解析器被包住，兄弟键连引用都不换', async () => {
     const { root } = makeSite('git-badge-site-');
     const markdown = createMarkdown();
     const { preprocessor } = markdown;
 
-    gitBadgeTheme(contextWith(root, markdown)).loadContent?.();
+    gitBadgeTheme(contextWith(root, markdown));
 
     const { frontMatter } = await markdown.parseFrontMatter(
       params(path.join(root, 'docs', 'intro.md')),
@@ -953,7 +990,7 @@ describe('theme-git-badge 插件接线', () => {
     const { root } = makeTwoRootSite();
     const markdown = createMarkdown();
 
-    gitBadgeTheme(contextWith(root, markdown)).loadContent?.();
+    gitBadgeTheme(contextWith(root, markdown));
 
     // 三份都被判：没有 `docs` 选项，也没有内容根过滤 —— 读那一格的只有文档插件的侧边栏，
     // 所以「跟哪一棵根」不再由本层区分
@@ -970,28 +1007,46 @@ describe('theme-git-badge 插件接线', () => {
     }
   });
 
-  it('两个阶段都调也不会套第二层（reloadSite 只重跑 contentLoaded）', () => {
+  it('重复构造不会套第二层（reloadSite 重跑的是工厂）', () => {
     const { root } = makeSite('git-badge-once-');
     const markdown = createMarkdown();
-    const plugin = gitBadgeTheme(contextWith(root, markdown));
 
-    plugin.loadContent?.();
+    gitBadgeTheme(contextWith(root, markdown));
     const once = markdown.parseFrontMatter;
-    plugin.contentLoaded?.({} as never);
+    gitBadgeTheme(contextWith(root, markdown));
 
     expect(markdown.parseFrontMatter).toBe(once);
   });
 
-  it('只重跑 contentLoaded（reloadSite 那条路）时也包得上', async () => {
+  it('loadContent 再调一次也不套第二层（reloadPlugin 复用实例重跑那一阶段）', async () => {
     const { root } = makeSite('git-badge-reload-');
     const markdown = createMarkdown();
+    const plugin = gitBadgeTheme(contextWith(root, markdown));
+    const once = markdown.parseFrontMatter;
 
-    gitBadgeTheme(contextWith(root, markdown)).contentLoaded?.({} as never);
+    plugin.loadContent?.();
+
+    expect(markdown.parseFrontMatter).toBe(once);
+    const { frontMatter } = await markdown.parseFrontMatter(
+      params(path.join(root, 'docs', 'intro.md')),
+    );
+    expect(frontMatter).toMatchObject({
+      sidebar_custom_props: { gitBadge: 'new' },
+    });
+  });
+
+  it('别的插件在工厂期换了那一格：loadContent 兜底重包，注入不丢', async () => {
+    const { root } = makeSite('git-badge-rewrap-');
+    const markdown = createMarkdown();
+    const plugin = gitBadgeTheme(contextWith(root, markdown));
+
+    // 共享可变对象：后来者在自己的工厂里直接赋值，把本包那层整个换掉
+    markdown.parseFrontMatter = fakeParse() as ParseFrontMatter;
+    plugin.loadContent?.();
 
     const { frontMatter } = await markdown.parseFrontMatter(
       params(path.join(root, 'docs', 'intro.md')),
     );
-
     expect(frontMatter).toMatchObject({
       sidebar_custom_props: { gitBadge: 'new' },
     });
@@ -1001,7 +1056,7 @@ describe('theme-git-badge 插件接线', () => {
     const { root, run } = makeSite('git-badge-stable-');
     const markdown = createMarkdown();
 
-    gitBadgeTheme(contextWith(root, markdown)).loadContent?.();
+    gitBadgeTheme(contextWith(root, markdown));
 
     const file = path.join(root, 'docs', 'intro.md');
     const first = await markdown.parseFrontMatter(params(file));
@@ -1030,7 +1085,7 @@ describe('theme-git-badge 插件接线', () => {
     fs.writeFileSync(file, '---\ntitle: 首页\n---\n');
 
     const markdown = createMarkdown();
-    gitBadgeTheme(contextWith(root, markdown)).loadContent?.();
+    gitBadgeTheme(contextWith(root, markdown));
 
     const { frontMatter } = await markdown.parseFrontMatter(params(file));
 
@@ -1047,7 +1102,7 @@ describe('theme-git-badge 插件接线', () => {
       process.chdir(outside);
 
       const markdown = createMarkdown();
-      gitBadgeTheme(contextWith(root, markdown)).loadContent?.();
+      gitBadgeTheme(contextWith(root, markdown));
 
       const { frontMatter } = await markdown.parseFrontMatter(
         params(path.join(root, 'docs', 'intro.md')),
@@ -1065,7 +1120,7 @@ describe('theme-git-badge 插件接线', () => {
     const { root } = makeSite('git-badge-official-');
     const markdown = createMarkdown(DEFAULT_PARSE_FRONT_MATTER);
 
-    gitBadgeTheme(contextWith(root, markdown)).loadContent?.();
+    gitBadgeTheme(contextWith(root, markdown));
 
     const result = await markdown.parseFrontMatter({
       ...params(path.join(root, 'docs', 'intro.md')),

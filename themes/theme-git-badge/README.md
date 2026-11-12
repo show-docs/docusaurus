@@ -116,8 +116,9 @@ docs 插件读走解析器之前（时序见下面「已知限制」），那时
 ## 已知限制
 
 - **依赖内部实现。** `markdown.parseFrontMatter` 是官方配置项，但「mdx-loader 会读它、
-  docs 插件在哪一刻把它读走」这两件事是**时序**结论，不是承诺。因此接线落在
-  `loadContent()` 而不是更晚的 `contentLoaded()`（理由见 internals 第 1 条），
+  docs 插件在哪一刻把它读走」这两件事是**时序**结论，不是承诺。因此接线落在工厂期
+  （`initPlugins()` 跑完所有工厂才进 `loadContent()`），`loadContent()` 里留一次兜底重包
+  （理由见 internals 第 1、2 条），
   升级 core 后按 [`docs/internals.md`](./docs/internals.md) 的「升级检查单」跑一遍。
 - **只管 md/mdx。** 其它文件（`.dbml`）在各自 loader 里处理，与本包无关。
 - **git 只看当前分支的历史。** 判定读的是 `HEAD` 那条线：文件在别的分支上「新建」与否，

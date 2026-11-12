@@ -167,13 +167,23 @@ describe('边界与降级', () => {
     const a = site.layer('q-a', { Logo: '' });
     const b = site.layer('q-b', { Logo: '' });
     const r = resolverFor([a, b]);
-    // 官方别名对 `@theme/Logo?raw` 一样生效并保留尾部 ⇒ 尾部不属于组件名，但属于落点
-    for (const tail of ['', '?raw', '?a=1#frag', '#frag'])
+    // 官方别名对 `@theme/Logo?raw` 一样生效并保留尾部 ⇒ 尾部不属于组件名，但属于落点。
+    // 尾部里带 `//`（URL）或反斜杠（Windows 路径）也一样：安全校验只该看裸名，否则
+    // `?url=https://…` 里的空段、`?path=C:\…` 里的反斜杠会把整条请求误拒成不安全。
+    for (const tail of [
+      '',
+      '?raw',
+      '?a=1#frag',
+      '#frag',
+      '?url=https://cdn.example.com/a.png',
+      String.raw`?path=C:\icons\a.svg`,
+    ])
       expect(
         r.resolveTarget({
           request: `@theme-prev/Logo${tail}`,
           issuer: logo(b),
         })?.target,
+        `tail=${tail}`,
       ).toBe(logo(a) + tail);
   });
 

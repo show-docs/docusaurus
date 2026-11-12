@@ -91,6 +91,23 @@ Enum single {
 }
 `;
 
+/** note 与默认值里带管道 / 换行：`markdown-table` 自己不转义，单元格得先收一遍。 */
+const specialCharsDbml = `
+Enum mode {
+  active [note: 'on | off']
+}
+
+Table things {
+  id integer [pk]
+  role string [note: 'admin | editor | viewer']
+  bio string [note: '''
+    line one
+    line two
+  ''']
+  code string [default: 'x|y|z']
+}
+`;
+
 /** 一次 loader 调用的产出：交回 webpack 的内容、`callback` 的第一个参数、以及登记进来的缓存依赖。 */
 interface LoaderRun {
   output: string | null;
@@ -278,6 +295,17 @@ describe('一份 .dbml 编译成 MDX', () => {
     expect(run.output).toContain('### accounts');
   });
 
+  it('头部 frontmatter 是空块（`---` 紧跟 `---`）：照样剥掉、照样编译', async () => {
+    // 空块收尾 `---` 前没有那一行换行：旧正则中段强制要它，整段剥不掉，`---` 混进 DBML
+    // 让解析器抛 Expect an identifier。LF 与 CRLF 两种行尾各钉一遍。
+    for (const eol of ['\n', '\r\n']) {
+      const run = await runLoader(`---${eol}---${eol}${plainDbml}`);
+      expect(run.error, eol === '\n' ? 'LF' : 'CRLF').toBeNull();
+      expect(run.output).toContain('### plain');
+      expect(run.output!.startsWith('---')).toBe(false);
+    }
+  });
+
   it('只有枚举、没有表：表格那一段整个省掉', async () => {
     const output = await runOutput(enumOnlyDbml);
     expect(output).toContain('## 枚举');
@@ -300,6 +328,31 @@ describe('一份 .dbml 编译成 MDX', () => {
     expect(failure.diags).toHaveLength(1);
     expect(failure.diags[0]!.message).toContain('}');
     expect(failure.diags[0]!.location.start.line).toBeGreaterThan(0);
+  });
+});
+
+describe('表格单元格里的作者内容要转义', () => {
+  // `markdown-table@3` 的 serialize 只做 String(value)，不转义 `|` 也不处理换行：note 里一个
+  // `admin | editor` 会被当成列分隔（多出几列），一段多行 note 会把那一行截断、整张表散架。
+  // 这几条钉的是「进单元格之前先收一遍」，没有那一格时产物里是裸管道 / 真换行，全部红。
+  it('字段 note 里的管道被转义，不再被当成列分隔', async () => {
+    const output = await runOutput(specialCharsDbml);
+    expect(output).toContain(String.raw`admin \| editor \| viewer`);
+  });
+
+  it('字段 note 里的换行收成 <br>，那一行不再被截断', async () => {
+    const output = await runOutput(specialCharsDbml);
+    expect(output).toContain('line one<br>line two');
+  });
+
+  it('枚举值 note 里的管道同样转义', async () => {
+    const output = await runOutput(specialCharsDbml);
+    expect(output).toContain(String.raw`on \| off`);
+  });
+
+  it('字符串默认值里的管道同样转义', async () => {
+    const output = await runOutput(specialCharsDbml);
+    expect(output).toContain(String.raw`x\|y\|z`);
   });
 });
 

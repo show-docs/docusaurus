@@ -7,15 +7,15 @@
 
 `src/` 下四个文件，`components/` 与 `theme/` 下各两份浏览器侧源码：
 
-| 文件                                   | 职责                                                              |
-| -------------------------------------- | ----------------------------------------------------------------- |
-| `badge.mts`                            | 判据：git 或页面钉的那把键 → 徽标种类                             |
-| `frontmatter.mts`                      | 包装 `parseFrontMatter`，把徽标写进 `sidebar_custom_props`        |
-| `git-info.mts`                         | 读 git：仓库根、HEAD、最近动过的文件、每份文件的提交时刻          |
-| `index.mts`                            | 插件接线：层目录、客户端模块、`loadContent()` / `contentLoaded()` |
-| `components/git-badge.tsx`             | 徽标本身：认种类（分类行递归看整棵子树）                          |
-| `theme/DocSidebarItem/{Link,Category}` | 覆盖侧边栏那两格，把种类摊成 `data-git-badge` 属性                |
-| `styles/git-badge.css`                 | 叶子行画点、分类行给折叠箭头染色                                  |
+| 文件                                   | 职责                                                       |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `badge.mts`                            | 判据：git 或页面钉的那把键 → 徽标种类                      |
+| `frontmatter.mts`                      | 包装 `parseFrontMatter`，把徽标写进 `sidebar_custom_props` |
+| `git-info.mts`                         | 读 git：仓库根、HEAD、最近动过的文件、每份文件的提交时刻   |
+| `index.mts`                            | 插件接线：工厂期注入、层目录、客户端模块                   |
+| `components/git-badge.tsx`             | 徽标本身：认种类（分类行递归看整棵子树）                   |
+| `theme/DocSidebarItem/{Link,Category}` | 覆盖侧边栏那两格，把种类摊成 `data-git-badge` 属性         |
+| `styles/git-badge.css`                 | 叶子行画点、分类行给折叠箭头染色                           |
 
 切这几份是因为几类夹具互不相干：git 那一侧能独立测（真仓库），判据是纯函数，接线要假解析器，
 浏览器那两格要 DOM 与 e2e。**对外只丢插件本身** —— 判据与画法是这一层的实现，不是给站点用的
@@ -120,7 +120,7 @@ frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
 
 ## 五个坑
 
-1. **接线必须早于 docs 插件的 `loadContent()`，所以只能放在 `loadContent()`。** 这一条是
+1. **接线必须早于 docs 插件的 `loadContent()`，所以放在工厂期。** 这一条是
    实测踩出来的：`executeAllPluginsContentLoading()` 用 `Promise.all()` 把**所有插件**的
    `loadContent()` 一起跑，而 `@docusaurus/plugin-content-docs` 的 `loadContent()` 第一件事就是
    `const { parseFrontMatter } = context.siteConfig.markdown` —— 它读下来的是**函数引用**，
@@ -128,12 +128,16 @@ frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
    （更晚一整个阶段）会得到一个很像 bug 的现象：mdx-loader 读的是属性、拿到新的那份，所以
    MDX 产物里有注入；侧边栏 / `slug` / `draft` 走的是 docs 手上那份，完全没有 —— 「配置写了
    却不生效」。
-   放在 `loadContent()` 里就对了：`MarkdownConfigSchema` 的 `parseFrontMatter` 是 Joi
-   `function().default(...)`，`validateConfig()` 跑在插件实例化之前，所以进 `loadContent()`
-   时那一格一定已经是函数，包装它不会覆盖掉官方默认值。
+   放在 `loadContent()` 里也不够：那一阶段同样是 `Promise.all()` 一起跑，本包只是「同步接线
+   碰巧早于 docs 异步读」，不是保证。工厂期才是：`initPlugins()` 把**所有**插件的构造函数都
+   await 完（`initPluginsConfigs()` 里 `Promise.all(pluginConfigs.map(initializePlugin))`），
+   才进 `executeAllPluginsContentLoading()`。`MarkdownConfigSchema` 的 `parseFrontMatter` 是 Joi
+   `function().default(...)`，`validateConfig()` 跑在插件实例化之前，所以进工厂时那一格一定
+   已经是函数，包装它不会覆盖掉官方默认值。
 2. **`siteConfig.markdown` 是插件之间的共享可变对象。** 构造函数里「读到什么」取决于谁先跑完
-   （`initPlugins()` 也是 `Promise.all()`），所以接线不在构造函数里做，而在 `loadContent()` 里
-   现取现包：那时别的插件的构造函数都跑完了，包到的是别人写完的那一份。
+   （`initPlugins()` 也是 `Promise.all()`），工厂期包到的未必是别人写完的那一份，所以
+   `loadContent()` 里留一次兜底重包：那时别的插件的构造函数都跑完了，包到的是别人写完的那
+   一份。没换过时记号认得出来，原样交回，不会套第二层。
 3. **别覆盖，要包装。** 站点自己可能在 `markdown.parseFrontMatter` 里接 CMS。后跑的插件直接赋值
    = 把先跑的那份整个吞掉，而且不报错。`wrapParseFrontMatter()` 的语义是「`base` 先跑，
    注入叠在结果上」，于是三份（官方的、站点的、本包的）能叠成一条链。
@@ -142,15 +146,17 @@ frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
    没在配置里写 `parseFrontMatter`（那时 `siteConfig.markdown.parseFrontMatter` 是官方填进去的
    默认值，未必等于 loader 手上那份）。抓闭包里的那份、或替调用方兜一个默认值，都会让「两处
    版本错位」变成两份不同的 frontmatter —— 前端一份、侧边栏一份，查起来极贵。
-5. **`reloadSite()` 会重跑插件。** dev 模式下改 `docusaurus.config.mjs` 就是这样重来的：
-   `reloadPlugin()` 只重跑 `contentLoaded()`，其余阶段不重跑 —— 这就是入口两处都调同一个
-   `install()` 的原因。同一份解析器被套两次，徽标就算两次，所以包装层带一个
-   `Symbol.for(...)` 记号，见到记号直接交回同一个函数，不会套第二层。
+5. **`reloadSite()` 重跑工厂，`reloadPlugin()` 不重跑。** dev 模式下改 `docusaurus.config.mjs`
+   走 `reloadSite()`：整个 `loadSite()` 重来，工厂重跑，`install()` 跟着重跑；改内容文件走
+   `reloadSitePlugin()` → `reloadPlugin()`：复用同一个插件实例，只重跑它的 `loadContent()` 与
+   所有插件的 `allContentLoaded()` —— 包装留在共享的 `markdown` 对象上，不用重接。同一份解析器
+   被套两次，徽标就算两次，所以包装层带一个 `Symbol.for(...)` 记号，见到记号直接交回同一个
+   函数，不会套第二层。
 
 ## git 那一侧：整仓读一遍，之后查表
 
 「最近」要按文件判，而每份文件判一次就是一个 subprocess —— 几百页 md 就是几百次 `git`，
-这才是慢的来源。做法是**一次全仓扫描 + 一张表**（`openRepo()`，`loadContent()` 现取现包那一下）：
+这才是慢的来源。做法是**一次全仓扫描 + 一张表**（`openRepo()`，第一次问历史那一下）：
 
 | 命令                                              | 给什么                                     |
 | ------------------------------------------------- | ------------------------------------------ |
@@ -165,6 +171,10 @@ frontmatter 有三条消费路径，弄清它才谈得上「注入点」：
 - 每份路径记一行「可信提交几次、最近一次在什么时候」，`timesOf()` 之后只查这张表。
   实测本仓 53 份文档：改前是 3 次整仓调用 + 53 次逐文件 `git log`，约 4.9 秒；改后是一次扫描，
   约 0.25 秒。
+
+路径是要解析回来建表的，所以那条 `git log` 显式带 `-c core.quotepath=false`：git 默认把非
+ASCII 路径转义成 `"docs/\344\270\255…"`，不关掉的话中文文件名在这张表里永远查不到，徽标静默
+消失（`rev-parse --show-toplevel` 不转义，仓库根那一侧不受影响）。
 
 ### 改名：按现名累计
 
@@ -254,8 +264,8 @@ CI 默认的检出（`actions/checkout` 不带 `fetch-depth` = depth 1）里，�
 页面这个概念由 `@docusaurus/plugin-content-docs` 定义（`docs.path` / `docs.include` /
 `docs.exclude`），而那三格通常写在站点自己的预设里 —— 本包在插件选项里拿不到别人实例化后的
 选项（`initializedPlugins` 只有实例，`options` 不外露）。更硬的约束是**时间**：文档插件扫了哪些
-文件，要到 `allContentLoaded` 才定；而注入必须在 `loadContent()` 之前接上（见下面第 1 个坑），
-那时内容根清单还不存在。
+文件，要到 `allContentLoaded` 才定；而注入必须赶在 docs 插件的 `loadContent()` 之前接上
+（工厂期，见「五个坑」第 1 条），那时内容根清单还不存在。
 
 早先的做法是让站点把每份实例那三格再抄一遍（`DocsScope`），本仓配了两棵内容根就得抄两遍，还得
 在 `loadContent()` 里数「注册了几份本包」来挡住「一棵根挂一份插件」的写法。既然读那一格的只有
@@ -272,8 +282,8 @@ CI 默认的检出（`actions/checkout` 不带 `fetch-depth` = depth 1）里，�
 包装层直接原样交回（不写 `sidebar_custom_props`），前端看不到任何区别。
 
 这条取舍由 `test/theme-git-badge.test.mts` 里「不再分内容根：任何被解析的 markdown 都判」与两棵
-根的真接线那一条钉住；`test/package-entries.test.mts` 只钉入口形状（层目录、样式表、接线两格都
-在），不再有「第二份实例当场点名」那一条。
+根的真接线那一条钉住；`test/package-entries.test.mts` 只钉入口形状（层目录、样式表、接线在工厂期：
+构造完解析器就被包住、`loadContent()` 只是兜底重包），不再有「第二份实例当场点名」那一条。
 
 ## 已知限制
 
@@ -296,14 +306,16 @@ docusaurus 之后也不会再回头检查。要降低风险只有一条：本包
 `parseFrontMatter` 是官方配置项（`@docusaurus/types` 的 `MarkdownConfig`），但下面这两条是
 **时序**结论，不是承诺。升 core 之前/之后跑一遍：
 
-1. `node_modules/@docusaurus/core/lib/server/plugins/plugins.js` 里
-   `executePluginContentLoading()` 仍是「先 `loadContent()`、后 `contentLoaded()`」，且
-   `executeAllPluginsContentLoading()` 仍用 `Promise.all()` 把各插件的 `loadContent()` 一起跑；
+1. `node_modules/@docusaurus/core/lib/server/plugins/init.js` 里 `initPluginsConfigs()` 仍是
+   `await Promise.all(pluginConfigs.map(initializePlugin))`（所有工厂跑完才交回），且
+   `plugins.js` 的 `loadPlugins()` 仍先 `await initPlugins()` 再
+   `executeAllPluginsContentLoading()` —— 工厂期接线因此保证早于任何 `loadContent()`；
 2. `node_modules/@docusaurus/mdx-loader/lib/loader.js` 里 `loadMDX()` 仍读
    `options.markdownConfig.parseFrontMatter`（而不是自己 import 一份）；
 3. `@docusaurus/plugin-content-docs` 的 `doProcessDocMetadata()` 仍在 `loadContent()` 里就
-   `const { parseFrontMatter } = context.siteConfig.markdown`（**早于**本包的 `contentLoaded`），
-   且 `MarkdownConfigSchema` 的 `parseFrontMatter` 仍是带默认值的 Joi `function()`；
+   `const { parseFrontMatter } = context.siteConfig.markdown`（**早于**本包的 `loadContent()`，
+   所以主注入点在工厂期），且 `MarkdownConfigSchema` 的 `parseFrontMatter` 仍是带默认值的
+   Joi `function()`；
 4. `pnpm test`（`test/theme-git-badge.test.mts` 里有一条用例真的调
    `@docusaurus/utils` 的 `DEFAULT_PARSE_FRONT_MATTER`，第 1、2 条漂了它会红）；
 5. **这一条已经自动化**在 `tools/scripts/verify-chain.mts` 第 5 段（`pnpm verify` 里 build 之后
@@ -372,14 +384,14 @@ MDX v2 的 acorn 不认识裸 `{#custom}`，靠这一步先转义
 | `## 中文标题 {#custom}` | acorn 报错，**整页打不开** | 正常，锚点保留    |
 
 所以「为了抢在别人前面而接管整个 `markdown`」不是免费的：症状是某天所有带 `{#id}` 的中文
-标题页一起白屏，日志里什么都没有。`loadContent()` 里只赋值一格，已经是这条路上最保守的位置。
+标题页一起白屏，日志里什么都没有。工厂期只赋值一格，已经是这条路上最保守的位置。
 
 ### 三、`markdown.parseFrontMatter` 自己的先后
 
 | 顺序 | 谁                                          | 说明                                                                                                                                                                               |
 | ---- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | 站点在 `docusaurus.config.mjs` 里写的那一份 | 可能是「接 CMS / 自己读一份」，`validateConfig()` 跑在插件实例化之前，它是底                                                                                                       |
-| 2    | 本包                                        | `loadContent()` 里**包住**当前那一份，不替换                                                                                                                                       |
+| 2    | 本包                                        | 工厂期**包住**当前那一份，不替换；`loadContent()` 兜底重包                                                                                                                         |
 | 3    | 之后的插件                                  | 如果它**直接赋值**（不包），会把 1、2 一起吞掉 —— `plugins` 数组里谁靠前，谁就先包，本仓这份写在最前就是这个理由；但这是约定，不是护栏                                             |
 | 4    | 消费方                                      | docs 插件在**它自己的** `loadContent()` 里解构一次（`const { parseFrontMatter } = ...`），之后换属性它不看；mdx-loader 是编译时才读属性。这就是接线不能晚于 `loadContent()` 的原因 |
 
@@ -388,7 +400,7 @@ MDX v2 的 acorn 不认识裸 `{#custom}`，靠这一步先转义
 
 ### 四、两条「不在本包事上」但会撞车的路
 
-- **`markdown.format`**：插件在 `loadContent()` 里写 `siteConfig.markdown`，而
+- **`markdown.format`**：插件在工厂期写 `siteConfig.markdown`（`loadContent()` 兜底再包一次），而
   `mdx-loader` 是拿 `siteConfig.markdown` **引用**的，所以这一步对那些在编译期读
   `markdown.format` 的东西也是「说到就到」的。
 - **站点在 `markdown.parseFrontMatter` 里顺手改正文**：本包保留 `base` 返回的 `content`，

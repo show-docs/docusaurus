@@ -109,12 +109,14 @@ interface History {
 整仓读一遍：HEAD、最近动过的文件、每份文件的时刻表，**一条 `git log` 全给**。
 
 ```
-git --no-pager -c log.showSignature=false log -M \
+git --no-pager -c log.showSignature=false -c core.quotepath=false log -M \
   --format=%x01%ct%x02%P --name-status
 ```
 
 - `%x01` 起一段（一段 = 一次提交），`%ct` 是那次提交的时刻，`%x02%P` 是它的父项；
   `--name-status` 每行一条改动，最后一格永远是「这一次提交之后它叫什么」。
+- `core.quotepath=false` 必须显式关：默认会把非 ASCII 路径转义成 `"docs/\344\270\255…"`，
+  那串转义文本与真实路径对不上，中文文件名的徽标会静默消失。
 - `git log` 默认倒序，所以第一段就是 `HEAD`，段数就是提交次数。`R` 行的中间那格是旧名：
   把旧名接到**现名**上（现名在写入前已经解析过，所以取值只需一跳），更老的提交再遇到旧名时
   就归到现名头上 —— 改过名的文件，整条历史都算在它现在这个名字下。
@@ -140,6 +142,8 @@ function readHistory(
       '--no-pager',
       '-c',
       'log.showSignature=false',
+      '-c',
+      'core.quotepath=false',
       'log',
       '-M',
       '--format=%x01%ct%x02%P',

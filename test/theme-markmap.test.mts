@@ -164,6 +164,49 @@ describe('buildMarkmapData：markdown 落成导图要的那份数据', () => {
 
     expect(data.root.content).not.toContain('target=');
   });
+
+  it('原生 HTML 链接也开新标签页：手写的 <a href> 补一个 target="_blank"', () => {
+    // markdown-it 开了 html:true，作者手写的 <a> 走 html_inline 那格、原样渲染，不经
+    // renderAttrs —— 只包属性函数会漏掉它，链接就在当前页跳走。
+    const data = buildMarkmapData(
+      '# 看 <a href="https://example.com">这里</a>\n',
+    );
+
+    expect(data.root.content).toContain(
+      '<a href="https://example.com" target="_blank">',
+    );
+  });
+
+  it('原生 HTML 链接带别的属性：target 接在原有属性后面', () => {
+    const data = buildMarkmapData(
+      '# <a class="x" href="https://example.com">点</a>\n',
+    );
+
+    expect(data.root.content).toContain(
+      '<a class="x" href="https://example.com" target="_blank">',
+    );
+  });
+
+  it('原生 HTML 裸 <a>（没有属性）：也补上 target', () => {
+    const data = buildMarkmapData('# <a>点</a>\n');
+
+    expect(data.root.content).toContain('<a target="_blank">');
+  });
+
+  it('原生 HTML 链接已写过 target：尊重作者，不再重复塞一个', () => {
+    const data = buildMarkmapData(
+      '# <a href="https://example.com" target="_self">点</a>\n',
+    );
+
+    expect(data.root.content).toContain('target="_self"');
+    expect(data.root.content.match(/target=/gu)).toHaveLength(1);
+  });
+
+  it('原生 HTML 不是链接：别的标签一个 target 都不加（<abbr> 也不被 <a> 误认）', () => {
+    const data = buildMarkmapData('# <b>粗</b> <abbr title="x">缩</abbr>\n');
+
+    expect(data.root.content).not.toContain('target=');
+  });
 });
 
 describe('md loader 的四种落点', () => {

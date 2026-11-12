@@ -27,13 +27,17 @@ export default {
 
 ## 什么时候生效
 
-判据是 `NODE_ENV`，不用额外设环境变量 —— 这两档都是 Docusaurus 自己置的：
+判据是 `NODE_ENV` 加命令本身，不用额外设环境变量 —— 都是 Docusaurus 自己置的。光看 `NODE_ENV`
+不够：`docusaurus build --dev` 会把它又置回 `development`（`build.js`），那一档仍是 build、不该开
+按需编译，所以再按官方同一个口径读命令 `process.argv[2]`（`cli.js` 的 `command = cliArgs[2]`，bin
+传的就是 `process.argv`）：
 
-| 命令               | `NODE_ENV`                 | 结果                                       |
-| ------------------ | -------------------------- | ------------------------------------------ |
-| `docusaurus start` | `development`（CLI 默认）  | 客户端编译开按需编译（写在哪一格见下一节） |
-| `docusaurus build` | `production`（build 强制） | 两处都不动，保持官方默认                   |
-| `docusaurus serve` | ——                         | 只伺服 `build/` 里的产物，压根不跑编译     |
+| 命令                     | `NODE_ENV`                  | 结果                                       |
+| ------------------------ | --------------------------- | ------------------------------------------ |
+| `docusaurus start`       | `development`（CLI 默认）   | 客户端编译开按需编译（写在哪一格见下一节） |
+| `docusaurus build`       | `production`（build 强制）  | 两处都不动，保持官方默认                   |
+| `docusaurus build --dev` | `development`（--dev 置回） | 两处都不动 —— 命令是 build，按 argv 认出   |
+| `docusaurus serve`       | ——                          | 只伺服 `build/` 里的产物，压根不跑编译     |
 
 服务端那一份编译（`isServer`）同样不动：按需编译只对浏览器 bundle 有意义。
 
@@ -53,6 +57,13 @@ webpack 那份接请求的后端由它自己随编译起来，所以那一支只
 **必须由开发服务器挂上**的中间件（`rspack.lazyCompilationMiddleware`），官方那份开发服务器是
 webpack-dev-server、不会替我们挂，所以这一支多写 `devServer.setupMiddlewares` 那一格。不挂会
 怎样、挂上之后实测到什么，见下一节。
+
+**这一格只交回自己那一项的新数组，不改传进来那份。** Docusaurus 用 webpack-merge 把本插件交回的
+`devServer` 并进官方默认那份，同名的 `setupMiddlewares` 不会被顶掉：合并后那一份拿**同一份**入参把
+两个函数各跑一次、再把各自的数组返回值拼起来（`webpack-merge` 的 `join-arrays.js`）。官方那一份是
+「往传进来的数组里 unshift 错误遮罩要用的 eval-source-map 中间件、再把同一份交回」，所以本包这一份
+若也照它那样改同一份数组再交回，两份返回值就是同一个引用，拼接后整张表每一项都翻倍。只交回新数组
+就各注册一次 —— 这条由 `test/package-entries.test.mts` 用真实 webpack-merge 钉住。
 
 用的到底是哪一个 bundler，读 `configureWebpack` 第三份参数里的 `utils.currentBundler.name` ——
 那是官方算好的那一份（`@docusaurus/bundler` 的 `getCurrentBundler()`），本包不另判一套，也不用
@@ -99,14 +110,3 @@ webpack-dev-server、不会替我们挂，所以这一支多写 `devServer.setup
 - **冷启动的第一个页面更慢。** 按需编译的边界跟着 bundler 走：第一次打开某一页时才开始编
   那一页与它那一支依赖。这是这个开关本身的性质，不是本插件加的。实测：开发服务器刚起来时
   第一次打开首页，那几秒里页面还是空的（编译完才渲染出来），之后同一页再打开就是现成的。
-- **`devServer.setupMiddlewares` 那一格由本插件写，会和官方那份并存成重复。** 官方那份住在
-  合并前的默认配置里（`@docusaurus/core/lib/commands/start/webpack.js` 的 `setupMiddlewares`，
-  它 unshift 的是错误遮罩要用的 eval-source-map 中间件），而 Docusaurus 用
-  `webpack-merge([默认那份, config.devServer])` 合并两格。webpack-merge 6.0.1 遇到同名函数不会
-  覆盖，而是把两个函数包成一个、对同一个数组各调一次再把两个返回值串起来 —— 两个函数都往同一份
-  数组里 unshift，于是 `[官方, 本插件]` 两格都在、但**各自都注册了两遍**。实测：官方那格照样在
-  处理请求（拿一份不存在的 id 去打 `/__get-internal-source`，它自己的报错原样出现在开发服务器
-  日志里 —— 那段栈正落在 `evalSourceMapMiddleware.js` 里，说明它确实在跑），按需编译的
-  `POST /lazy-compilation-using-` 返回 200，页面正常渲染。同一份中间件被 webpack-dev-server 挂两遍
-  不会互相顶掉（第一份接住请求就返回），但这是个真实的存在性代价：以后谁在这同一格加东西，得
-  知道它会跟着翻倍。

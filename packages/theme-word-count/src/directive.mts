@@ -32,6 +32,12 @@ const CLOSER = /^ {0,3}:::[ \t]*$/;
 /** 一段围栏的起点（``` 或 ~~~，至少三个）。 */
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 
+/**
+一段围栏的收尾：同形，但**不带信息串** —— CommonMark 里 ```` ```js ```` 这种行是围栏内的
+正文，不是收尾；拿它当收尾会把围栏提前关掉，里面的指令示例被误改写。
+*/
+const CLOSING_FENCE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+
 /** 快路判据：绝大多数文件里没有这把指令，原样交回同一个字符串。 */
 const KEYWORD = ':::word-count';
 
@@ -65,8 +71,8 @@ function stripEol(line: string): { body: string; ending: string } {
 /**
 文件里所有真指令的位置。
 
-围栏里（``` 或 ~~~）与四格缩进的代码块里那些不是指令 —— 它们是示例正文。围栏按
-CommonMark 那一条认：字符相同、长度不短于开头那一串才算收尾。
+围栏里（``` 或 ~~~）与四格缩进的代码块里那些不是指令 —— 它们是示例正文。围栏收尾按
+CommonMark 认：字符相同、长度不短于开头那一串、且不带信息串。
 */
 function scanDirectives(lines: readonly string[]): Directive[] {
   const found: Directive[] = [];
@@ -84,7 +90,7 @@ function scanDirectives(lines: readonly string[]): Directive[] {
     const { body } = stripEol(line);
 
     if (fence !== undefined) {
-      const closing = FENCE.exec(body)?.[1];
+      const closing = CLOSING_FENCE.exec(body)?.[1];
 
       if (
         closing !== undefined &&
@@ -207,6 +213,19 @@ export function withoutWordCountDirectives(fileContent: string): string {
   );
 
   return lines.filter((_, index) => !dropped.has(index)).join('\n');
+}
+
+/**
+文件里那几条指令各是什么范围（没有指令就是空数组）。
+
+统计侧用它判「这一页的明细要不要铺进浏览器」：只有写了 `page` / `folder` 的页才需要每页 /
+每目录那一格，`instance` / `site` 读的是配置期合好的总数。与改写、剥指令共用同一个扫描器，
+看的也是同一份文件原文。
+*/
+export function directiveScopes(fileContent: string): WordCountScope[] {
+  return fileContent.includes(KEYWORD)
+    ? scanDirectives(fileContent.split('\n')).map(({ scope }) => scope)
+    : [];
 }
 
 /**

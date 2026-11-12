@@ -223,6 +223,28 @@ describe('frameDataError：只有写得成 JSON 的东西送得进框里', () =>
     expect(frameDataError(loop)).toMatch(/data\.self 绕回了自己/);
   });
 
+  it('稀疏数组点名（洞会被 JSON 写成 null），不静默跳过', () => {
+    const sparse: unknown[] = [];
+    sparse[2] = 1;
+
+    expect(frameDataError({ list: sparse })).toMatch(
+      /data\.list 是稀疏数组（下标那几格有洞）/,
+    );
+  });
+
+  it('数组上挂的非下标自有属性点名（JSON 会静默丢掉）', () => {
+    expect(
+      frameDataError({ list: Object.assign([1, 2], { note: () => {} }) }),
+    ).toMatch(/data\.list 上挂了非下标的自有属性「note」/);
+    // 「01」与到了长度上限的「4294967295」都不是下标，同样丢掉、同样点名。
+    expect(frameDataError({ list: Object.assign([1], { '01': 1 }) })).toMatch(
+      /上挂了非下标的自有属性「01」/,
+    );
+    expect(
+      frameDataError({ list: Object.assign([1], { '4294967295': 1 }) }),
+    ).toMatch(/上挂了非下标的自有属性「4294967295」/);
+  });
+
   it('深处那一格点名到完整路径（数组用下标，对象用键名）', () => {
     expect(frameDataError({ a: { b: [undefined] } })).toMatch(
       /data\.a\.b\[0\] 是 undefined/,

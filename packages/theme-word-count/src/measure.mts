@@ -86,7 +86,12 @@ function addText(counts: WordCount, value: string): void {
 不算 —— 与 Docusaurus 那一侧的判据同形。
 */
 function hasExplicitId(node: Node): boolean {
-  const last = node.children!.at(-1)!;
+  // 空标题（`## `）是合法 markdown：children 是空数组，没有最后一个子节点
+  const last = node.children!.at(-1);
+
+  if (last === undefined) {
+    return false;
+  }
 
   return last.type === 'text'
     ? /\s*\{#[^}]+\}$/.test(last.value!)

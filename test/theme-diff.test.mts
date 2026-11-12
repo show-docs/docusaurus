@@ -440,6 +440,105 @@ describe('git 里的上一个版本与此刻这一份落成一份数据', () => 
     expect(last?.old).toBe('');
     expect(last?.diff).toContain('重新加回来');
   });
+
+  it('改名前的旧名是中文：旧名不被转义，上一版内容读得到（core.quotepath=false）', () => {
+    // 默认 git 把非 ASCII 旧名转义成 "\346\226\207…"，拿那串去 git show 会读不到、整条抛。
+    const root = repo({
+      files: { 'docs/文档.md': '旧名字里写的内容\n' },
+      changes: [
+        {
+          message: 'rename',
+          write: { 'docs/new.md': '旧名字里写的内容\n改了一行\n' },
+          remove: ['docs/文档.md'],
+        },
+      ],
+    });
+
+    const last = readLastChange('docs/new.md', root);
+    expect(last?.old).toContain('旧名字里写的内容');
+    expect(last?.diff).toContain('改了一行');
+  });
+
+  it('上一版内容的首尾空行与结尾换行原样保留（trim 掉会让视图展开上下文行号错位）', () => {
+    const root = repo({
+      files: { 'docs/a.md': '\n\n第一版\n最后一行\n\n' },
+      changes: [
+        {
+          message: 'second',
+          write: { 'docs/a.md': '\n\n第一版改了\n最后一行\n\n' },
+        },
+      ],
+    });
+
+    expect(readLastChange('docs/a.md', root)?.old).toBe(
+      '\n\n第一版\n最后一行\n\n',
+    );
+  });
+
+  it('工作区那一条同样保留上一版的首尾空行', () => {
+    const root = repo({ files: { 'docs/a.md': '\n\n唯一一版\n\n' } });
+    fs.writeFileSync(
+      path.join(root, 'docs/a.md'),
+      '\n\n唯一一版\n改了\n\n',
+      'utf8',
+    );
+
+    expect(readLastChange('docs/a.md', root)?.old).toBe('\n\n唯一一版\n\n');
+  });
+
+  it('索引里删了、磁盘上却以未跟踪身份留着：比的是 HEAD 与磁盘，不是一句「删了」', () => {
+    // git rm --cached 后再写回（或删了又重建但没 add）：git diff HEAD 看不见未跟踪文件，
+    // 只报删除；右边本该是磁盘此刻这一份，所以拿 HEAD 那一份与磁盘比。
+    const root = repo({
+      files: { 'docs/a.md': '第一版\n', 'keep.md': '占位\n' },
+    });
+    git(root, ['rm', '--cached', '-q', 'docs/a.md']);
+    fs.writeFileSync(
+      path.join(root, 'docs/a.md'),
+      '第二版（未跟踪）\n',
+      'utf8',
+    );
+
+    const last = readLastChange('docs/a.md', root);
+    expect(last?.old).toBe('第一版\n');
+    expect(last?.diff).toContain('第二版（未跟踪）');
+    expect(last?.diff).not.toContain('deleted file mode');
+  });
+
+  it('索引里删了、磁盘上那份与 HEAD 一样：没有可显示的改动', () => {
+    const root = repo({
+      files: { 'docs/a.md': '第一版\n', 'keep.md': '占位\n' },
+    });
+    git(root, ['rm', '--cached', '-q', 'docs/a.md']);
+
+    expect(readLastChange('docs/a.md', root)).toBeUndefined();
+  });
+
+  it('真删了（磁盘上也没有）：仍是一句删除的差异，左边是 HEAD 那一份', () => {
+    const root = repo({
+      files: { 'docs/a.md': '第一版\n', 'keep.md': '占位\n' },
+    });
+    git(root, ['rm', '-q', 'docs/a.md']);
+
+    const last = readLastChange('docs/a.md', root);
+    expect(last?.old).toBe('第一版\n');
+    expect(last?.diff).toContain('deleted file mode');
+  });
+
+  it('大文件的上一版内容读得到（默认 1 MB 的 maxBuffer 会 ENOBUFS）', () => {
+    const big = `${'x'.repeat(2 * 1024 * 1024)}\n`;
+    const root = repo({
+      files: { 'docs/a.md': big },
+      changes: [
+        {
+          message: 'second',
+          write: { 'docs/a.md': `${'y'.repeat(2 * 1024 * 1024)}\n` },
+        },
+      ],
+    });
+
+    expect(readLastChange('docs/a.md', root)?.old).toBe(big);
+  });
 });
 
 describe('md loader 的四种落点', () => {

@@ -28,6 +28,9 @@ https 页面上它一样必被拦。
 `src` 是相对写法时 `?path=` 展开不了（基准就是那条地址本身），这时交回 `src` 而不是抛：
 `search` 由别人拼得来，任何人都能写一条带 `?path=…` 的链接打开这一页，一条拼错的链接不该把
 整页弄崩。
+
+`?path=` 解出的地址只收 `http:` / `https:`，否则回退 `src`：`javascript:` 落进 `<iframe src>`
+会在站点源里执行（同源 XSS），`data:` 会渲染攻击者 HTML。与 component-page 的 `httpUrlOf` 同口径。
 */
 export function externalFrameURL(options: {
   src: string;
@@ -46,7 +49,13 @@ export function externalFrameURL(options: {
   }
 
   try {
-    return upgraded(new URL(path, resolved), page);
+    const target = new URL(path, resolved);
+    // ?path= 由别人拼得来（任何人都能写一条带 ?path= 的链接打开这一页）：只收 http(s)，否则
+    // 回退 src。javascript: 落进 <iframe src> 会在站点源里执行（同源 XSS），data: 会渲染攻击者
+    // HTML —— 与 component-page 的 httpUrlOf 同口径，那一格防的就是这一手。
+    return target.protocol === 'http:' || target.protocol === 'https:'
+      ? upgraded(target, page)
+      : resolved;
   } catch {
     // 只有 `resolved` 本身不是绝对地址时才走到这里（`path` 是绝对写法时基准用不上，不会抛）。
     return resolved;

@@ -126,21 +126,43 @@ describe('normalizeConfig：不认得的格', () => {
     );
   });
 
-  it('防抖与节流那三格已经不收了：点名那一格，名单只剩 `cacheKey`', () => {
-    // `swr` 没有防抖与节流入参，这三格随依赖一起退掉；旧站点写了它们会在加载配置这一步红。
-    expect(() => normalizeConfig({ request: { debounceWait: 300 } })).toThrow(
-      /选项\.request 里没有 `debounceWait` 这一格；它只有 `cacheKey`/,
+  it('防抖与节流那三格随 ahooks 退掉：报错给迁移指引，不只是「没有这一格」', () => {
+    // swr 没有防抖/节流入参，这三格随依赖退掉；老站点写了它们，报错要说明是退掉了、删掉即可。
+    for (const field of ['debounceLeading', 'debounceWait', 'throttleWait']) {
+      expect(() => normalizeConfig({ request: { [field]: 300 } })).toThrow(
+        new RegExp(
+          `选项\\.request\\.${field} 已随 ahooks 退掉.*删掉它即可.*只收 \`cacheKey\``,
+        ),
+      );
+    }
+  });
+
+  it('退掉的那三格写在 request 以外：仍是泛泛的「没有这一格」，不套迁移指引', () => {
+    // 迁移指引只对 request 下那三格说；写在顶层是另一回事，报错列顶层能收的名单。
+    expect(() => normalizeConfig({ debounceWait: 300 })).toThrow(
+      /选项 里没有 `debounceWait` 这一格；它只有/,
     );
-    expect(() => normalizeConfig({ request: { throttleWait: 300 } })).toThrow(
-      /选项\.request 里没有 `throttleWait` 这一格/,
+  });
+
+  it('request 里不认得、又不是退掉的那三格：仍是泛泛的「没有这一格」', () => {
+    // 迁移指引只认那三格；request 下别的生键照旧点名 + 列名单（名单只剩 cacheKey）。
+    expect(() => normalizeConfig({ request: { bogus: 1 } })).toThrow(
+      /选项\.request 里没有 `bogus` 这一格；它只有 `cacheKey`/,
     );
-    expect(() =>
-      normalizeConfig({ request: { debounceLeading: true } }),
-    ).toThrow(/选项\.request 里没有 `debounceLeading` 这一格/);
   });
 
   it('不认得的键写了 undefined：等于没写，不红', () => {
     expect(() => normalizeConfig({ userAPI: undefined })).not.toThrow();
+  });
+
+  it('继承键（`constructor` / `toString`）也算不认得：不能从原型上查到就放过', () => {
+    // `spec[field] === undefined` 会在原型上查到 constructor / toString，把这几格静默放过；
+    // 契约是「写歪的格当场红」，继承键同样要红。
+    for (const field of ['constructor', 'toString', 'hasOwnProperty']) {
+      expect(() => normalizeConfig({ [field]: 'x' })).toThrow(
+        new RegExp(`选项 里没有 \`${field}\` 这一格`),
+      );
+    }
   });
 });
 
