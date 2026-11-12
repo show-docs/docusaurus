@@ -32,7 +32,6 @@ import type {
 } from '../types/word-count.ts';
 
 import { add, EMPTY, foldersOf, sumOf } from './aggregate.mts';
-import { directiveScopes, withoutWordCountDirectives } from './directive.mts';
 import { resolveFormat, type FormatInput } from './format.mts';
 import { measureMarkdown, measureText } from './measure.mts';
 
@@ -100,12 +99,13 @@ function fileOf(source: string, siteDir: string): string {
 
 frontmatter 用的就是站点渲染这一页时那一份解析器（`siteConfig.markdown.parseFrontMatter`，
 别的层可以包住它），所以「哪一份算草稿」与页面那一侧的判据是同一个；正文里的标题行照数，
-那是看得见的文字。`:::word-count` 那一行是看不见的语法，与预处理器共用同一个扫描器剥掉。
+那是看得见的文字。`::word-count` 那一行是看不见的语法，在语法树里是 directive 节点，本来就不进词数
+（`./measure.mts` 走树时只记它的范围，见 usage）。
 
 站点清单里不只有 `.md` / `.mdx`：本站还把 `.dbml` 收进 docs（它由自己的 loader 渲染，不按
 MDX 编译）。那一份交给 MDX 解析器会当场报 acorn 错，所以按扩展名分两条路 —— 非 markdown
-的文档用站点剥好的正文按文字数，结构那几行记 0；它也不经预处理器，正文里写了指令也不会
-变成组件，所以范围那一列恒空。
+的文档用站点剥好的正文按文字数，结构那几行记 0；它也不挂指令渲染，正文里写了 `::word-count`
+也不会变成组件，所以范围那一列恒空。
 
 markdown 那一条里，同一份正文按 `md` 还是 `mdx` 数会差在 `{…}` / `<Tag>` / `import` 进不进词，
 所以这一层跟着站点判：`resolveFormat`（frontmatter 的 `format` > 站点 `markdown.format` > 扩展名）
@@ -148,13 +148,11 @@ async function countFile(
       frontMatterFormat: frontMatter.format as FormatInput | undefined,
       siteFormat,
     });
-    const count = markdown
-      ? measureMarkdown(withoutWordCountDirectives(fileContent), draft, format)
+    // measureMarkdown / measureText 各自交回 { count, scopes }：`::word-count` 是语法树里的
+    // directive 节点，本来就不进词数，走树时顺带记下这一页写了哪些范围
+    const result: FileCount = markdown
+      ? measureMarkdown(fileContent, draft, format)
       : measureText(content, draft, Object.keys(frontMatter).length > 0);
-    const result: FileCount = {
-      count,
-      scopes: markdown ? directiveScopes(fileContent) : [],
-    };
 
     cache.set(file, { content: fileContent, parser, siteFormat, result });
 

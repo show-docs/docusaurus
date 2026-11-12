@@ -22,10 +22,6 @@ import {
   type StatsUsage,
 } from '../packages/theme-word-count/src/content.mts';
 import { countWords } from '../packages/theme-word-count/src/count.mts';
-import {
-  directiveScopes,
-  withoutWordCountDirectives,
-} from '../packages/theme-word-count/src/directive.mts';
 import { resolveFormat } from '../packages/theme-word-count/src/format.mts';
 import wordCountTheme from '../packages/theme-word-count/src/index.mts';
 import {
@@ -183,7 +179,9 @@ const countOf = (overrides: Partial<WordCount> = {}): WordCount => ({
 
 describe('measureMarkdown：一页的明细从语法树上数', () => {
   it('文字与行内代码：词数与字符数都加，段落这类容器本身不数', () => {
-    expect(measureMarkdown('汉字 hi `code`\n', false, 'mdx')).toMatchObject({
+    expect(
+      measureMarkdown('汉字 hi `code`\n', false, 'mdx').count,
+    ).toMatchObject({
       characters: 10,
       cjk: 2,
       drafts: 0,
@@ -210,7 +208,7 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
       '',
     ].join('\n');
 
-    expect(measureMarkdown(text, false, 'mdx')).toMatchObject({
+    expect(measureMarkdown(text, false, 'mdx').count).toMatchObject({
       h1: 1,
       h2: 4,
       h3: 1,
@@ -223,14 +221,14 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
 
   it('空标题是合法 markdown：各记一格，不认 id，也不当场抛', () => {
     // `## ` 与 `###` 都没有子节点：「只认最后一个子节点」那一步先判空
-    expect(measureMarkdown('## \n\n###\n\n正文\n', false, 'mdx')).toMatchObject(
-      {
-        h2: 1,
-        h3: 1,
-        headingIds: 0,
-        words: 2,
-      },
-    );
+    expect(
+      measureMarkdown('## \n\n###\n\n正文\n', false, 'mdx').count,
+    ).toMatchObject({
+      h2: 1,
+      h3: 1,
+      headingIds: 0,
+      words: 2,
+    });
   });
 
   it('代码围栏：段数、行数与字数都进；mermaid / kroki 只算图表，不算代码段', () => {
@@ -252,7 +250,7 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
       '',
     ].join('\n');
 
-    expect(measureMarkdown(text, false, 'mdx')).toMatchObject({
+    expect(measureMarkdown(text, false, 'mdx').count).toMatchObject({
       codeBlocks: 1,
       codeLines: 1,
       graphs: 2,
@@ -276,7 +274,7 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
       '',
     ].join('\n');
 
-    expect(measureMarkdown(text, false, 'mdx')).toMatchObject({
+    expect(measureMarkdown(text, false, 'mdx').count).toMatchObject({
       blockquotes: 1,
       externalLinks: 1,
       images: 1,
@@ -293,7 +291,7 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
         '---\ntitle: 示例\ndraft: true\n---\n\n# 标题\n',
         true,
         'mdx',
-      ),
+      ).count,
     ).toMatchObject({
       drafts: 1,
       frontmatter: 1,
@@ -305,7 +303,7 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
 
   it('不是 markdown 的正文没有语法树：整份按文字数，结构那几行记 0', () => {
     // 站在 DBML 那种内容的角度：`{` 在 MDX 眼里是表达式，走语法树会当场解析失败
-    expect(measureText('Table 用户 {}\n', false, true)).toMatchObject({
+    expect(measureText('Table 用户 {}\n', false, true).count).toMatchObject({
       blockquotes: 0,
       characters: 12,
       cjk: 2,
@@ -317,11 +315,13 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
       pages: 1,
       words: 3,
     });
-    expect(measureText('纯文字\n', true, false)).toMatchObject({
+    expect(measureText('纯文字\n', true, false).count).toMatchObject({
       drafts: 1,
       frontmatter: 0,
       words: 3,
     });
+    // 非 markdown 的文档不挂指令渲染，范围恒空
+    expect(measureText('Table 用户 {}\n', false, true).scopes).toEqual([]);
   });
 });
 
@@ -394,8 +394,8 @@ describe('measureMarkdown：md 与 mdx 对 MDX-only 构造数得不一样', () =
   const body = '# 标题\n\n正文文字\n\nimport X from "y"\n';
 
   it('mdx：import 那行是 ESM，一个拉丁词都不算；md：当文字数出 4 个', () => {
-    const mdx = measureMarkdown(body, false, 'mdx');
-    const md = measureMarkdown(body, false, 'md');
+    const { count: mdx } = measureMarkdown(body, false, 'mdx');
+    const { count: md } = measureMarkdown(body, false, 'md');
 
     // 中文两行（标题 2 + 正文文字 4）两种语法都数得到
     expect(mdx.cjk).toBe(6);
@@ -495,66 +495,63 @@ describe('aggregate：逐字段相加与按目录滚上去', () => {
   });
 });
 
-describe('withoutWordCountDirectives：指令是看不见的语法，不数', () => {
-  it('指令整行去掉', () => {
-    expect(withoutWordCountDirectives('::word-count\n\n正文\n')).toBe(
-      '\n正文\n',
+describe('measureMarkdown：::word-count 在语法树里是 directive，不算词、只记范围', () => {
+  it('裸指令 → 不进词数、范围 instance', () => {
+    const { count, scopes } = measureMarkdown(
+      '::word-count\n\n正文 一句\n',
+      false,
+      'mdx',
     );
+
+    expect(scopes).toEqual(['instance']);
+    expect(count.cjk).toBe(4);
+    expect(count.words).toBe(4);
   });
 
-  it('带范围的指令整行去掉', () => {
-    expect(
-      withoutWordCountDirectives('::word-count{scope="page"}\n\n正文\n'),
-    ).toBe('\n正文\n');
-  });
-
-  it('多处指令都去掉，其余行顺序不变', () => {
-    expect(
-      withoutWordCountDirectives(
-        '前\n\n::word-count\n\n中\n\n::word-count{scope="site"}\n\n后\n',
-      ),
-    ).toBe('前\n\n\n中\n\n\n后\n');
-  });
-
-  it('围栏里的那一行是示例，留在正文里', () => {
-    expect(withoutWordCountDirectives('```\n::word-count\n```\n')).toBe(
-      '```\n::word-count\n```\n',
+  it('带范围写进 scopes，多条按出现顺序', () => {
+    const { scopes } = measureMarkdown(
+      '::word-count{scope="page"}\n::word-count{scope=site}\n',
+      false,
+      'mdx',
     );
+
+    expect(scopes).toEqual(['page', 'site']);
   });
 
-  it('快路、四格缩进、写错的 scope 都原样交回', () => {
-    expect(withoutWordCountDirectives('两个 词\n')).toBe('两个 词\n');
-    // 四格缩进是缩进代码块，不当指令
-    expect(withoutWordCountDirectives('    ::word-count\n')).toBe(
-      '    ::word-count\n',
-    );
-    // `{scope=bogus}` 四种之外，整行不算指令、原样留（作者写错了看得见）
-    expect(withoutWordCountDirectives('::word-count{scope=bogus}\n')).toBe(
+  it('写错的 scope 按缺省 instance（与渲染侧一致，旧的刻意分叉取消）', () => {
+    const { scopes } = measureMarkdown(
       '::word-count{scope=bogus}\n',
+      false,
+      'mdx',
     );
+
+    expect(scopes).toEqual(['instance']);
   });
 
-  it('CRLF 文件按自己的行尾走：行尾 `\\r` 剥掉后照常认指令、其余行保留 `\\r`', () => {
-    expect(withoutWordCountDirectives('::word-count\r\n正文\r\n')).toBe(
-      '正文\r\n',
+  it('围栏里的 ::word-count 是 code 正文，不算指令', () => {
+    const { scopes, count } = measureMarkdown(
+      '```\n::word-count\n```\n',
+      false,
+      'mdx',
     );
-  });
-});
 
-describe('directiveScopes：报出每条指令的范围，供统计侧裁明细', () => {
-  it('没写范围是 instance，写了的按写的报；多条按出现顺序', () => {
-    expect(
-      directiveScopes(
-        '::word-count\n::word-count{scope="page"}\n::word-count{scope=site}\n',
-      ),
-    ).toEqual(['instance', 'page', 'site']);
+    expect(scopes).toEqual([]);
+    expect(count.codeBlocks).toBe(1);
   });
 
-  it('没有指令、或只在围栏里提到，都是空数组', () => {
-    expect(directiveScopes('正文 一句\n')).toEqual([]);
-    expect(directiveScopes('```\n::word-count{scope="page"}\n```\n')).toEqual(
-      [],
+  it('没有指令的正文 scopes 为空', () => {
+    expect(measureMarkdown('正文 一句\n', false, 'mdx').scopes).toEqual([]);
+  });
+
+  it('非本包的指令（如 :::note）不记范围，容器正文照常数', () => {
+    const { scopes, count } = measureMarkdown(
+      ':::note\nhi\n:::\n',
+      false,
+      'mdx',
     );
+
+    expect(scopes).toEqual([]);
+    expect(count.latin).toBe(1);
   });
 });
 

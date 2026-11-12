@@ -8,7 +8,7 @@
 | ------------------------------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.mts`                      | ✅ `src/` → `dist/` | 入口：`allContentLoaded()` 算出全站统计并铺成生成模块、给出层目录。指令的**渲染**不在这 —— 交给 `./remark/word-count.mts`（下行）                                                                                                                                                        |
 | `src/remark/word-count.mts`          | ✅                  | 站点挂进各内容根 `remarkPlugins` 的那个 remark 插件：在 mdast 上把 `::word-count` 叶指令换成 `<__WordCount scope="…" />`（`mdxJsxFlowElement` / `mdxJsxTextElement`）、并在文档根补一句 `mdxjsEsm` import；`md` 与 `mdx` 都渲染。经 `@show-docs/docusaurus-theme-word-count/remark` 导出 |
-| `src/directive.mts`                  | ✅                  | 认 `::word-count` 叶指令语法的**唯一一处**：扫指令行、统计侧剥掉它（`withoutWordCountDirectives`）、报每页写了哪些范围（`directiveScopes`）。导出 `COMPONENT` / `IMPORT` / `WORD_COUNT_SCOPES` 供上面那个插件共用，认的范围只有一份                                                      |
+| `src/directive.mts`                  | ✅                  | `::word-count` 一族的**常量单一来源**：`COMPONENT` / `IMPORT`（渲染换的组件名与那句 import）与 `WORD_COUNT_SCOPES`（四种范围）。渲染插件与计数两侧都从这里取，认的范围只有一份。指令的「识别」不在这 —— 两侧都靠 `remark-directive` 把它解析成语法树上的 directive 节点                  |
 | `src/content.mts`                    | ✅                  | 从 `allContent` 里各份 docs 实例的清单解回磁盘上的文件、逐页数一遍（按原文 memo，解析不动的告警后按 0 计），按「实例 + 版本」合一格，并把每页、每个实例、每个目录各记一份；另扫出哪几页写了哪种范围的指令（`usage`）                                                                     |
 | `src/measure.mts`                    | ✅                  | 一份正文的明细：markdown 按这一页的 `md` / `mdx` 选一条流水线逐节点数，非 markdown 的文档按整份文字数                                                                                                                                                                                    |
 | `src/aggregate.mts`                  | ✅                  | 逐字段相加、按目录一层层滚上去、全 0 的底；`instances` 与 `folders` 就是这里合出来的                                                                                                                                                                                                     |
@@ -46,11 +46,7 @@ docs 内容根的选项里 `remarkPlugins: [remarkWordCount]`。本站两棵根�
 一处挂两棵都到。**漏挂的那棵根里，写了指令的页面只留一个空容器**（`leafDirective` 被 remark-directive 认下但没人换成
 组件，编译成一个空的 `<div>`）—— 不报错、不泄漏源码，但那块数不出现。
 
-**语法与范围只有一份来源**：`src/directive.mts` 里的 `WORD_COUNT_SCOPES`（四种）与组件名 / import 串，插件和
-计数侧都从这里取。认范围判据分叉（插件按一个口径、统计按另一个）会直接反映成「数出来的与页面上那块写的不符」。
-插件里 `{scope}` 取了四种之外的值（或没写）按缺省 `instance`；这一行仍是指令（渲染出 `instance` 那块）。而计数侧
-（`directive.mts` 的 `SCOPED_DIRECTIVE`）对 `{scope=bogus}` 这种写法**整行不算指令**、原样当正文 —— 两边对「写错的
-scope」落点不同是有意的：渲染侧宁可给个缺省数，计数侧宁可让作者看见自己写错的那行。
+**语法与范围只有一份来源，计数与渲染走同一条解析**：四种范围 `WORD_COUNT_SCOPES` 与组件名 / import 串都在 `src/directive.mts`，渲染插件与 `src/measure.mts` 都从这里取。计数侧不再用正则认指令、也不另有「剥指令」扫描 —— 它把 `remark-directive` 也挂进 `measure.mts` 的两条流水线，`::word-count` 在语法树上就是 `leafDirective`（`md` / `mdx` 都一样），走树时它不是 `text` 于是天然不进词数，同时按 `attributes.scope` 记下这一页写了哪些范围（`measureMarkdown` 顺带返回 `scopes`）。所以「哪一行是指令、什么范围」由**同一次 remark 解析**给出，渲染与计数不再分叉。`{scope=…}` 写了四种之外的值或没写，两侧都按缺省 `instance` —— 早先「计数把写错的当正文、渲染按缺省」那条刻意分叉，随计数走 AST 一并取消。
 
 **绑定名带 `__` 前缀**（`__WordCount`）是给「本包生成」留记号：作者自己 import 一个叫 `WordCount` 的组件不撞名；
 真撞了也是编译期重复声明，不是安静的渲染错。补那句 import 指向 `@theme/WordCount`：站点在 `src/theme/WordCount`
@@ -98,7 +94,7 @@ scope」落点不同是有意的：渲染侧宁可给个缺省数，计数侧宁
 - **表外的汉字走拉丁那一路**：码位段只列常用那几段，扩展 B（平面 2，`CJK Unified Ideographs Extension B`）不在 CJK 类里，但带 `u` 标记的 `\p{L}` 认它，于是落进拉丁那一路 —— 结果还是一个词，与按字同一个数。真正会被数成「一段」的是表外那族连着写的多个字，本站没有那种内容。
 - **markdown 语法符号自然不算**：`#`、`|`、反引号、链接的圆括号既不是字母也不是数字，两把正则都落不到它们身上。代码块与表格的**内容**因此按 `text` / `code` 节点进统计（见上一节），但那些符号本身一个词都不是。
 - **frontmatter 不数**：markdown 的正文原样进语法树，头部那段是 `yaml` 节点，只记 `frontmatter` 数量；非 markdown 的文档用 `parseMarkdownFile()` 剥好的正文。两处「哪一段算头部」都来自 `siteConfig.markdown.parseFrontMatter`，也就是站点渲染这一页时那一份 —— 别的层包住它时，剥掉的那一段与页面开头看不见的那一段还是同一件事。标题行（`# 标题`）在正文里，照数。
-- **指令不数**：`::word-count` 那一行是看不见的语法，数之前由 `withoutWordCountDirectives()` 剥掉；围栏里的同名文字是示例正文，照数。
+- **指令不数**：`::word-count` 在语法树里是 `leafDirective`（`measure.mts` 的流水线挂了 `remark-directive`），不是 `text`，天然不进词数；走树时顺带记下它的范围。围栏里的同名文字是 `code` 正文，照数。
 
 CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标记，花括号会被当成量词，那一类当场变形状。
 
@@ -110,7 +106,7 @@ CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标�
 
 生成模块只有那一句 `export const stats = <JSON>`，没有日期、没有 git 状态：同一份内容两次构建产物一样。浏览器侧读它的地址由 webpack 那条 `@generated` 别名给出，那一串路径必须与 `src/index.mts` 里 `STATS_FILE` 一致，它的类型来自 `types/word-count-specifiers.d.ts`。
 
-**只铺浏览器会查的那几格**：合计、`groups`、`instances` 照旧全铺（`site` / `instance` 范围读它们）；`docs`（每页一整格）与 `folders`（按目录滚上去的合计）只铺正文里真写了 `page` / `folder` 指令的那几格。裁的判据是配置期扫出来的 `usage`（哪页写了哪种范围），与数词、剥指令共用同一个扫描器、看同一份原文，所以「铺了哪几格」与「正文里会出现哪种范围」天然一致。本站五十多页里只有一页（示例页）写 `page` / `folder`：整份从 46,298 字节（gzip 3,974）降到 3,753 字节（gzip 912），裁掉的就是用不到的每页 / 每目录明细。`folder` 范围因此在浏览器侧直接查 `folders`，不拿「本页在不在 `docs` 里」当前提 —— 写了 `folder` 的页未必写了 `page`。
+**只铺浏览器会查的那几格**：合计、`groups`、`instances` 照旧全铺（`site` / `instance` 范围读它们）；`docs`（每页一整格）与 `folders`（按目录滚上去的合计）只铺正文里真写了 `page` / `folder` 指令的那几格。裁的判据是配置期扫出来的 `usage`（哪页写了哪种范围），与数词、记范围是同一次语法树解析（`measureMarkdown` 一并返回 `scopes`）、看同一份原文，所以「铺了哪几格」与「正文里会出现哪种范围」天然一致。本站五十多页里只有一页（示例页）写 `page` / `folder`：整份从 46,298 字节（gzip 3,974）降到 3,753 字节（gzip 912），裁掉的就是用不到的每页 / 每目录明细。`folder` 范围因此在浏览器侧直接查 `folders`，不拿「本页在不在 `docs` 里」当前提 —— 写了 `folder` 的页未必写了 `page`。
 
 数字在页面上直接写出来，不加千分位格式化：静态渲染与服务端注水要拼出同一个字符串，少一处格式化就少一处能漂的地方。
 
@@ -164,7 +160,7 @@ CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标�
 
 ## 用例与红线
 
-- 构建期判据：`test/word-count.test.mts` —— 指令扫描与范围（`::word-count` 缺省、四种 `{scope}` 各认一次、写错的 scope 整行原样留、围栏与四格缩进代码块里不认、带信息串的行不算收尾、CRLF、无指令时原样交回）；`remark/word-count.mts` 那个插件在 mdast 上把指令换成 `mdxJsx` 组件节点、多条只补一句 import、`{scope}` 取值与缺省、非本包指令不碰；`withoutWordCountDirectives()` 剥指令、`directiveScopes()` 报范围；两把码位表的边界；`measureMarkdown()` 按节点各数一格（`md` 与 `mdx` 两条流水线对 `import` / `{…}` 数得不一样各钉一条）与非法 MDX 告警后按 0 计；`measureText()` 那条非 markdown 的路；`aggregate.mts` 的逐字段相加与目录往上滚；`resolveFormat()` 整张真值表；`@site/` 地址反解、`docs` 与 `drafts` 两列都读、非 docs 实例的 content、`label` 与 `versionName` 两种落点、同一格重复出现与新开一格、多实例分组、每页 / 每实例 / 每目录三张表、读不到或解析不动时告警按 0 计（其余各页照常）、原文没变的那几份第二遍不再调解析器（memo），以及 `allContentLoaded()` 真的往一个临时 `generatedFilesDir` 写出那份模块、没写 `page` / `folder` 指令的页不铺每页 / 每目录明细、数没变就不重写那份模块。`renderStatsModule()` 按 `usage` 裁明细而合计与分组不动。同一份还直接钉 `theme/WordCount/scope.ts`：本页与内容根各取那一格、本文件夹查配置期那张表（含子目录、挡住名字相近的邻居）。`src/` 全份挂在覆盖率红线上（`vitest.config.mts` 的 `coverage.include` 盖住每个包的 `src/`）。
+- 构建期判据：`test/word-count.test.mts` —— 指令走语法树（`measureMarkdown` 把 `::word-count` 当 `leafDirective`：裸指令、四种 `{scope}` 各认一次、写错的 scope 按缺省 `instance`、围栏里的同名文字是 code 不算指令、并顺带返回 `scopes`）；`remark/word-count.mts` 那个插件在 mdast 上把指令换成 `mdxJsx` 组件节点、多条只补一句 import、`{scope}` 取值与缺省、非本包指令不碰、孩子没有 children 数组的节点跳过；两把码位表的边界；`measureMarkdown()` 按节点各数一格（`md` 与 `mdx` 两条流水线对 `import` / `{…}` 数得不一样各钉一条）与非法 MDX 告警后按 0 计；`measureText()` 那条非 markdown 的路；`aggregate.mts` 的逐字段相加与目录往上滚；`resolveFormat()` 整张真值表；`@site/` 地址反解、`docs` 与 `drafts` 两列都读、非 docs 实例的 content、`label` 与 `versionName` 两种落点、同一格重复出现与新开一格、多实例分组、每页 / 每实例 / 每目录三张表、读不到或解析不动时告警按 0 计（其余各页照常）、原文没变的那几份第二遍不再调解析器（memo），以及 `allContentLoaded()` 真的往一个临时 `generatedFilesDir` 写出那份模块、没写 `page` / `folder` 指令的页不铺每页 / 每目录明细、数没变就不重写那份模块。`renderStatsModule()` 按 `usage` 裁明细而合计与分组不动。同一份还直接钉 `theme/WordCount/scope.ts`：本页与内容根各取那一格、本文件夹查配置期那张表（含子目录、挡住名字相近的邻居）。`src/` 全份挂在覆盖率红线上（`vitest.config.mts` 的 `coverage.include` 盖住每个包的 `src/`）。
 - 产物回读：`tools/scripts/verify-chain.mts` 第 4 节看两页构建出来的 HTML —— 有那一块（`aria-label` 写着「内容根字数」）。remark 插件没挂上、块退化成空容器时这里红。
 - 页面上那一块：`test/e2e/features/word-count.feature`（步骤在同名 `steps/word-count.steps.mts`）。**不**断言具体数字 —— 本站的内容根每加一页文档，总数就变。两棵内容根各有一页写指令（`/theme-word-count/docs/word-count-demo` 在 `default`、`/themes/` 在 `themes`），各断言「那一块在、只写自己那个实例、不出现另一个实例、正文仍在、位置就是指令那一处」；挑错时页面会退回全站合计，两个 id 都会露在块里，所以「不出现另一个」正好把那两种症状一起兜住。明细另钉「各项彼此自洽」：中日韩文字 + 其余文字 = 词数、字符数大于 0；本页那一块的文件数量是 1。示例页把四种范围排在一起：本文件夹那一块写目录且文件数量大于 1、全站那一块列出两份实例，并断言四块的词数按「页 < 文件夹 < 内容根 < 全站」依次变大。另有一条反向：没写指令的页面这一块不出现。
 - 入口交出的那一格：`test/package-entries.test.mts` 钉名字与层目录两格。本包也在 `test/view-layer-copies.test.mts` 那份「带源码层的包」清单里 —— 那一格钉的是「不许在本包入口再补一条 TS 源码编译规则」。

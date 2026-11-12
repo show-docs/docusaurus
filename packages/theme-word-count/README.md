@@ -85,8 +85,9 @@ export default {
 | `::word-count{scope="instance"}` | 所在 docs 实例各版本的合计                      |
 | `::word-count{scope="site"}`     | 全站所有 docs 实例                              |
 
-`scope` 只认那四个；写成别的（`{scope="pages"}`、大小写不符、`{scope}` 拼错）时整行原样留下当正文，
-与不认识的行同一种落点。
+`scope` 只认那四种；写成别的（`{scope="pages"}`、大小写不符）仍被当作一条 `::word-count` 指令，
+按缺省 `instance` 出那一块 —— 与计数侧同一条规则（`remark-directive` 认的是指令本身，`scope` 取值不合法
+只退到缺省，不会把整行当正文留着）。
 
 `folder` 的「目录」由源文件的地址算，不看 URL：`packages/theme-word-count/docs/` 那一页数的
 是那个目录（递归），不是页面地址的前缀。两个实例挂同一个目录时按目录合计 —— 这一层不按实例
@@ -111,7 +112,7 @@ CommonMark（不挂 MDX）。本站没配 `format`，默认 `mdx`。
 | 链接与图片                            | 链接文字数；链接地址、图片的替代文字与图片地址都**不数**（它们不是正文里读出来的字）                         |
 | JSX 属性与 `import` 行                | `mdx` 下**不数**：语法树里不是 `text`；`md`（CommonMark）下它们是普通文字 / 原样 HTML，**要数**              |
 | frontmatter                           | **不数**：用站点渲染这一页时同一份解析器剥掉头部那一段 YAML                                                  |
-| `::word-count` 那一行（含 `{scope}`） | **不数**：它是看不见的语法，数之前由 `withoutWordCountDirectives()` 剥掉（与范围扫描同一个扫描器）           |
+| `::word-count` 那一行（含 `{scope}`） | **不数**：它是看不见的语法，在语法树里是 `leafDirective` 节点、不是 `text`（与渲染同一次解析）               |
 | 四格缩进的代码块                      | `mdx` 不认缩进代码块（当普通文字，那几行进正文数、不进代码段）；`md` 认，那几行算代码段。跟着这一页 `format` |
 | 草稿（`draft: true`）                 | **数**：生产构建分到 `drafts`、开发模式留在 `docs`，两列都读、只读一次；明细里另记「草稿数量」               |
 | 未列出（`unlisted: true`）            | 数：它也是会被渲染的页面                                                                                     |

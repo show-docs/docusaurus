@@ -1,3 +1,4 @@
+import remarkDirective from 'remark-directive';
 import remarkFrontmatter from 'remark-frontmatter';
 import remarkGfm from 'remark-gfm';
 import remarkMdx from 'remark-mdx';
@@ -6,11 +7,12 @@ import { unified } from 'unified';
 
 import { escapeMarkdownHeadingIds } from '@docusaurus/utils';
 
-import type { WordCount } from '../types/word-count.ts';
+import type { WordCount, WordCountScope } from '../types/word-count.ts';
 
 import { EMPTY } from './aggregate.mts';
 import { walkAst } from './ast.mts';
 import { countWords } from './count.mts';
+import { WORD_COUNT_SCOPES } from './directive.mts';
 import type { MarkdownFormat } from './format.mts';
 
 /**
@@ -42,6 +44,8 @@ type Node = {
   lang?: string | null;
   url?: string;
   depth?: number;
+  name?: string;
+  attributes?: Record<string, string | null>;
   children?: readonly Node[];
 };
 
@@ -58,7 +62,9 @@ const HEADINGS: Record<number, keyof WordCount> = {
 /**
 两条解析流水线，只建一次：每份文件都新建一条流，白白多一层开销。
 
-站点按 `markdown.format` / 页面 `format` 用哪条编译，这里就用哪条数 —— 判据与渲染同源：
+站点按 `markdown.format` / 页面 `format` 用哪条编译，这里就用哪条数 —— 判据与渲染同源，
+连指令也一起挂 `remark-directive`：`::word-count` 在语法树上就是 `leafDirective`（不是 `text`），
+于是「指令不算词」不再是自己数出来的正则，而是和渲染同一份解析给的结构。
 
 - `mdx`：挂 `remarkMdx`，`{…}` 成 `mdxTextExpression`、`<Tag>` 成 `mdxJsx…`、`import` 成
   `mdxjsEsm`，都不是 `text`，不进词数。
@@ -68,11 +74,13 @@ const HEADINGS: Record<number, keyof WordCount> = {
 const mdxParser = unified()
   .use(remarkParse)
   .use(remarkMdx)
+  .use(remarkDirective)
   .use(remarkFrontmatter)
   .use(remarkGfm);
 
 const mdParser = unified()
   .use(remarkParse)
+  .use(remarkDirective)
   .use(remarkFrontmatter)
   .use(remarkGfm);
 
@@ -115,9 +123,28 @@ function hasExplicitId(node: Node): boolean {
         /^\/\*\s*#\S+\s*\*\/$/.test(last.value!);
 }
 
-/** 按节点类型数这一格；逐节点的走树交给 `./ast.mts` 的 `walkAst`。 */
-function countNode(node: Node, counts: WordCount): void {
+/** 按节点类型数这一格；逐节点的走树交给 `./ast.mts` 的 `walkAst`。`scopes` 顺带记下这一页写了哪些指令范围。 */
+function countNode(
+  node: Node,
+  counts: WordCount,
+  scopes: WordCountScope[],
+): void {
   switch (node.type) {
+    case 'leafDirective':
+    case 'containerDirective':
+    case 'textDirective': {
+      // `::word-count` 在语法树里是 directive 节点，不是 `text` → 天然不进词数；这里只记下它的范围。
+      // scope 不在四种里（含没写）按缺省 instance —— 与渲染侧同一条规则，不再刻意分叉。
+      if (node.name === 'word-count') {
+        const raw = node.attributes?.scope;
+        scopes.push(
+          raw !== undefined && WORD_COUNT_SCOPES.has(raw as WordCountScope)
+            ? (raw as WordCountScope)
+            : 'instance',
+        );
+      }
+      break;
+    }
     case 'text':
     case 'inlineCode': {
       addText(counts, node.value!);
@@ -184,8 +211,8 @@ function countNode(node: Node, counts: WordCount): void {
 /**
 一份文件的全部明细。
 
-`content` 是**剥掉 `::word-count` 之后**的原文（frontmatter 还在，`yaml` 那一格由树上报）；
-`draft` 来自站点那份 frontmatter 解析器的结果，明细里单独记一格；`format` 是这一页按哪一族语法
+`content` 是这一页的**原文**（frontmatter 还在，`yaml` 那一格由树上报；`::word-count` 是指令节点，
+不进词数）；`draft` 来自站点那份 frontmatter 解析器的结果，明细里单独记一格；`format` 是这一页按哪一族语法
 编译（`md` / `mdx`，判法见 `./format.mts`）—— `md` 走 CommonMark、`mdx` 挂 `remarkMdx`，两条流水线
 的差别只在 `{…}` / `<Tag>` / `import` 成不成 `text`。
 
@@ -197,20 +224,21 @@ export function measureMarkdown(
   content: string,
   draft: boolean,
   format: MarkdownFormat,
-): WordCount {
+): { count: WordCount; scopes: WordCountScope[] } {
   const counts: WordCount = {
     ...EMPTY,
     pages: 1,
     drafts: draft ? 1 : 0,
   };
+  const scopes: WordCountScope[] = [];
 
   const tree = (format === 'md' ? mdParser : mdxParser).parse(
     escapeMarkdownHeadingIds(content),
   );
 
-  walkAst(tree as Node, (node) => countNode(node, counts));
+  walkAst(tree as Node, (node) => countNode(node, counts, scopes));
 
-  return counts;
+  return { count: counts, scopes };
 }
 
 /**
@@ -226,17 +254,21 @@ export function measureText(
   content: string,
   draft: boolean,
   frontmatter: boolean,
-): WordCount {
+): { count: WordCount; scopes: WordCountScope[] } {
   const { cjk, latin, words } = countWords(content);
 
   return {
-    ...EMPTY,
-    cjk,
-    characters: content.length,
-    drafts: draft ? 1 : 0,
-    frontmatter: frontmatter ? 1 : 0,
-    latin,
-    pages: 1,
-    words,
+    count: {
+      ...EMPTY,
+      cjk,
+      characters: content.length,
+      drafts: draft ? 1 : 0,
+      frontmatter: frontmatter ? 1 : 0,
+      latin,
+      pages: 1,
+      words,
+    },
+    // 非 markdown 的文档不经指令，范围那一列恒空
+    scopes: [],
   };
 }

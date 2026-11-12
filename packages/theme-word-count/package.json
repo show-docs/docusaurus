@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@docusaurus/utils": "catalog:",
+    "remark-directive": "^3.0.1",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "remark-mdx": "^3.1.1",
