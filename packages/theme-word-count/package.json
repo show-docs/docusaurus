@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-word-count",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "构建时统计全站文档的字数，正文里写一行 :::word-count 就在那一处显示所在内容根的数",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-word-count",
