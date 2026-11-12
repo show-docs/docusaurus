@@ -10,6 +10,7 @@ import type { WordCount } from '../types/word-count.ts';
 
 import { EMPTY } from './aggregate.mts';
 import { countWords } from './count.mts';
+import type { MarkdownFormat } from './format.mts';
 
 /**
 一页的明细：把正文解析成语法树，按节点类型各数一遍。
@@ -53,10 +54,24 @@ const HEADINGS: Record<number, keyof WordCount> = {
   6: 'h6',
 };
 
-/** 解析器只建一次：每份文件都新建一条流，白白多一层开销。 */
-const parser = unified()
+/**
+两条解析流水线，只建一次：每份文件都新建一条流，白白多一层开销。
+
+站点按 `markdown.format` / 页面 `format` 用哪条编译，这里就用哪条数 —— 判据与渲染同源：
+
+- `mdx`：挂 `remarkMdx`，`{…}` 成 `mdxTextExpression`、`<Tag>` 成 `mdxJsx…`、`import` 成
+  `mdxjsEsm`，都不是 `text`，不进词数。
+- `md`：不挂 `remarkMdx`，退成 CommonMark —— 同一份 `{…}` 是文字、`<Tag>` 是 `html`，与站点
+  按 md 编译那一遍同形。
+*/
+const mdxParser = unified()
   .use(remarkParse)
   .use(remarkMdx)
+  .use(remarkFrontmatter)
+  .use(remarkGfm);
+
+const mdParser = unified()
+  .use(remarkParse)
   .use(remarkFrontmatter)
   .use(remarkGfm);
 
@@ -175,20 +190,30 @@ function walk(node: Node, counts: WordCount): void {
 一份文件的全部明细。
 
 `content` 是**剥掉 `:::word-count` 之后**的原文（frontmatter 还在，`yaml` 那一格由树上报）；
-`draft` 来自站点那份 frontmatter 解析器的结果，明细里单独记一格。
+`draft` 来自站点那份 frontmatter 解析器的结果，明细里单独记一格；`format` 是这一页按哪一族语法
+编译（`md` / `mdx`，判法见 `./format.mts`）—— `md` 走 CommonMark、`mdx` 挂 `remarkMdx`，两条流水线
+的差别只在 `{…}` / `<Tag>` / `import` 成不成 `text`。
 
-解析前先走一句 `escapeMarkdownHeadingIds`：站点把正文交给 MDX 时，预处理器做的第一步就是它
-（经典写法的 `{#id}` 不转义会当场解析失败）。这里读的是同一份转义后的文字，标题 id 才认得出来，
-正文其余字符也与站点编译的那一份一致。
+解析前先走一句 `escapeMarkdownHeadingIds`：MDX 把标题末尾的 `{#id}` 当表达式，不转义会当场解析
+失败，站点交 MDX 时预处理器第一步就是它。`md`（CommonMark）那一路这一步是无害的（`\{` 的反斜杠
+被当转义吃掉，`{#id}` 仍是标题末尾的文字），所以两条共用同一份预处理，标题 id 才认得出来。
 */
-export function measureMarkdown(content: string, draft: boolean): WordCount {
+export function measureMarkdown(
+  content: string,
+  draft: boolean,
+  format: MarkdownFormat,
+): WordCount {
   const counts: WordCount = {
     ...EMPTY,
     pages: 1,
     drafts: draft ? 1 : 0,
   };
 
-  walk(parser.parse(escapeMarkdownHeadingIds(content)) as Node, counts);
+  const tree = (format === 'md' ? mdParser : mdxParser).parse(
+    escapeMarkdownHeadingIds(content),
+  );
+
+  walk(tree as Node, counts);
 
   return counts;
 }

@@ -33,6 +33,7 @@ import type {
 
 import { add, EMPTY, foldersOf, sumOf } from './aggregate.mts';
 import { directiveScopes, withoutWordCountDirectives } from './directive.mts';
+import { resolveFormat, type FormatInput } from './format.mts';
 import { measureMarkdown, measureText } from './measure.mts';
 
 /** 告警通道：缺省 `console`，测试注入一份假的收消息。与 theme-component-page 同一形状。 */
@@ -47,17 +48,22 @@ interface FileCount {
 }
 
 /**
-逐文件 memo：键是磁盘地址，值记下「数它时那份原文与那一份解析器」。
+逐文件 memo：键是磁盘地址，值记下「数它时那份原文、那一份解析器与那一个站点 `markdown.format`」。
 
 dev 模式下改一份文档会让所有插件的 `allContentLoaded()` 重跑（`reloadPlugin()`），于是这里
-每轮都把整份清单重数一遍。原文没变、解析器也没换的那几份直接交回上一轮的结果，只有真改过
-的那一份才重新走语法树。按原文 whole-string 比对（不另算哈希）：同一份路径 + 同一份原文 +
-同一份解析器，数出来的一定是同一格。`reloadSite()` 重跑工厂会换一份解析器引用，那几份自然
-失效重数。
+每轮都把整份清单重数一遍。原文没变、解析器没换、站点默认语法也没换的那几份直接交回上一轮的结果，
+只有真改过的那一份才重新走语法树。按原文 whole-string 比对（不另算哈希）：同一份路径 + 同一份原文
++ 同一份解析器 + 同一个站点 format，frontmatter 的 `format` 也在原文里，数出来的一定是同一格。
+`reloadSite()` 重跑工厂会换一份解析器引用，那几份自然失效重数。
 */
 const cache = new Map<
   string,
-  { content: string; parser: ParseFrontMatter; result: FileCount }
+  {
+    content: string;
+    parser: ParseFrontMatter;
+    siteFormat: FormatInput;
+    result: FileCount;
+  }
 >();
 
 /** 一份文档在清单里被认出来的那几格（其余各格本包一眼都不看）。 */
@@ -101,6 +107,11 @@ MDX 编译）。那一份交给 MDX 解析器会当场报 acorn 错，所以按�
 的文档用站点剥好的正文按文字数，结构那几行记 0；它也不经预处理器，正文里写了指令也不会
 变成组件，所以范围那一列恒空。
 
+markdown 那一条里，同一份正文按 `md` 还是 `mdx` 数会差在 `{…}` / `<Tag>` / `import` 进不进词，
+所以这一层跟着站点判：`resolveFormat`（frontmatter 的 `format` > 站点 `markdown.format` > 扩展名）
+给出 `md` / `mdx`，交回 `measure.mts` 选对应那条流水线 —— 与 `@docusaurus/mdx-loader` 编译这一页
+用的是同一格判据。站点默认 `mdx`，本站没配 `format`，所以现有各页的数与此前一致。
+
 **数不动就告警，不红**：读不到、解析不动的那一份按「1 页、各项 0」计，告警里带上文件路径。
 少一排数字不该让整站构建失败 —— 与 git-badge「读不到就不读」同一条取舍。失败的那一份不进
 memo（下一轮原文变了或读得到了，照常重数）。
@@ -109,6 +120,7 @@ async function countFile(
   file: string,
   parser: ParseFrontMatter,
   logger: WordCountLogger,
+  siteFormat: FormatInput,
 ): Promise<FileCount> {
   try {
     const fileContent = readFileSync(file, 'utf8');
@@ -117,7 +129,8 @@ async function countFile(
     if (
       cached !== undefined &&
       cached.content === fileContent &&
-      cached.parser === parser
+      cached.parser === parser &&
+      cached.siteFormat === siteFormat
     ) {
       return cached.result;
     }
@@ -129,15 +142,21 @@ async function countFile(
     });
     const draft = Boolean(frontMatter.draft);
     const markdown = /\.mdx?$/i.test(file);
+    // 这一页按哪一族语法数：frontmatter 的 `format` > 站点 `markdown.format` > 扩展名
+    const format = resolveFormat({
+      filePath: file,
+      frontMatterFormat: frontMatter.format as FormatInput | undefined,
+      siteFormat,
+    });
     const count = markdown
-      ? measureMarkdown(withoutWordCountDirectives(fileContent), draft)
+      ? measureMarkdown(withoutWordCountDirectives(fileContent), draft, format)
       : measureText(content, draft, Object.keys(frontMatter).length > 0);
     const result: FileCount = {
       count,
       scopes: markdown ? directiveScopes(fileContent) : [],
     };
 
-    cache.set(file, { content: fileContent, parser, result });
+    cache.set(file, { content: fileContent, parser, siteFormat, result });
 
     return result;
   } catch (error) {
@@ -172,7 +191,7 @@ export async function collectStats(
   logger: WordCountLogger = console,
 ): Promise<{ stats: WordCountStats; usage: StatsUsage }> {
   const { siteDir, siteConfig } = context;
-  const { parseFrontMatter } = siteConfig.markdown;
+  const { parseFrontMatter, format: siteFormat } = siteConfig.markdown;
   /** 「实例 + 版本」→ 那一格已经数到的那些页。 */
   const groups = new Map<
     string,
@@ -207,6 +226,7 @@ export async function collectStats(
             fileOf(doc.source, siteDir),
             parseFrontMatter,
             logger,
+            siteFormat,
           );
 
           docs[doc.source] = count;

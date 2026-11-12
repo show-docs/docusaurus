@@ -128,7 +128,7 @@ CI 把全量覆盖率红线钉在 **100%**，增量同样 100 —— 新增代�
 - `test/theme-diff.test.mts` —— `diff:` 那把键怎么读、git 里那一次改动怎么落成一份数据（`packages/theme-diff/src/`）。
 - `test/theme-erd.test.mts` —— 一份 `.dbml` 编成 MDX、两张表格的单元格怎么转义（note / 默认值里的 `|` 与换行）、配置期那份 `exports` 清单（`packages/theme-erd/src/`）。
 - `test/theme-markmap.test.mts` —— 一份 md 落成导图数据、loader 在四种情形下追加什么（`packages/theme-markmap/src/`）。
-- `test/word-count.test.mts` —— `:::word-count` 怎么扫（含四种范围）、怎么换成组件、预处理器怎么只包一层、一个词按哪两把码位表数、一份正文怎么按语法树数成明细（非 markdown 的文档按整份文字数）、全站清单怎么数成每页 / 每实例 / 每目录三张表、四种范围各查哪张表、生成模块铺到哪一格（`packages/theme-word-count/src/` 与 `theme/WordCount/scope.ts`）。
+- `test/word-count.test.mts` —— `:::word-count` 怎么扫（含四种范围）、怎么换成组件、预处理器怎么只包一层、一个词按哪两把码位表数、一份正文怎么按语法树数成明细（`md` / `mdx` 跟着 `markdown.format` 选流水线、那套判据的真值表也钉着；非 markdown 的文档按整份文字数）、全站清单怎么数成每页 / 每实例 / 每目录三张表、四种范围各查哪张表、生成模块铺到哪一格（`packages/theme-word-count/src/` 与 `theme/WordCount/scope.ts`）。
 - `test/package-entries.test.mts` —— 每个包入口交出的那几格：名字、层目录、客户端模块、
   webpack 规则，以及配置期那几条校验点名到谁。
 

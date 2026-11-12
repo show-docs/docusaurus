@@ -9,9 +9,10 @@
 | `src/index.mts`                      | ✅ `src/` → `dist/` | 入口：`loadContent()` 把预处理器包到站点那份 `markdown.preprocessor` 上、`allContentLoaded()` 算出全站统计并铺成生成模块、给出层目录                                                                                 |
 | `src/directive.mts`                  | ✅                  | `:::word-count [page\|folder\|instance\|site]` 的扫描与改写：指令换成 `<__WordCount scope="…" />`、文首补一句 import；统计侧剥掉指令的那一份也在这里                                                                 |
 | `src/content.mts`                    | ✅                  | 从 `allContent` 里各份 docs 实例的清单解回磁盘上的文件、逐页数一遍（按原文 memo，解析不动的告警后按 0 计），按「实例 + 版本」合一格，并把每页、每个实例、每个目录各记一份；另扫出哪几页写了哪种范围的指令（`usage`） |
-| `src/measure.mts`                    | ✅                  | 一份正文的明细：markdown 按语法树逐节点数，非 markdown 的文档按整份文字数                                                                                                                                            |
+| `src/measure.mts`                    | ✅                  | 一份正文的明细：markdown 按这一页的 `md` / `mdx` 选一条流水线逐节点数，非 markdown 的文档按整份文字数                                                                                                                |
 | `src/aggregate.mts`                  | ✅                  | 逐字段相加、按目录一层层滚上去、全 0 的底；`instances` 与 `folders` 就是这里合出来的                                                                                                                                 |
 | `src/count.mts`                      | ✅                  | 「一个词」的码位表与两种来源各数一种（CJK 按字、其余按词）                                                                                                                                                           |
+| `src/format.mts`                     | ✅                  | 这一页按 `md` 还是 `mdx` 数：复刻 `@docusaurus/mdx-loader` 的 `getFormat`（frontmatter `format` > 站点 `markdown.format` > 扩展名），纯函数、整张真值表由 `test/word-count.test.mts` 钉着                            |
 | `src/stats-module.mts`               | ✅                  | 把统计渲染成那一份生成模块的文本（只有一句 `export const stats = <JSON>`）；按 `usage` 裁掉没写 `page` / `folder` 指令的每页 / 每目录明细                                                                            |
 | `types/word-count.d.ts`              | ❌（随包发的声明）  | 四份形状：`WordCount` / `WordCountGroup` / `WordCountStats` / `WordCountScope`；`src/` 与 `theme/` 两侧都读它                                                                                                        |
 | `types/word-count-specifiers.d.ts`   | ❌（随包发的声明）  | `declare module '@generated/theme-word-count/stats'`：浏览器侧那句 `import` 的类型从这来                                                                                                                             |
@@ -53,13 +54,15 @@ Docusaurus 的 `markdown` 配置里**没有** `remarkPlugins` 那一格：remark
 
 ## 正文按语法树数：文本、结构与标题 id
 
-`src/measure.mts` 把正文交给与站点同一族解析器（`unified` + `remark-parse` + `remark-mdx` + `remark-gfm` + `remark-frontmatter`），解析一次、走一遍：
+`src/measure.mts` 按这一页的 `markdown.format` 选一条流水线（判据在 `src/format.mts`，复刻 `@docusaurus/mdx-loader` 的 `getFormat`：frontmatter `format` > 站点 `markdown.format` > 扩展名）—— `mdx` 走 `unified` + `remark-parse` + `remark-mdx` + `remark-gfm` + `remark-frontmatter`，`md` 是同一条但**不挂 `remark-mdx`**（退成 CommonMark）。解析一次、走一遍：
 
 - `text` / `inlineCode`：词与字符都加。
 - `code`：词、字符、段数与行数；围栏语言是 `mermaid` / `kroki` 的记「描述性图表」，不算代码段。
 - `heading`：按 `depth` 记 `h1`…`h6`；末尾显式写了 id 的另记 `headingIds`。
 - `table` / `image` / `link` / `linkReference` / `blockquote`：各记一格；链接按 `http(s):` 分内外。
 - `yaml`：只记 `frontmatter` 数量，那一段的内容不进词数。
+
+**md 与 mdx 的差别只在 MDX 专属构造**：`mdx` 下 `{…}` 是 `mdxTextExpression`、`<Tag>` 是 `mdxJsx…`、`import` 行是 `mdxjsEsm`，都不是 `text`、不进词数；`md`（CommonMark）下同一段变成 `text` / `html`，会进词数。跟着这一页真正用的那条语法数，才与渲染那一遍一致。
 
 **为什么不用正则扫原文**：围栏里的一行 `# 不是标题` 会被当成标题，链接地址里的字母会被当成词。语法树与站点编译这一页时看到的正文同源，结构行才有形状。
 
@@ -85,7 +88,7 @@ CJK 那把带 `u` 标记，而 `\u{…}` 的写法是配套的：去掉 `u` 标�
 
 `allContentLoaded` 是配置期唯一「所有插件的 content 都已到齐」的点（机制层铺那张规则表用的也是它），客户端打包在它之后，所以本包写进 `.docusaurus/` 的那一份赶得上第一次打包，数字因此在静态 HTML 里。`postBuild` 跑在 HTML 已经写完之后，那时算出来的数只赶得上下一轮构建。
 
-**dev 下只重数改过的那一份**：改一份文档会让所有插件的 `allContentLoaded()` 重跑（`reloadPlugin()`），于是这一步每轮都把整份清单再过一遍。逐文件的明细按原文 memo（`content.mts` 里那张 `cache`）：同一份路径 + 同一份原文 + 同一份解析器引用，直接交回上一轮的结果，只有真改过的那一份才重新走语法树。`reloadSite()` 重跑工厂会换一份解析器引用，那几份自然失效重数。渲染出来的模块与磁盘上那份一字不差时**不写盘**：写一遍会让打包器重编这份模块、浏览器跟着白刷一次，而 dev 下改一份与统计无关的文件也会重跑这一步。
+**dev 下只重数改过的那一份**：改一份文档会让所有插件的 `allContentLoaded()` 重跑（`reloadPlugin()`），于是这一步每轮都把整份清单再过一遍。逐文件的明细按原文 memo（`content.mts` 里那张 `cache`）：同一份路径 + 同一份原文 + 同一份解析器引用 + 同一个站点 `markdown.format`（frontmatter 的 `format` 也在原文里），直接交回上一轮的结果，只有真改过的那一份才重新走语法树。站点改了 `markdown.format` 而原文没动，那一页也要按新语法重数。`reloadSite()` 重跑工厂会换一份解析器引用，那几份自然失效重数。渲染出来的模块与磁盘上那份一字不差时**不写盘**：写一遍会让打包器重编这份模块、浏览器跟着白刷一次，而 dev 下改一份与统计无关的文件也会重跑这一步。
 
 生成模块只有那一句 `export const stats = <JSON>`，没有日期、没有 git 状态：同一份内容两次构建产物一样。浏览器侧读它的地址由 webpack 那条 `@generated` 别名给出，那一串路径必须与 `src/index.mts` 里 `STATS_FILE` 一致，它的类型来自 `types/word-count-specifiers.d.ts`。
 

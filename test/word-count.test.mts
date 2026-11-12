@@ -31,6 +31,7 @@ import {
   WRAPPED,
   wrapPreprocessor,
 } from '../packages/theme-word-count/src/directive.mts';
+import { resolveFormat } from '../packages/theme-word-count/src/format.mts';
 import wordCountTheme from '../packages/theme-word-count/src/index.mts';
 import {
   measureMarkdown,
@@ -80,14 +81,24 @@ function docFile(name: string, text: string): string {
   return `@site/docs/${name}`;
 }
 
-/** 一份够用的站点上下文：本包只读 `siteDir` 与 `siteConfig.markdown.parseFrontMatter`。 */
-function contextOf(): LoadContext {
+/**
+一份够用的站点上下文：本包读 `siteDir`、`siteConfig.markdown.parseFrontMatter` 与
+`siteConfig.markdown.format`（这一格决定每页按 `md` 还是 `mdx` 数，默认 `mdx` 与真实站点一致）。
+*/
+function contextOf(
+  markdownFormat: 'md' | 'mdx' | 'detect' = 'mdx',
+): LoadContext {
   const generatedFilesDir = path.join(tempRoot, '.docusaurus');
 
   return {
     generatedFilesDir,
     siteDir: tempRoot,
-    siteConfig: { markdown: { parseFrontMatter: DEFAULT_PARSE_FRONT_MATTER } },
+    siteConfig: {
+      markdown: {
+        parseFrontMatter: DEFAULT_PARSE_FRONT_MATTER,
+        format: markdownFormat,
+      },
+    },
   } as unknown as LoadContext;
 }
 
@@ -176,7 +187,7 @@ const countOf = (overrides: Partial<WordCount> = {}): WordCount => ({
 
 describe('measureMarkdown：一页的明细从语法树上数', () => {
   it('文字与行内代码：词数与字符数都加，段落这类容器本身不数', () => {
-    expect(measureMarkdown('汉字 hi `code`\n', false)).toMatchObject({
+    expect(measureMarkdown('汉字 hi `code`\n', false, 'mdx')).toMatchObject({
       characters: 10,
       cjk: 2,
       drafts: 0,
@@ -203,7 +214,7 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
       '',
     ].join('\n');
 
-    expect(measureMarkdown(text, false)).toMatchObject({
+    expect(measureMarkdown(text, false, 'mdx')).toMatchObject({
       h1: 1,
       h2: 4,
       h3: 1,
@@ -216,12 +227,14 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
 
   it('空标题是合法 markdown：各记一格，不认 id，也不当场抛', () => {
     // `## ` 与 `###` 都没有子节点：「只认最后一个子节点」那一步先判空
-    expect(measureMarkdown('## \n\n###\n\n正文\n', false)).toMatchObject({
-      h2: 1,
-      h3: 1,
-      headingIds: 0,
-      words: 2,
-    });
+    expect(measureMarkdown('## \n\n###\n\n正文\n', false, 'mdx')).toMatchObject(
+      {
+        h2: 1,
+        h3: 1,
+        headingIds: 0,
+        words: 2,
+      },
+    );
   });
 
   it('代码围栏：段数、行数与字数都进；mermaid / kroki 只算图表，不算代码段', () => {
@@ -243,7 +256,7 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
       '',
     ].join('\n');
 
-    expect(measureMarkdown(text, false)).toMatchObject({
+    expect(measureMarkdown(text, false, 'mdx')).toMatchObject({
       codeBlocks: 1,
       codeLines: 1,
       graphs: 2,
@@ -267,7 +280,7 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
       '',
     ].join('\n');
 
-    expect(measureMarkdown(text, false)).toMatchObject({
+    expect(measureMarkdown(text, false, 'mdx')).toMatchObject({
       blockquotes: 1,
       externalLinks: 1,
       images: 1,
@@ -280,7 +293,11 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
 
   it('frontmatter 只记数量，正文里的标题与草稿另算', () => {
     expect(
-      measureMarkdown('---\ntitle: 示例\ndraft: true\n---\n\n# 标题\n', true),
+      measureMarkdown(
+        '---\ntitle: 示例\ndraft: true\n---\n\n# 标题\n',
+        true,
+        'mdx',
+      ),
     ).toMatchObject({
       drafts: 1,
       frontmatter: 1,
@@ -309,6 +326,137 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
       frontmatter: 0,
       words: 3,
     });
+  });
+});
+
+describe('resolveFormat：frontmatter > 站点 markdown.format > 扩展名', () => {
+  it('frontmatter 写了 md / mdx 就以它为准，压过站点与扩展名', () => {
+    expect(
+      resolveFormat({
+        filePath: 'a.mdx',
+        frontMatterFormat: 'md',
+        siteFormat: 'mdx',
+      }),
+    ).toBe('md');
+    expect(
+      resolveFormat({
+        filePath: 'a.md',
+        frontMatterFormat: 'mdx',
+        siteFormat: 'md',
+      }),
+    ).toBe('mdx');
+  });
+
+  it('frontmatter 写 detect → 落到扩展名，不再看站点', () => {
+    expect(
+      resolveFormat({
+        filePath: 'a.md',
+        frontMatterFormat: 'detect',
+        siteFormat: 'mdx',
+      }),
+    ).toBe('md');
+    expect(
+      resolveFormat({
+        filePath: 'a.mdx',
+        frontMatterFormat: 'detect',
+        siteFormat: 'md',
+      }),
+    ).toBe('mdx');
+  });
+
+  it('没写 frontmatter：站点 md / mdx 直接生效，detect 才落到扩展名', () => {
+    expect(resolveFormat({ filePath: 'a.md', siteFormat: 'md' })).toBe('md');
+    expect(resolveFormat({ filePath: 'a.md', siteFormat: 'mdx' })).toBe('mdx');
+    expect(resolveFormat({ filePath: 'a.mdx', siteFormat: 'detect' })).toBe(
+      'mdx',
+    );
+    expect(resolveFormat({ filePath: 'a.md', siteFormat: 'detect' })).toBe(
+      'md',
+    );
+  });
+
+  it('站点没给（真实站点有默认，容它当 detect 落到扩展名）', () => {
+    expect(resolveFormat({ filePath: 'a.md', siteFormat: undefined })).toBe(
+      'md',
+    );
+    expect(resolveFormat({ filePath: 'x.markdown' })).toBe('md');
+    expect(resolveFormat({ filePath: 'a.unknown' })).toBe('mdx');
+  });
+
+  it('扩展名大小写与官方那份名单同口径（未知偏向 mdx）', () => {
+    expect(resolveFormat({ filePath: 'a.MDX', siteFormat: 'detect' })).toBe(
+      'mdx',
+    );
+    expect(resolveFormat({ filePath: 'a.mkd', siteFormat: 'detect' })).toBe(
+      'md',
+    );
+  });
+});
+
+describe('measureMarkdown：md 与 mdx 对 MDX-only 构造数得不一样', () => {
+  // 只有 `import` 那行是 MDX 专属：mdx 认成 ESM（不进词），md（CommonMark）当普通段落文字。
+  const body = '# 标题\n\n正文文字\n\nimport X from "y"\n';
+
+  it('mdx：import 那行是 ESM，一个拉丁词都不算；md：当文字数出 4 个', () => {
+    const mdx = measureMarkdown(body, false, 'mdx');
+    const md = measureMarkdown(body, false, 'md');
+
+    // 中文两行（标题 2 + 正文文字 4）两种语法都数得到
+    expect(mdx.cjk).toBe(6);
+    expect(md.cjk).toBe(6);
+    // 差别只在 import 那行：mdx 不算，md 数 import / X / from / y
+    expect(mdx.latin).toBe(0);
+    expect(md.latin).toBe(4);
+  });
+});
+
+describe('collectStats：跟着 markdown.format 选语法数', () => {
+  const page = '---\ntitle: T\n---\n\n正文\n\nimport X from "y"\n';
+
+  const contentOf = (source: string): AllContent =>
+    ({
+      '@docusaurus/plugin-content-docs': {
+        default: {
+          loadedVersions: [
+            { versionName: 'current', docs: [docOf('one', source)] },
+          ],
+        },
+      },
+    }) as unknown as AllContent;
+
+  it('站点 format=md 时 import 那行算进词；format=mdx 不算', async () => {
+    const mdSource = docFile('fmt-site-md.md', page);
+    const mdxSource = docFile('fmt-site-mdx.md', page);
+
+    const md = await collectStats(contentOf(mdSource), contextOf('md'));
+    const mdx = await collectStats(contentOf(mdxSource), contextOf('mdx'));
+
+    expect(md.stats.docs[mdSource]?.latin).toBe(4);
+    expect(mdx.stats.docs[mdxSource]?.latin).toBe(0);
+  });
+
+  it('frontmatter 的 format 压过站点：.md 页写 `format: mdx` 就走 mdx', async () => {
+    const source = docFile(
+      'fmt-frontmatter.md',
+      '---\nformat: mdx\n---\n\nimport X from "y"\n',
+    );
+
+    const { stats } = await collectStats(contentOf(source), contextOf('md'));
+
+    // 站点是 md，但 frontmatter 说 mdx → import 是 ESM，不算词
+    expect(stats.docs[source]?.latin).toBe(0);
+  });
+
+  it('站点 format 变了：同一页不能拿上一轮 memo，要按新语法重数', async () => {
+    // 这一条同时是缓存加了 siteFormat 比对的负对照：少了那一句，第二次会端回上一轮的 md 结果。
+    const source = docFile('fmt-cache.md', page);
+    const allContent = contentOf(source);
+
+    const md = await collectStats(allContent, contextOf('md'));
+    const mdx = await collectStats(allContent, contextOf('mdx'));
+
+    expect(md.stats.docs[source]?.latin).toBe(4);
+    expect(mdx.stats.docs[source]?.latin).toBe(0);
   });
 });
 
@@ -989,7 +1137,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
     };
     const context = {
       ...contextOf(),
-      siteConfig: { markdown: { parseFrontMatter: counting } },
+      siteConfig: { markdown: { parseFrontMatter: counting, format: 'mdx' } },
     } as unknown as LoadContext;
     const allContent = {
       '@docusaurus/plugin-content-docs': {
@@ -1062,7 +1210,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
     const contextWith = (parser: ParseFrontMatter) =>
       ({
         ...contextOf(),
-        siteConfig: { markdown: { parseFrontMatter: parser } },
+        siteConfig: { markdown: { parseFrontMatter: parser, format: 'mdx' } },
       }) as unknown as LoadContext;
 
     await collectStats(allContent, contextWith(first));
