@@ -11,10 +11,10 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 | 文件                             | 编译吗              | 职责                                                                                                                                                                                                                                             |
 | -------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/index.mts`                  | ✅ `src/` → `dist/` | 入口：`loadContent()` 交回**一份组件与一条规则**（`{ id: 'redoc', component: '@theme/RedocView' }` 与 `{ key: 'redoc', match: 'boolean', component: 'redoc', render: 'iframe' }`）、层目录与本包的 webpack 差异（`worker_threads` 空模块，见下） |
-| `theme/RedocView/index.tsx`      | ❌ 站点编译         | **框内**那一格里 Redoc 那一份：挑地址、把亮暗落到本层那条属性上、按需取渲染接线（`LazyView`）、报回 `#` 段；「这一页归谁」不在这里判                                                                                                             |
+| `theme/RedocView/index.tsx`      | ❌ 站点编译         | **框内**那一格里 Redoc 那一份：挑地址、把亮暗写成 Redoc 认的那对 `<html>` 类名、按需取渲染接线（`LazyView`）、报回 `#` 段；「这一页归谁」不在这里判                                                                                              |
 | `components/redoc-spec.ts`       | ❌ 站点编译         | `oas3:` / `aas3:` 两把键的读法与先后（只本层认识它们），以及两把都写时那句开发期说明；不引 React、不引 DOM，所以 `theme/RedocView` 与单测引同一份                                                                                                |
-| `components/redoc-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `RedocStandalone`（只收地址那一种入参），外面套 `HashRouter` 与 `StyleSheetManager`；`LocationMirror` 把路由变化报给外层                                                                                                            |
-| `components/redoc-color-mode.ts` | ❌ 站点编译         | 交给 `StyleSheetManager` 的编译中间件：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到 `<html data-redoc-mode="dark">` 上（见「亮暗模式」一节）                                                                                                  |
+| `components/redoc-ui.tsx`        | ❌ 站点编译         | 浏览器端渲染 `RedocStandalone`（只收地址那一种入参），外面套 `HashRouter`；`LocationMirror` 把路由变化报给外层                                                                                                                                   |
+| `components/redoc-color-mode.ts` | ❌ 站点编译         | 把外层送来的亮暗写成框内 `<html>` 上的 `light` / `dark` —— Redoc 3.1.0 自己认的那对类名（见「亮暗模式」一节）                                                                                                                                    |
 | `components/redoc-ui.css`        | ❌ 站点编译         | 生效在框内那一页：收掉 Redoc 自己的三处东西（它那颗亮暗切换按钮、左栏底部的 Redocly 署名、章节标题旁那一整格操作按钮）。高度为什么不写在这里，见「高度」一节                                                                                     |
 | `tsconfig.build.json`            | ——                  | 构建项目：只有 `src/`，所以产物出口是 `dist/index.mjs`                                                                                                                                                                                           |
 
@@ -41,7 +41,7 @@ Redoc 这一层怎么做到的、各处实测到的数字与取值。使用者�
 | 那一格渲染什么 | 只有框，没有正文外壳                                                         | 按 `init` 消息里的登记名（`redoc`）选出来的 `@theme/RedocView` |
 | Redoc 的运行时 | 不加载，一行都没有                                                           | 全在这里                                                       |
 | 样式表         | 站点的产物 CSS                                                               | 站点的产物 CSS + Redoc 运行期那张表                            |
-| 亮暗模式       | 站点的 `<html data-theme>`，开关在这                                         | 自己 `<html>` 上的 `data-redoc-mode`，值由外层送来             |
+| 亮暗模式       | 站点的 `<html data-theme>`，开关在这                                         | 自己 `<html>` 上的 `light` / `dark` 类名，值由外层送来         |
 | 要渲染哪份文档 | 不决定：那一页的 frontmatter 整份送进框内                                    | 由 `components/redoc-spec.ts` 从 frontmatter 里挑              |
 
 ## 框内那一页是哪一条路由
@@ -136,14 +136,15 @@ SSG 跑在 Node 里，那模块本来就有。现在这一格直接写在 `src/i
   没有 navbar、没有 footer、没有正文容器。Redoc 那些裸 `button` 与 `:root` 上的真属性打到的
   都是它自己那一屏，「不外溢」在这份文档里不是一个需要防的事。
 
-实测（框内那份文档，站点亮色）：那张表 427 条样式规则、裸 `button` 那条原样是
-`button`（不再是 `:where(.redoc-root) button`）、`:root` 的底色/字色/字体就落在那份文档的
-`<html>` 上（`--bg-color` 实测 `#ffffff`，切暗色后翻成 `#22242b`）。Redoc 自己那颗 `Copy`
+实测（框内那份文档，站点亮色）：那张表 469 条样式规则、裸 `button` 那条原样是
+`button`（不再是 `:where(.redoc-root) button`）、`:root` 那组变量就落在那份文档的 `<html>` 上
+（`--bg-color` 实测 `#ffffff`，切暗色后翻成 `#22242b`）。3.1.0 起底色那条真属性落在渲染器自己的
+包裹节点 `.redoc` 上，`<html>` 自己的 `background-color` 是透明的。Redoc 自己那颗 `Copy`
 按钮的边框仍是 `solid 1px` —— 本层不碰它的选择器。
 
-那条中间件链上**只剩一件事**：把 Redoc 挂在 `:root.dark` 上的那套暗色表改挂到框内那份文档自己的
-`<html data-redoc-mode="dark">`（值由外层送来）。它防的不是外溢，而是「同一页上两个亮暗开关打架」，
-实现在 `components/redoc-color-mode.ts`，理由与实测记在下一节「亮暗模式」。
+运行期**不改**它的样式：3.1.0 起 Redoc 内部自己套了一层 `StyleSheetManager`，会把外面的
+`stylisPlugins` 顶掉；暗色改为把站点模式写成它自己认的 `<html>` 类名，实现在
+`components/redoc-color-mode.ts`，理由与实测记在下一节「亮暗模式」。
 
 判据两句，都在 `test/e2e/features/redoc.feature` 第一条用例里：「外层文档里没有 Redoc 的
 痕迹」（按 styled 表张数、`.redoc-root` 个数、有没有 Redoc 的文字三项钉）与「站点自己的那几处
@@ -157,32 +158,28 @@ Redoc 自己也不能把样式作用域化：`styled-components` 有一个把样
 
 ## 亮暗模式：配色跟站点的开关走，不跟操作系统走
 
-Redoc 自带一套亮暗，判据是它自己的：读 `matchMedia('(prefers-color-scheme: dark)')`
-（外加它存进 localStorage 的那份 `redoc.colorMode`），把 `light` / `dark` 写到 `<html>` 的
-类名上，整套暗色配色挂在 `:root.dark` 打头的选择器上。`redoc@3.0.1` 实测 54 条选择器、
-501 条声明：其中 499 条是变量（含 `:root.dark` 那一格的 330 条），真属性两条 ——
-`<html>` 上的 `color-scheme` 与滚动条滑块的 `background-color`。
+Redoc 3.1.0 把亮暗类名写在渲染器自己的包裹节点上（`.redoc.light` / `.redoc.dark`），整套暗色
+配色挂在 `.redoc.dark` 打头的规则上；变量由 `:where(:root:has(.redoc.dark))` 浮到 `<html>` 上
+（实测切暗色后 `--bg-color` 从 `#ffffff` 翻成 `#22242b`）。驱动它的输入是 `<html>` 上的同名
+类名 —— Redoc 自己那份内联脚本写的就是这两格，它另有一个 MutationObserver 盯着 `<html>` 的
+class。
 
-站点也有一个开关，但形状不一样 —— Docusaurus 写的是 `<html data-theme="light|dark">`。
-两处各判各的就会打架：**实测「站点亮色 + 操作系统深色」时这一页自己变暗，navbar 还亮着。**
+站点也有一个开关，但形状不一样 —— Docusaurus 写的是 `<html data-theme="light|dark">`。框内那份
+文档不挂站点的 `ColorModeProvider`，那条 `data-theme` 只是加载时内联脚本写死的一份、没人维护，
+所以本层要单独把值送进去。
 
-改法就一条：运行期那条中间件链（`StyleSheetManager` 的 `stylisPlugins`）看见 `:root.dark` 打头的
-选择器，把它换成 `:root[data-redoc-mode="dark"]`（`components/redoc-color-mode.ts` 的
-`DARK_PALETTE_PREFIX`）。这条链上只剩这一件事 —— 它改的是「什么条件下生效」，
-不是「打到哪些元素」。三个理由：
+改法就一条：把外层送来的模式写成框内 `<html>` 上的 `light` / `dark`
+（`components/redoc-color-mode.ts`），让 Redoc 自己那套规则照原样生效。三个理由：
 
-- **优先级不动。** 类选择器与属性选择器在优先级里同档（各算 (0,1,0)），`:root.dark` 和
-  `:root[data-redoc-mode="dark"]` 同为 (0,2,0)，带后代的其余 53 条也一样。本层只换生效条件，
-  不动层叠关系，Redoc 那些规则之间的先后照旧。
-- **那 499 条变量没有抄。** 抄一份进来就是养两份，Redoc 升版改了取值这边不会知道；改的只是
-  这一整套配色的生效条件。
+- **喂厂商自己认的输入，不改它的选择器。** 3.1.0 起 Redoc 内部自己套了一层
+  `StyleSheetManager`，会把外面的 `stylisPlugins` 顶掉；早先那套「把 `:root.dark` 改挂到
+  本层属性上」的中间件因此接不上（而且 3.1.0 的暗色键已经换成 `.redoc.dark`）。写类名是它
+  自己那份内联脚本用的同一条路。
+- **那套暗色变量没有抄。** 抄一份进来就是养两份，Redoc 升版改了取值这边不会知道；本层只翻转
+  它自己的开关，规则与取值都跟着厂商走。
 - **驱动它的那个值只有一个来源。** 站点自己那个开关写的是 `<html data-theme>`，而这一页现在
-  在**另一份文档**里；框内那份文档 `<html>` 上那条 `data-theme` 只是加载时内联脚本按当时的
-  localStorage 写死的一份，之后没人维护（见下一小节）。所以本层自己开一条属性，值由外层送进来
-  —— 送进来的就是站点当前那一格，两边不会打架。反过来，Redoc 写上去那个 `.dark` 类名对站点是
-  死的：站点产物 CSS 里**没有**一条裸 `.dark` 规则（搜过，只有
-  `.darkNavbarColorModeToggle_*:hover` 和 `[data-theme-choice=dark] .darkToggleIcon_*` 两种带
-  前后缀的），拿它驱动配色等于把这一页挂在一个站点根本不认识的开关上。
+  在**另一份文档**里；本层把外层读到的值写成 Redoc 认的类名，两格由同一次送达一起写，
+  不会出现「属性说暗、类名说亮」这种分叉。
 
 ### 模式怎么跨过 iframe 的边界
 
@@ -192,10 +189,10 @@ navbar 那颗按钮点的是**外层**文档的 `<html data-theme>`，而配色�
 落到这一份文档的 `<html>` 上（源码在 `@show-docs/docusaurus-theme-component-page/lib/`，口径见
 [`iframe-protocol.md`](../../theme-component-page/docs/iframe-protocol.md)）。**四条消息的名字全站只有一套**
 （`theme-component-page/ready|init|mode|hash`）：框里靠 `init` 带的登记名分谁，不按包命名空间各造一份。
-为什么这条属性不直接叫 `data-theme` ——
-`theme-stoplight` 那边就叫这个，因为 Elements 的暗色表本来就挂在这条属性上，搬过去就地生效；
-Redoc 的暗色表挂在它自己按操作系统写的 `:root.dark` 上，本层要改的是它的生效条件（上面那一节），
-开一条自己的属性才不会和那份加载时写死的 `data-theme` 混在一起。落地是这样的：
+为什么不用框内那条加载时写死的 `data-theme` ——
+`theme-stoplight` 那边就用它，因为 Elements 的暗色表本来就挂在这条属性上，搬过去就地生效；
+Redoc 认的是 `<html>` 上的 `light` / `dark` 类名（上面那一节），所以本层写的是那两个类名。
+落地是这样的：
 
 - 站点起得来的那一次：**两侧各推一次** —— 框里那份文档先向外层要一次（`ready`），
   外层装好自己的监听器也主动推一次；两条送的是同一份内容（这一页的 frontmatter + 当前模式 + `#` 段）。
@@ -215,14 +212,14 @@ localStorage（站点的开关写的就是它，键名 `theme`）上写；只留
 
 Redoc 左栏底部那颗它自己的切换按钮收掉了（`redoc-ui.css` 里
 `.redoc-root [data-testid='color-mode-switcher'] { display: none }`）：配色改由外层的模式驱动之后，
-它点下去只改框内那份文档的 `<html>` 类名，页面不会有任何反应 —— 一颗按了没反应的按钮，
+它点下去只改 Redoc 自己那份内部状态（`<html>` 上那条类名优先），页面不会有任何反应 —— 一颗按了没反应的按钮，
 还跟 navbar 上那颗重复。是 `display: none`，元素仍然在 DOM 里，所以 e2e 那句按可见性判、不按数量判。
 
 判据是 `test/e2e/features/redoc.feature` 的第三条用例「亮暗模式跟站点走，不跟操作系统走」：
-先用 `emulateMedia({ colorScheme: 'dark' })` 打开这一页（要在加载前定下来，Redoc 是渲染时读
-`matchMedia` 的），钉「系统深色、站点亮色」这一格里**外层与框内两份文档都是亮色**（框内看的是
-那条 `<html data-redoc-mode>`，也就是那条消息确实送到了），同时框内那份文档的 `<html>` 上确实带着
-Redoc 写的那个 `dark` 类 —— 类名在、配色却是站点这一头的，才证明驱动的已经不是它。再把站点切成暗色，钉框内的底色真的翻过去、**而且那份文档没有重新加载** ——
+先用 `emulateMedia({ colorScheme: 'dark' })` 按系统深色打开这一页（这一格是给下一条当反向对照），
+钉「系统深色、站点亮色」这一格里**外层与框内两份文档都是亮色**（框内看的是 `<html>` 上那条
+`light` 类，也就是那条消息确实送到了）。再换一次系统偏好并重载，框内配色不动，才证明驱动它的
+不是操作系统。再把站点切成暗色，钉框内的底色真的翻过去、**而且那份文档没有重新加载** ——
 后一半判的是那份文档自己的起始时刻（`performance.timeOrigin`，每加载一份新文档就是另一个数，
 换配色不动它）：重新加载也能翻对颜色，但会把 Redoc 的展开状态和滚动位置一起冲掉，所以要单独钉。
 最后一句把站点自己那几处样式在**暗色下**也照「两个页面各算一遍 computed style
@@ -234,7 +231,7 @@ Redoc 写的那个 `dark` 类 —— 类名在、配色却是站点这一头的�
 （元素仍留在 DOM 里，所以 e2e 那几句按可见性判、不按数量判）：
 
 - **左栏底部那颗亮暗切换按钮** —— `[data-testid='color-mode-switcher']`。配色改由外层送进来的
-  那个模式驱动之后，点它只会改 `<html>` 的类名、页面不会有任何反应，还跟 navbar 上那颗重复
+  值写死之后，点它只改 Redoc 自己那份内部状态、页面不会有任何反应，还跟 navbar 上那颗重复
   （见「亮暗模式」一节）。
 - **左栏底部那条「API docs by Redocly」署名** ——
   `.menu-content > div > span:has(a[href^='https://redocly.com/'])`。
@@ -269,7 +266,7 @@ Redoc 写的那个 `dark` 类 —— 类名在、配色却是站点这一头的�
 证明收掉的是那一格，不是所有叫「复制」的东西。
 
 **第四处走的是配置，不是 CSS：正文最前面那一格「Download OpenAPI description」。**
-`redoc-ui.tsx` 里 `options.hideDownloadButtons: true` 一条就够 —— 这一格在 `redoc@3.0.1` 里读得到：
+`redoc-ui.tsx` 里 `options.hideDownloadButtons: true` 一条就够 —— 这一格在 `redoc@3.1.0` 里读得到：
 选项归一化那一格写的是 `hideDownloadButtons: k1(t.hideDownloadButtons, !1)`，概览与页头那两处拼章节
 时都按它分岔（`!a && i?.length && l.push(wCe(i))`）。本层没传 `downloadUrls`，而它自己会拿取 spec 的
 那个地址补一条（`{url: new URL(specUrl, document.baseURI).href}`），于是关着的时候框内正文那一栏的
@@ -290,8 +287,9 @@ AsyncAPI 那一版是同一个机制、另一个 testid：用默认配置渲染�
 那一族共用，住在 `theme-component-page` 的 `components/component-frame.css`（`.component-frame` 定高
 `calc(100vh - var(--ifm-navbar-height))` + `.container:has(iframe)` 去内边距与最大宽度 +
 `.main-wrapper:has(.component-frame) + .footer` 收页脚）。那条 `<iframe>` 上**没有按层分的类名**：
-它是全站共用的一个框，「这一格是哪一层赢的」由框里那个渲染根认（e2e 的那句判据按 `.redoc-root`
-在不在框内文档里量）。
+它是全站共用的一个框，「这一格是哪一层赢的」由框里那个渲染根认（e2e 的那句判据按
+`.redoc-root .menu-content` —— Redoc 左栏真正的内容节点 —— 在不在框内文档里量；`.redoc-root`
+只是本层的壳，3.1.0 起渲染是异步落地的，壳先出现）。
 为什么这里**要**给框定高，而框内那一份不给 Redoc 定高，见下面「框内」那段与
 [`iframe-protocol.md` 的「尺寸与样式表」一节](../../theme-component-page/docs/iframe-protocol.md)。
 
@@ -360,7 +358,7 @@ iframe-protocol 的「四个方向各走一条路」一节。**那条框内路�
 ## AsyncAPI 3：换一把 spec 键，同一份渲染路径
 
 `aas3:` 与 `oas3:` 是同一组 spec 键（`oas3:` 摆 OpenAPI、`aas3:` 摆 AsyncAPI 3），本层拿到的都
-只是一个地址，判据在厂商那边：Redoc 3 认文档里 `asyncapi:` 那一格（`redoc@3.0.1` 的 bundle 里有
+只是一个地址，判据在厂商那边：Redoc 3 认文档里 `asyncapi:` 那一格（`redoc@3.1.0` 的 bundle 里有
 `asyncapi.startsWith('3.')` 这一格，`SpecType` 枚举是 `'openapi' | 'asyncapi' | 'graphql'`）。
 所以本层**一行代码都不用改**：spec 键 → 送进框内的那份 frontmatter → 组件那份 `url` →
 `RedocStandalone` 的 `specUrl`，这一条路与文档类型无关。
@@ -377,8 +375,7 @@ iframe-protocol 的「四个方向各走一条路」一节。**那条框内路�
 - 收掉的那几处在这一版里照旧成立：正文最前面那一格下载仍然不生成（`hideDownloadButtons` 对
   AsyncAPI 一样生效，DOM 里 `[data-testid^="panel-download"]` 为 0，正文第一格是 `panel-servers`）；
   它那颗亮暗开关、Redocly 那条署名、章节标题旁那一整格操作按钮仍看不见。
-- 亮暗那套不变：改挂生效条件的中间件链认的是 `:root.dark` 打头的选择器，与文档类型无关。
-  实测那一版的暗色表也是 54 条 `:root.dark`，与 OpenAPI 那一版**逐条相同**。
+- 亮暗那套不变：本层写的是 `<html>` 上的 `light` / `dark` 类名，与文档类型无关。
 
 判据只钉「形状」不钉「哪一行」：通道名、操作名、标题都取自那份文档的原文，改了文档就要改用例。
 
@@ -386,10 +383,12 @@ iframe-protocol 的「四个方向各走一条路」一节。**那条框内路�
 
 ## 框内那份文档的 `<html>` 上落了什么（实测）
 
-Redoc 往那里写 2884 条 CSS 变量，另有底色、字色、字体三条真属性原样落在 `<html>` 上。那批变量与站点自己用到的 `var(…)` 实测零重名。
+Redoc 往那里写 2988 条 CSS 变量（3.1.0 实测），另有字色、字体几条真属性落在 `<html>` 上；
+3.1.0 起底色那条落在它自己的包裹节点 `.redoc` 上（`<html>` 自己的 `background-color` 是透明的）。
+那批变量与站点自己用到的 `var(…)` 实测零重名。
 
-改挂过去的那 54 条暗色规则命中的也是这份文档的 `<html>` 本身，里面除变量外有两条真属性：实测暗色下
-`color-scheme` 是 `dark`、底色翻成 `#22242b`（亮色那一份底色是 `#ffffff`）。
+暗色变量由 `:where(:root:has(.redoc.dark))` 浮到这份文档的 `<html>` 上：实测暗色下 `--bg-color`
+翻成 `#22242b`（亮色那一份是 `#ffffff`），`.redoc` 的底色也跟着从 `#ffffff` 翻成 `#22242b`。
 
 ## 状态：已接入站点，浏览器里那两份文档都真渲染
 
@@ -407,7 +406,7 @@ Redoc 往那里写 2884 条 CSS 变量，另有底色、字色、字体三条真
   这一页没有 `<article>` 正文外壳、styled 表 0 张、`.redoc-root` 0 个，`.container` 的内边距是 0，
   框的上沿贴着 navbar 下沿、下沿贴着视口（navbar 60px），站点的 docs 侧栏仍在（框左偏移 300px）。
 - 框内：`.redoc-root` 那一格在、左栏三个接口点开就在导航里、点新建订单时详情换成它**并且外层地址栏
-  那一段跟着换**（这一句同时钉住框内 → 外层那条 postMessage）；那张运行期样式表在框里（实测 427 条
+  那一段跟着换**（这一句同时钉住框内 → 外层那条 postMessage）；那张运行期样式表在框里（实测 469 条
   样式规则，本层不改写它的选择器：裸 `button` 还是 `button`、`:where(.redoc-root)` 前缀 0 条）；
   左栏占满框内那份文档的整屏、`.redoc-root` 不是滚动容器；
   它那颗自己的亮暗按钮、Redocly 那条署名、章节标题旁那一整格操作按钮都看不见（CSS 收的，元素还在
@@ -416,8 +415,8 @@ Redoc 往那里写 2884 条 CSS 变量，另有底色、字色、字体三条真
 - 深链：整页加载 `/theme-redoc/docs/redoc-demo#/orders/createorder`，托管侧回 200，框里把那条接口摆出来
   （正文清单是直达那一份：`列出订单`、`新建订单`），上面那几步（换成 iframe、容器不留白、框占满
   navbar 以下那一屏）同样成立。
-- 亮暗：操作系统按深色打开这一页，两份文档都还是亮色（框内那份 `<html>` 上 Redoc 自己写的 `dark`
-  类确实在、外层送进来的那条 `data-redoc-mode` 是 `light`）；站点切成暗色，框里那份文档的底色跟着
+- 亮暗：操作系统按深色打开这一页，两份文档都还是亮色（框内那份 `<html>` 上是外层送进来的
+  `light` 类）；站点切成暗色，框里那份文档的底色跟着
   翻过去**而且那份文档没重新加载**（它的起始时刻 `performance.timeOrigin` 还是切换前那一个数）；
   再拿同一批站点属性在暗色下把这一页与主页各量一遍，值相同。
 - 写了键却没给文档地址（`redoc-no-spec` 那一页）：命中还是命中、框照挂，框里摆的是本层那句

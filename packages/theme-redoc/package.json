@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-redoc",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Md 的 frontmatter 写 redoc: true（spec 地址由 oas3: / aas3: 给）时把该页整页换成一个 iframe，框里用 Redoc 渲染那份 API 文档",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-redoc",
@@ -33,7 +33,7 @@
   "dependencies": {
     "@redocly/config": "^0.70.0",
     "react-router": "^7.18.5",
-    "redoc": "^3.0.1",
+    "redoc": "^3.1.0",
     "styled-components": "^6.6.0"
   },
   "peerDependencies": {

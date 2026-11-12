@@ -221,8 +221,8 @@ Then('站点自己的那几处样式不被 Redoc 改写', async ({ page }) => {
 });
 
 /**
-Redoc 左栏底部那一排图标里有一颗它自己的亮暗切换按钮。本层把暗色表改挂在
-`<html data-redoc-mode>`（值由站点的开关送进框内）上之后，点它只会改那份文档的 `<html>` 类名、
+Redoc 左栏底部那一排图标里有一颗它自己的亮暗切换按钮。配色改由本层往框内 `<html>` 写
+Redoc 认的那对类名之后，它点下去只动 Redoc 自己那份内部状态，压不过外层送进来的值，
 页面上没有任何反应 —— 一颗按了没反应的按钮，还跟 navbar 上那颗重复，所以 `redoc-ui.css`
 把它收掉了。
 这一条钉它确实看不见（元素还在 DOM 里，是 `display: none`，所以判据用可见性而不是数量）。
@@ -315,38 +315,26 @@ Then('Redoc 代码块里的复制按钮还在', async ({ page }) => {
 /**
 ## 亮暗模式跟站点走，不跟操作系统走
 
-Redoc 自带一套亮暗模式，判据是**操作系统**的偏好（`matchMedia('(prefers-color-scheme: dark)')`
-加它自己那份 localStorage），然后把 `light` / `dark` 写进 `<html>` 的类名 —— 它那 60 来条暗色
-规则全挂在 `:root.dark` 开头。站点自己另有一个开关（`<html data-theme>`），两处各切各的就会
-打架：实测「站点亮色 + 操作系统深色」时这一页自己变暗，跟站点的开关无关。
-
-本层在运行期把 `:root.dark` 改挂到 `:root[data-redoc-mode="dark"]`（`redoc-color-mode.ts`），
-于是站点那个开关成为唯一的驱动。改造之后多出一格：那个开关写在**外层**文档的 `<html>` 上，
-而配色在**框内**那份文档里 —— 这一格由共享那条 postMessage 通道接（component-page 的
-`components/component-frame.tsx` 送、框内那份页面经 `lib/frame-sync.tsx` 收，收下来交给本层
-`useFrameMode(applyRedocColorMode)` 往自己 `<html>` 上写那条属性）。
-框内那份文档不挂站点的 `ColorModeProvider`，站点那条 `data-theme` 在这里只是加载时内联脚本
-写死的一份、没人维护，本层不读它。
+Redoc 3.1.0 把亮暗类名写在渲染器自己的包裹节点上（`.redoc.light` / `.redoc.dark`），
+驱动它的输入是 `<html>` 上的同名类名（它自己那份内联脚本写的也是这两格）。本层不再改它的
+选择器，直接把站点送来的模式写成框内 `<html>` 上的 `light` / `dark`
+（`redoc-color-mode.ts`），配色由厂商自己那套规则跟着翻。站点自己另有一个开关
+（`<html data-theme>`）：那个开关写在**外层**文档上，而配色在**框内**那份文档里 ——
+这一格由共享那条 postMessage 通道接（component-page 的 `components/component-frame.tsx` 送、
+框内那份页面经 `lib/frame-sync.tsx` 收，收下来交给本层 `useFrameMode(applyRedocColorMode)`
+往自己 `<html>` 上写那两个类名）。框内那份文档不挂站点的 `ColorModeProvider`，站点那条
+`data-theme` 在这里只是加载时内联脚本写死的一份、没人维护，本层不读它。
 
 「切成暗色」「做个记号」「配色跟着翻、文档没重新加载」这三步两层共用，句子与实现在
-`common.steps.mts`；这里只留 Redoc 这一头特有的三句：系统深色时站点仍是亮色、暗色表换挂之后
-类名与配色对不上、以及消息落点那条属性本身。量的那一格是**框内那份文档的 `<html>`**：
-Redoc 那条 `:root { background-color: var(--bg-color) }` 现在原样落在 `<html>` 上（运行期圈定
-删掉之前，这条真属性是被挪进 `.redoc-root` 的，那时量的是那一格）。暗色表换掉的正是
-`--bg-color` 那组变量，所以同一个属性跟着翻 —— 这也是为什么这里不能改去量 `.redoc-root`：
-那是本层包的一层壳，它自己没有底色。
+`common.steps.mts`；这里只留 Redoc 这一头特有的两句：系统深色时站点仍是亮色、以及消息落点
+那两个类名本身。量的那一格是**框内那份文档的 `<html>`**：`--bg-color` 那组变量落在它上面
+（3.1.0 起底色那条规则落在渲染器的包裹节点 `.redoc` 上，`<html>` 自己的 `background-color`
+是透明的，所以配色读数读变量、不读底色）。
 */
-Then('Redoc 那一格收的是站点这一头的亮色，类名却写着深色', async ({ page }) => {
+Then('Redoc 那一格收的是站点这一头的亮色', async ({ page }) => {
   // 框内那一格的亮暗由外层送进来（不是它自己读的），所以这一句钉的是那条消息确实到了、
-  // 值是站点这一头的亮色。属性名与 `redoc-color-mode.ts` 里的 `COLOR_MODE_ATTRIBUTE` 同值。
-  await expect(frameDoc(page).locator('html')).toHaveAttribute(
-    'data-redoc-mode',
-    'light',
-  );
-  // Redoc 自己那份按操作系统的判定确实跑过了：框内那份文档的 `<html>` 上带着它写的 `dark` 类。
-  // 这一句是给下一条当前提 —— 类名在、配色却是亮的，才说明驱动配色的不是这个类名。
-  // （哪天 Redoc 不再往 `<html>` 上写类名了，这一句会红，删掉即可。）
-  await expect(frameDoc(page).locator('html')).toHaveClass(/\bdark\b/);
+  // 值是站点这一头的亮色。Redoc 原生读的就是这一对类名（见 `redoc-color-mode.ts`）。
+  await expect(frameDoc(page).locator('html')).toHaveClass(/\blight\b/);
 });
 
 Then('Redoc 的配色不跟操作系统走', async ({ page }) => {
@@ -359,21 +347,18 @@ Then('Redoc 的配色不跟操作系统走', async ({ page }) => {
   expect(
     onLightSystem,
     `操作系统的偏好换了，框里那一页的配色跟着换了（${onDarkSystem} → ${onLightSystem}）：` +
-      '暗色表还挂在 Redoc 自己那个类名上',
+      '框内那份文档的配色跟着换了，说明操作系统的偏好还在驱动它',
   ).toBe(onDarkSystem);
 });
 
 Then('Redoc 那一格也收到站点送进来的暗色', async ({ page }) => {
-  // 开关跨过 iframe 的边界：外层那条消息送到了，框内那份文档的 `<html data-redoc-mode>` 也是 dark。
-  await expect(frameDoc(page).locator('html')).toHaveAttribute(
-    'data-redoc-mode',
-    'dark',
-  );
+  // 开关跨过 iframe 的边界：外层那条消息送到了，框内那份文档的 `<html>` 上也写成了 dark。
+  await expect(frameDoc(page).locator('html')).toHaveClass(/\bdark\b/);
 });
 
 /**
-「站点这一侧不受影响」那一条是在亮色下量的，而改挂之后多出一格亮色碰不到的：站点一进暗色，
-Redoc 那 330 条暗色变量连同一条 `color-scheme` 就一起落在**框内那份文档**的 `<html>` 上
+「站点这一侧不受影响」那一条是在亮色下量的，而切暗色之后多出一格亮色碰不到的：站点一进暗色，
+Redoc 那套暗色变量（含 `--bg-color`）就一起落在**框内那份文档**的 `<html>` 上
 （外层那份根本没这些规则）。这里量的还是外层：外层在暗色下的那几处站点属性必须与暗色下的主页
 一样。同一批属性（含 `color-scheme`）在两个页面上各算一遍比相等 —— 实测这一页暗色的 `<html>`
 是 `background-color: rgb(27, 27, 29)`、`color: rgb(227, 227, 227)`、`color-scheme: dark`，

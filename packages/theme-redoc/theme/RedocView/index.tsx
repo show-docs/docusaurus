@@ -37,8 +37,8 @@ Redoc 在框内那一份文档里渲染的那一格：那条规则按登记名 `
 
 - **渲染哪份文档**：`oas3:` / `aas3:` 里第一把非空的地址（判定先后归本层，机制层不认识这两把键）；
   没给地址就在框里摆一条看得见的说明，不挂一个空渲染器。
-- **亮暗落法**：写成这一份文档 `<html>` 上的 `data-redoc-mode` 属性，Redoc 那套暗色表挂在
-  这条属性上（`components/redoc-color-mode.ts`）。
+- **亮暗落法**：写成这一份文档 `<html>` 上的 `light` / `dark` 类名，Redoc 自己认这对类名
+  （`components/redoc-color-mode.ts`）。
 - **渲染接线按需取**：几 MB 依赖只在真渲染时下载（`LazyView`，取不到与取到之前那句话也在那一份里）。
 - **路由**：这一份文档里只有 Redoc 一个消费者，`#` 段归它用。外层 → 框内那一步改的是
   `location.hash`，`HashRouter` 认这一格；框内 → 外层这一句由 `redoc-ui.tsx` 里那层

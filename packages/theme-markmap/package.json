@@ -1,6 +1,6 @@
 {
   "name": "@show-docs/docusaurus-theme-markmap",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Md 的 frontmatter 写 markmap: true 就在正文上方渲染思维导图",
   "keywords": [],
   "homepage": "https://github.com/show-docs/docusaurus/tree/master/packages/theme-markmap",
@@ -34,9 +34,9 @@
   "dependencies": {
     "@docusaurus/utils": "catalog:",
     "markmap-common": "^0.18.9",
-    "markmap-lib": "^0.18.12",
-    "markmap-toolbar": "^0.18.12",
-    "markmap-view": "^0.18.12"
+    "markmap-lib": "^0.18.13",
+    "markmap-toolbar": "^0.18.13",
+    "markmap-view": "^0.18.13"
   },
   "peerDependencies": {
     "@docusaurus/theme-common": "catalog:",

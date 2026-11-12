@@ -195,9 +195,9 @@ iframe 的 `load` 事件是同一个坑的另一个方向（那个事件也能�
 `@theme/Layout/Provider`（它底下六个 provider 里这一页一个都用不上，`ColorModeProvider` 还依赖站点
 配置、会往同一份 localStorage 上写）。本层只要「现在是亮还是暗」一个值，由外层读 `useColorMode()`
 送进来，组件用 `useFrameMode(apply)` 落到这一份文档上。落到哪一格**三家不一样**，所以机制层只给
-「什么时候落」，不给「落成什么」：Redoc 与 Elements 按 `<html>` 上一条属性判（把它们那份暗色表的
-生效条件换到这条属性上），Scalar 换的是 `<body>` 上互斥的两个类名（`dark-mode` / `light-mode`，
-属性名换不动它）。那两格都由调用方写成 `apply` 交进来。一个来源，两边不会打架。
+「什么时候落」，不给「落成什么」：Redoc 认 `<html>` 上的 `light` / `dark` 类名，Elements 认
+`<html>` 上的 `data-theme` 属性，Scalar 换的是 `<body>` 上互斥的两个类名（`dark-mode` /
+`light-mode`，属性名换不动它）。那三格都由调用方写成 `apply` 交进来。一个来源，两边不会打架。
 
 代价要记一句：直接打开 `/__component-frame/` 时没有外层送值，那一页停在「还没拿到数据」那一格，
 连组件都不渲染。那三条旧的 `/{layer}-view/?src=…` 地址已经不存在了。

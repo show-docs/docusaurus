@@ -44,16 +44,15 @@ Feature: theme-redoc
     And 框占满 navbar 以下那一屏
     And 浏览器里没有运行期错误
 
-  # Redoc 自带一套亮暗模式：按操作系统的偏好判定，把 `light` / `dark` 写进它那份文档的
-  # `<html>` 类名上，它那 60 来条暗色规则全挂在 `:root.dark` 上。站点自己也有亮暗开关
-  # （`<html data-theme>`），两处各切各的就打架 —— 实测「站点亮色 + 操作系统深色」时这一页会
-  # 自己变暗。本层把暗色表改挂在框内那份文档自己的 `<html data-redoc-mode>` 上（见包 `docs/internals.md` 的
-  # 「亮暗模式」一节）；那个值写在**外层**文档上，要靠本层那条 postMessage 通道送进框内 ——
-  # 框里那份文档不挂站点的 color mode provider，见 theme-component-page 的 `components/component-frame.tsx`。
+  # Redoc 3.1.0 把亮暗类名写在渲染器自己的包裹节点上，驱动它的输入是 `<html>` 上的
+  # `light` / `dark` 类名。站点自己也有亮暗开关（`<html data-theme>`），本层把站点送来的模式
+  # 写成框内 `<html>` 的那对类名（见包 `docs/internals.md` 的「亮暗模式」一节）；那个值写在
+  # **外层**文档上，要靠本层那条 postMessage 通道送进框内 —— 框里那份文档不挂站点的
+  # color mode provider，见 theme-component-page 的 `components/component-frame.tsx`。
   Scenario: 亮暗模式跟站点走，不跟操作系统走
     Given 我按操作系统的深色偏好打开 redoc 示例页
     Then 站点的亮暗模式不受操作系统影响
-    And Redoc 那一格收的是站点这一头的亮色，类名却写着深色
+    And Redoc 那一格收的是站点这一头的亮色
     And Redoc 的配色不跟操作系统走
     When 我在框里那份文档上做个记号
     And 我把站点切成暗色

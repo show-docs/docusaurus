@@ -18,7 +18,7 @@ Redoc 这一层的入口：本包交出**一份组件与一条规则**（`redoc:
 卸载它这一层照常可用。
 
 命中的页由 component-page 那份 `DocItem` 判表后换成一个同源框，框里按登记名 `redoc` 取
-`@theme/RedocView`；`oas3:` / `aas3:` 那两把键怎么挑、亮暗怎么落到 `<html data-redoc-mode>` 上，
+`@theme/RedocView`；`oas3:` / `aas3:` 那两把键怎么挑、亮暗怎么落到 `<html>` 的 `light` / `dark` 类名上，
 都归 `theme/RedocView` 与 `components/` 里那两份，机制层不认识这些业务键。
 
 本层交出的那一格要由 component-page 判表才挂得上来 —— 那一层得装进站点并注册成插件，缺了它

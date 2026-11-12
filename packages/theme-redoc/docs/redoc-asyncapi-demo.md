@@ -18,7 +18,7 @@ aas3: /asyncapi-redoc.yaml
 - 取的是 `static/asyncapi-redoc.yaml`（构建产物里的 `/asyncapi-redoc.yaml`）：frontmatter 的
   `aas3:` 给的就是这个地址，只给这一页用。
 - **AsyncAPI 走 `aas3:`、OpenAPI 走 `oas3:`**：两把都是 spec 键，给的都是一个地址，本层不判断
-  它指向哪一份文档 —— 类型判据在渲染器那边，`redoc@3.0.1` 按文档里那个 `asyncapi` 字段分派，
+  它指向哪一份文档 —— 类型判据在渲染器那边，`redoc@3.1.0` 按文档里那个 `asyncapi` 字段分派，
   2.x 与 3.x 都认（厂商口径见 `packages/theme-redoc/docs/internals.md` 的「AsyncAPI 3」一节）。
   这一页给的就是一份 **AsyncAPI 3.0.0** 文档（根上有 `asyncapi: 3.0.0`）。两把键同时写时
   `oas3:` 优先（开发模式有一条告警），所以这一页只写 `aas3:`。
@@ -33,4 +33,4 @@ aas3: /asyncapi-redoc.yaml
   Redocly 署名、Redoc 自己那颗亮暗开关、章节标题旁那一整格操作按钮 —— 它们对 AsyncAPI 那一套
   版式同样成立，所以本层那几条 CSS 与配置不用为 AsyncAPI 分叉。
 - 亮暗模式跟站点那个开关走，不跟操作系统走：口径与 OpenAPI 那一页完全一样（同一份
-  `<html data-redoc-mode>`，见 `packages/theme-redoc/docs/internals.md` 的「亮暗模式」一节）。
+  `<html>` 上的 `light` / `dark` 类名，见 `packages/theme-redoc/docs/internals.md` 的「亮暗模式」一节）。

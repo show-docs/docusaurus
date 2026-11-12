@@ -5,11 +5,8 @@ import './redoc-ui.css';
 // `theme/RedocView` 给，形状就是下面那份本地 `RedocUIProps`。
 import { createLocationMirror } from '@show-docs/docusaurus-theme-component-page/lib/location-mirror.tsx';
 import { RedocStandalone } from 'redoc';
-import { StyleSheetManager } from 'styled-components';
 
 import { HashRouter, useLocation } from 'react-router';
-
-import { followSiteColorMode } from './redoc-color-mode.ts';
 
 /** 本层渲染接线要的两格：那份文档的地址，加上「框内换了接口，报给外层」那一句。 */
 export type RedocUIProps = {
@@ -41,10 +38,6 @@ const LocationMirror = createLocationMirror(useLocation);
 // 量出来本来也是 0，于是连量都省了。高度链的口径在包 `docs/internals.md` 的「高度」一节。
 const options = { disableTelemetry: true, hideDownloadButtons: true } as const;
 
-// 数组写成模块级的常量：`StyleSheetManager` 按 props 认这张样式表，每次渲染换一个新数组就
-// 等于换一张表，Redoc 的规则会被重新插一遍。
-const stylisPlugins = [followSiteColorMode];
-
 export function RedocUI(props: RedocUIProps) {
   // 服务端那一遍不在这里挡：渲染到这一格的只有框内那份文档，而它在那一份数据送达之前显示的是
   // 自己那句占位（SSR 那一遍根本没有那份数据，握手只在浏览器里跑），渲染器在没有 DOM 的地方
@@ -60,17 +53,14 @@ export function RedocUI(props: RedocUIProps) {
   // `react-router` 必须与 `redoc` 内部用的是**同一个模块实例**，否则那句 `useInRouterContext()`
   // 读不到这里的 context，它还是会自己造一个按路径的路由。
   //
-  // `StyleSheetManager` 同一个道理：它靠 React context 把中间件递给 styled-components，只有和
-  // `redoc` 用**同一份** styled-components 才接得上（版本线见 `package.json`）。这条链上现在只剩
-  // 一件事 —— 把 Redoc 的暗色表改挂到本层自己那条 `<html data-redoc-mode>` 上（值由外层送来，
-  // 口径记在包 `docs/internals.md` 的「样式」与「亮暗模式」两节），写在 `redoc-color-mode.ts`。
+  // 亮暗不再经过 `StyleSheetManager`：3.1.0 起 Redoc 内部自己套了一层，会把外面的
+  // `stylisPlugins` 顶掉。现在把站点送来的模式写成它自己认的 `<html>` 类名（`redoc-color-mode.ts`），
+  // 口径记在包 `docs/internals.md` 的「亮暗模式」一节。
   return (
     <div className={REDOC_ROOT_CLASS}>
       <HashRouter>
         <LocationMirror onRouteChange={props.onRouteChange} />
-        <StyleSheetManager stylisPlugins={stylisPlugins}>
-          <RedocStandalone options={options} specUrl={props.url} />
-        </StyleSheetManager>
+        <RedocStandalone options={options} specUrl={props.url} />
       </HashRouter>
     </div>
   );

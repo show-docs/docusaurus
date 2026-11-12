@@ -56,11 +56,13 @@
 
 `createTabs()` 直接吐 `<Tabs>` / `<TabItem>`：代码块上的 `tab="X"` 那类元数据在 Docusaurus 3
 不生成页签。这一层不往产物里写 frontmatter：站点那份（标题、说明、侧栏名）留在文件头上给
-Docusaurus 读，DBML 解析器只收 `---` 块之后的部分 —— 所以那一页的 `<h1>` 与别的文档页同一个来源。
+Docusaurus 读；loader 在解析前把 `---` 块摘掉，免得它跟着 `dbml_json` 一起进产物
+（`@dbml/core@12` 起解析器自己会把它收进 `database.frontMatter`）—— 所以那一页的 `<h1>`
+与别的文档页同一个来源。
 
 ## 两张表格的单元格要自己转义
 
-`createMarkdownTables()` 用 `markdown-table` 拼枚举表与字段表，而那份依赖（实测 3.0.4）的
+`createMarkdownTables()` 用 `markdown-table` 拼枚举表与字段表，而那份依赖（实测 3.1.0）的
 `serialize()` 只做 `String(value)`，**不转义** `|` 也不处理换行。note 与字符串默认值是作者随手写
 的散文，`'admin | editor'` 这种「或」描述、`'''…'''` 多行 note 都常见：裸塞进单元格，一个管道就
 多出一列，一段换行就把那一行截断、整张表散架。所以动态那几格（标识符、note、类型、默认值）进表前

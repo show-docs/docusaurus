@@ -150,7 +150,7 @@ Then(
 那份文档的 `<html>`（redoc、stoplight）或 `<body>`（scalar）上，三处读数各自的含义见
 `../helpers.mts` 里 `frameModeSignal` 那一段。
 
-各层**自己**怎么落这个值（redoc 换挂 `data-redoc-mode`、stoplight 用 Elements 自己的
+各层**自己**怎么落这个值（redoc 写 `<html>` 的 `light` / `dark` 类名、stoplight 用 Elements 自己的
 `data-theme`、scalar 换 `<body>` 上那两个类名）另有各层自己的句子，这里不掺和。
 */
 When('我把站点切成暗色', async ({ page }) => {
@@ -201,7 +201,7 @@ Then('框里的配色跟着站点翻过去，那份文档没有重新加载', as
 
 Then('站点的亮暗模式不受操作系统影响', async ({ page }) => {
   // 本站 `themeConfig.colorMode` 没开 `respectPrefersColorScheme`，所以系统深色时站点仍是亮色。
-  // 框里那一格收到的是什么值，各层自己的句子负责（redoc 看 `data-redoc-mode`、
+  // 框里那一格收到的是什么值，各层自己的句子负责（redoc 看 `<html>` 的类名、
   // stoplight 看 Elements 自己那个 `data-theme`、scalar 看 `<body>` 上那两个类名）。
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });

@@ -18,7 +18,7 @@ aas3: /asyncapi-scalar.yaml
 - 取的是 `static/asyncapi-scalar.yaml`（构建产物里的 `/asyncapi-scalar.yaml`）：frontmatter 的
   `aas3:` 给的就是这个地址，只给这一页用。
 - **AsyncAPI 走 `aas3:`、OpenAPI 走 `oas3:`**：两把都是 spec 键，给的都是一个地址，本层不判断
-  它指向哪一份文档 —— 类型判据在渲染器那边，`@scalar/api-reference@1.76.0` 按文档里那个
+  它指向哪一份文档 —— 类型判据在渲染器那边，`@scalar/api-reference@1.77.0` 按文档里那个
   `asyncapi` 字段分派（厂商那份 `isAsyncApiDocument()` 就是按这个字段认的，见包
   `docs/internals.md` 的「AsyncAPI 3」一节）。这一页给的就是一份 **AsyncAPI 3.0.0** 文档
   （根上有 `asyncapi: 3.0.0`）。两把键同时写时 `oas3:` 优先（开发模式有一条告警），所以这一页

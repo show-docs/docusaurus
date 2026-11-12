@@ -328,7 +328,7 @@ localStorage 写的、没人维护），Elements 那份存档也想写它。实�
 这一组三句与另两层同形（句子形状见 `redoc.steps.mts`、`scalar.steps.mts`）：先钉操作系统换不了
 这一页，切成暗色后钉消息落点翻过去了，最后单独钉这一页的暗色不是 Elements 自己那份存档选的。
 这一层少一句：另两层在系统深色、站点亮色时各钉一条「那一格收的是站点这一头的亮色」，量的是
-只有本层那条消息会写的东西（redoc 的 `data-redoc-mode`、scalar 的 `<body>` 类名）。这一层的落点
+只有本层那条消息会写的东西（redoc 的 `<html>` 类名、scalar 的 `<body>` 类名）。这一层的落点
 是 `data-theme`，而框内那份文档的 SSR 里就有一条内联脚本无条件写它（`theme` 那格取不到时按
 `light` 落，实测产物里那句就是 `document.documentElement.setAttribute("data-theme",t||"light")`）
 —— 亮色时两份写手给出同一个值，钉不出是谁写的，所以这一层只在暗色那一句上做对照。

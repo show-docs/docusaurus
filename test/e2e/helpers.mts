@@ -186,6 +186,16 @@ const layerRootSelectors: Record<ThemeLayer, string> = {
 export const layerRoot = (page: Page, layer: ThemeLayer): Locator =>
   componentFrameDoc(page).locator(layerRootSelectors[layer]);
 
+/**
+「挂齐」认的那一格：比渲染根再往下一点。redoc 3.1.0 的渲染与样式是异步落地的，本层那层壳
+`.redoc-root` 先出现、`--bg-color` 还是空的；认它左栏真正的内容节点，读数才不会落在
+「还没挂上」那一刻。
+*/
+const frameSettledRootSelectors: Record<ThemeLayer, string> = {
+  ...layerRootSelectors,
+  redoc: '.redoc-root .menu-content',
+};
+
 /** 某一层的示例页（本包 `docs/` 下的那一页）：整页交给框的那一条文档页。 */
 export const layerDemoUrl = (layer: ThemeLayer): string =>
   `/theme-${layer}/docs/${layer}-demo`;
@@ -239,8 +249,9 @@ export const viewLayers = [
 /**
 「站点这一头的配色落到框里了没有」那一句的读法：把框内那份文档上的两处读数拼成一串。
 
-- `background-color`：`theme-redoc` 那一层看的是它 —— Redoc 那条 `:root { background-color: var(--bg-color) }`
-  原样落在框内那份文档的 `<html>` 上，它那份暗色表换掉的正是 `--bg-color`。
+- `--bg-color`：`theme-redoc` 那一层看的是它 —— Redoc 那份暗色表换掉的正是这组变量。
+  3.1.0 起底色那条规则落在渲染器自己的包裹节点上（`.redoc`），框内 `<html>` 的
+  `background-color` 是透明的，所以这一层读变量、不读底色。
 - `--canvas-l`：`theme-stoplight` 那一层看的是它 —— Elements（`@stoplight/mosaic`）调色板里的变量，
   站点那份 css 里没有这个名字，它随 `[data-theme=dark]` 那一格从 `100%` 翻到 `8%`（实测）。
   这一层的 `<html>` 底色是站点自己那条规则给的，证不了 Elements 的表跟没跟。
@@ -250,7 +261,7 @@ export const viewLayers = [
   先按这两个类名在不在、再分支：在就在 `<body>` 上算，不在就在 `<html>` 上算 ——
   `--scalar-background-1` 在 scalar 帧的 `<html>` 上算出来是空串，判据就永远不翻。
 
-三个名字各读各的：redoc 那一层拿到的 `--canvas-l` 与 `--scalar-background-1` 都是空串，
+四个名字各读各的：redoc 那一层拿到的 `--canvas-l` 与 `--scalar-background-1` 都是空串，
 stoplight 那一层两处都跟着翻。都不抄具体色值 —— 判据只问「换了没有、跟另一个页面比是不是一样」。
 
 **读数之前先等这一帧挂齐**（`waitFrameSettled`）：那几个变量都随渲染器自己那份样式表落地，落在
@@ -284,7 +295,7 @@ const frameIsSettled = (page: Page): Promise<boolean> =>
           }
         })
       );
-    }, Object.values(layerRootSelectors).join(', '));
+    }, Object.values(frameSettledRootSelectors).join(', '));
 
 /** 等它挂齐；到超时还没挂齐就报「框里那份文档没挂齐」，而不是让配色读数各读到一个时刻。 */
 const waitFrameSettled = async (page: Page): Promise<void> => {
@@ -305,7 +316,7 @@ export const frameModeSignal = async (page: Page): Promise<string> => {
     .locator(scalarMode > 0 ? 'body' : 'html')
     .evaluate((el) => {
       const computed = getComputedStyle(el);
-      return `${computed.backgroundColor}|${computed.getPropertyValue('--canvas-l').trim()}|${computed.getPropertyValue('--scalar-background-1').trim()}`;
+      return `${computed.backgroundColor}|${computed.getPropertyValue('--bg-color').trim()}|${computed.getPropertyValue('--canvas-l').trim()}|${computed.getPropertyValue('--scalar-background-1').trim()}`;
     });
 };
 

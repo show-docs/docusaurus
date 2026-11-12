@@ -81,7 +81,7 @@ URL（跨域时对方需允许 CORS）。命中后整页换成 iframe，不保�
 - 框内那份文档只做客户端渲染；`build/theme-redoc/docs/redoc-demo/index.html` 里只有 iframe 标签，
   渲染结果要看浏览器。
 - 亮暗模式跟随站点开关，不跟随操作系统偏好：站点那一头由外层随消息送进框内，落成框内
-  `<html>` 上的 `data-redoc-mode`（Redoc 自带那套暗色表被本层改挂到这条属性上）。
+  `<html>` 上的 `light` / `dark` 类名（Redoc 自己认的那对类名）。
 
 ## 路由与深链
 

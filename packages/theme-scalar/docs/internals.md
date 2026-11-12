@@ -351,7 +351,7 @@ Scalar 的正文区按需挂载：视口之下还没滚到的那几节不在 DOM
   那一格为真时 `GenerateSdkButton` 返回空注释节点 —— **那颗按钮整个不渲染**，不止是看不见。
   本层那一格 `showDeveloperTools: 'never'` 按死了，所以不需要任何收它的 CSS（`.generate-sdk-button`
   那类规则不许再写回 `scalar-ui.css`），e2e 按数量判 0。
-  跟着的一条依赖约束：本包 `@scalar/api-reference` 的范围定在 `^1.76.4`（下限在 1.76.0 之后）——
+  跟着的一条依赖约束：本包 `@scalar/api-reference` 的范围定在 `^1.77.0`（下限在 1.76.0 之后）——
   装到 1.75.0 的消费者会看到那颗按钮冒出来（那一版厂商还没接 `disabled`）。
   厂商留的另一条路仍然没有走：文档 `info` 里写 `x-scalar-sdk-installation`（`hasRenderableSdks`
   认它）也能让那颗就地消失，但它同时把客户端选择器换成「SDK 安装说明」那张卡，动的是**这份演示
