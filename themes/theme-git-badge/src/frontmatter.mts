@@ -61,11 +61,6 @@ export function wrapParseFrontMatter(
         return parsed;
       }
 
-      // 页面自己写了这一格就让位：注入不覆盖站点写过的东西
-      if (Object.hasOwn(frontMatter, CUSTOM_PROPS_KEY)) {
-        return parsed;
-      }
-
       const filePath = normalizePath(params.filePath);
       const kind = badgeKindOf({ filePath, frontMatter, repo: repo() });
 
@@ -75,11 +70,31 @@ export function wrapParseFrontMatter(
         return parsed;
       }
 
+      // 只往 `gitBadge` 这一子格里补，别的不碰：于是页面为别的目的（`sidebar_label` 之类）写了
+      // `sidebar_custom_props` 时徽标照样上，`git_badge` 那把钉子也照常算数。
+      if (!Object.hasOwn(frontMatter, CUSTOM_PROPS_KEY)) {
+        return {
+          ...parsed,
+          frontMatter: {
+            ...frontMatter,
+            [CUSTOM_PROPS_KEY]: { [BADGE_KEY]: kind satisfies GitBadgeKind },
+          },
+        };
+      }
+
+      // 页面自己写过这一格：能并就并，两种情况仍让位 —— 那一格不是普通对象（null / 数组 / 串，
+      // 并进去就得毁掉原值），或页面已经亲手写过 `gitBadge`（那是它自己的钉子，以它为准）。
+      const written = frontMatter[CUSTOM_PROPS_KEY];
+
+      if (!isPlainObject(written) || Object.hasOwn(written, BADGE_KEY)) {
+        return parsed;
+      }
+
       return {
         ...parsed,
         frontMatter: {
           ...frontMatter,
-          [CUSTOM_PROPS_KEY]: { [BADGE_KEY]: kind satisfies GitBadgeKind },
+          [CUSTOM_PROPS_KEY]: { ...written, [BADGE_KEY]: kind },
         },
       };
     },

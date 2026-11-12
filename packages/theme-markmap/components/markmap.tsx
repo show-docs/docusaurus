@@ -53,6 +53,9 @@ export function MindChart({ data }: Props) {
     toolbar.current!.append(bar.el);
 
     return () => {
+      // 成对回收：effect 里把 `bar.el` append 进来，卸载/重跑要先摘掉，否则同一挂载内
+      // `data` 一变就再挂一层工具条（mm.destroy 只管导图，管不到挂在另一个 div 上的工具条）。
+      bar.el.remove();
       mm.destroy();
     };
   }, [data, options, root, scripts, styles]);

@@ -252,8 +252,7 @@ CI 默认的检出（`actions/checkout` 不带 `fetch-depth` = depth 1）里，�
 
 ## 注入的三条语义
 
-- **只补不覆盖**：键（`sidebar_custom_props`）已经在了就不碰 —— 注入不该变成「谁来都能改
-  站点写过的东西」。
+- **只补 `gitBadge` 一子格，别的不碰**：徽标并进 `sidebar_custom_props.gitBadge` 那一格，页面为别的目的写的其它格子（`sidebar_label` 之类）原样留着；页面自己已经写过 `gitBadge`、或那一格不是普通对象（并进去就得毁原值）时以页面为准、整格不碰。旧判据「那一格已存在就整段让位」会让用了 `sidebar_custom_props` 的页连徽标一起丢，也把 README 承诺的 `git_badge` 钉子吞掉。
 - **不表态就不写那一格**：判不出徽标时返回 `undefined`，那一格不写 —— 否则 frontmatter 上会多出
   一格 `sidebar_custom_props: undefined`（`Object.keys` 数得着、`JSON.stringify` 看不见）。
 - **判据拿得到 frontmatter**：`git_badge` 那把钉子就在 frontmatter 里，所以判据函数看得见

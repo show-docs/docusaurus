@@ -58,7 +58,7 @@ export default {
 `sidebar_custom_props` 原样抄到侧边栏项的 `customProps` 上（`plugin-content-docs/lib/props.js`），
 分类项拿的是它链的那一页的。这是唯一一条 frontmatter → 侧边栏的路。
 
-**只补不覆盖**：页面自己写了 `sidebar_custom_props` 的那一页，徽标不进去。
+**只补 `gitBadge` 这一子格**：徽标并进 `sidebar_custom_props` 里 `gitBadge` 那一格，页面为别的目的写的其它格子原样留着；页面自己已经亲手写过 `gitBadge`、或那一格写的不是普通对象（数组 / `null` 这种并进去就得毁原值）时，仍以页面为准、整格不碰。
 
 ## 画在哪两格
 

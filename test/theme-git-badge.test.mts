@@ -218,7 +218,7 @@ describe('badgeKindOf：页面钉死的说了算，没钉才问 git', () => {
   });
 });
 
-describe('wrapParseFrontMatter：只补不覆盖', () => {
+describe('wrapParseFrontMatter：只往 `gitBadge` 这一子格补', () => {
   const root = tempDir('git-badge-wrap-');
   const filePath = path.join(root, 'docs', 'a.md');
   const now = Math.floor(Date.now() / 1000);
@@ -255,14 +255,62 @@ describe('wrapParseFrontMatter：只补不覆盖', () => {
     expect(parsed.frontMatter).toEqual({ title: 'a' });
   });
 
-  it('页面自己写了 `sidebar_custom_props`：让位，原样交回', async () => {
+  it('页面为别的目的写了 `sidebar_custom_props`：并进 `gitBadge`，其它格子原样留着', async () => {
+    // 旧判据「键在就不碰」会连徽标一起吃掉；现在只补 `gitBadge` 一子格，`mine` 不动。
+    // 这一条修前必红：旧代码 `expect(result).toBe(parsed)`，gitBadge 上不了。
     const parsed = {
       frontMatter: { title: 'a', sidebar_custom_props: { mine: 1 } },
       content: '正文',
     };
     const result = await wrap(async () => parsed)(params(filePath));
 
+    expect(result.frontMatter).toEqual({
+      title: 'a',
+      sidebar_custom_props: { mine: 1, gitBadge: 'new' },
+    });
+    // 并进的是新对象，base 那份没被就地改
+    expect(parsed.frontMatter).toEqual({
+      title: 'a',
+      sidebar_custom_props: { mine: 1 },
+    });
+  });
+
+  it('钉了 `git_badge` 又为别的写了 `sidebar_custom_props`：钉子照常算数、并进', async () => {
+    // README 承诺「钉了就算数」，旧代码却会因为那一格已存在而把钉子一起吞掉——这是那两句的矛盾。
+    const parsed = {
+      frontMatter: { git_badge: 'update', sidebar_custom_props: { mine: 1 } },
+      content: '正文',
+    };
+    const result = await wrap(async () => parsed)(params(filePath));
+
+    expect(result.frontMatter).toMatchObject({
+      sidebar_custom_props: { mine: 1, gitBadge: 'update' },
+    });
+  });
+
+  it('页面已经亲手写过 `sidebar_custom_props.gitBadge`：以它为准，不覆盖', async () => {
+    const parsed = {
+      frontMatter: {
+        title: 'a',
+        sidebar_custom_props: { mine: 1, gitBadge: 'update' },
+      },
+      content: '正文',
+    };
+    const result = await wrap(async () => parsed)(params(filePath));
+
     expect(result).toBe(parsed);
+  });
+
+  it('那一格不是普通对象（数组 / null）：并进去就得毁原值，不碰', async () => {
+    for (const written of [[1, 2], null]) {
+      const parsed = {
+        frontMatter: { title: 'a', sidebar_custom_props: written },
+        content: '正文',
+      };
+      const result = await wrap(async () => parsed)(params(filePath));
+
+      expect(result, String(written)).toBe(parsed);
+    }
   });
 
   it('git 答不出来：不表态就不写那一格（不留 `sidebar_custom_props: undefined`）', async () => {
