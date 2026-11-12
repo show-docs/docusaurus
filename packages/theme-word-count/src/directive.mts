@@ -30,11 +30,12 @@ const KEYWORD = '::word-count';
 const DIRECTIVE = /^ {0,3}::word-count[ \t]*$/;
 
 /**
-带范围：`::word-count{scope="x"}`。`{}` 里只认 `scope` 这一把，引号可省；值取四种之一。
-四种之外（拼错、写了别的键）整行不算指令、原样留着当正文 —— 比默默按缺省数更容易让作者发现。
+带范围：`::word-count{scope="x"}`。这里只负责抓出 `scope=` 后面的一个词，引号可省；
+是不是那四种之一，交给下面的 `WORD_COUNT_SCOPES` 判 —— 四种范围的**唯一来源**就是那把 Set，
+不再在正则里抄一份。四种之外的写法（含拼错）整行不算指令、原样留当正文。
 */
 const SCOPED_DIRECTIVE =
-  /^ {0,3}::word-count\{[ \t]*scope[ \t]*=[ \t]*['"]?(page|folder|instance|site)['"]?[ \t]*\}[ \t]*$/;
+  /^ {0,3}::word-count\{[ \t]*scope[ \t]*=[ \t]*["']?([\w-]+)["']?[ \t]*\}[ \t]*$/;
 
 /** 一段围栏的起点（``` 或 ~~~，至少三个）。 */
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
@@ -87,10 +88,15 @@ function scanDirectives(lines: readonly string[]): Directive[] {
       continue;
     }
 
-    const scoped = SCOPED_DIRECTIVE.exec(body)?.[1] as
-      WordCountScope | undefined;
+    // 抓出 scope= 后的词，只有落在 WORD_COUNT_SCOPES 里才算带范围指令；四种之外的写法（含拼错）
+    // 与裸行不匹配时同一种落点 —— 整行不算指令、原样留着。
+    const rawScope = SCOPED_DIRECTIVE.exec(body)?.[1];
+    const scoped: WordCountScope | undefined =
+      rawScope !== undefined &&
+      WORD_COUNT_SCOPES.has(rawScope as WordCountScope)
+        ? (rawScope as WordCountScope)
+        : undefined;
 
-    // 带 scope 的按那一条判；裸行按缺省 instance。两者都不是 = 不是指令，原样留着。
     if (scoped === undefined && !DIRECTIVE.test(body)) {
       continue;
     }

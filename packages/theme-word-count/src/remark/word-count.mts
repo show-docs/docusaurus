@@ -1,4 +1,5 @@
 import type { WordCountScope } from '../../types/word-count.ts';
+import { walkAst } from '../ast.mts';
 import { COMPONENT, IMPORT, WORD_COUNT_SCOPES } from '../directive.mts';
 
 /**
@@ -38,10 +39,6 @@ interface DirectiveNode {
 }
 
 type Node = DirectiveNode & { [key: string]: unknown };
-
-interface RootNode extends DirectiveNode {
-  children: Node[];
-}
 
 function jsxAttribute(scope: WordCountScope): {
   type: string;
@@ -110,29 +107,28 @@ function isWordCount(node: Node): boolean {
 }
 
 /* eslint-disable no-param-reassign -- unified 的 remark 插件就地改这棵 mdast 树就是它的算法本身：
-每个节点只改写自己那一格，逐层复制整棵树等于白拷贝。与 measure.mts 走树同理。 */
-function replaceIn(node: RootNode): number {
+每个节点只改写自己那一格，逐层复制整棵树等于白拷贝。走树用 ../ast.mts 的 walkAst（与 measure 同一份）。 */
+function transform(tree: Node): void {
   let count = 0;
 
-  for (const [index, child] of [...node.children].entries()) {
-    if (isWordCount(child)) {
-      node.children[index] = componentNode(child) as Node;
-      count += 1;
-    } else if (Array.isArray(child.children)) {
-      count += replaceIn(child as RootNode);
+  walkAst<Node>(tree, (node, index, parent) => {
+    if (!isWordCount(node)) {
+      return;
     }
+
+    parent.children![index] = componentNode(node) as Node;
+    count += 1;
+  });
+
+  // 没换过任何指令就不动这棵树；换过才补一句 import（此时根必带 children）
+  if (count === 0) {
+    return;
   }
 
-  return count;
-}
-
-function transform(tree: RootNode): void {
-  if (replaceIn(tree) > 0) {
-    tree.children.unshift(importNode() as Node);
-  }
+  tree.children!.unshift(importNode() as Node);
 }
 /* eslint-enable no-param-reassign */
 
-export function remarkWordCount(): (tree: RootNode) => void {
+export function remarkWordCount(): (tree: Node) => void {
   return transform;
 }

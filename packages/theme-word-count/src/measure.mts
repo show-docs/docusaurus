@@ -9,6 +9,7 @@ import { escapeMarkdownHeadingIds } from '@docusaurus/utils';
 import type { WordCount } from '../types/word-count.ts';
 
 import { EMPTY } from './aggregate.mts';
+import { walkAst } from './ast.mts';
 import { countWords } from './count.mts';
 import type { MarkdownFormat } from './format.mts';
 
@@ -114,8 +115,8 @@ function hasExplicitId(node: Node): boolean {
         /^\/\*\s*#\S+\s*\*\/$/.test(last.value!);
 }
 
-/** 一棵子树走一遍：先记这一格，再走子节点。 */
-function walk(node: Node, counts: WordCount): void {
+/** 按节点类型数这一格；逐节点的走树交给 `./ast.mts` 的 `walkAst`。 */
+function countNode(node: Node, counts: WordCount): void {
   switch (node.type) {
     case 'text':
     case 'inlineCode': {
@@ -177,19 +178,13 @@ function walk(node: Node, counts: WordCount): void {
       break;
     }
   }
-
-  const children = node.children ?? [];
-
-  for (const child of children) {
-    walk(child, counts);
-  }
 }
 /* eslint-enable no-param-reassign */
 
 /**
 一份文件的全部明细。
 
-`content` 是**剥掉 `:::word-count` 之后**的原文（frontmatter 还在，`yaml` 那一格由树上报）；
+`content` 是**剥掉 `::word-count` 之后**的原文（frontmatter 还在，`yaml` 那一格由树上报）；
 `draft` 来自站点那份 frontmatter 解析器的结果，明细里单独记一格；`format` 是这一页按哪一族语法
 编译（`md` / `mdx`，判法见 `./format.mts`）—— `md` 走 CommonMark、`mdx` 挂 `remarkMdx`，两条流水线
 的差别只在 `{…}` / `<Tag>` / `import` 成不成 `text`。
@@ -213,7 +208,7 @@ export function measureMarkdown(
     escapeMarkdownHeadingIds(content),
   );
 
-  walk(tree as Node, counts);
+  walkAst(tree as Node, (node) => countNode(node, counts));
 
   return counts;
 }
