@@ -974,35 +974,19 @@ describe('theme-stoplight 入口：样式表隔离 + 浏览器 bundle 补 Node �
   });
 });
 
-describe('theme-word-count 入口：层目录与 markdown 预处理器', () => {
-  it('层目录与名字', () => {
-    const plugin = wordCountTheme(contextWith());
+describe('theme-word-count 入口：只交层目录，指令渲染交给导出的 remark 插件', () => {
+  it('名字、层目录；不挂预处理器、不向 component-page 交规则', () => {
+    const context = contextWith();
+    const plugin = wordCountTheme(context);
 
     expect(plugin.name).toBe('@show-docs/docusaurus-theme-word-count');
     expectThemePath(plugin, 'theme-word-count');
     // 这一层没有样式表、也没有 webpack 那一格：数在配置期算完，浏览器只读生成模块
     expect(plugin.getClientModules).toBeUndefined();
     expect(plugin.configureWebpack).toBeUndefined();
-  });
-
-  it('loadContent：包住 markdown.preprocessor，不再向 component-page 交规则', async () => {
-    const context = contextWith();
-    const plugin = wordCountTheme(context);
-
-    // 站点没配预处理器时本层也挂一份，否则指令没人认
+    // 指令的渲染搬到了 `@show-docs/docusaurus-theme-word-count/remark`（站点挂进各内容根的
+    // remarkPlugins）；入口不再用 loadContent 去包 markdown.preprocessor。
+    expect(plugin.loadContent).toBeUndefined();
     expect(context.siteConfig.markdown.preprocessor).toBeUndefined();
-
-    expect(await loadContentOf(plugin)()).toBeUndefined();
-
-    const { preprocessor } = context.siteConfig.markdown;
-    expect(preprocessor).toBeTypeOf('function');
-    expect(
-      preprocessor!({
-        fileContent: '前\n\n:::word-count\n\n后\n',
-        filePath: 'a.md',
-      }),
-    ).toBe(
-      'import __WordCount from \'@theme/WordCount\';\n前\n\n<__WordCount scope="instance" />\n\n后\n',
-    );
   });
 });

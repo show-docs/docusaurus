@@ -1,6 +1,6 @@
 ---
 title: 主题包说明
-description: '/themes/ 落地页：四个功能层主题包，各自占侧边栏一顶层格；这一页正文里也写了一次 :::word-count。'
+description: '/themes/ 落地页：四个功能层主题包，各自占侧边栏一顶层格；这一页正文里也写了一次 ::word-count。'
 ---
 
 import DocCardList from '@theme/DocCardList';
@@ -42,7 +42,7 @@ import DocCardList from '@theme/DocCardList';
 
 ## 这一页自己的字数
 
-:::word-count
+::word-count
 
 这一块数的是**这一棵内容根**（实例 `themes`）：`themes/` 里每个包的 README 与 `docs/` 下的页
 都在里面，块上写着的就是 `内容根 themes`。`packages/` 那一棵的示例页

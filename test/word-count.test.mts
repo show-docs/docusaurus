@@ -7,7 +7,6 @@ import { afterAll, describe, expect, it } from 'vitest';
 import type {
   AllContent,
   LoadContext,
-  MarkdownConfig,
   ParseFrontMatter,
 } from '@docusaurus/types';
 import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
@@ -25,11 +24,7 @@ import {
 import { countWords } from '../packages/theme-word-count/src/count.mts';
 import {
   directiveScopes,
-  installPreprocessor,
-  rewriteWordCountDirectives,
   withoutWordCountDirectives,
-  WRAPPED,
-  wrapPreprocessor,
 } from '../packages/theme-word-count/src/directive.mts';
 import { resolveFormat } from '../packages/theme-word-count/src/format.mts';
 import wordCountTheme from '../packages/theme-word-count/src/index.mts';
@@ -37,6 +32,7 @@ import {
   measureMarkdown,
   measureText,
 } from '../packages/theme-word-count/src/measure.mts';
+import { remarkWordCount } from '../packages/theme-word-count/src/remark/word-count.mts';
 import { renderStatsModule } from '../packages/theme-word-count/src/stats-module.mts';
 import {
   ofFolder,
@@ -499,182 +495,48 @@ describe('aggregate：逐字段相加与按目录滚上去', () => {
   });
 });
 
-/** 预处理器补在文首那一句 import 的原文。 */
-const IMPORT_LINE = "import __WordCount from '@theme/WordCount';";
-
-describe('rewriteWordCountDirectives：指令换成正文里的一个组件', () => {
-  it('指令写在哪儿，那一处就换成组件，import 补在文首', () => {
-    expect(rewriteWordCountDirectives('前\n\n:::word-count\n\n后\n')).toBe(
-      `${IMPORT_LINE}\n前\n\n<__WordCount scope="instance" />\n\n后\n`,
-    );
-  });
-
-  it('有 frontmatter 时 import 补在收尾那条 `---` 之后', () => {
-    expect(
-      rewriteWordCountDirectives('---\ntitle: 示例\n---\n\n:::word-count\n'),
-    ).toBe(
-      `---\ntitle: 示例\n---\n${IMPORT_LINE}\n\n<__WordCount scope="instance" />\n`,
-    );
-  });
-
-  it('frontmatter 没收尾时不认它（MDX 也不认），import 仍在第 0 行', () => {
-    expect(
-      rewriteWordCountDirectives('---\ntitle: 示例\n\n:::word-count\n'),
-    ).toBe(
-      `${IMPORT_LINE}\n---\ntitle: 示例\n\n<__WordCount scope="instance" />\n`,
-    );
-  });
-
-  it('容器式收尾 `:::` 跟在指令后面时一并吃掉', () => {
-    expect(rewriteWordCountDirectives(':::word-count\n:::\n')).toBe(
-      `${IMPORT_LINE}\n<__WordCount scope="instance" />\n`,
-    );
-  });
-
-  it('指令是文件最后一行时没有下一行可看，照样换成组件', () => {
-    expect(rewriteWordCountDirectives('前\n:::word-count')).toBe(
-      `${IMPORT_LINE}\n前\n<__WordCount scope="instance" />`,
-    );
-  });
-
-  it('多处指令各换各的，import 只补一句', () => {
-    expect(
-      rewriteWordCountDirectives(
-        ':::word-count\n\n中间\n\n:::word-count\n:::\n\n尾\n',
-      ),
-    ).toBe(
-      `${IMPORT_LINE}\n<__WordCount scope="instance" />\n\n中间\n\n<__WordCount scope="instance" />\n\n尾\n`,
-    );
-  });
-
-  it('指令后面写范围时那一格写进组件，容器式收尾照吃', () => {
-    expect(rewriteWordCountDirectives(':::word-count page\n')).toBe(
-      `${IMPORT_LINE}\n<__WordCount scope="page" />\n`,
-    );
-    expect(rewriteWordCountDirectives(':::word-count folder\n:::\n')).toBe(
-      `${IMPORT_LINE}\n<__WordCount scope="folder" />\n`,
-    );
-    expect(rewriteWordCountDirectives(':::word-count site\n')).toBe(
-      `${IMPORT_LINE}\n<__WordCount scope="site" />\n`,
-    );
-  });
-
-  it('不认的范围不算指令，原样留下', () => {
-    for (const text of [
-      ':::word-count pages\n',
-      ':::word-count page extra\n',
-      ':::word-count PAGE\n',
-    ]) {
-      expect(rewriteWordCountDirectives(text)).toBe(text);
-    }
-  });
-
-  it('CRLF 文件按自己的行尾走：补上去那一行也是 CRLF', () => {
-    expect(
-      rewriteWordCountDirectives(
-        '---\r\ntitle: 示例\r\n---\r\n\r\n:::word-count\r\n\r\n后\r\n',
-      ),
-    ).toBe(
-      `---\r\ntitle: 示例\r\n---\r\n${IMPORT_LINE}\r\n\r\n<__WordCount scope="instance" />\r\n\r\n后\r\n`,
-    );
-  });
-
-  it('代码围栏里的示例不是指令：反引号与波浪号两种围栏都原样交回', () => {
-    for (const text of [
-      '```\n:::word-count\n```\n',
-      '~~~\n:::word-count\n~~~\n',
-    ]) {
-      expect(rewriteWordCountDirectives(text)).toBe(text);
-    }
-  });
-
-  it('围栏只认同一种字符、且长度不短于开头那一串', () => {
-    for (const text of [
-      // 反引号围栏里的波浪号不关它
-      '```\n~~~\n:::word-count\n```\n',
-      // 四格的围栏，三格那行关不上
-      '````\n```\n:::word-count\n````\n',
-    ]) {
-      expect(rewriteWordCountDirectives(text)).toBe(text);
-    }
-  });
-
-  it('带信息串的行不是收尾；光秃秃的收尾（可带尾随空白）照常关', () => {
-    // CommonMark：收尾围栏不带信息串，```js 这种行是围栏内的正文
-    for (const text of [
-      '```\n```js\n:::word-count\n```\n',
-      '~~~\n~~~js\n:::word-count\n~~~\n',
-    ]) {
-      expect(rewriteWordCountDirectives(text)).toBe(text);
-      expect(withoutWordCountDirectives(text)).toBe(text);
-    }
-    expect(
-      rewriteWordCountDirectives('```\ncode\n```  \n\n:::word-count\n'),
-    ).toBe(
-      `${IMPORT_LINE}\n\`\`\`\ncode\n\`\`\`  \n\n<__WordCount scope="instance" />\n`,
-    );
-  });
-
-  it('围栏收掉之后，后面的指令照常认', () => {
-    expect(
-      rewriteWordCountDirectives('```\ncode\n```\n\n:::word-count\n'),
-    ).toBe(
-      `${IMPORT_LINE}\n\`\`\`\ncode\n\`\`\`\n\n<__WordCount scope="instance" />\n`,
-    );
-  });
-
-  it('四格缩进是代码块，不是指令', () => {
-    const text = '    :::word-count\n';
-    expect(rewriteWordCountDirectives(text)).toBe(text);
-  });
-
-  it('不是本指令的行原样交回：`:::note`、多写了尾巴、行内提到', () => {
-    for (const text of [
-      ':::note\n提醒\n:::\n',
-      ':::word-count extra\n',
-      '正文里提到 :::word-count 这一串\n',
-    ]) {
-      expect(rewriteWordCountDirectives(text)).toBe(text);
-    }
-  });
-
-  it('没有这个词的文件原样交回同一个字符串', () => {
-    const text = '两个 词\n';
-    expect(rewriteWordCountDirectives(text)).toBe(text);
-  });
-});
-
 describe('withoutWordCountDirectives：指令是看不见的语法，不数', () => {
-  it('指令与它的收尾整行去掉', () => {
-    expect(withoutWordCountDirectives(':::word-count\n:::\n\n正文\n')).toBe(
+  it('指令整行去掉', () => {
+    expect(withoutWordCountDirectives('::word-count\n\n正文\n')).toBe(
       '\n正文\n',
     );
   });
 
-  it('多处指令与收尾都去掉，其余行顺序不变', () => {
+  it('带范围的指令整行去掉', () => {
+    expect(
+      withoutWordCountDirectives('::word-count{scope="page"}\n\n正文\n'),
+    ).toBe('\n正文\n');
+  });
+
+  it('多处指令都去掉，其余行顺序不变', () => {
     expect(
       withoutWordCountDirectives(
-        '前\n\n:::word-count\n\n中\n\n:::word-count\n:::\n\n后\n',
+        '前\n\n::word-count\n\n中\n\n::word-count{scope="site"}\n\n后\n',
       ),
     ).toBe('前\n\n\n中\n\n\n后\n');
   });
 
-  it('带范围的指令与它的收尾一样整行去掉', () => {
-    expect(
-      withoutWordCountDirectives(':::word-count site\n:::\n\n正文\n'),
-    ).toBe('\n正文\n');
-  });
-
   it('围栏里的那一行是示例，留在正文里', () => {
-    expect(withoutWordCountDirectives('```\n:::word-count\n```\n')).toBe(
-      '```\n:::word-count\n```\n',
+    expect(withoutWordCountDirectives('```\n::word-count\n```\n')).toBe(
+      '```\n::word-count\n```\n',
     );
   });
 
-  it('没有词的快路与「有词但没有真指令」都原样交回', () => {
+  it('快路、四格缩进、写错的 scope 都原样交回', () => {
     expect(withoutWordCountDirectives('两个 词\n')).toBe('两个 词\n');
-    expect(withoutWordCountDirectives('    :::word-count\n')).toBe(
-      '    :::word-count\n',
+    // 四格缩进是缩进代码块，不当指令
+    expect(withoutWordCountDirectives('    ::word-count\n')).toBe(
+      '    ::word-count\n',
+    );
+    // `{scope=bogus}` 四种之外，整行不算指令、原样留（作者写错了看得见）
+    expect(withoutWordCountDirectives('::word-count{scope=bogus}\n')).toBe(
+      '::word-count{scope=bogus}\n',
+    );
+  });
+
+  it('CRLF 文件按自己的行尾走：行尾 `\\r` 剥掉后照常认指令、其余行保留 `\\r`', () => {
+    expect(withoutWordCountDirectives('::word-count\r\n正文\r\n')).toBe(
+      '正文\r\n',
     );
   });
 });
@@ -683,50 +545,113 @@ describe('directiveScopes：报出每条指令的范围，供统计侧裁明细'
   it('没写范围是 instance，写了的按写的报；多条按出现顺序', () => {
     expect(
       directiveScopes(
-        ':::word-count\n:::word-count page\n:::word-count site\n',
+        '::word-count\n::word-count{scope="page"}\n::word-count{scope=site}\n',
       ),
     ).toEqual(['instance', 'page', 'site']);
   });
 
   it('没有指令、或只在围栏里提到，都是空数组', () => {
     expect(directiveScopes('正文 一句\n')).toEqual([]);
-    expect(directiveScopes('```\n:::word-count page\n```\n')).toEqual([]);
+    expect(directiveScopes('```\n::word-count{scope="page"}\n```\n')).toEqual(
+      [],
+    );
   });
 });
 
-/** 官方 `markdown.preprocessor` 那一格的形状（`@docusaurus/types` 没把那个别名再导出）。 */
-type Preprocessor = NonNullable<MarkdownConfig['preprocessor']>;
+describe('remarkWordCount：在语法树上把叶指令换成组件（md 与 mdx 都渲染）', () => {
+  /** 造一份最小的 mdast：root 下若干 child。 */
+  const root = (...children: Record<string, unknown>[]) => ({
+    type: 'root',
+    children,
+  });
+  const directive = (
+    attributes: Record<string, string> | undefined,
+    type = 'leafDirective',
+  ): Record<string, unknown> => ({
+    type,
+    name: 'word-count',
+    attributes: attributes ?? {},
+    children: [],
+  });
+  const run = (tree: { children: Record<string, unknown>[] }) => {
+    remarkWordCount()(tree as never);
+    return tree;
+  };
+  const firstOfType = (
+    tree: { children: Record<string, unknown>[] },
+    type: string,
+  ): Record<string, unknown> | undefined =>
+    tree.children.find((node) => node.type === type);
 
-describe('wrapPreprocessor / installPreprocessor：包一层，只包一次', () => {
-  it('站点自己那份先跑，本包在它的结果上认指令', () => {
-    const base: Preprocessor = ({ fileContent }) =>
-      fileContent.replace('占位', ':::word-count');
-    const wrapped = wrapPreprocessor(base);
+  it('叶指令 → 块级组件节点，{scope} 落进属性', () => {
+    const tree = run(root(directive({ scope: 'page' })));
 
-    expect(wrapped({ fileContent: '前\n占位\n后\n', filePath: 'a.md' })).toBe(
-      `${IMPORT_LINE}\n前\n<__WordCount scope="instance" />\n后\n`,
+    // 前置补了一句 import，指令本身换成组件节点
+    expect(firstOfType(tree, 'mdxjsEsm')).toMatchObject({ type: 'mdxjsEsm' });
+    expect(firstOfType(tree, 'mdxJsxFlowElement')).toMatchObject({
+      type: 'mdxJsxFlowElement',
+      name: '__WordCount',
+      attributes: [{ type: 'mdxJsxAttribute', name: 'scope', value: 'page' }],
+    });
+  });
+
+  it('没写 scope 按缺省 instance', () => {
+    const tree = run(root(directive(undefined)));
+
+    expect(firstOfType(tree, 'mdxJsxFlowElement')).toMatchObject({
+      type: 'mdxJsxFlowElement',
+      attributes: [{ name: 'scope', value: 'instance' }],
+    });
+  });
+
+  it('scope 写成四种之外 → 组件侧仍按 instance 渲染（与计数侧「整行不算指令」是有意的分叉）', () => {
+    const tree = run(root(directive({ scope: 'bogus' })));
+
+    expect(firstOfType(tree, 'mdxJsxFlowElement')).toMatchObject({
+      attributes: [{ name: 'scope', value: 'instance' }],
+    });
+  });
+
+  it('多条指令只在根上补一句 import', () => {
+    const tree = run(root(directive({}), directive({ scope: 'site' })));
+
+    const esm = tree.children.filter((n) => n.type === 'mdxjsEsm');
+    const comps = tree.children.filter((n) => n.type === 'mdxJsxFlowElement');
+    expect(esm).toHaveLength(1);
+    expect(comps).toHaveLength(2);
+    // 补的那句指向 @theme/WordCount，绑定名带 __ 前缀
+    expect(String(esm[0]?.value)).toContain(
+      "import __WordCount from '@theme/WordCount'",
     );
   });
 
-  it('站点没配预处理器时直接读文件原文', () => {
-    const wrapped = wrapPreprocessor(undefined);
+  it('行内（textDirective）落成行内组件节点', () => {
+    const tree = run(root(directive({ scope: 'folder' }, 'textDirective')));
 
-    expect(wrapped({ fileContent: ':::word-count\n', filePath: 'a.md' })).toBe(
-      `${IMPORT_LINE}\n<__WordCount scope="instance" />\n`,
-    );
+    expect(firstOfType(tree, 'mdxJsxTextElement')).toMatchObject({
+      type: 'mdxJsxTextElement',
+    });
   });
 
-  it('重复安装还是同一份包装：带记号，`reloadSite()` 不套第二层', () => {
-    const wrapped = wrapPreprocessor(undefined);
+  it('不是本包那把指令的名不碰、也不补 import', () => {
+    const other = { type: 'leafDirective', name: 'note', children: [] };
+    const tree = run(root(other));
 
-    expect((wrapped as { [WRAPPED]?: true })[WRAPPED]).toBe(true);
-    expect(wrapPreprocessor(wrapped)).toBe(wrapped);
+    expect(tree.children).toEqual([other]);
+  });
 
-    const markdown = {} as MarkdownConfig;
-    installPreprocessor(markdown);
-    const installed = markdown.preprocessor;
-    installPreprocessor(markdown);
-    expect(markdown.preprocessor).toBe(installed);
+  it('没有指令的树原样不动', () => {
+    const para = { type: 'paragraph', children: [] };
+    const tree = run(root(para));
+
+    expect(tree.children).toEqual([para]);
+  });
+
+  it('孩子没有 children 数组的节点（如 text）：递归那一步跳过，不误崩', () => {
+    const text = { type: 'text', value: 'hi' };
+    const tree = run(root(text));
+
+    expect(tree.children).toEqual([text]);
   });
 });
 
@@ -820,7 +745,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
   it('指令与它的收尾不数，围栏里那行示例照数', async () => {
     const source = docFile(
       'directive.md',
-      ':::word-count\n:::\n\n正文 一句\n\n```\n:::word-count\n```\n',
+      '::word-count\n\n正文 一句\n\n```\n::word-count\n```\n',
     );
     const allContent = {
       '@docusaurus/plugin-content-docs': {
@@ -834,7 +759,7 @@ describe('collectStats：读的是清单，分组按「实例 + 版本」', () =
 
     const { stats } = await collectStats(allContent, context);
 
-    // 指令两行是看不见的语法；正文 4 个字；围栏里那行示例留在正文里（`word-count` 一个词）
+    // 那一行指令是看不见的语法，不数；正文 4 个字；围栏里那行示例留在正文里（`word-count` 一个词）
     expect(stats.groups[0]).toMatchObject({
       cjk: 4,
       latin: 1,
@@ -1377,7 +1302,7 @@ describe('theme-word-count 入口：把统计铺进生成目录', () => {
                   'run',
                   docFile(
                     'run.md',
-                    ':::word-count page\n:::word-count folder\n\n跑一遍 就好\n',
+                    '::word-count{scope="page"}\n::word-count{scope="folder"}\n\n跑一遍 就好\n',
                   ),
                 ),
               ],

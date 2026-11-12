@@ -19,6 +19,10 @@
       "default": "./dist/index.mjs",
       "types": "./dist/index.d.mts"
     },
+    "./remark": {
+      "default": "./dist/remark/word-count.mjs",
+      "types": "./dist/remark/word-count.d.mts"
+    },
     "./types/*": "./types/*"
   },
   "files": [

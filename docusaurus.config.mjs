@@ -1,3 +1,5 @@
+import { remarkWordCount } from '@show-docs/docusaurus-theme-word-count/remark';
+
 // 站点根**刻意不是 ESM 包**：根 `package.json` 不写 `"type": "module"`，配置靠 `.mjs` 扩展名拿 ESM。
 // 这是修 `.docusaurus/` 里 `require.resolveWeak` 报错的**唯一**产地 ——
 // webpack 按「扩展名 + 最近 `package.json` 的 `type`」给模块判型：根上写了 `"type": "module"`，
@@ -33,13 +35,16 @@ const DOCS_INCLUDE = [
 const DOCS_EXCLUDE = ['**/node_modules/**', '**/build/**', '**/.docusaurus/**'];
 
 /**
- 一份内容根的三格。站点里有几份 docs 实例就调用几次：`include` / `exclude` 都是**相对 `path`
+ 一份内容根共用的那几格。站点里有几份 docs 实例就调用几次：`include` / `exclude` 都是**相对 `path`
  那棵根**解释的，所以每份实例拿到的是自己那一棵根的判据，不是一串混在一起的 glob。
+ `remarkPlugins` 两棵根要的是同一份（正文里 `::word-count` 那一格在 `md` / `mdx` 都靠这个插件渲染），
+ 所以也放这里，免得在两处各挂一遍迟早会漂。
 */
 const docsScope = (path) => ({
   path,
   include: DOCS_INCLUDE,
   exclude: DOCS_EXCLUDE,
+  remarkPlugins: [remarkWordCount],
 });
 
 const config = {

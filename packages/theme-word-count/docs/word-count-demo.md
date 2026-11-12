@@ -2,19 +2,19 @@
 id: word-count-demo
 sidebar_position: 1
 title: 字数统计示例
-description: '正文里写一行 :::word-count，那一处就显示字数；后面加一个词可以换范围。'
+description: '正文里写一行 ::word-count，那一处就显示字数；写成 {scope="…"} 可以换范围。'
 ---
 
 # 字数统计示例
 
-这一页的正文里有几行 `:::word-count`，所以指令所在的位置多出一块统计。不写范围时是**这一页所在
+这一页的正文里有几行 `::word-count`，所以指令所在的位置多出一块统计。不写范围时是**这一页所在
 内容根**的数；后面写 `page` / `folder` / `site` 分别换成**本页**、**本文件夹（含子目录）**、
 **全站**。数是构建时按整站算好的，正文其余部分一个字都不动 —— 标题、目录、翻页都在原来的位置。
 
 每一块都摆同一份四栏明细：文件、文字、标题、正文结构。四个范围只是各自挑自己那一格；
 数字只出现在表里，块上不再用一句话重复一遍。
 
-:::word-count
+::word-count
 
 ## 数的是哪些文件
 
@@ -34,19 +34,19 @@ description: '正文里写一行 :::word-count，那一处就显示字数；后�
 
 只数这一页自己的正文：
 
-:::word-count page
+::word-count{scope="page"}
 
 ### 本文件夹
 
 这一页在 `theme-word-count/docs/` 里，这一块数的是那个目录下的所有页，子目录里的也算：
 
-:::word-count folder
+::word-count{scope="folder"}
 
 ### 全站
 
 整个站点的合计：
 
-:::word-count site
+::word-count{scope="site"}
 
 ## 数的是哪些字
 
