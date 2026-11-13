@@ -553,6 +553,29 @@ describe('measureMarkdown：::word-count 在语法树里是 directive，不算�
     expect(scopes).toEqual([]);
     expect(count.latin).toBe(1);
   });
+
+  it('容器式 :::word-count 的正文不算词（与渲染丢弃 children 一致）', () => {
+    const { scopes, count } = measureMarkdown(
+      ':::word-count\nfoo bar\n:::\n',
+      false,
+      'mdx',
+    );
+
+    // 记为一条指令，但容器正文既不渲染也不计入词数
+    expect(scopes).toEqual(['instance']);
+    expect(count.latin).toBe(0);
+    expect(count.words).toBe(0);
+  });
+
+  it('标题末尾的 {#id} 是锚点语法，不渲染也不计入词数', () => {
+    const { count } = measureMarkdown('## 标题 {#custom-id}\n', false, 'mdx');
+
+    // 只数看得见的「标题」；custom-id 是 id，不计入词
+    expect(count.cjk).toBe(2);
+    expect(count.latin).toBe(0);
+    expect(count.words).toBe(2);
+    expect(count.headingIds).toBe(1);
+  });
 });
 
 describe('remarkWordCount：在语法树上把叶指令换成组件（md 与 mdx 都渲染）', () => {
@@ -649,6 +672,24 @@ describe('remarkWordCount：在语法树上把叶指令换成组件（md 与 mdx
     const tree = run(root(text));
 
     expect(tree.children).toEqual([text]);
+  });
+
+  it('容器式指令换组件后不下钻：其正文里的内层指令也不动（整棵子树丢弃）', () => {
+    const nested = directive({ scope: 'page' });
+    const container = {
+      type: 'containerDirective',
+      name: 'word-count',
+      attributes: {},
+      children: [{ type: 'paragraph', children: [nested] }],
+    };
+    const tree = run(root(container));
+
+    const components = tree.children.filter(
+      (node) =>
+        node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement',
+    );
+    // 只换出容器那一个组件；剪枝后内层那条指令没被单独再换（它随原正文一起丢弃）
+    expect(components).toHaveLength(1);
   });
 });
 

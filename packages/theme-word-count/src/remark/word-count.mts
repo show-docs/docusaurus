@@ -118,6 +118,9 @@ function transform(tree: Node): void {
 
     parent.children![index] = componentNode(node) as Node;
     count += 1;
+
+    // 换出来的是空组件：它原来的正文不再渲染，也不必再下钻（与计数侧同一剪枝）
+    return false;
   });
 
   // 没换过任何指令就不动这棵树；换过才补一句 import（此时根必带 children）

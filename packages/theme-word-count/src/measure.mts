@@ -123,18 +123,23 @@ function hasExplicitId(node: Node): boolean {
         /^\/\*\s*#\S+\s*\*\/$/.test(last.value!);
 }
 
-/** 按节点类型数这一格；逐节点的走树交给 `./ast.mts` 的 `walkAst`。`scopes` 顺带记下这一页写了哪些指令范围。 */
+/**
+按节点类型数这一格；逐节点的走树交给 `./ast.mts` 的 `walkAst`。`scopes` 记下这一页写了哪些指令范围。
+返回 `false` 让走树别下钻这一格（见 word-count 指令那一支）。
+*/
 function countNode(
   node: Node,
   counts: WordCount,
   scopes: WordCountScope[],
-): void {
+  parent: Node,
+  index: number,
+): boolean | undefined {
   switch (node.type) {
     case 'leafDirective':
     case 'containerDirective':
     case 'textDirective': {
-      // `::word-count` 在语法树里是 directive 节点，不是 `text` → 天然不进词数；这里只记下它的范围。
-      // scope 不在四种里（含没写）按缺省 instance —— 与渲染侧同一条规则，不再刻意分叉。
+      // `::word-count` 在语法树里是 directive 节点，不是 `text` → 天然不进词数；这里记下它的范围。
+      // scope 不在四种里（含没写）按缺省 instance —— 与渲染侧同一条规则。
       if (node.name === 'word-count') {
         const raw = node.attributes?.scope;
         scopes.push(
@@ -142,10 +147,20 @@ function countNode(
             ? (raw as WordCountScope)
             : 'instance',
         );
+        // 指令换出来的是一个空组件，它原来的正文既不渲染也不该计入词数 → 别下钻（容器式 `:::word-count` 的 body）
+        return false;
       }
       break;
     }
-    case 'text':
+    case 'text': {
+      // 标题末尾的 `{#id}` 是锚点语法、渲染里不显示 → 只在这一格（标题最后一个文字子节点）把它从计数里剔掉
+      let value = node.value!;
+      if (parent.type === 'heading' && index === parent.children!.length - 1) {
+        value = value.replace(/\s*\{#[^}]+\}$/, '');
+      }
+      addText(counts, value);
+      break;
+    }
     case 'inlineCode': {
       addText(counts, node.value!);
       break;
@@ -236,7 +251,9 @@ export function measureMarkdown(
     escapeMarkdownHeadingIds(content),
   );
 
-  walkAst(tree as Node, (node) => countNode(node, counts, scopes));
+  walkAst(tree as Node, (node, index, parent) =>
+    countNode(node, counts, scopes, parent, index),
+  );
 
   return { count: counts, scopes };
 }
