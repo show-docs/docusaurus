@@ -109,7 +109,7 @@ export function ScalarUI(props: ScalarUIProps) {
       // 每条接口标题旁那颗 operationId 徽标（实测这份 `static/openapi-scalar.yaml` 三条都有：listOrders /
       // createOrder / getOrder）。默认是 `false`，抄 curl、生成客户端的人认的是这个，本层摆出来。
       showOperationId: true,
-      // 厂商默认值是 `true`。实测这份安装的 1.77.0 里 `dist/plugins/posthog/index.js` 没有被任何地方
+      // 厂商默认值是 `true`。实测这份安装的 1.78.0 里 `dist/plugins/posthog/index.js` 没有被任何地方
       // import（不载插件就什么都不发），所以这一格现在不改任何行为；写下来是按本层的口径表态，
       // 也是给厂商哪天默认载上时留的防线。
       telemetry: false,

@@ -247,7 +247,7 @@ Redoc 左栏底部那颗它自己的切换按钮收掉了（`redoc-ui.css` 里
 
 **那一整格为什么还是 CSS 而不是配置：配置项确实存在，但 `redoc@3.0.1` 不读它。**
 
-- 这一格在官方配置 schema 里有自己的位置：`@redocly/config@0.66.0`（redoc 那份 `options` 类型
+- 这一格在官方配置 schema 里有自己的位置：`@redocly/config@0.74.0`（redoc 那份 `options` 类型
   就是从它推出来的）里有 `navigation.actions.items`，枚举含 `copy`、`view`、`chatgpt`、`claude`
   这些，另有一条布尔 `navigation.actions.hide`；写进 `options` 连类型都过。
 - 但装进浏览器的那份实现不认：整个 bundle 里 `navigation:{actions:{items: …}}` 只出现一次，是
