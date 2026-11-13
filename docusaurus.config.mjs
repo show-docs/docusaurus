@@ -139,16 +139,17 @@ const config = {
     // 它不提供 `DocItem`：`diff` 那一页在自己的 `loadContent()` 里交给 component-page，
     // 命中后挂本包的 `theme/DiffPage`（与 markmap 同一形态）。
     '@show-docs/docusaurus-theme-diff',
-    // 字数统计主题层：正文里写一行 `:::word-count`，那一处就显示**自己所在内容根**的字数；
-    // 后面写 `page` / `folder` / `site` 换成这一页、这个目录（含子目录）或全站。
+    // 字数统计主题层：正文里写一行 `::word-count`，那一处就显示**自己所在内容根**的字数；
+    // 写成 `::word-count{scope="page"}` 换成这一页、`folder`（含子目录）或 `site`（全站）。
     // 整站的数在配置期算好，页面按 `scope` 从生成模块里挑；每一块摆四栏明细（文件、文字、
     // 标题、正文结构），四个范围摆同一份，数字只出现在表里。本站两棵内容根各有一页写了
     // 这行指令 —— 示例页在 `default`，`themes/README.md` 落地页在 `themes` —— 两块各写自己那份。
-    // 它不向 component-page 交规则：指令由本层的 `markdown.preprocessor` 换成
-    // `<__WordCount scope="…" />` 并在文首补一句 import（主题包零配置能改的就这一格，`markdown`
-    // 里没有给主题层留 `remarkPlugins`）。统计读的是**各 docs 实例已经加载到的那份清单**（不是
-    // 重扫目录），所以站点这边不必转述内容根那三格；数的口径（正文按 MDX 语法树数，非 markdown
-    // 的文档按整份文字数）在包 README。
+    // 它不向 component-page 交规则：那一行 `::word-count` 由本包导出的 remark 插件
+    // （`@show-docs/docusaurus-theme-word-count/remark`）在**语法树**上换成 `<__WordCount scope="…" />`
+    // 并补一句 import —— 所以每棵内容根都要挂 `remarkPlugins: [remarkWordCount]`（见上面 `docsScope`，
+    // 两棵根共用一份，不挂的那棵根里写了指令只会留一个空容器）。统计读的是**各 docs 实例已经加载到的
+    // 那份清单**（不是重扫目录）；数的口径（正文按这一页 `markdown.format` 选 CommonMark / MDX 语法树数，
+    // 非 markdown 的文档按整份文字数）在包 README。
     '@show-docs/docusaurus-theme-word-count',
     // 下面三条 API 层各在自己的 `loadContent()` 里交出一份组件与一条规则（`scalar` / `redoc` /
     // `stoplight`，都写 `true`），渲染哪份文档读各自那两把 spec 键（OpenAPI 写 `oas3:`、

@@ -348,9 +348,10 @@ if (fs.existsSync(registryFile) && fs.existsSync(frameRegistryFile)) {
   isOk = false;
 }
 
-// ---- 4. `:::word-count` 在构建产物里是一块统计，不是一行原文 ----
-// 指令由 `theme-word-count` 在 `markdown.preprocessor` 里换掉（`<__WordCount scope="…" />` + 一句
-// import）。预处理器没挂上时，那一行会原样渲染成正文 —— 构建全程绿，只有对产物看才看得见。
+// ---- 4. `::word-count` 在构建产物里是一块统计，不是一行原文 ----
+// 指令由 `theme-word-count` 导出的 remark 插件（站点挂在各内容根的 `remarkPlugins`）在语法树上
+// 换成 `<__WordCount scope="…" />`。那棵根没挂上插件时那一处只留一个空容器、页面上没有那一块
+// —— 构建全程绿，只有对产物看才看得见。
 // 两棵内容根各取一页：`default` 的示例页四种范围各一块，`themes` 的落地页只有缺省那一块。
 const WORD_COUNT_PAGES = [
   {
@@ -359,7 +360,7 @@ const WORD_COUNT_PAGES = [
   },
   { file: 'build/themes/index.html', titles: ['内容根字数'] },
 ];
-console.log('\nword-count 的产物回读（:::word-count 应当换成那一块统计）：');
+console.log('\nword-count 的产物回读（::word-count 应当换成那一块统计）：');
 for (const { file, titles } of WORD_COUNT_PAGES) {
   const full = path.join(root, file);
   const html = fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : '';
