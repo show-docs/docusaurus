@@ -8,11 +8,7 @@
   height: 800px !important;
 }
 
-.mm-toolbar-brand {
-  display: none !important;
-}
-
-.mm-toolbar {
+.markmap-toolbar {
   position: absolute;
   right: 1em;
   bottom: 1em;

@@ -18,9 +18,8 @@ markdown 怎么落成导图要的那份数据、以及链接为什么要在新�
 `pnpm build` 全绿只说明它没把构建搞崩，证明不了它算得对；页面上那张图对不对，
 由 `test/e2e/features/markmap.feature` 钉。
 
-`buildMarkmapData` 只留 markmap 的 **frontmatter** 那一条内置插件（见那份文件头），
-所以 `features` 恒为空、额外资源恒为空 —— 这几格是「形状」，不是「判据」。
-真正要钉的是那把键的三种读法（写了 / 没写 / 写成假）与链接那一格。
+`buildMarkmapData` 现在就是 `parse()` 的薄包装：树是 1.x 的结构化节点，frontmatter 原样透传。
+链接的新标签页由渲染器负责，不再由这里补 —— 那条判据搬去 e2e。
 */
 
 /**
@@ -70,10 +69,11 @@ afterAll(() => {
   }
 });
 
-/** 一次 loader 调用的两样产出：交回 webpack 的内容、以及第一个参数（错误）。 */
+/** 一次 loader 调用的三样产出：交回 webpack 的内容、第一个参数（错误）、以及构建告警。 */
 interface LoaderRun {
   output: string | null;
   error: Error | null;
+  warnings: Error[];
 }
 
 /**
@@ -83,12 +83,15 @@ interface LoaderRun {
 判据走的是官方那份异步解析，所以要等回调真的被调用才收工。
 */
 async function runLoader(resourcePath: string): Promise<LoaderRun> {
-  const result: LoaderRun = { output: null, error: null };
+  const result: LoaderRun = { output: null, error: null, warnings: [] };
   const { promise, resolve } = Promise.withResolvers<LoaderRun>();
 
   const context = {
     resourcePath,
     cacheable: () => undefined,
+    emitWarning: (warning: Error) => {
+      result.warnings.push(warning);
+    },
     async: () => (error: Error | null, source?: string) => {
       result.error = error;
       result.output = source ?? null;
@@ -110,17 +113,15 @@ function exportedMarkmap(output: string | null): MarkmapData {
 }
 
 describe('buildMarkmapData：markdown 落成导图要的那份数据', () => {
-  it('五格都在：树、features、额外资源、以及 markmap 自己那份 frontmatter', () => {
+  it('两格都在：结构化树与 markmap 自己那份 frontmatter', () => {
     const data = buildMarkmapData('# 标题\n');
 
     expect(Object.keys(data).toSorted((a, b) => a.localeCompare(b))).toEqual([
-      'features',
       'frontmatter',
       'root',
-      'scripts',
-      'styles',
     ]);
-    expect(data.root.content).toBe('&#x6807;&#x9898;');
+    // 1.x 的标签是 mdast inline 节点，不是 HTML 串
+    expect(data.root.content).toEqual([{ type: 'text', value: '标题' }]);
   });
 
   it('frontmatter 是 markmap 自己解析的那份：站点那些键原样透传', () => {
@@ -135,77 +136,50 @@ describe('buildMarkmapData：markdown 落成导图要的那份数据', () => {
     });
   });
 
-  it('`markmap` 写成对象时是渲染选项：值被归一成数组', () => {
-    // markmap 自己那份 htmlParser 选项要的是数组；这层只把原文交进去，归一是它做的
+  it('`markmap` 写成对象时不做归一：选项原文交给渲染层再解析', () => {
+    // 归一（`color: red` → `['red']`）在 resolveViewOptions 里，构建期只透传原文
     const data = buildMarkmapData(
       '---\nmarkmap:\n  color: red\n---\n\n# 标题\n',
     );
 
-    expect(data.frontmatter?.markmap).toEqual({ color: ['red'] });
+    expect(data.frontmatter.markmap).toEqual({ color: 'red' });
   });
 
-  it('frontmatter 坏掉时：那份 frontmatter 整个没有，不是半个', () => {
+  it('frontmatter 坏掉时：交回空对象，不是半个对象', () => {
     const data = buildMarkmapData('---\nmarkmap: [没关上\n---\n\n# 标题\n');
 
-    expect(data.frontmatter).toBeUndefined();
+    expect(data.frontmatter).toEqual({});
   });
 
-  it('链接开新标签页：标题里的那条链接多一个 `target="_blank"`', () => {
-    const data = buildMarkmapData('# [标题](https://example.com)\n');
+  it('段落落在 note 里，不是节点', () => {
+    const data = buildMarkmapData('# 标题\n\n一段话\n');
 
-    expect(data.root.content).toBe(
-      '<a href="https://example.com" target="_blank">&#x6807;&#x9898;</a>',
-    );
+    expect(data.root.notes.map((note) => note.block.type)).toEqual([
+      'paragraph',
+    ]);
+    expect(data.root.children).toEqual([]);
   });
 
-  it('没有链接时：属性一个都不多加', () => {
-    // 那条包装挂在渲染器的属性函数上，不该给别的标签也塞一个 target
-    const data = buildMarkmapData('# 只有标题\n');
-
-    expect(data.root.content).not.toContain('target=');
-  });
-
-  it('原生 HTML 链接也开新标签页：手写的 <a href> 补一个 target="_blank"', () => {
-    // markdown-it 开了 html:true，作者手写的 <a> 走 html_inline 那格、原样渲染，不经
-    // renderAttrs —— 只包属性函数会漏掉它，链接就在当前页跳走。
-    const data = buildMarkmapData(
-      '# 看 <a href="https://example.com">这里</a>\n',
-    );
-
-    expect(data.root.content).toContain(
-      '<a href="https://example.com" target="_blank">',
-    );
-  });
-
-  it('原生 HTML 链接带别的属性：target 接在原有属性后面', () => {
-    const data = buildMarkmapData(
-      '# <a class="x" href="https://example.com">点</a>\n',
-    );
-
-    expect(data.root.content).toContain(
-      '<a class="x" href="https://example.com" target="_blank">',
-    );
-  });
-
-  it('原生 HTML 裸 <a>（没有属性）：也补上 target', () => {
-    const data = buildMarkmapData('# <a>点</a>\n');
-
-    expect(data.root.content).toContain('<a target="_blank">');
-  });
-
-  it('原生 HTML 链接已写过 target：尊重作者，不再重复塞一个', () => {
-    const data = buildMarkmapData(
-      '# <a href="https://example.com" target="_self">点</a>\n',
-    );
-
-    expect(data.root.content).toContain('target="_self"');
-    expect(data.root.content.match(/target=/gu)).toHaveLength(1);
-  });
-
-  it('原生 HTML 不是链接：别的标签一个 target 都不加（<abbr> 也不被 <a> 误认）', () => {
+  it('裸 HTML 被丢掉，只留文字', () => {
     const data = buildMarkmapData('# <b>粗</b> <abbr title="x">缩</abbr>\n');
 
-    expect(data.root.content).not.toContain('target=');
+    expect(data.root.content).toEqual([
+      { type: 'text', value: '粗' },
+      { type: 'text', value: ' ' },
+      { type: 'text', value: '缩' },
+    ]);
+  });
+
+  it('单个 H1 是根；写了 title 时 title 赢', () => {
+    const heading = buildMarkmapData('# 标题\n');
+    expect(heading.root.content).toEqual([{ type: 'text', value: '标题' }]);
+    expect(heading.root.children).toEqual([]);
+
+    const titled = buildMarkmapData('---\ntitle: 一页\n---\n\n# 标题\n');
+    expect(titled.root.content).toEqual([{ type: 'text', value: '一页' }]);
+    expect(titled.root.children.at(0)?.content).toEqual([
+      { type: 'text', value: '标题' },
+    ]);
   });
 });
 
@@ -218,8 +192,10 @@ describe('md loader 的四种落点', () => {
     expect(run.output?.startsWith(MDX_SOURCE)).toBe(true);
 
     const data = exportedMarkmap(run.output);
-    expect(data.root.content).toBe('&#x6807;&#x9898;');
+    // frontmatter 有 title 时，1.x 的根是 title（H1 作它的子节点）
+    expect(data.root.content).toEqual([{ type: 'text', value: '一页' }]);
     expect(data.frontmatter).toEqual({ title: '一页', markmap: true });
+    expect(run.warnings).toEqual([]);
   });
 
   it('判据读的是磁盘上那一份的官方解析结果：产物里有没有 frontmatter 不相干', async () => {
@@ -230,7 +206,7 @@ describe('md loader 的四种落点', () => {
 
     const run = await runLoader(file);
 
-    expect(exportedMarkmap(run.output).frontmatter?.markmap).toBe(true);
+    expect(exportedMarkmap(run.output).frontmatter.markmap).toBe(true);
   });
 
   it('带引号的键名也算开了：以前站点判成导图页、数据却没生成', async () => {
@@ -238,7 +214,9 @@ describe('md loader 的四种落点', () => {
 
     const run = await runLoader(file);
 
-    expect(exportedMarkmap(run.output).root.content).toBe('&#x6807;&#x9898;');
+    expect(exportedMarkmap(run.output).root.content).toEqual([
+      { type: 'text', value: '标题' },
+    ]);
   });
 
   it('`markmap:true` 不带空格：官方读不成一把键，两边一起看不见', async () => {
@@ -298,9 +276,23 @@ describe('md loader 的四种落点', () => {
 
     const run = await runLoader(file);
 
-    expect(exportedMarkmap(run.output).frontmatter?.markmap).toEqual({
-      color: ['red'],
+    expect(exportedMarkmap(run.output).frontmatter.markmap).toEqual({
+      color: 'red',
     });
+  });
+
+  it('旧选项名在构建期报警告：带页面路径，不安静地掉在浏览器里', async () => {
+    const file = writeMd(
+      '---\nmarkmap:\n  initialExpandLevel: 1\n---\n\n# 标题\n',
+    );
+
+    const run = await runLoader(file);
+
+    expect(run.error).toBeNull();
+    expect(run.warnings.map((warning) => warning.message)).toEqual([
+      expect.stringContaining('initialExpandLevel'),
+    ]);
+    expect(run.warnings[0]?.message).toContain(file);
   });
 
   it('站点那条规则判不成导图页的那几种形状：这里也不生成数据', async () => {

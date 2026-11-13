@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+import { resolveViewOptions } from '@markmap/view';
 import type { LoaderContext } from 'webpack';
 
 import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
@@ -65,7 +66,24 @@ async function markmapModule(
     return source;
   }
 
+  const data = buildMarkmapData(raw);
+
+  // `markmap` 写成对象时是渲染选项：构建期先用厂商同一份解析器验一遍，把「旧键名 / 未知键」
+  // 变成带页面路径的构建告警，不让它们安静地掉在浏览器里。选项本身不序列化 —— 解析出来的
+  // theme / layout 是对象，运行时由组件按 frontmatter 原文再解析。
+  const { markmap } = data.frontmatter;
+
+  if (isRecord(markmap)) {
+    const { warnings } = resolveViewOptions({}, markmap);
+
+    for (const warning of warnings) {
+      context.emitWarning(
+        new Error(`${context.resourcePath}: markmap 选项 ${warning}`),
+      );
+    }
+  }
+
   // 交回的 `data.frontmatter` 是 markmap 自己那份（渲染选项的来源，含 `markmap` 那把键）；
   // 「开没开」已经按官方那份判过了，这里不再判第二遍。
-  return `${source}\nexport const markmap = ${JSON.stringify(buildMarkmapData(raw))};\n`;
+  return `${source}\nexport const markmap = ${JSON.stringify(data)};\n`;
 }

@@ -1,5 +1,5 @@
-import { Toolbar } from 'markmap-toolbar';
-import * as markmap from 'markmap-view';
+import { createToolbar } from '@markmap/toolbar';
+import { Markmap, resolveViewOptions } from '@markmap/view';
 
 import { useEffect, useRef } from 'react';
 
@@ -8,8 +8,6 @@ import Admonition from '@theme/Admonition';
 
 import type { MarkmapData } from '../src/types.mts';
 
-const { Markmap, loadCSS, loadJS, deriveOptions } = markmap;
-
 interface Props {
   data: MarkmapData;
 }
@@ -17,54 +15,56 @@ interface Props {
 export function MindChart({ data }: Props) {
   const container = useRef<SVGSVGElement>(null);
   const toolbar = useRef<HTMLDivElement>(null);
+  const chart = useRef<Markmap | null>(null);
   const { colorMode } = useColorMode();
+  // 创建那一遍要读到「此刻」的模式，但切换模式不该重建实例（会丢折叠状态）：
+  // 用 ref 把最新值递进去，创建 effect 的依赖里因此没有 colorMode。
+  const mode = useRef(colorMode);
 
-  const { styles, scripts, root, frontmatter: fm } = data;
+  const { root, frontmatter: fm } = data;
 
-  const draft = fm?.draft;
-  // md 的 `markmap: true` 只是开关；写成对象时它同时是 markmap 的渲染选项
-  const options =
-    fm?.markmap && typeof fm.markmap === 'object' ? fm.markmap : undefined;
+  const { draft, markmap: rawOptions } = fm;
+  // `markmap: true` 只是开关；写成对象时它同时是视图选项。合法性与警告在构建期看过一遍，
+  // 这里按 frontmatter 原文再解析一次，拿到的 theme / layout 才是可用的对象。
+
+  // 先同步 ref 再创建实例：同一笔提交里模式与数据一起换时，创建那一遍读到的是新值。
+  useEffect(() => {
+    mode.current = colorMode;
+  }, [colorMode]);
 
   useEffect(() => {
-    // 这两处只加载 markmap 转换出来的额外资源（公式、代码高亮之类）。工具条样式与本页
-    // 布局样式不在其中：它们由入口的 `getClientModules()` 一起交给站点，样式文件
-    // 因此不用跟着 `tsc` 的产物搬一遍。
-    if (styles) {
-      loadCSS(styles);
-    }
+    const { options } = resolveViewOptions({}, rawOptions);
 
-    if (scripts) {
-      loadJS(scripts, { getMarkmap: () => markmap });
-    }
+    options.colorScheme = mode.current;
 
-    // 两个 ref 在本组件返回后才挂载，而 effect 一定跑在 DOM 落位之后 —— 断言的是这个不变量
-    const mm = Markmap.create(
-      container.current!,
-      options ? deriveOptions(options) : {},
-      root,
-    );
+    const mm = Markmap.create(container.current!, root, options);
+    chart.current = mm;
 
-    // 工具条默认带的「切换暗色」按钮改的是 `<html>` 上的 `markmap-dark` 类（全站生效，
-    // 离开本页也不还原），而本组件的明暗本来就跟着站点主题走，所以这个按钮不挂出来。
-    const bar = Toolbar.create(mm);
-    bar.setItems(Toolbar.defaultItems.filter((item) => item !== 'dark'));
-
-    toolbar.current!.append(bar.el);
+    // 工具条的颜色读 `--mm-*`，这些令牌挂在 `mm.themeClass` 上（同一个 scope 类）；
+    // 把类补到工具条上，它才跟导图用同一套配色。
+    const bar = createToolbar(mm);
+    bar.element.classList.add(mm.themeClass);
+    toolbar.current!.append(bar.element);
 
     return () => {
-      // 成对回收：effect 里把 `bar.el` append 进来，卸载/重跑要先摘掉，否则同一挂载内
-      // `data` 一变就再挂一层工具条（mm.destroy 只管导图，管不到挂在另一个 div 上的工具条）。
-      bar.el.remove();
+      chart.current = null;
+      // 成对回收：工具条与实例是两棵树，`mm.destroy()` 管不到挂在外面的工具条。
+      bar.destroy();
       mm.destroy();
     };
-  }, [data, options, root, scripts, styles]);
+  }, [root, rawOptions]);
+
+  useEffect(() => {
+    const mm = chart.current;
+
+    // 创建那一遍已经带着当时的模式；这里只处理「切成另一格」。
+    if (mm && mm.options.colorScheme !== colorMode) {
+      mm.setOptions({ ...mm.options, colorScheme: colorMode });
+    }
+  }, [colorMode]);
 
   return (
-    // markmap 的暗色口径是「祖先带 `markmap-dark`」的一组 CSS 变量（`.markmap-dark .markmap`、
-    // `.markmap-dark .mm-toolbar`），所以这里跟着站点的明暗把这个类挂在自己这一层，
-    // 不外溢到 `<html>`。
-    <div className={colorMode === 'dark' ? 'markmap-dark' : undefined}>
+    <div>
       {draft ? (
         <Admonition
           className="markmap-admonition"

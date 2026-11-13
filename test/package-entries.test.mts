@@ -742,21 +742,18 @@ describe('theme-git-badge 入口：层目录、样式表与接线', () => {
 });
 
 describe('theme-markmap 入口', () => {
-  it('层目录与客户端模块：工具条那份按包名解析，本仓那份在包根', () => {
+  it('层目录与客户端模块：只交本仓那份样式（1.x 的包内样式由渲染器运行时注入）', () => {
     const plugin = markmapTheme();
 
     expect(plugin.name).toBe('@show-docs/docusaurus-theme-markmap');
     expectThemePath(plugin, 'theme-markmap');
 
     const modules = clientModulesOf(plugin);
-    expect(modules).toHaveLength(2);
-    expect(modules[0]).toMatch(/markmap-toolbar[/\\]dist[/\\]style\.css$/);
-    expect(modules[1]).toBe(
+    expect(modules).toHaveLength(1);
+    expect(modules[0]).toBe(
       path.join(pkgDir('theme-markmap'), 'styles', 'markmap.css'),
     );
-    for (const file of modules) {
-      expect(existsSync(file), file).toBe(true);
-    }
+    expect(existsSync(modules[0]!), modules[0]).toBe(true);
   });
 
   it('webpack：一条 post 规则，loader 写的是产物名（`.mjs`）', () => {

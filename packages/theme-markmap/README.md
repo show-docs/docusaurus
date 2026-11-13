@@ -63,33 +63,50 @@ markmap: true
 
 没有插件选项。`markmap` 同时是开关与渲染选项：
 
-| 写法               | 作用                                                |
-| ------------------ | --------------------------------------------------- |
-| `markmap: true`    | 开启导图，使用 markmap 默认选项                     |
-| `markmap: { ... }` | 开启导图，对象原样交给 markmap 的 `deriveOptions()` |
-| `markmap: false`   | 不开启                                              |
+| 写法               | 作用                                                 |
+| ------------------ | ---------------------------------------------------- |
+| `markmap: true`    | 开启导图，使用 markmap 默认选项                      |
+| `markmap: { ... }` | 开启导图，对象交给 markmap 的 `resolveViewOptions()` |
+| `markmap: false`   | 不开启                                               |
 
-对象写法支持 markmap-view 的视图选项，例如 `colorFreezeLevel`、`maxWidth`、`initialExpandLevel`；
-完整清单见 [markmap 文档](https://markmap.js.org/)。
+对象写法支持 1.x 的视图选项，例如 `theme`、`layout`、`colorDepth`、`wrapWidth`、`foldLevel`；
+完整清单见 [markmap 1.1 的选项文档](https://github.com/markmap/markmap/blob/v1.1.0/docs/guide/options.md)。旧名
+（`colorFreezeLevel` / `maxWidth` / `initialExpandLevel` / `spacingHorizontal` / `spacingVertical`）
+在 1.x 已改名，写了会在构建期得到一条告警。
 
 ## 工作方式
 
 - 构建时由 webpack loader 解析 markdown，把导图数据追加到 md 模块的导出上；`MarkmapPage`
   拿到本层数据后把导图摆在 `DocItem` 前面。
-- 导图跟随站点亮暗模式；工具条不提供暗色切换按钮。
-- 导图内的链接在新标签页打开。
+- 导图跟随站点亮暗模式（`colorScheme` 选项），跟操作系统偏好无关；工具条不提供暗色切换按钮。
+- 导图内的链接在新标签页打开（1.x 渲染器自带）。
+- 裸 HTML 会被丢弃（例外是魔法注释与单个 `<img>`）；段落、代码块、表格变成节点上的 note，
+  不再各占一个节点。
 - 导图初始化失败时显示一条提示，正文继续渲染。
 
 ## 已知限制
 
 - 只处理 `.md` 文件，`.mdx` 不触发。
 - 导图在浏览器端渲染，静态 HTML 里没有导图内容，对搜索引擎不可见。
+- frontmatter 写了 `title` 时，导图的根是 `title`（1.x 的规则），单个 H1 只作它的子节点。
+- 没有内置公式支持：要用 `$…$` 需要自己挂 markmap 的 math 插件。
 - frontmatter 必须是文件开头的 YAML 块；写在正文里的 `markmap:` 不会生效。
 - 必须同时注册 theme-component-page：本层交出的那一页由它判清单后挂上（缺了它，交回的那一列没有
   判表的人，这一页退回普通文档页 —— 配置期不查，没有人当场点名）。它还要写在本层之后，
   否则判不到这一页。
 - 一页只挂一个整页组件：同一页既写 `markmap:` 又写 `iframe:`（或别的清单键）时，
   按清单顺序只用排在前面那条，导图不一定赢。
+
+## 从 0.2 升到 0.3
+
+0.3 起依赖 markmap 1.x（`@markmap/parse` / `view` / `toolbar`），0.18 的 `markmap-*` 四个包
+已全部移除。breaking 点：
+
+- 选项改名：`initialExpandLevel` → `foldLevel`、`maxWidth` → `wrapWidth`、
+  `colorFreezeLevel` → `colorDepth`、`spacingHorizontal` → `levelGap`、
+  `spacingVertical` → `siblingGap`。旧名会被忽略，并在构建期得到告警。
+- markdown 里的裸 HTML 丢弃；段落、代码块、表格变成 note；公式改用 MathJax。
+- frontmatter 有 `title` 时，根标签是 `title`，不再优先用单个 H1。
 
 ## 相关文档
 

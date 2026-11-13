@@ -2,8 +2,9 @@
 id: markmap-demo
 sidebar_position: 2
 title: 思维导图示例
-description: 'frontmatter 写 markmap: true，导图渲染在正文最上方。'
-markmap: true
+description: 'frontmatter 写 markmap: { theme: cards }，导图渲染在正文最上方。'
+markmap:
+  theme: cards
 ---
 
 # 主题覆盖验证
@@ -22,5 +23,6 @@ markmap: true
 
 ## 文档正文
 
-- 本文件的 frontmatter 写了 `markmap: true`
+- 本文件的 frontmatter 写了 `markmap: { theme: cards }`（对象写法同时是视图选项）
 - 导图渲染在本页所有内容（标题、正文）的最上方，往下滚动照常读到原文
+- 导图里的链接也开新标签：[示例链接](https://example.com)
