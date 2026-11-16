@@ -1,0 +1,53 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/plugin-compile-source/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/plugin-lazy-compilation/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/plugin-prev-layer-resolver/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/theme-component-page/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/theme-word-count/tsconfig.build.json"
+    },
+    {
+      "path": "./themes/theme-avatar/tsconfig.build.json"
+    },
+    {
+      "path": "./themes/theme-copy-button/tsconfig.build.json"
+    },
+    {
+      "path": "./themes/theme-git-badge/tsconfig.build.json"
+    },
+    {
+      "path": "./themes/theme-viewer/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/theme-diff/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/theme-erd/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/theme-iframe/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/theme-markmap/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/theme-redoc/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/theme-scalar/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/theme-stoplight/tsconfig.build.json"
+    }
+  ]
+}

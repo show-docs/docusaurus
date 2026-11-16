@@ -11,7 +11,7 @@
 pnpm install
 pnpm start          # 本地预览 http://localhost:3000
 pnpm build          # 编译需要编译的分包 + 构建静态站点
-pnpm build:core     # 只用 tsc 编译每个带 build 脚本的包到各自的 dist（= 包出口）
+pnpm build:core     # 一份根 tsconfig.build.json 的工程引用，一次 tsc -b 编完所有包的 dist（= 包出口）
 pnpm lint:type      # tsc -p tsconfig.json：唯一把站点根与 *.config.mjs 纳进来的一道（提交钩子也跑）
 pnpm typecheck      # tsc -b：tools 与 test 两份 composite 项目
 pnpm lint:eslint    # eslint + --fix（改工作树的那一份）
@@ -52,9 +52,14 @@ pnpm verify         # 一键全链路（组成见 package.json 的 verify；本�
 | `themes/theme-avatar/`                 | 主题包：导航栏挂一颗当前用户头像（站点写 `userApi` 才启用）                                | [README](./themes/theme-avatar/README.md) · [internals](./themes/theme-avatar/docs/internals.md) · [示例页](./themes/theme-avatar/docs/avatar-demo.md)                                                                                 |
 | `tools/theme-{a,b,c}/`                 | 验证 / 调研用主题插件（不属于核心包；`theme-base` 是链底那一层）                           | [README](./tools/README.md)                                                                                                                                                                                                            |
 
-十五个构建包都是 `tsc` 编译包（`src/` → `dist/`），站点按包名拿到的入口（`exports` 里 `.` 的
+十六个构建包都是 `tsc` 编译包（`src/` → `dist/`），站点按包名拿到的入口（`exports` 里 `.` 的
 `default`）就是那份 `dist/index.mjs` —— 所以改完 `src/` 要 `pnpm build:core`（`pnpm start` /
 `pnpm build` / `pnpm test` 都已经把它内置在前面）。
+
+`build:core` 走根 [tsconfig.build.json](./tsconfig.build.json) 的 references（顺序 = 拓扑序）：
+新增带 `src/` 的包要同时加进那份列表，否则不会产出 `dist/`。它用 `tsc -b --force` ——
+build 模式在 `tsbuildinfo` 还在、产物被删掉时不会补回，`--force` 保证每次都与源码一致；
+代价是放弃了增量跳过，但单进程仍比逐包起 16 次 `tsc` 快一个量级。
 
 主题包的**主题层与组件不进这份编译**（未编译的 `.tsx` / `.jsx`，随包发布，由用它们的站点编译）：
 判据只有一条 —— **谁编译，就不编译第二遍**。这一格由
@@ -131,7 +136,7 @@ patches/                           # 依赖补丁（口径见 pnpm-workspace.yam
 
 ## 验证
 
-- **链是否真的成立**：`pnpm build && pnpm verify:chain`，判据清单以脚本输出为准
+- **链是否真的成立**：`pnpm verify:chain`（脚本自己会先构建），判据清单以脚本输出为准
 - **每个主题在浏览器里是否真的工作**：`pnpm test:e2e`（跑的是构建产物，只本地跑）；用例清单与首次要装的
   浏览器见 [test/README.md](./test/README.md)
 - **把渲染器关进一个框之后要对齐的那两格**（地址栏里 `#` 那一段与站点的亮暗模式）：两条 API 层共用同一份

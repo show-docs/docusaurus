@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm build:core && docusaurus build",
-    "build:core": "pnpm -r run build",
+    "build:core": "tsc -b tsconfig.build.json --force && node packages/theme-erd/scripts/emit-type-references.mjs",
     "clear": "docusaurus clear",
     "docusaurus": "docusaurus",
     "fmt:prettier": "prettier -w .",
@@ -28,7 +28,7 @@
     "test:e2e": "pnpm build && bddgen && playwright test",
     "test:watch": "vitest",
     "typecheck": "tsc -b tsconfig.tools.json tsconfig.test.json",
-    "verify": "pnpm lint:type && pnpm typecheck && pnpm lint:eslint:check && pnpm lint:version && pnpm test:coverage && pnpm verify:chain && pnpm verify:context-deps",
+    "verify": "pnpm lint:type && pnpm typecheck && pnpm lint:eslint:check && pnpm lint:version && pnpm build && pnpm exec vitest run --coverage && node tools/scripts/verify-chain.mts && node tools/scripts/verify-context-deps.mts",
     "verify:chain": "pnpm build && node tools/scripts/verify-chain.mts",
     "verify:context-deps": "pnpm build && node tools/scripts/verify-context-deps.mts",
     "version:bump": "pnpm version -r patch --no-git-checks --filter=!. --filter=!./tools/*",
