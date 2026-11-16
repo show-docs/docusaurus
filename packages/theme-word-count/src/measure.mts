@@ -28,8 +28,46 @@ frontmatter 只在 `frontmatter` 那一行报数量，正文一个字都不进�
 在 README 的「计数口径」里写明。
 */
 
-/** 图表围栏的语言名：这两族算「描述性图表」，不算代码段。 */
-const GRAPH_LANGS = new Set(['mermaid', 'kroki']);
+/**
+图表围栏的语言名：Kroki 当前注册的全部图表类型（服务端 `Server.registerDiagramServices`
+那串注册名，含 `graphviz` 的 `dot` 别名），外加历史沿用的通用别名 `kroki`。
+它们算「描述性图表」，不算代码段；Kroki 新增类型时这份清单要跟着补。
+*/
+const GRAPH_LANGS = new Set([
+  'plantuml',
+  'c4plantuml',
+  'ditaa',
+  'blockdiag',
+  'seqdiag',
+  'actdiag',
+  'nwdiag',
+  'packetdiag',
+  'rackdiag',
+  'umlet',
+  'graphviz',
+  'dot',
+  'erd',
+  'svgbob',
+  'symbolator',
+  'nomnoml',
+  'mermaid',
+  'vega',
+  'vegalite',
+  'wavedrom',
+  'bpmn',
+  'bytefield',
+  'excalidraw',
+  'pikchr',
+  'structurizr',
+  'diagramsnet',
+  'd2',
+  'tikz',
+  'dbml',
+  'wireviz',
+  'goat',
+  'lini',
+  'kroki',
+]);
 
 /**
 一棵语法树里本包看得懂的那几格。

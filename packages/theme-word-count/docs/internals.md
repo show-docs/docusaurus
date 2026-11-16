@@ -71,7 +71,7 @@ docs 内容根的选项里 `remarkPlugins: [remarkWordCount]`。本站两棵根�
 `src/measure.mts` 按这一页的 `markdown.format` 选一条流水线（判据在 `src/format.mts`，复刻 `@docusaurus/mdx-loader` 的 `getFormat`：frontmatter `format` > 站点 `markdown.format` > 扩展名）—— `mdx` 走 `unified` + `remark-parse` + `remark-mdx` + `remark-gfm` + `remark-frontmatter`，`md` 是同一条但**不挂 `remark-mdx`**（退成 CommonMark）。解析一次、走一遍：
 
 - `text` / `inlineCode`：词与字符都加。
-- `code`：词、字符、段数与行数；围栏语言是 `mermaid` / `kroki` 的记「描述性图表」，不算代码段。
+- `code`：词、字符、段数与行数；围栏语言是 Kroki 的图表类型（`plantuml`、`mermaid`、`graphviz`/`dot`、`d2`、`dbml` 等，清单见 `src/measure.mts` 的 `GRAPH_LANGS`）或 `kroki` 别名的记「描述性图表」，不算代码段。
 - `heading`：按 `depth` 记 `h1`…`h6`；末尾显式写了 id 的另记 `headingIds`。
 - `table` / `image` / `link` / `linkReference` / `blockquote`：各记一格；链接按 `http(s):` 分内外。
 - `yaml`：只记 `frontmatter` 数量，那一段的内容不进词数。

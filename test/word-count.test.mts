@@ -231,18 +231,57 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
     });
   });
 
-  it('代码围栏：段数、行数与字数都进；mermaid / kroki 只算图表，不算代码段', () => {
+  it('代码围栏：Kroki 的全部图表类型只算图表，其余围栏算代码段', () => {
+    // 与 `measure.mts` 的 GRAPH_LANGS 对齐：Kroki 服务端注册名 + `kroki` 通用别名
+    const graphLangs = [
+      'plantuml',
+      'c4plantuml',
+      'ditaa',
+      'blockdiag',
+      'seqdiag',
+      'actdiag',
+      'nwdiag',
+      'packetdiag',
+      'rackdiag',
+      'umlet',
+      'graphviz',
+      'dot',
+      'erd',
+      'svgbob',
+      'symbolator',
+      'nomnoml',
+      'mermaid',
+      'vega',
+      'vegalite',
+      'wavedrom',
+      'bpmn',
+      'bytefield',
+      'excalidraw',
+      'pikchr',
+      'structurizr',
+      'diagramsnet',
+      'd2',
+      'tikz',
+      'dbml',
+      'wireviz',
+      'goat',
+      'lini',
+      'kroki',
+    ];
+
     const text = [
       '```ts',
       'const a = 1;',
       '```',
       '',
-      '```mermaid',
-      'graph TD',
-      '```',
-      '',
-      '```kroki',
-      'digraph {}',
+      ...graphLangs.flatMap((lang) => [
+        `\`\`\`${lang}`,
+        'digraph {}',
+        '```',
+        '',
+      ]),
+      '```ts',
+      'const b = 2;',
       '```',
       '',
       // MDX 不认四格缩进的代码块（站点那边也把它当普通文字），所以这一段进词数、不进代码段
@@ -251,10 +290,9 @@ describe('measureMarkdown：一页的明细从语法树上数', () => {
     ].join('\n');
 
     expect(measureMarkdown(text, false, 'mdx').count).toMatchObject({
-      codeBlocks: 1,
-      codeLines: 1,
-      graphs: 2,
-      words: 7,
+      codeBlocks: 2,
+      codeLines: 2,
+      graphs: graphLangs.length,
     });
   });
 

@@ -40,11 +40,11 @@ export type WordCount = {
   h4: number
   h5: number
   h6: number
-  /** 代码围栏的段数（`mermaid` / `kroki` 那些图表不算代码段，见 `graphs`）。 */
+  /** 代码围栏的段数（Kroki 的图表类型与 `kroki` 别名不算代码段，见 `graphs`）。 */
   codeBlocks: number
   /** 代码围栏里的行数（不含图表源码）。 */
   codeLines: number
-  /** 围栏语言是 `mermaid` 或 `kroki` 的图块数。 */
+  /** 围栏语言是 Kroki 图表类型或 `kroki` 别名的图块数。 */
   graphs: number
   /** 图片数。 */
   images: number
