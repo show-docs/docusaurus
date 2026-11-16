@@ -108,7 +108,9 @@ function sourceFiles(dir: string): string[] {
       // 用的是它自己那份清单，不记在外层包的依赖账上。
       return entry.name === 'node_modules' ||
         entry.name === 'dist' ||
-        existsSync(path.join(file, 'package.json')) ? [] : sourceFiles(file);
+        existsSync(path.join(file, 'package.json'))
+        ? []
+        : sourceFiles(file);
     }
 
     return sourceExt.test(entry.name) ? file : [];

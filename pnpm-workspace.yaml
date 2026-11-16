@@ -38,6 +38,11 @@ catalog:
 # 加回来，引 `theme-common` 的那几格工作区包与站点根全部软链到同一份，构建全绿。
 overrides:
   '@types/react': ~18.3.31
+  # Docusaurus 的 `theme-common` 把 `postcss` 列为可选 peer。图里同时出现 8.5.29 / 8.5.33
+  # 时，pnpm 会按 peer 上下文把 `theme-common` 裂成多份；站点根与各主题包因此拿到不同的
+  # 副本，Node 26 的 SSG 直接报 `useColorMode outside <ColorModeProvider>`（e2e 作业实测）。
+  # 钉到一份后两边软链到同一个物理目录，Node 24 / 26 都能构建。
+  postcss: ^8.5.33
 
 # 依赖的安装脚本默认不放行，而且每个被挡住的包都要**点名表态**（true 放行 / false 拒绝），
 # 否则每次 `pnpm install` 都以 `ERR_PNPM_IGNORED_BUILDS` 失败。口径只有一条：

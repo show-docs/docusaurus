@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import config from '@nice-move/all-in-react/eslint';
 import { createNodeResolver } from 'eslint-plugin-import-x';
 
@@ -30,13 +34,84 @@ const VIRTUAL =
 
 const nodeResolver = createNodeResolver();
 
+// CI 与全新检出第一次 lint 都可能发生在 `pnpm build:core` 之前：本仓包的 `exports` 指向
+// `dist/`，node resolver 因此会把 `@show-docs/…/remark` 这类子路径判成解析不到。这里按同一份
+// `exports` 回退到包内 `src/` 的源文件（只在该文件真实存在时）：lint 不再依赖构建产物，
+// 而拼错的子路径仍然解析不到。
+const workspacePackages = new Map();
+const WORKSPACE_GROUPS = ['packages', 'themes'];
+
+for (const group of WORKSPACE_GROUPS) {
+  const groupDir = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    group,
+  );
+  const entries = fs.readdirSync(groupDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const packageFile = path.join(groupDir, entry.name, 'package.json');
+
+    if (!fs.existsSync(packageFile)) {
+      continue;
+    }
+
+    const manifest = JSON.parse(fs.readFileSync(packageFile, 'utf8'));
+
+    if (manifest.name) {
+      workspacePackages.set(manifest.name, {
+        dir: path.dirname(packageFile),
+        exports: manifest.exports ?? {},
+      });
+    }
+  }
+}
+
+/** `exports` 里的 `./dist/x.mjs` → 包内 `./src/x.mts`；只在源文件存在时认。 */
+function resolveWorkspaceSource(specifier) {
+  for (const [name, pkg] of workspacePackages) {
+    if (specifier !== name && !specifier.startsWith(`${name}/`)) {
+      continue;
+    }
+
+    const subpath =
+      specifier === name ? '.' : `./${specifier.slice(name.length + 1)}`;
+    const target = pkg.exports[subpath];
+    const dist = typeof target === 'string' ? target : target?.default;
+
+    if (typeof dist !== 'string' || !dist.startsWith('./dist/')) {
+      return undefined;
+    }
+
+    const source = dist
+      .replace('./dist/', './src/')
+      .replace(/\.mjs$/u, '.mts')
+      .replace(/\.js$/u, '.ts');
+    const file = path.join(pkg.dir, source);
+
+    return fs.existsSync(file) ? file : undefined;
+  }
+
+  return undefined;
+}
+
 const resolver = {
   interfaceVersion: 3,
   name: 'test-ci-import-resolver',
   resolve(specifier, importer) {
-    return VIRTUAL.test(specifier)
-      ? { found: true, path: null }
-      : nodeResolver.resolve(specifier, importer);
+    if (VIRTUAL.test(specifier)) {
+      return { found: true, path: null };
+    }
+
+    const resolved = nodeResolver.resolve(specifier, importer);
+    const fallback = resolved?.found
+      ? undefined
+      : resolveWorkspaceSource(specifier);
+
+    return fallback ? { found: true, path: fallback } : resolved;
   },
 };
 
